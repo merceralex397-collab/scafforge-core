@@ -1,0 +1,14 @@
+{
+  "name": "@scafforge/core",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Host-agnostic scaffold generator with OpenCode-oriented output",
+  "type": "module",
+  "bin": {
+    "scafforge": "./bin/scafforge.mjs"
+  },
+  "scripts": {
+    "validate:contract": "python scripts/validate_scafforge_contract.py",
+    "validate:smoke": "python scripts/smoke_test_scafforge.py"
+  }
+}

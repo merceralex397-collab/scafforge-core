@@ -1,0 +1,39 @@
+{
+  "version": 1,
+  "distribution": {
+    "primary_package": "@scafforge/core",
+    "install_examples": {
+      "npm": "npm install --global @scafforge/core",
+      "pnpm": "pnpm add --global @scafforge/core",
+      "bun": "bun add --global @scafforge/core"
+    }
+  },
+  "core_responsibilities": [
+    "normalize inputs",
+    "render scaffold",
+    "maintain OpenCode output contract",
+    "validate docs and template integrity"
+  ],
+  "adapter_responsibilities": {
+    "github-copilot": [
+      "install guidance",
+      "invoke scafforge package commands",
+      "provide host-specific startup examples"
+    ],
+    "codex": [
+      "install guidance",
+      "invoke scafforge package commands",
+      "provide host-specific startup examples"
+    ],
+    "gemini-cli": [
+      "install guidance",
+      "invoke scafforge package commands",
+      "provide host-specific startup examples"
+    ],
+    "opencode": [
+      "invoke generated repo after scaffold completion",
+      "read START-HERE.md",
+      "run the autonomous lifecycle inside the generated repo"
+    ]
+  }
+}
