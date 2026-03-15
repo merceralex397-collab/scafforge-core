@@ -15,6 +15,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--planner-model", required=True, help="Explicit planner/reviewer/team-lead model string")
     parser.add_argument("--implementer-model", required=True, help="Explicit implementer model string")
     parser.add_argument("--utility-model", help="Explicit utility/docs/QA/helper model string")
+    parser.add_argument("--profile", default="full", help="Scaffold profile forwarded to repo-scaffold-factory")
     parser.add_argument("--stack-label", default="framework-agnostic", help="Stack label")
     parser.add_argument("--force", action="store_true", help="Overwrite existing files")
     return parser.parse_args()
@@ -41,6 +42,8 @@ def main() -> int:
         args.planner_model,
         "--implementer-model",
         args.implementer_model,
+        "--profile",
+        args.profile,
         "--scope",
         "opencode",
         "--stack-label",

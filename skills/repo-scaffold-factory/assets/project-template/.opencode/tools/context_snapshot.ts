@@ -18,17 +18,10 @@ export default tool({
     const manifest = await loadManifest()
     const workflow = await loadWorkflowState()
     const ticket = getTicket(manifest, args.ticket_id)
-
-    if (args.ticket_id) {
-      workflow.active_ticket = ticket.id
-      workflow.stage = ticket.stage
-      workflow.status = ticket.status
-    }
-
-    const content = renderContextSnapshot(manifest, workflow, args.note)
+    const content = renderContextSnapshot(manifest, workflow, ticket, args.note)
     const path = contextSnapshotPath()
     await writeText(path, content)
 
-    return JSON.stringify({ path, ticket_id: ticket.id }, null, 2)
+    return JSON.stringify({ path, active_ticket: workflow.active_ticket, snapshot_ticket: ticket.id }, null, 2)
   },
 })

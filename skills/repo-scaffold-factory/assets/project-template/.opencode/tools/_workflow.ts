@@ -71,8 +71,8 @@ export const COARSE_STATUSES = new Set([
 
 export const ARTIFACT_REGISTRY_ROOT = ".opencode/state/artifacts"
 export const LEGACY_REVIEW_STAGES = new Set(["code_review", "security_review"])
-export const START_HERE_MANAGED_START = "<!-- CODEXSETUP:START_HERE_BLOCK START -->"
-export const START_HERE_MANAGED_END = "<!-- CODEXSETUP:START_HERE_BLOCK END -->"
+export const START_HERE_MANAGED_START = "<!-- SCAFFORGE:START_HERE_BLOCK START -->"
+export const START_HERE_MANAGED_END = "<!-- SCAFFORGE:START_HERE_BLOCK END -->"
 
 export function rootPath(): string {
   return process.cwd()
@@ -247,8 +247,8 @@ export function renderBoard(manifest: Manifest): string {
   return `# Ticket Board\n\n| ID | Title | Stage | Status | Depends On |\n| --- | --- | --- | --- | --- |\n${rows}\n`
 }
 
-export function renderContextSnapshot(manifest: Manifest, workflow: WorkflowState, note?: string): string {
-  const ticket = getTicket(manifest, workflow.active_ticket)
+export function renderContextSnapshot(manifest: Manifest, workflow: WorkflowState, ticket: Ticket, note?: string): string {
+  const snapshotScope = ticket.id === workflow.active_ticket ? "active ticket" : "requested ticket"
   const artifactLines =
     ticket.artifacts.length > 0
       ? ticket.artifacts
@@ -259,7 +259,7 @@ export function renderContextSnapshot(manifest: Manifest, workflow: WorkflowStat
 
   const noteBlock = note ? `\n## Note\n\n${note}\n` : ""
 
-  return `# Context Snapshot\n\n## Project\n\n${manifest.project}\n\n## Active Ticket\n\n- ID: ${ticket.id}\n- Title: ${ticket.title}\n- Stage: ${ticket.stage}\n- Status: ${ticket.status}\n- Approved plan: ${workflow.approved_plan ? "yes" : "no"}\n\n## Ticket Summary\n\n${ticket.summary}\n\n## Recent Artifacts\n\n${artifactLines}${noteBlock}\n## Next Useful Step\n\nUse the team leader or the next required specialist for the current stage.\n`
+  return `# Context Snapshot\n\n## Project\n\n${manifest.project}\n\n## Active Workflow State\n\n- Active ticket: ${workflow.active_ticket}\n- Stage: ${workflow.stage}\n- Status: ${workflow.status}\n- Approved plan: ${workflow.approved_plan ? "yes" : "no"}\n\n## Snapshot Target\n\n- Scope: ${snapshotScope}\n- ID: ${ticket.id}\n- Title: ${ticket.title}\n- Stage: ${ticket.stage}\n- Status: ${ticket.status}\n\n## Ticket Summary\n\n${ticket.summary}\n\n## Recent Artifacts\n\n${artifactLines}${noteBlock}\n## Next Useful Step\n\nUse the team leader or the next required specialist for the current stage.\n`
 }
 
 export function renderStartHere(manifest: Manifest, workflow: WorkflowState, nextAction?: string): string {
@@ -271,17 +271,17 @@ function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
 }
 
-export function mergeStartHere(existing: string, rendered: string): string {
+export function mergeStartHere(existing: string, rendered: string): { content: string; merged: boolean } {
   const pattern = new RegExp(`${escapeRegExp(START_HERE_MANAGED_START)}[\\s\\S]*?${escapeRegExp(START_HERE_MANAGED_END)}`, "m")
   const renderedBlock = rendered.match(pattern)
   if (!renderedBlock) {
-    return rendered
+    return { content: rendered, merged: false }
   }
   if (!existing.trim()) {
-    return rendered
+    return { content: rendered, merged: true }
   }
   if (!existing.includes(START_HERE_MANAGED_START) || !existing.includes(START_HERE_MANAGED_END)) {
-    return existing
+    return { content: existing, merged: false }
   }
-  return existing.replace(pattern, renderedBlock[0])
+  return { content: existing.replace(pattern, renderedBlock[0]), merged: true }
 }

@@ -25,8 +25,14 @@ Important flags:
 - `--project-slug` to override the inferred slug
 - `--agent-prefix` to override the inferred OpenCode agent prefix
 - `--utility-model` to override utility, docs, and QA helper lanes when they should differ from the planner model
+- `--profile minimum|full` to choose between the lighter deterministic pack and the default full orchestration pack
 - `--scope opencode` to generate only the OpenCode layer
 - `--force` to overwrite an existing target tree
+
+Profile definitions:
+
+- `full` (default): renders the current safe contract, including utility specialist agents plus workflow observability, research delegation, local git, and isolation guidance skills
+- `minimum`: keeps the same OpenCode-oriented repo skeleton, ticket lane, commands, tools, plugins, and core agents, but excludes utility specialist agents and the heavier optional workflow packs
 
 ## What this skill generates
 
@@ -48,7 +54,7 @@ Important flags:
 6. Run `repo-process-doctor` in audit mode so prompt or ticket drift is caught before handoff.
 7. Add stack-specific local skills after the repo stack is known.
 
-This skill owns the scaffold template assets under `assets/project-template/`. Wrapper skills should call into this template rather than duplicating `.opencode`, ticket, or doc scaffolding logic elsewhere.
+This skill owns the scaffold template assets under `assets/project-template/`. Wrapper skills should call into this template rather than duplicating `.opencode`, ticket, or doc scaffolding logic elsewhere. Profile selection is manifest-driven under `profiles/` and still resolves through the same scaffold engine.
 
 ## References
 

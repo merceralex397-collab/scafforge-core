@@ -5,10 +5,17 @@
     "AGENTS.md",
     "START-HERE.md",
     "opencode.jsonc",
+    ".opencode/config/stage-gate.json",
+    ".opencode/meta/bootstrap-provenance.json",
+    ".opencode/meta/scaffold-manifest.json",
+    ".opencode/state/.gitignore",
     "docs/spec/CANONICAL-BRIEF.md",
+    "docs/process/agent-catalog.md",
     "docs/process/git-capability.md",
     "docs/process/model-matrix.md",
+    "docs/process/tooling.md",
     "docs/process/workflow.md",
+    "tickets/README.md",
     "tickets/manifest.json",
     "tickets/BOARD.md",
     ".opencode/state/workflow-state.json",
@@ -16,7 +23,13 @@
     ".opencode/commands/kickoff.md",
     ".opencode/commands/resume.md"
   ],
+  "generated_only_files": [
+    ".opencode/meta/bootstrap-provenance.json",
+    ".opencode/meta/scaffold-manifest.json"
+  ],
   "required_directories": [
+    ".opencode/config",
+    ".opencode/meta",
     ".opencode/agents",
     ".opencode/tools",
     ".opencode/plugins",
@@ -39,6 +52,25 @@
     "research-delegation",
     "local-git-specialist",
     "isolation-guidance"
+  ],
+  "placeholder_tokens": [
+    "__PROJECT_NAME__",
+    "__PROJECT_SLUG__",
+    "__AGENT_PREFIX__",
+    "__MODEL_PROVIDER__",
+    "__PLANNER_MODEL__",
+    "__IMPLEMENTER_MODEL__",
+    "__UTILITY_MODEL__",
+    "__STACK_LABEL__"
+  ],
+  "legacy_markers": [
+    "minimax-coding-plan/MiniMax-M2.5",
+    "--default-model",
+    "__DEFAULT_MODEL__",
+    "CODEXSETUP",
+    "GitHub-native",
+    "Use when Codex",
+    "Codex or OpenCode"
   ],
   "doc_template_map": {
     "generated_truth_hierarchy": [

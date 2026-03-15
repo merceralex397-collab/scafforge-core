@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "description": "Configure the documentation-oriented paths that remain writable before plan approval. Anything outside this surface still requires an approved plan.",
+  "model_guidance": [
+    "Use this file to understand the pre-approval write lane before you touch repo files.",
+    "Keep every path repo-relative and normalized; do not rely on ../ escapes or runtime path tricks.",
+    "Treat these allow lists as documentation, ticketing, command, local-skill, metadata, and planning-artifact paths only.",
+    "Do not treat this config as permission to bypass plan approval for implementation, review, QA, handoff, plugin, tool, or workflow-state files.",
+    "You may narrow these allow lists inside the documented planning surfaces, but the stage gate still blocks the unsafe runtime areas by default."
+  ],
+  "pre_approval": {
+    "allowed_files": [
+      "README.md",
+      "AGENTS.md",
+      "START-HERE.md",
+      "opencode.jsonc"
+    ],
+    "allowed_prefixes": [
+      "docs/",
+      "tickets/",
+      ".opencode/commands/",
+      ".opencode/meta/",
+      ".opencode/skills/",
+      ".opencode/state/plans/"
+    ],
+    "blocked_prefixes": [
+      ".opencode/state/artifacts/",
+      ".opencode/state/handoffs/",
+      ".opencode/state/implementations/",
+      ".opencode/state/qa/",
+      ".opencode/state/reviews/",
+      ".opencode/tools/",
+      ".opencode/plugins/"
+    ]
+  }
+}

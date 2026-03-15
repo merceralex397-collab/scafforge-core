@@ -7,10 +7,10 @@
       "id": "SETUP-001",
       "title": "Establish scaffold and canonical brief",
       "lane": "repo-foundation",
-      "stage": "scaffold",
-      "status": "todo",
+      "stage": "planning",
+      "status": "ready",
       "depends_on": [],
-      "summary": "Replace placeholders in the canonical brief, review the scaffold, and begin ticketed planning.",
+      "summary": "Replace placeholders in the canonical brief, review the scaffold, and prepare the first approved plan.",
       "acceptance": [
         "Canonical brief updated",
         "Team entrypoints verified",

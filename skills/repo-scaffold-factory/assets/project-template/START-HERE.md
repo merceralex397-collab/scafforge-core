@@ -1,6 +1,6 @@
 # START HERE
 
-<!-- CODEXSETUP:START_HERE_BLOCK START -->
+<!-- SCAFFORGE:START_HERE_BLOCK START -->
 ## Project
 
 `__PROJECT_NAME__`
@@ -29,4 +29,4 @@ Scaffold generated. Project-specific validation not yet run.
 ## Next Action
 
 Replace the canonical brief placeholders, then use the OpenCode `/kickoff` command or the team leader agent to begin planning.
-<!-- CODEXSETUP:START_HERE_BLOCK END -->
+<!-- SCAFFORGE:START_HERE_BLOCK END -->

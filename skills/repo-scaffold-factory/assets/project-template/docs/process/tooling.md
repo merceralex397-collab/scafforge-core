@@ -5,6 +5,7 @@ Use the project-local surfaces this way:
 - `.opencode/commands/` for human entrypoints only
 - `.opencode/tools/` for structured repo operations agents can call directly
 - `.opencode/plugins/` for guardrails, synchronization, and compaction context
+- `.opencode/plugins/session-compactor.ts` preserves restart-critical signals during context compaction from canonical repo state; it does not invent new workflow state
 - `.opencode/skills/` for local deterministic guidance
 - `mcp` in `opencode.jsonc` for external services and richer integrations
 
@@ -23,5 +24,7 @@ Tracking surfaces:
 - `tickets/manifest.json` stores queue state and registered artifact metadata for each ticket
 - `.opencode/state/artifacts/registry.json` stores the cross-ticket artifact registry
 - `.opencode/state/workflow-state.json` stores transient approval and current-stage state
+- `.opencode/config/stage-gate.json` stores the safe pre-approval write allowpaths for the stage-gate plugin
 - `.opencode/plugins/invocation-tracker.ts` logs chat, command, and tool execution events
+- `.opencode/meta/scaffold-manifest.json` stores the generator-owned inventory of scaffolded agents, tools, plugins, commands, and skills
 - `.opencode/meta/bootstrap-provenance.json` records how the OpenCode layer was generated or retrofitted

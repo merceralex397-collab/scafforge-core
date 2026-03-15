@@ -20,6 +20,7 @@ Rules:
 - keep the autonomous flow internal to agents, tools, and plugins
 - keep ticket `status` coarse and queue-oriented: `todo`, `ready`, `in_progress`, `blocked`, `review`, `qa`, `done`
 - keep plan approval in `.opencode/state/workflow-state.json`, not in ticket status
+- treat `.opencode/config/stage-gate.json` as the pre-approval write contract for docs, tickets, commands, local skills, metadata, and planning artifacts
 - treat `tickets/BOARD.md` as a derived human view, not an authoritative workflow surface
 - write stage artifact bodies with `artifact_write` and then register them with `artifact_register`
 - require a registered stage artifact before advancing to the next stage
@@ -40,3 +41,9 @@ Rules:
 - before code review: an `implementation` artifact must exist
 - before QA: a review artifact must exist
 - before closeout: a `qa` artifact must exist
+
+## Pre-approval write surface
+
+- before plan approval, edits are limited to the paths listed in `.opencode/config/stage-gate.json`
+- the default allow lists are documentation-oriented and aligned with the scaffold's planning lane
+- implementation, review, QA, handoff, plugin, tool, and workflow-state files remain blocked until the plan is approved

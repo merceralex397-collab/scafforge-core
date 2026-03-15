@@ -18,6 +18,7 @@ This repository was scaffolded for a deterministic, ticketed, agent-friendly wor
 - `docs/` for canonical process and spec material
 - `tickets/` for the work queue and machine-readable state
 - `.opencode/` for project-local OpenCode agents, tools, plugins, commands, and skills
+- `.opencode/config/stage-gate.json` for the pre-approval write surface and its safe defaults
 - `opencode.jsonc` for project-local OpenCode configuration
 - `.opencode/state/workflow-state.json` for transient stage state such as plan approval
 
@@ -29,6 +30,7 @@ This repository was scaffolded for a deterministic, ticketed, agent-friendly wor
 - `.opencode/state/workflow-state.json` owns transient stage and approval state
 - `.opencode/state/plans/`, `.opencode/state/implementations/`, `.opencode/state/reviews/`, `.opencode/state/qa/`, and `.opencode/state/handoffs/` store canonical stage artifact bodies
 - `.opencode/state/artifacts/registry.json` stores artifact metadata
+- `.opencode/meta/scaffold-manifest.json` records the generator-owned inventory of scaffolded agents, tools, plugins, commands, and skills
 - `.opencode/meta/bootstrap-provenance.json` records how this operating layer was generated and later repaired
 - `START-HERE.md` is the derived restart surface
 
@@ -39,3 +41,4 @@ This repository was scaffolded for a deterministic, ticketed, agent-friendly wor
 - `tickets/BOARD.md` is a derived human board.
 - Ticket `status` stays coarse and queue-oriented.
 - Plan approval lives in workflow state plus registered stage artifacts, not in ticket status.
+- `.opencode/config/stage-gate.json` defines the documentation-oriented paths that remain writable before plan approval.

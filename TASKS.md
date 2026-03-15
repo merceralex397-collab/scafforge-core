@@ -4,6 +4,9 @@
 > The foundational baseline from this checklist is now implemented in the current repo: the one-cycle flow contract, explicit truth hierarchy, ambiguity handling, explicit model selection, host-adapter separation, local-git capability path, prompt hardening, and validation harness are in place.
 >
 > Read the remaining items below as **historical implementation goals and future hardening lanes**, not as a statement that the current repo is still missing the entire baseline.
+>
+> Status marker:
+> - **[done]** = landed in the current baseline and kept here for historical traceability
 
 This task list assumes the target state is:
 
@@ -14,7 +17,7 @@ This task list assumes the target state is:
 
 ## Priority 1: lock in the one-cycle workflow
 
-### T-001 Make `scaffold-kickoff` the real conductor
+### T-001 [done] Make `scaffold-kickoff` the real conductor
 Update the skill contract so `scaffold-kickoff` is the default full-cycle entrypoint and not just a signpost.
 
 It should explicitly route through:
@@ -30,14 +33,14 @@ Acceptance:
 - docs, skill text, and actual behavior all agree
 - greenfield scaffold is considered incomplete until this chain finishes
 
-### T-002 Add bootstrap mode to `ticket-pack-builder`
+### T-002 [done] Add bootstrap mode to `ticket-pack-builder`
 Change the skill wording and flow contract so ticket generation is part of the default full-cycle scaffold rather than an optional later expansion pass.
 
 Acceptance:
 - ticket generation is part of the canonical greenfield run
 - standalone refine mode still exists for later use
 
-### T-003 Add dual-mode contract to `project-skill-bootstrap`
+### T-003 [done] Add dual-mode contract to `project-skill-bootstrap`
 Split the role into:
 - foundation mode for immediate workflow-tightening skills
 - synthesis mode for stack- and project-specific local skills
@@ -47,7 +50,7 @@ Acceptance:
 - full-cycle scaffolds always get the foundation pack
 - synthesis runs only when enough evidence exists
 
-### T-004 Create a machine-readable skill-flow manifest
+### T-004 [done] Create a machine-readable skill-flow manifest
 Add a small manifest describing each skill’s:
 - purpose
 - inputs
@@ -124,14 +127,14 @@ Acceptance:
 
 ## Priority 3: wording and package coherence
 
-### T-010 Remove remaining host-specific leakage from core skills
+### T-010 [done] Remove remaining host-specific leakage from core skills
 Rewrite remaining core skill descriptions that still say "Codex" when they should say "host agent", "supported host", or similar.
 
 Acceptance:
 - core package language is host-agnostic
 - adapter-specific wording stays only in adapter-specific assets
 
-### T-011 Rewrite README, AGENTS, and review docs to match the real flow
+### T-011 [done] Rewrite README, AGENTS, and review docs to match the real flow
 Ensure all top-level docs describe the one-cycle contract and the controlled skill-synthesis model.
 
 Acceptance:
@@ -145,7 +148,7 @@ Acceptance:
 
 ## Priority 4: OpenCode conformance and validation
 
-### T-013 Add generated-scaffold smoke test
+### T-013 [done] Add generated-scaffold smoke test
 Create a script that:
 1. renders a sample repo to a temp directory
 2. verifies required files and paths
@@ -244,7 +247,7 @@ Acceptance:
 
 ## Priority 7: future adapter strategy
 
-### T-024 Separate core from adapters
+### T-024 [done] Separate core from adapters
 Introduce a clearer package distinction between:
 - core scaffold logic
 - host-specific adapter notes or scripts
@@ -252,7 +255,7 @@ Introduce a clearer package distinction between:
 Acceptance:
 - host-specific integration assets do not dominate the core package identity
 
-### T-025 Define adapter responsibilities
+### T-025 [done] Define adapter responsibilities
 Document what belongs in a host adapter:
 - installation notes
 - host-specific wiring

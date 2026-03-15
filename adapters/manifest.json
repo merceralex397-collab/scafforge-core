@@ -1,12 +1,23 @@
 {
-  "version": 1,
+  "version": 2,
+  "two_layer_model": {
+    "host_layer": "A supported CLI host runs the shared Scafforge package or local bin wrapper.",
+    "generated_runtime_layer": "Scafforge outputs an OpenCode-oriented repo runtime for post-scaffold work."
+  },
   "distribution": {
     "primary_package": "@scafforge/core",
+    "publication_status": "publish-ready",
+    "notes": [
+      "package.json is configured for public npm publication with publishConfig.access set to public",
+      "install from npm after a release, or use a local checkout / direct bin wrapper before release"
+    ],
+    "docs": "adapters/package-publish.md",
     "install_examples": {
-      "npm": "npm install --global @scafforge/core",
-      "pnpm": "pnpm add --global @scafforge/core",
-      "bun": "bun add --global @scafforge/core"
-    }
+      "published_global_install": "npm install --global @scafforge/core",
+      "local_checkout_npm": "npm install --global .",
+      "direct_node_entry": "node ./bin/scafforge.mjs --help"
+    },
+    "publish_command": "npm publish"
   },
   "core_responsibilities": [
     "normalize inputs",
@@ -14,26 +25,94 @@
     "maintain OpenCode output contract",
     "validate docs and template integrity"
   ],
-  "adapter_responsibilities": {
-    "github-copilot": [
-      "install guidance",
-      "invoke scafforge package commands",
-      "provide host-specific startup examples"
-    ],
-    "codex": [
-      "install guidance",
-      "invoke scafforge package commands",
-      "provide host-specific startup examples"
-    ],
-    "gemini-cli": [
-      "install guidance",
-      "invoke scafforge package commands",
-      "provide host-specific startup examples"
-    ],
-    "opencode": [
-      "invoke generated repo after scaffold completion",
-      "read START-HERE.md",
-      "run the autonomous lifecycle inside the generated repo"
+  "shared_cli_contract": {
+    "binary": "scafforge",
+    "direct_entrypoint": "bin/scafforge.mjs",
+    "commands": {
+      "render-full": {
+        "description": "Render the full scaffold into a destination repo",
+        "required_flags": [
+          "--dest",
+          "--project-name",
+          "--model-provider",
+          "--planner-model",
+          "--implementer-model"
+        ],
+        "optional_flags": [
+          "--project-slug",
+          "--agent-prefix",
+          "--utility-model",
+          "--profile",
+          "--stack-label",
+          "--force"
+        ]
+      },
+      "render-opencode": {
+        "description": "Render only the OpenCode layer into an existing repo",
+        "required_flags": [
+          "--dest",
+          "--project-name",
+          "--model-provider",
+          "--planner-model",
+          "--implementer-model"
+        ],
+        "optional_flags": [
+          "--project-slug",
+          "--agent-prefix",
+          "--utility-model",
+          "--profile",
+          "--stack-label",
+          "--force"
+        ]
+      },
+      "validate-contract": {
+        "description": "Run the Scafforge contract validator"
+      }
+    },
+    "provider_model_contract": {
+      "model_provider": "required provider label for the scaffold run",
+      "planner_model": "required planner/reviewer/team-lead model string",
+      "implementer_model": "required implementation model string",
+      "utility_model": "optional helper/docs/QA model string; defaults to planner model in render-full when omitted"
+    }
+  },
+  "host_adapters": {
+    "github-copilot-cli": {
+      "docs": "adapters/github-copilot-cli.md",
+      "install_flow": [
+        "Install and authenticate GitHub Copilot CLI using its own setup flow",
+        "Install @scafforge/core from npm after release, or from a local Scafforge checkout before release"
+      ],
+      "handoff": "After scaffolding, continue in the generated OpenCode-oriented repo runtime documented in adapters/opencode-runtime.md"
+    },
+    "codex": {
+      "docs": "adapters/codex.md",
+      "install_flow": [
+        "Install and authenticate Codex using its own setup flow",
+        "Install @scafforge/core from npm after release, or from a local Scafforge checkout before release"
+      ],
+      "handoff": "After scaffolding, continue in the generated OpenCode-oriented repo runtime documented in adapters/opencode-runtime.md"
+    },
+    "claude-code": {
+      "docs": "adapters/claude-code-cli.md",
+      "aliases": [
+        "claude-cli"
+      ],
+      "install_flow": [
+        "Install and authenticate Claude Code or Claude CLI using its own setup flow",
+        "Install @scafforge/core from npm after release, or from a local Scafforge checkout before release"
+      ],
+      "handoff": "After scaffolding, continue in the generated OpenCode-oriented repo runtime documented in adapters/opencode-runtime.md"
+    }
+  },
+  "generated_runtime": {
+    "target": "OpenCode-oriented repository runtime",
+    "docs": "adapters/opencode-runtime.md",
+    "not_a_host_adapter": true,
+    "responsibilities": [
+      "open the generated repo after scaffold completion",
+      "follow START-HERE.md for full scaffolds or the injected .opencode layer for retrofits",
+      "run the project workflow inside OpenCode rather than re-invoking Scafforge as a host adapter"
     ]
   }
 }

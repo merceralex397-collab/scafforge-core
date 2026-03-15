@@ -65,7 +65,7 @@ A generic base skill pack can only go so far. Real projects usually need a few r
 - deployment paths
 - stack-specific gotchas
 
-OpenCode is a strong target for this because it supports repo-local rules, skills, commands, tools, and plugins. citeturn375117search2turn375117search0turn375117search12turn375117search18turn375117search8
+OpenCode is a strong target for this because it supports repo-local rules, skills, commands, tools, and plugins.
 
 ### Why it can go bad fast
 
@@ -81,7 +81,7 @@ Good idea in principle. High risk if unconstrained.
 
 ## 4. Using Vercel Skills as an input source is sensible, but direct import is a bad default
 
-The Vercel skills ecosystem is real, cross-agent, and explicitly built around reusable skill packages and discovery. It includes a `find-skills` helper for automated workflows and works across many agent hosts. citeturn375117search3turn375117search5turn375117search13turn375117search19
+The Vercel skills ecosystem is real, cross-agent, and explicitly built around reusable skill packages and discovery. It includes a `find-skills` helper for automated workflows and works across many agent hosts.
 
 That makes it a useful **pattern library**.
 

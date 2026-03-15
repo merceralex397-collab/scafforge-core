@@ -22,6 +22,7 @@ If this file conflicts with any global AI instruction file, this file wins for t
 - `.opencode/state/workflow-state.json` owns transient stage and approval state
 - `.opencode/state/plans/`, `.opencode/state/implementations/`, `.opencode/state/reviews/`, `.opencode/state/qa/`, and `.opencode/state/handoffs/` own stage artifact bodies
 - `.opencode/state/artifacts/registry.json` owns the cross-stage artifact registry
+- `.opencode/meta/scaffold-manifest.json` owns the generator-produced scaffold inventory
 - `.opencode/meta/bootstrap-provenance.json` owns bootstrap and repair provenance
 - `START-HERE.md` is the derived restart surface
 
@@ -37,6 +38,7 @@ If this file conflicts with any global AI instruction file, this file wins for t
 8. `tickets/README.md`
 9. `tickets/manifest.json`
 10. `tickets/BOARD.md`
+11. `.opencode/config/stage-gate.json`
 
 ## Rules
 
@@ -46,6 +48,7 @@ If this file conflicts with any global AI instruction file, this file wins for t
 - Prefer local tools, plugins, and project skills over prompt-only improvisation.
 - Keep queue status coarse: `todo`, `ready`, `in_progress`, `blocked`, `review`, `qa`, `done`.
 - Keep plan approval in workflow state and artifacts, not in ticket status.
+- Use `.opencode/config/stage-gate.json` to understand the pre-approval write lane; it does not weaken the plan gate.
 - Treat `tickets/BOARD.md` as a derived human view, not a second state machine.
 - Use ticket tools and workflow-state instead of raw file edits for stage transitions.
 - Keep `START-HERE.md`, `tickets/BOARD.md`, and `tickets/manifest.json` aligned with the canonical sources that feed them.

@@ -102,7 +102,20 @@ That means generated repositories may contain:
 - `.opencode/state/`
 - signposted docs and ticket surfaces designed for autonomous agent workflows
 
-OpenCode supports project rules via `AGENTS.md`, reusable skills via `SKILL.md`, JSONC config, markdown commands, local tools, and plugins, which makes it a good target for a generated project operating layer. citeturn375117search2turn375117search0turn375117search4turn375117search12turn375117search18turn375117search8
+OpenCode supports project rules via `AGENTS.md`, reusable skills via `SKILL.md`, JSONC config, markdown commands, local tools, and plugins, which makes it a good target for a generated project operating layer.
+
+## Terminology glossary
+
+- **generator**: the Scafforge package itself — this repository, its skills, scripts, templates, and contract docs.
+- **generated repo**: the project repository produced by Scafforge for a specific project.
+- **host**: the CLI runtime that invokes Scafforge to do scaffold work, such as GitHub Copilot CLI, Codex, or Claude Code.
+- **output profile**: the selected scaffold shape or packaging target that Scafforge renders; the default profile is OpenCode-oriented.
+- **canonical brief**: the normalized project brief that records durable facts, constraints, accepted decisions, and unresolved questions before deeper scaffold work proceeds.
+- **ticket manifest**: the machine-readable `tickets/manifest.json` file that owns queue state and ticket metadata for a generated repo.
+- **workflow state**: the transient stage, approval, and active-work state stored in `.opencode/state/workflow-state.json`, separate from durable project facts and queue state.
+- **artifact**: a recorded proof item produced during workflow execution, typically registered under `.opencode/state/artifacts/` so later sessions can inspect what happened.
+- **handoff**: the restart surface and closeout context that let another session or model resume work without reconstructing state from scratch.
+- **safe repair**: a `repo-process-doctor` fix that corrects workflow drift without changing project intent, scope, stack, or other human-owned decisions.
 
 ## Repository structure
 
@@ -244,7 +257,7 @@ Examples:
 ### Layer 4: external pattern mining
 Search public skill ecosystems for useful patterns, but use them as **inputs to synthesis**, not as direct installs.
 
-Vercel’s skills ecosystem is explicitly built around discoverable, installable skills, and its `find-skills` helper is meant to help agents discover capabilities. The ecosystem now supports many agent hosts, including OpenCode and Codex. citeturn375117search3turn375117search5turn375117search13turn375117search19
+Vercel’s skills ecosystem is explicitly built around discoverable, installable skills, and its `find-skills` helper is meant to help agents discover capabilities. The ecosystem also spans multiple agent hosts, which makes it useful as a research source for local-skill synthesis.
 
 ### Layer 5: synthesis and normalization
 Take the useful workflow shape, rewrite it to match the current project, and emit a local `.opencode/skills/<name>/SKILL.md` that conforms to the repo’s own conventions.
@@ -258,7 +271,7 @@ This idea is **good**, but only when constrained.
 - It allows generated repos to become more stack-aware and less generic.
 - It avoids stuffing every possible rule into the base scaffold.
 - It makes local skills project-shaped rather than host-shaped.
-- It fits OpenCode well, because OpenCode can discover project-local skills directly from the repo. citeturn375117search0
+- It fits OpenCode well, because OpenCode can discover project-local skills directly from the repo.
 
 ### What is risky about it
 

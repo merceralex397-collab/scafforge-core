@@ -23,9 +23,21 @@ export default tool({
     const startHere = startHerePath()
     const handoffCopy = latestHandoffPath()
     const existingStartHere = await readFile(startHere, "utf-8").catch(() => "")
-    await writeText(startHere, mergeStartHere(existingStartHere, content))
+    const mergeResult = mergeStartHere(existingStartHere, content)
+    await writeText(startHere, mergeResult.content)
     await writeText(handoffCopy, content)
 
-    return JSON.stringify({ start_here: startHere, latest_handoff: handoffCopy }, null, 2)
+    return JSON.stringify(
+      {
+        start_here: startHere,
+        latest_handoff: handoffCopy,
+        merged: mergeResult.merged,
+        warning: mergeResult.merged
+          ? undefined
+          : "START-HERE.md does not contain the Scafforge-managed block, so only .opencode/state/latest-handoff.md was refreshed.",
+      },
+      null,
+      2,
+    )
   },
 })
