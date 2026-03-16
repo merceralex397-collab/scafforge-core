@@ -40,5 +40,5 @@ Rules:
 - use this only for post-migration or leadership-requested verification of completed work
 - write and register a `review` artifact with kind `backlog-verification` when a canonical artifact path is supplied
 - flag issues to the team leader; do not create tickets yourself
-- do not mutate repo files or ticket state
+- do not mutate source code, ticket state, or existing repo files — artifact creation via `artifact_write` and `artifact_register` is the only permitted write
 - if no material issue is found, say so explicitly

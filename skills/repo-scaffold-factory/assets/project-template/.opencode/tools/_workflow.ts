@@ -180,8 +180,21 @@ export async function writeText(path: string, value: string): Promise<void> {
   await writeFile(path, value, "utf-8")
 }
 
+const TICKET_DEFAULTS: Omit<Ticket, "id" | "title" | "lane" | "stage" | "status" | "depends_on" | "summary" | "acceptance" | "artifacts"> = {
+  wave: 0,
+  parallel_safe: false,
+  overlap_risk: "high",
+  decision_blockers: [],
+}
+
+function migrateTicket(raw: Record<string, unknown>): Ticket {
+  return { ...TICKET_DEFAULTS, ...raw } as Ticket
+}
+
 export async function loadManifest(root = rootPath()): Promise<Manifest> {
-  return readJson<Manifest>(ticketsManifestPath(root))
+  const manifest = await readJson<Manifest>(ticketsManifestPath(root))
+  manifest.tickets = manifest.tickets.map((t) => migrateTicket(t as unknown as Record<string, unknown>))
+  return manifest
 }
 
 export async function loadArtifactRegistry(root = rootPath()): Promise<ArtifactRegistry> {
@@ -213,7 +226,8 @@ export async function loadWorkflowState(root = rootPath()): Promise<WorkflowStat
     pending_process_verification: false,
     parallel_mode: "parallel-lanes",
   }
-  return readJson<WorkflowState>(workflowStatePath(root), fallback)
+  const loaded = await readJson<Partial<WorkflowState>>(workflowStatePath(root), fallback)
+  return { ...fallback, ...loaded }
 }
 
 export async function saveWorkflowState(state: WorkflowState, root = rootPath()): Promise<void> {
