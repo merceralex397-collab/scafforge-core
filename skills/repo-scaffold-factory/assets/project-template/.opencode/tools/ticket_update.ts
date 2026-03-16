@@ -68,6 +68,17 @@ export default tool({
       workflow.approved_plan = false
     }
     if (typeof args.pending_process_verification === "boolean") {
+      if (args.pending_process_verification === false) {
+        const doneTickets = manifest.tickets.filter((t) => t.status === "done")
+        const unverified = doneTickets.filter(
+          (t) => !t.artifacts.some((a) => a.stage === "review" && a.kind === "backlog-verification"),
+        )
+        if (unverified.length > 0) {
+          throw new Error(
+            `Cannot clear pending_process_verification: ${unverified.length} done ticket(s) lack backlog-verification artifacts (${unverified.map((t) => t.id).join(", ")}).`,
+          )
+        }
+      }
       workflow.pending_process_verification = args.pending_process_verification
     }
 

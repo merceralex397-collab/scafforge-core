@@ -106,7 +106,7 @@ The generated repo should converge on these canonical roles:
 - `docs/spec/CANONICAL-BRIEF.md` owns durable project facts, constraints, accepted decisions, and unresolved questions
 - `tickets/manifest.json` owns machine queue state
 - `tickets/BOARD.md` is the derived human queue board
-- `.opencode/state/workflow-state.json` owns transient stage and approval state
+- `.opencode/state/workflow-state.json` owns transient stage, approval, and process-version state
 - `.opencode/state/artifacts/` plus manifest-backed registration own stage proof
 - `.opencode/meta/bootstrap-provenance.json` owns provenance for scaffold, later synthesis, and repairs
 - `START-HERE.md` is the derived restart surface
