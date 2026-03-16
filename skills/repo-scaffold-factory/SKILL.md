@@ -7,6 +7,12 @@ description: Generate the base repository file structure including README, AGENT
 
 Use this skill to generate the initial repository file tree. This is a TWO-PHASE process.
 
+## Mode selection
+
+- If this skill is reached from `scaffold-kickoff` for a new repo, use the full scaffold path (`--scope full`).
+- If the user explicitly wants only the OpenCode operating layer for an existing repo, use `--scope opencode`.
+- If the destination already contains code or curated project files and the user has not made clear whether to overwrite the full repo or add only the operating layer, ask the user before choosing the scope.
+
 ## Phase A: Generate the base scaffold (script-assisted)
 
 The Python script handles deterministic mechanical work: copying 100+ template files, substituting placeholders, and generating metadata. This is better done by a script than by hand.

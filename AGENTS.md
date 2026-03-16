@@ -50,7 +50,7 @@ Do not collapse these layers together.
 6. Generate the smallest surface compatible with the selected profile; for the default full profile, keep heavier packs thin or lazy-activated until they are actually needed.
 7. Never treat public skill discovery as permission to auto-install random skills.
 
-## Package spine
+## Default scaffold spine
 
 These skills are the current backbone and should remain coherent as a chain:
 
@@ -62,10 +62,9 @@ These skills are the current backbone and should remain coherent as a chain:
 - `project-skill-bootstrap`
 - `agent-prompt-engineering`
 - `repo-process-doctor`
-- `review-audit-bridge`
 - `handoff-brief`
 
-Optional extension skills may exist outside this backbone when they solve later host-side workflow needs without polluting the default scaffold chain. These should stay clearly marked as optional.
+Optional extension skills may exist outside this default scaffold spine when they solve later host-side workflow needs without polluting the scaffold chain. These should stay clearly marked as optional.
 
 ## Canonical workflow contract
 
@@ -80,7 +79,7 @@ The default route should be:
 5. `ticket-pack-builder` runs in bootstrap mode
 6. `project-skill-bootstrap` runs in foundation mode
 7. `project-skill-bootstrap` may then run in synthesis mode if enough project evidence exists
-8. `agent-prompt-engineering` tightens prompts only where needed
+8. `agent-prompt-engineering` runs the required prompt-hardening pass
 9. `repo-process-doctor` audits the result
 10. `handoff-brief` refreshes the restart surface
 
@@ -125,7 +124,7 @@ Use the lighter path when a repo already exists and mainly needs an OpenCode ope
 
 ### Review / QA flow
 
-`review-audit-bridge` belongs mainly to implementation, review, security, and QA loops after the initial scaffold exists.
+Implementation, review, security, and QA procedure should be emitted as generated repo-local skills under `.opencode/skills/`, not carried as top-level Scafforge package skills.
 
 ## Skill boundary rules
 
@@ -177,18 +176,18 @@ It must support:
 
 It should not blindly copy generic internet skills into the repo.
 It should keep heavier orchestration packs thin or lazy-activated unless project evidence justifies more depth.
+It owns output-repo review and QA local skills such as `review-audit-bridge` when those procedures belong inside the generated `.opencode/skills/` layer.
 
 ### `agent-prompt-engineering`
 Owns prompt hardening, not overall flow control.
+
+It remains a required step in the standard greenfield scaffold chain even when the resulting hardening pass is light.
 
 ### `repo-process-doctor`
 Owns workflow diagnosis and repair guidance.
 
 It should surface findings clearly and should not silently mutate state without leaving an obvious trail.
 It must distinguish between safe repairs and intent-changing repairs.
-
-### `review-audit-bridge`
-Owns structured review passes, not initial scaffold creation.
 
 ### `pr-review-ticket-bridge`
 Owns host-side PR comment triage and canonical ticket proposals for valid review findings.

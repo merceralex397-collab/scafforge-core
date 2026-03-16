@@ -20,6 +20,14 @@ Use this skill to create the repo-local `.opencode/skills/` layer with actual pr
 - **foundation**: populate baseline skills with actual project data
 - **synthesis**: add stack- or domain-specific skills based on project evidence
 
+## Mode selection
+
+- If this skill is reached from `scaffold-kickoff`, run `foundation` first.
+- After `foundation`, run `synthesis` when the canonical brief and repo evidence justify additional project-specific skills.
+- If invoked directly and the baseline `.opencode/skills/` files are still generic or placeholder-like, use `foundation`.
+- If invoked directly and the baseline skills are already populated but the user wants additional stack- or domain-specific procedure, use `synthesis`.
+- If it is unclear whether the user wants baseline rewrite work or additive synthesized skills, ask the user before choosing a mode.
+
 ## Foundation mode procedure
 
 The base scaffold generates generic skill templates. You must populate them with actual project data.
@@ -52,6 +60,11 @@ For each baseline skill in `.opencode/skills/`, rewrite the SKILL.md with actual
 **ticket-execution** — Keep the standard lifecycle but add project-specific notes:
 - Any project-specific stage requirements
 - Project-specific validation expectations
+
+**review-audit-bridge** — Keep the evidence-first review order but add project-specific review and QA expectations:
+- Repo-specific review commands, validation commands, and artifact paths
+- Security-sensitive areas that need explicit attention
+- Approval vs blocker rules for code review, security review, and QA
 
 **docs-and-handoff** — Add project-specific doc paths and conventions
 

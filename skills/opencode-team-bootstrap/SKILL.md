@@ -7,6 +7,12 @@ description: Design and generate a project-specific OpenCode agent team with spe
 
 Use this skill to design the agent team for the project. This is creative work — you analyze the project and customize the agents, tools, and plugins to match.
 
+## Mode selection
+
+- If this skill is reached from `scaffold-kickoff` after a fresh scaffold render, use the design path for a new project-specific team.
+- If the repo already exists and the goal is to add or repair the `.opencode/` operating layer, use the retrofit path.
+- If it is unclear whether the user wants a fresh team design pass or repair of an existing operating layer, ask the user before choosing a mode.
+
 ## Context
 
 The `repo-scaffold-factory` script generates a BASE set of generic agent templates. These are a starting structure, not the final output. Your job is to read the canonical brief and customize these agents to be project-specific.

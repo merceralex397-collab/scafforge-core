@@ -18,6 +18,7 @@ permission:
     "*": deny
     "project-context": allow
     "ticket-execution": allow
+    "review-audit-bridge": allow
   task:
     "*": deny
     "__AGENT_PREFIX__-utility-summarize": allow
@@ -33,7 +34,7 @@ permission:
     "git diff*": allow
 ---
 
-Review the implementation for correctness, regressions, and test gaps.
+Review the implementation for correctness, regressions, and test gaps. Use `review-audit-bridge` for output ordering and blocker rules.
 
 Return:
 
@@ -48,4 +49,3 @@ Rules:
 - do not claim that repo files were updated
 - if the implementation artifact or diff context is missing, return a blocker instead of inferring correctness
 - do not end with a summary-only response when findings or an approval signal are required
-

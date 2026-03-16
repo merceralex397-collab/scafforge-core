@@ -2,6 +2,7 @@
   "version": 1,
   "product": "Scafforge",
   "output_profiles": ["opencode"],
+  "optional_extensions": ["pr-review-ticket-bridge"],
   "run_types": {
     "greenfield": {
       "entrypoint": "scaffold-kickoff",
@@ -12,8 +13,8 @@
         "ticket-pack-builder:bootstrap",
         "project-skill-bootstrap:foundation",
         "project-skill-bootstrap:synthesis_if_evidence",
-        "agent-prompt-engineering:conditional",
-        "repo-process-doctor:audit_or_apply_safe_repair",
+        "agent-prompt-engineering",
+        "repo-process-doctor:audit_then_apply_safe_repairs_if_needed",
         "handoff-brief"
       ]
     },
@@ -24,7 +25,7 @@
         "opencode-team-bootstrap",
         "ticket-pack-builder:refine_if_needed",
         "project-skill-bootstrap:foundation_or_repair",
-        "repo-process-doctor:audit_or_apply_safe_repair",
+        "repo-process-doctor:audit_then_apply_safe_repairs_if_needed",
         "handoff-brief"
       ]
     }
@@ -80,7 +81,7 @@
     },
     "agent-prompt-engineering": {
       "owner": "prompts",
-      "modes": ["conditional"],
+      "modes": ["required-pass"],
       "inputs": ["workflow contract", "weak-model constraints", "repo context"],
       "outputs": ["hardened prompts", "blocker rules", "anti-summary rails"],
       "upstreams": ["project-skill-bootstrap", "repo-scaffold-factory"],
@@ -93,14 +94,6 @@
       "outputs": ["diagnosis", "repair plan", "safe repairs", "reports"],
       "upstreams": ["repo-scaffold-factory", "opencode-team-bootstrap", "agent-prompt-engineering", "project-skill-bootstrap"],
       "downstreams": ["handoff-brief"]
-    },
-    "review-audit-bridge": {
-      "owner": "qa",
-      "modes": ["implementation-review"],
-      "inputs": ["approved plans", "implementation artifacts", "review artifacts"],
-      "outputs": ["review sequence", "security review", "qa findings"],
-      "upstreams": [],
-      "downstreams": []
     },
     "handoff-brief": {
       "owner": "restart-surface",

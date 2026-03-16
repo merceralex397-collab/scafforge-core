@@ -7,6 +7,14 @@ description: Audit existing repositories for agent-workflow drift and repair opp
 
 Use this skill to inspect and repair agent-workflow issues in an existing repository.
 
+## Mode selection
+
+- If this skill is reached from `scaffold-kickoff` on a freshly scaffolded repo, start in `audit` mode and apply safe repairs only when findings justify them.
+- If the user explicitly asks to inspect or diagnose workflow issues without editing, use `audit`.
+- If the user explicitly asks for a repair plan before edits, use `propose-repair`.
+- If the user explicitly asks to repair, update, or fully refresh the managed workflow layer, use `apply-repair`.
+- If it is unclear whether the user wants diagnosis only or repo edits, ask the user before choosing a mode.
+
 ## Procedure
 
 ### 1. Run the audit script

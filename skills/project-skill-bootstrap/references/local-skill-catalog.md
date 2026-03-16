@@ -24,6 +24,12 @@ The default full-orchestration profile should expose these lanes, but heavier pa
 - required stage order
 - artifact expectations
 
+## review-audit-bridge
+
+- evidence-first review ordering
+- code review, security review, and QA output structure
+- blocker rules when required artifacts or validation are missing
+
 ## docs-and-handoff
 
 - `START-HERE.md`

@@ -58,14 +58,18 @@ def validate_flow_manifest(findings: list[Finding]) -> None:
     expected = [
         "spec-pack-normalizer",
         "repo-scaffold-factory",
+        "opencode-team-bootstrap",
         "ticket-pack-builder:bootstrap",
         "project-skill-bootstrap:foundation",
-        "repo-process-doctor:audit_or_apply_safe_repair",
+        "agent-prompt-engineering",
+        "repo-process-doctor:audit_then_apply_safe_repairs_if_needed",
         "handoff-brief",
     ]
     for item in expected:
         if item not in sequence:
             findings.append(Finding("error", f"Greenfield sequence is missing required step: {item}"))
+    if "review-audit-bridge" in sequence:
+        findings.append(Finding("error", "Greenfield sequence should not include review-audit-bridge"))
 
 
 def validate_core_docs(findings: list[Finding]) -> None:
@@ -76,7 +80,8 @@ def validate_core_docs(findings: list[Finding]) -> None:
             add_missing(findings, path)
             return
     require_contains(findings, readme, "## Truth hierarchy")
-    require_contains(findings, readme, "## Skill map")
+    require_contains(findings, readme, "## Default scaffold chain")
+    require_contains(findings, readme, "## Generated repo-local skills")
     require_contains(findings, readme, "Weak-model first")
     require_contains(findings, agents, "## Product contract refinements")
     require_contains(findings, agents, "## Canonical generated-repo truth hierarchy")
@@ -100,6 +105,7 @@ def validate_template_surfaces(findings: list[Finding]) -> None:
         template / ".opencode" / "skills" / "research-delegation" / "SKILL.md",
         template / ".opencode" / "skills" / "local-git-specialist" / "SKILL.md",
         template / ".opencode" / "skills" / "isolation-guidance" / "SKILL.md",
+        template / ".opencode" / "skills" / "review-audit-bridge" / "SKILL.md",
     ]
     for path in required:
         if not path.exists():

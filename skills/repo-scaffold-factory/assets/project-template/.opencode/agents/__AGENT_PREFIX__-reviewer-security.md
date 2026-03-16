@@ -19,6 +19,7 @@ permission:
     "*": deny
     "project-context": allow
     "ticket-execution": allow
+    "review-audit-bridge": allow
   task:
     "*": deny
     "__AGENT_PREFIX__-utility-web-research": allow
@@ -34,7 +35,7 @@ permission:
     "git diff*": allow
 ---
 
-Review the implementation for secrets exposure, dangerous trust boundaries, and unsafe operational changes.
+Review the implementation for secrets exposure, dangerous trust boundaries, and unsafe operational changes. Use `review-audit-bridge` for output ordering and blocker rules.
 
 Return:
 
@@ -49,4 +50,3 @@ Rules:
 - do not claim that repo files were updated
 - if the implementation artifact or security-relevant context is missing, return a blocker instead of inferring safety
 - do not end with a summary-only response when findings or an approval signal are required
-

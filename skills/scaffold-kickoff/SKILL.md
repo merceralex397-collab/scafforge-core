@@ -15,6 +15,8 @@ Before starting, classify the run type:
 2. **Retrofit** — A repo with code already exists but needs the OpenCode operating layer added. Run `spec-pack-normalizer` first if the project lacks a canonical brief, then skip to `opencode-team-bootstrap` (step 4), and continue from step 5.
 3. **Refinement** — A scaffolded repo exists but needs its tickets, skills, or agents improved. Jump to the specific skill needed.
 
+If the repo state and the user's request do not make the run type clear, ask the user before proceeding. Do not silently choose between greenfield, retrofit, and refinement when that choice would materially change scope.
+
 ## Full greenfield workflow
 
 Follow these steps in order. Each step references a sibling skill — read it at the relative path shown.
@@ -74,14 +76,16 @@ Read `../project-skill-bootstrap/SKILL.md` and follow its procedure.
 - Foundation mode: populate baseline skills with actual project data
 - Synthesis mode: create stack/domain-specific skills from project evidence and external research (reference only, never auto-install)
 
-### Step 7: Harden agent prompts (if needed)
+### Step 7: Harden agent prompts
 
 Read `../agent-prompt-engineering/SKILL.md` and follow its procedure.
 
-Apply this when:
-- The chosen models need specific prompting techniques
-- Agent prompts need tighter scope or anti-doom-loop behavior
-- Stage contracts need project-specific hardening
+This pass is required in the standard greenfield scaffold flow.
+
+Adjust the depth of hardening based on:
+- The chosen models and any model-specific prompting quirks
+- Agent prompts that need tighter scope or anti-doom-loop behavior
+- Stage contracts that need project-specific hardening
 
 ### Step 8: Audit the generated repo
 
@@ -125,8 +129,9 @@ The scaffold is complete when ALL of these exist:
 - When the stack is still unknown, keep the scaffold framework-agnostic and record unresolved choices in the canonical brief.
 - Do not let ticket-pack-builder fabricate implementation detail for unresolved major decisions.
 - Preserve exact model/provider strings and project names when the source material specifies them.
+- Do not skip `agent-prompt-engineering` during the standard greenfield flow; vary the hardening depth instead.
 - Do not ship a repo-local workflow until a doctor pass confirms it is clean.
 
 ## Review and QA
 
-Leave `review-audit-bridge` for later implementation and QA cycles. It is not part of the initial scaffold flow.
+Leave implementation-review and QA procedure to the generated repo-local skills and review lanes after the scaffold is complete.

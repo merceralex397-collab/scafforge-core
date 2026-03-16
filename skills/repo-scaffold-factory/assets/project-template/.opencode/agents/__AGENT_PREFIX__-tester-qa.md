@@ -21,6 +21,7 @@ permission:
     "project-context": allow
     "stack-standards": allow
     "ticket-execution": allow
+    "review-audit-bridge": allow
   task:
     "*": deny
   bash:
@@ -69,7 +70,7 @@ permission:
     "make build*": allow
 ---
 
-Run the minimum meaningful validation for the approved ticket and report:
+Run the minimum meaningful validation for the approved ticket. Use `review-audit-bridge` for QA output ordering and blocker rules, then report:
 
 1. checks run
 2. pass or fail
@@ -82,4 +83,3 @@ Rules:
 - update status only after the QA artifact exists
 - if no meaningful validation can be run, say so explicitly and return the missing requirement as a blocker or open risk
 - do not stop at a vague summary when the workflow still requires a pass/fail signal or blocker
-

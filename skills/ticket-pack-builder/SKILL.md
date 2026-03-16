@@ -12,6 +12,14 @@ Use this skill to create or refine the repo-local work queue.
 - **bootstrap**: generate the first implementation-ready backlog during the initial scaffold
 - **refine**: regenerate, expand, or normalize an existing backlog later
 
+## Mode selection
+
+- If this skill is reached from `scaffold-kickoff` during greenfield scaffolding, use `bootstrap`.
+- If this skill is reached from retrofit or later backlog maintenance work, use `refine`.
+- If invoked directly and `tickets/manifest.json` does not exist yet, use `bootstrap`.
+- If invoked directly and a backlog already exists, use `refine`.
+- If the user request is ambiguous about whether to create the first backlog or revise an existing one, ask the user before choosing a mode.
+
 ## Bootstrap mode procedure
 
 ### 1. Read the canonical brief

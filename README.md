@@ -59,12 +59,14 @@ scaffold-kickoff (entrypoint)
   → opencode-team-bootstrap  designs project-specific agent team
   → ticket-pack-builder      creates implementation-ready ticket backlog
   → project-skill-bootstrap  creates project-specific local skills
-  → agent-prompt-engineering  hardens prompts with model-specific techniques
+  → agent-prompt-engineering  runs the required prompt-hardening pass
   → repo-process-doctor      audits for workflow drift, applies safe repairs
   → handoff-brief            generates START-HERE.md restart surface
 ```
 
 The package's Python 3 scripts handle deterministic mechanical work (copying 100+ template files, placeholder substitution, running workflow audits, and applying managed-surface retrofit repairs). The agent handles creative work (reading specs, designing agents, writing project-specific prompts, creating tickets, synthesizing skills).
+
+In the standard greenfield path, `agent-prompt-engineering` always runs before `repo-process-doctor`. The pass may be light or heavy depending on the selected models and project-specific coordination risk, but it is not skipped.
 
 ## What the generated repo contains
 
@@ -95,7 +97,7 @@ Generated repos use a structured truth hierarchy so state does not drift:
 | `.opencode/meta/bootstrap-provenance.json` | Scaffold provenance and repair history |
 | `START-HERE.md` | Derived restart surface |
 
-## Skill map
+## Default scaffold chain
 
 | Skill | What it does |
 |-------|-------------|
@@ -105,16 +107,34 @@ Generated repos use a structured truth hierarchy so state does not drift:
 | `opencode-team-bootstrap` | Analyzes project type, designs project-specific agent team with domain specialists |
 | `ticket-pack-builder` | Creates wave-based ticket backlog with acceptance criteria and dependencies |
 | `project-skill-bootstrap` | Creates project-specific skills from real data and stack research |
-| `agent-prompt-engineering` | Hardens prompts with model-specific techniques (web-researches chosen model) |
+| `agent-prompt-engineering` | Runs the required prompt-hardening pass for the generated agent, command, and workflow surfaces |
 | `repo-process-doctor` | Script audits workflow drift; agent applies safe repairs or runs deterministic managed-surface replacement |
-| `review-audit-bridge` | Structures review/QA passes during implementation cycles (post-scaffold) |
 | `handoff-brief` | Generates START-HERE.md with actual project state for restart |
 
-## Bundled extension skills
+## Generated repo-local skills
+
+Scafforge ships the scaffold logic that creates `.opencode/skills/` inside output repos. Those generated local skills belong to the output repo operating layer, not to Scafforge's own top-level package skill taxonomy.
+
+Baseline generated local skills include:
+
+- `project-context`
+- `repo-navigation`
+- `stack-standards`
+- `ticket-execution`
+- `review-audit-bridge`
+- `docs-and-handoff`
+- `workflow-observability`
+- `research-delegation`
+- `local-git-specialist`
+- `isolation-guidance`
+
+`review-audit-bridge` lives here because it is consumed by the generated repo's implementation, review, security, and QA lanes after scaffold creation.
+
+## Bundled optional extension skills
 
 | Skill | What it does |
 |-------|-------------|
-| `pr-review-ticket-bridge` | Host-side PR review, comment validation, and guarded follow-up ticket generation for valid findings. Bundled with the package, but outside the default scaffold backbone. |
+| `pr-review-ticket-bridge` | Host-side PR review, comment validation, and guarded follow-up ticket generation for valid findings. Bundled with the package, but outside the default scaffold chain. |
 
 ## Retrofit path
 
