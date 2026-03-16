@@ -1,43 +1,131 @@
 ---
 name: project-skill-bootstrap
-description: Create deterministic project-local OpenCode skills for repo context, navigation, execution, stack standards, and handoff. Use when a newly scaffolded or evolving project needs local procedural guidance that is more specific than a host's global skill pack.
+description: Create project-local OpenCode skills populated with actual project data, stack-specific conventions, and domain-specific procedures. Use after scaffolding to replace generic skill placeholders with real project-aware guidance that helps agents work effectively in this specific repo.
 ---
 
 # Project Skill Bootstrap
 
-Use this skill to create the repo-local `.opencode/skills/` layer.
+Use this skill to create the repo-local `.opencode/skills/` layer with actual project content.
 
 ## Goals
 
-- make project context easy to reload
-- encode stack/domain standards locally
-- reduce ambiguity for weaker models
-- keep prompts short by moving stable procedure into local skills
-- keep project-local workflow skills aligned with ticket tools and workflow state
+- Make project context easy to reload for any agent or session
+- Encode actual stack and domain standards, not generic placeholders
+- Reduce ambiguity for weaker models
+- Keep prompts short by moving stable procedure into local skills
+- Keep project-local skills aligned with ticket tools and workflow state
 
 ## Modes
 
-- `foundation`: create the minimum workflow-tightening pack every scaffold needs
-- `synthesis`: add stack- or domain-specific skills only when project evidence is strong enough
+- **foundation**: populate baseline skills with actual project data
+- **synthesis**: add stack- or domain-specific skills based on project evidence
 
-## Default local skill pack
+## Foundation mode procedure
 
-- `project-context`
-- `repo-navigation`
-- `stack-standards`
-- `ticket-execution`
-- `docs-and-handoff`
-- `workflow-observability`
-- `research-delegation`
-- `local-git-specialist`
-- `isolation-guidance`
+The base scaffold generates generic skill templates. You must populate them with actual project data.
 
-Use `references/local-skill-catalog.md` and the starter template in `assets/templates/SKILL.template.md`.
+### 1. Read the canonical brief
 
-When creating or revising project-local workflow skills, use `agent-prompt-engineering`
-to avoid raw-file stage control, contradictory status semantics, or impossible
-read-only delegation contracts.
+Read `docs/spec/CANONICAL-BRIEF.md` for project facts, stack decisions, and constraints.
 
-Use this after the main scaffold exists. It should refine repo-local procedural guidance, not replace `repo-scaffold-factory` or `opencode-team-bootstrap`.
+### 2. Populate baseline skills
 
-Keep heavier packs thin or lazy-activated until the project actually needs more depth. The default full-orchestration profile should expose the lanes without forcing a huge prompt surface on day one.
+For each baseline skill in `.opencode/skills/`, rewrite the SKILL.md with actual project content:
+
+**project-context** — Replace generic reading order with actual project-specific context:
+- Actual project summary (what this project is)
+- Actual canonical doc paths
+- Current project state
+- Key architectural decisions from the brief
+
+**repo-navigation** — Replace generic paths with actual project structure:
+- Actual directory layout (as generated)
+- Key files and what they contain
+- Common queries agents will need
+
+**stack-standards** — Replace the `__STACK_LABEL__` placeholder with REAL rules:
+- Actual framework/language conventions (e.g., "Use React functional components with TypeScript")
+- Actual testing commands (e.g., "Run tests with `pnpm test`")
+- Actual linting/formatting rules
+- Code style preferences from the brief
+
+**ticket-execution** — Keep the standard lifecycle but add project-specific notes:
+- Any project-specific stage requirements
+- Project-specific validation expectations
+
+**docs-and-handoff** — Add project-specific doc paths and conventions
+
+**workflow-observability** — Keep as-is (generic is fine for observability)
+
+**research-delegation** — Keep as-is (generic is fine for research patterns)
+
+**local-git-specialist** — Add project-specific branch conventions if specified in brief
+
+**isolation-guidance** — Keep as-is unless brief specifies isolation requirements
+
+### 3. Write updated skills
+
+Write each updated skill to `.opencode/skills/<name>/SKILL.md`.
+Each skill MUST have YAML frontmatter with `name` and `description`.
+
+## Synthesis mode procedure
+
+After foundation mode, evaluate whether the project needs additional stack- or domain-specific skills.
+
+### 1. Analyze the stack
+
+From the canonical brief, identify:
+- What framework/runtime is being used
+- What database/ORM is being used
+- What API patterns are being used
+- What deployment target exists
+- Any domain-specific workflow requirements
+
+### 2. Research external patterns (reference only)
+
+Use web search or `/find-skill` to discover relevant skill patterns:
+- Search for skills related to the project's stack
+- Look at the [Anthropic skills repo](https://github.com/anthropics/skills) for patterns
+- Look at the [awesome-copilot collection](https://github.com/github/awesome-copilot)
+- Check framework documentation for conventions and best practices
+
+**CRITICAL: Do NOT install external skills directly.** Use them as REFERENCE ONLY for synthesizing project-specific skills.
+
+### 3. Synthesize project-specific skills
+
+Based on research, create skills that are specific to THIS project:
+
+Examples:
+- For a React project: `component-patterns` skill with the project's component conventions
+- For an API project: `api-contracts` skill with the project's schema format and validation rules
+- For a database project: `migration-safety` skill with the project's DB engine specifics
+- For a testing-heavy project: `test-patterns` skill with the project's test runner and fixture conventions
+- For a deployment project: `deploy-safety` skill with the project's deployment path
+
+### 4. Quality rules for synthesized skills
+
+- Each skill must be repo-specific, not generic paraphrasing of docs
+- Prefer procedure over reference dumping
+- Each skill must justify its existence — don't create a skill just because you can
+- Keep total skill count manageable (weaker models struggle with >12-15 skills)
+- Every synthesized skill must have proper YAML frontmatter
+
+### 5. Write synthesized skills
+
+Write each to `.opencode/skills/<name>/SKILL.md` using the template in `assets/templates/SKILL.template.md` as a starting structure.
+
+## After this step
+
+Continue to `../agent-prompt-engineering/SKILL.md` as directed by scaffold-kickoff.
+
+## Rules
+
+- Use this after the main scaffold exists — it refines, not replaces
+- When creating or revising skills, follow `../agent-prompt-engineering/SKILL.md` rules to avoid anti-patterns
+- Start with the smallest useful pack; add only when project evidence justifies it
+- Never auto-install external skills — synthesis from reference only
+
+## References
+
+- `references/local-skill-catalog.md` for the baseline skill list
+- `assets/templates/SKILL.template.md` for the skill file template

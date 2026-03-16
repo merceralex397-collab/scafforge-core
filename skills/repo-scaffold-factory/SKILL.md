@@ -1,58 +1,98 @@
 ---
 name: repo-scaffold-factory
-description: Build an initial repository structure, README, project AGENTS file, docs layout, ticket pack, and OpenCode scaffold from a normalized spec. Use when a host agent needs to create a greenfield repo foundation or reset a weakly structured project into a deterministic, signposted layout that weaker models can operate inside.
+description: Generate the base repository file structure including README, AGENTS.md, docs layout, ticket templates, and the full OpenCode scaffold with agents, tools, plugins, commands, and skills. Use when creating a greenfield repo foundation. This generates a generic starting structure that other skills then customize.
 ---
 
 # Repo Scaffold Factory
 
-Use this skill when the goal is to create the initial repository operating system, not just a few starter files.
+Use this skill to generate the initial repository file tree. This is a TWO-PHASE process.
 
-## Quick start
+## Phase A: Generate the base scaffold (script-assisted)
 
-Run the bootstrap script when you want a full project skeleton:
+The Python script handles deterministic mechanical work: copying 100+ template files, substituting placeholders, and generating metadata. This is better done by a script than by hand.
 
-```powershell
-python scripts/bootstrap_repo_scaffold.py `
-  --dest C:\path\to\repo `
-  --project-name "Example Project" `
-  --model-provider "openrouter" `
-  --planner-model "openrouter/anthropic/claude-sonnet-4.5" `
-  --implementer-model "openrouter/openai/gpt-5-codex"
+### Locate the script
+
+The script is at `scripts/bootstrap_repo_scaffold.py` relative to this skill's directory.
+
+If installed via npm, the path will be relative to the package root:
+`<package-root>/skills/repo-scaffold-factory/scripts/bootstrap_repo_scaffold.py`
+
+### Run the script
+
+```
+python scripts/bootstrap_repo_scaffold.py \
+  --dest <destination-path> \
+  --project-name "<Project Name>" \
+  --model-provider "<provider>" \
+  --planner-model "<planner-model-string>" \
+  --implementer-model "<implementer-model-string>"
 ```
 
-Important flags:
+Optional flags:
+- `--project-slug <slug>` — override the auto-generated slug
+- `--agent-prefix <prefix>` — override the agent filename prefix (defaults to slug)
+- `--utility-model <model>` — set a different model for utility agents (defaults to planner model)
+- `--stack-label <label>` — stack label for generated docs (defaults to "framework-agnostic")
+- `--scope opencode` — generate only the .opencode/ layer (for retrofit)
+- `--force` — overwrite existing files
 
-- `--project-slug` to override the inferred slug
-- `--agent-prefix` to override the inferred OpenCode agent prefix
-- `--utility-model` to override utility, docs, and QA helper lanes when they should differ from the planner model
-- `--scope opencode` to generate only the OpenCode layer
-- `--force` to overwrite an existing target tree
+### What the script generates
 
-## What this skill generates
+The script copies files from `assets/project-template/` and substitutes these placeholders:
+- `__PROJECT_NAME__` → project name
+- `__PROJECT_SLUG__` → URL-safe slug
+- `__AGENT_PREFIX__` → prefix for agent filenames
+- `__MODEL_PROVIDER__` → provider label
+- `__PLANNER_MODEL__` → planner/reviewer model string
+- `__IMPLEMENTER_MODEL__` → implementer model string
+- `__UTILITY_MODEL__` → utility agent model string
+- `__STACK_LABEL__` → stack/framework label
 
-- Root `README.md`
-- Root `AGENTS.md`
-- Root `START-HERE.md`
-- `docs/process/` and `docs/spec/`
-- `tickets/` with manifest, board, and template
-- `opencode.jsonc`
-- `.opencode/agents/`, `.opencode/tools/`, `.opencode/plugins/`, `.opencode/commands/`, and `.opencode/skills/`
+Output includes: README.md, AGENTS.md, START-HERE.md, docs/, tickets/, opencode.jsonc, .opencode/ (agents, tools, plugins, commands, skills, config, state), and .opencode/meta/bootstrap-provenance.json.
 
-## Workflow
+### Derive script arguments from the canonical brief
 
-1. Normalize the source material first.
-2. Decide the project name, slug, provider, planner model, implementer model, and optional utility/helper model.
-3. Run the scaffold bootstrap script.
-4. Use `agent-prompt-engineering` if the repo needs custom team-leader, reviewer, or command prompts.
-5. Review the generated docs and replace placeholders with project-specific facts.
-6. Run `repo-process-doctor` in audit mode so prompt or ticket drift is caught before handoff.
-7. Add stack-specific local skills after the repo stack is known.
+The arguments should come from the canonical brief and user decisions:
+- `--project-name` from the brief's Project Summary
+- `--model-provider` from the brief's Tooling/Model Constraints
+- `--planner-model` and `--implementer-model` from user decisions
+- `--stack-label` from the brief's Constraints (or "framework-agnostic" if unresolved)
 
-This skill owns the scaffold template assets under `assets/project-template/`. Wrapper skills should call into this template rather than duplicating `.opencode`, ticket, or doc scaffolding logic elsewhere.
+## Phase B: Customize with project-specific content (agent-driven)
+
+After the script generates the base files, you MUST customize them with actual project content. The generated files contain generic placeholder text that needs to be replaced.
+
+### Files to customize
+
+1. **README.md** — Replace the generic template sections with actual project description, setup instructions, and architecture overview from the canonical brief.
+
+2. **AGENTS.md** — Populate with actual project rules, conventions, and the truth hierarchy specific to this project.
+
+3. **docs/spec/CANONICAL-BRIEF.md** — This should already contain the normalized brief from `spec-pack-normalizer`. If it contains template placeholders, replace them with the actual brief content.
+
+4. **docs/process/workflow.md** — Customize the workflow description if the project has specific process requirements.
+
+5. **START-HERE.md** — Will be fully generated by `handoff-brief` at the end of the flow. Leave for now.
+
+6. **Agent prompts** — Will be customized by `opencode-team-bootstrap`. Leave for now.
+
+7. **Project-local skills** — Will be customized by `project-skill-bootstrap`. Leave for now.
+
+## What NOT to customize at this stage
+
+- Tools (.opencode/tools/) — these are standard workflow tools, keep as generated
+- Plugins (.opencode/plugins/) — these are standard enforcement plugins, keep as generated
+- Config (.opencode/config/) — stage-gate config is standard
+- State files (.opencode/state/) — bootstrap state is correct
+
+## After this step
+
+Continue to `../opencode-team-bootstrap/SKILL.md` to customize the agent team, then to `../ticket-pack-builder/SKILL.md` to create the backlog.
 
 ## References
 
 - `references/layout-guide.md` for the intended repo shape
 - `references/workflow-guide.md` for the ticketed lifecycle
-- `references/community-skill-audit.md` for notes on external skill patterns to inspect rather than auto-install
-- `assets/project-template/` for the copied scaffold source
+- `references/community-skill-audit.md` for notes on external skill patterns
+- `assets/project-template/` for the template source

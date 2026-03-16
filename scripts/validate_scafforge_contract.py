@@ -75,8 +75,8 @@ def validate_core_docs(findings: list[Finding]) -> None:
         if not path.exists():
             add_missing(findings, path)
             return
-    require_contains(findings, readme, "## Refined v1 product contract")
-    require_contains(findings, readme, "## Canonical generated-repo truth hierarchy")
+    require_contains(findings, readme, "## Truth hierarchy")
+    require_contains(findings, readme, "## Skill map")
     require_contains(findings, agents, "## Product contract refinements")
     require_contains(findings, agents, "## Canonical generated-repo truth hierarchy")
 

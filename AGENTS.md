@@ -73,12 +73,13 @@ The default route should be:
 1. `scaffold-kickoff` decides this is a greenfield build
 2. `spec-pack-normalizer` produces a canonical brief
 3. `repo-scaffold-factory` renders the base scaffold
-4. `ticket-pack-builder` runs in bootstrap mode
-5. `project-skill-bootstrap` runs in foundation mode
-6. `project-skill-bootstrap` may then run in synthesis mode if enough project evidence exists
-7. `agent-prompt-engineering` tightens prompts only where needed
-8. `repo-process-doctor` audits the result
-9. `handoff-brief` refreshes the restart surface
+4. `opencode-team-bootstrap` designs the project-specific agent team
+5. `ticket-pack-builder` runs in bootstrap mode
+6. `project-skill-bootstrap` runs in foundation mode
+7. `project-skill-bootstrap` may then run in synthesis mode if enough project evidence exists
+8. `agent-prompt-engineering` tightens prompts only where needed
+9. `repo-process-doctor` audits the result
+10. `handoff-brief` refreshes the restart surface
 
 A greenfield scaffold should not be considered complete until this cycle finishes.
 
@@ -147,9 +148,11 @@ Owns the base template and structural rendering.
 It should remain the single source of truth for scaffold assets.
 
 ### `opencode-team-bootstrap`
-Owns OpenCode-only retrofit behavior.
+Owns agent team design for the generated project.
 
-It should stay thin and reuse the main scaffold assets wherever possible.
+In a greenfield flow, this runs after `repo-scaffold-factory` generates generic agent templates. It analyzes the project type and stack from the canonical brief, then customizes all agents to be project-specific. This includes adding domain-specific implementers, rewriting generic prompts, and reviewing tools/plugins for project-specific additions.
+
+In a retrofit flow, this adds or repairs the `.opencode/` operating layer when the repo already exists.
 
 ### `ticket-pack-builder`
 Owns ticket pack structure.

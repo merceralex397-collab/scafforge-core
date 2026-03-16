@@ -1,12 +1,33 @@
 {
   "name": "@scafforge/core",
   "version": "0.1.0",
-  "private": true,
-  "description": "Host-agnostic scaffold generator with OpenCode-oriented output",
+  "description": "Skill pack for CLI coding agents — generates complete OpenCode-oriented project repos from specs and plans",
   "type": "module",
   "bin": {
     "scafforge": "./bin/scafforge.mjs"
   },
+  "files": [
+    "skills",
+    "bin",
+    "scripts",
+    "adapters",
+    "README.md",
+    "AGENTS.md"
+  ],
+  "engines": {
+    "node": ">=20",
+    "python": ">=3.10"
+  },
+  "keywords": [
+    "agent",
+    "skills",
+    "copilot",
+    "codex",
+    "scaffold",
+    "opencode",
+    "generator"
+  ],
+  "license": "UNLICENSED",
   "scripts": {
     "validate:contract": "python scripts/validate_scafforge_contract.py",
     "validate:smoke": "python scripts/smoke_test_scafforge.py"

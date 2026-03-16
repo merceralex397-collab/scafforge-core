@@ -71,8 +71,8 @@ export const COARSE_STATUSES = new Set([
 
 export const ARTIFACT_REGISTRY_ROOT = ".opencode/state/artifacts"
 export const LEGACY_REVIEW_STAGES = new Set(["code_review", "security_review"])
-export const START_HERE_MANAGED_START = "<!-- CODEXSETUP:START_HERE_BLOCK START -->"
-export const START_HERE_MANAGED_END = "<!-- CODEXSETUP:START_HERE_BLOCK END -->"
+export const START_HERE_MANAGED_START = "<!-- SCAFFORGE:START_HERE_BLOCK START -->"
+export const START_HERE_MANAGED_END = "<!-- SCAFFORGE:START_HERE_BLOCK END -->"
 
 export function rootPath(): string {
   return process.cwd()

@@ -19,13 +19,12 @@ export default tool({
     const workflow = await loadWorkflowState()
     const ticket = getTicket(manifest, args.ticket_id)
 
-    if (args.ticket_id) {
-      workflow.active_ticket = ticket.id
-      workflow.stage = ticket.stage
-      workflow.status = ticket.status
-    }
+    // Use a copy for snapshot rendering to avoid mutating shared state
+    const snapshotState = args.ticket_id
+      ? { ...workflow, active_ticket: ticket.id, stage: ticket.stage, status: ticket.status }
+      : workflow
 
-    const content = renderContextSnapshot(manifest, workflow, args.note)
+    const content = renderContextSnapshot(manifest, snapshotState, args.note)
     const path = contextSnapshotPath()
     await writeText(path, content)
 
