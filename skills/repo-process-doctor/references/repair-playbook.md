@@ -5,9 +5,39 @@
 - manifest: machine-readable queue state
 - board: derived human board
 - ticket files: detailed ticket content
-- workflow-state: transient approval and current stage state
+- workflow-state: transient approval, current stage, and active process-version / post-migration verification state
 - artifact-write tool: writes canonical stage artifact bodies
 - registered artifacts: proof for stage transitions
+- bootstrap provenance: canonical workflow-contract version, managed-surface ownership, and repair history
+
+## Managed-surface replacement contract
+
+When a repo has an older or conflicting OpenCode operating layer, replace these managed surfaces together:
+
+- `opencode.jsonc`
+- `.opencode/agents/`
+- `.opencode/tools/`
+- `.opencode/plugins/`
+- `.opencode/commands/`
+- scaffold-managed `.opencode/skills/` entries that belong to the generated operating layer, while preserving clearly project-authored local skills
+- derived `docs/process/`
+- the managed block inside `START-HERE.md`
+
+Preserve these durable project surfaces unless a specific finding proves they are malformed:
+
+- `docs/spec/CANONICAL-BRIEF.md`
+- `tickets/manifest.json`
+- `tickets/*.md`
+- registered artifact bodies under `.opencode/state/`
+- repo code and project docs outside the managed workflow layer
+
+After replacement:
+
+- append a repair entry to `.opencode/meta/bootstrap-provenance.json`
+- update `.opencode/state/workflow-state.json` with the new process version metadata
+- source the canonical process version from `.opencode/meta/bootstrap-provenance.json` under `workflow_contract.process_version`
+- set `pending_process_verification: true`
+- route completed-ticket rechecks through the backlog verifier before permitting guarded follow-up ticket creation
 
 ## Migration order
 
@@ -20,6 +50,7 @@
 7. harden read-only shell agents
 8. add artifact proofs for planning, implementation, review, and QA
 9. rerun the audit
+10. leave post-migration verification pending when the process contract materially changed
 
 ## Safe-repair boundary
 
@@ -29,6 +60,7 @@ Safe repairs usually include:
 - aligning queue, workflow-state, and artifact contracts to the current scaffold model
 - removing raw-file stage control where a tool-backed path already exists
 - normalizing contradictory status semantics into the current coarse queue contract
+- replacing clearly scaffold-managed operating surfaces when audit evidence shows the repo is on an older Scafforge contract and curated project sources will be preserved
 
 Escalate instead of auto-applying when a repair would:
 
@@ -36,6 +68,7 @@ Escalate instead of auto-applying when a repair would:
 - choose between unresolved stack or runtime options
 - change provider or model choices
 - delete or rewrite curated human project decisions rather than derived views
+- replace ambiguous or mixed-ownership surfaces without clear evidence that they are still Scafforge-managed
 - collapse a repo-specific pattern that is not clearly broken
 
 ## DeepHat-style migration notes
@@ -49,3 +82,4 @@ Escalate instead of auto-applying when a repair would:
 - merge managed START-HERE handoff blocks instead of overwriting curated repo-specific content
 - remove mutating shell loopholes from inspection roles
 - narrow preflight commands so they stop at the intended stage
+- record the process version change and leave a verification trail when managed surfaces were replaced

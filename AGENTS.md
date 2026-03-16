@@ -9,6 +9,7 @@ Scafforge is not the generated project. It is the generator, template source, or
 Maintain a host-agnostic scaffold package that can turn raw project inputs into a deterministic, signposted, OpenCode-oriented repo operating framework.
 
 The package should help even weaker models operate inside a generated project without having to reinvent the workflow every session.
+That weaker-model-first bias is intentional: stronger hosts should still work well, but the generated workflow should stay robust even when the model needs tighter structure and narrower delegation boundaries.
 
 ## Core operating model
 
@@ -64,6 +65,8 @@ These skills are the current backbone and should remain coherent as a chain:
 - `review-audit-bridge`
 - `handoff-brief`
 
+Optional extension skills may exist outside this backbone when they solve later host-side workflow needs without polluting the default scaffold chain. These should stay clearly marked as optional.
+
 ## Canonical workflow contract
 
 ### Greenfield full-cycle scaffold
@@ -93,6 +96,7 @@ These refinements now govern implementation of the package contract:
 - the generated repo must have a **structured truth hierarchy** with exact canonical owners for facts, queue state, transient workflow state, artifacts, provenance, and restart surfaces
 - the initial backlog should be **implementation-ready where decisions are resolved**, while unresolved major choices become explicit blocked or decision tickets instead of fabricated detail
 - `repo-process-doctor` should support `audit`, `propose-repair`, and `apply-repair`, with safe repairs applied by default unless blocked and intent-changing repairs escalated
+- managed-surface process replacement must leave explicit version and verification state so the generated repo can tell when its workflow contract changed
 - cross-host installability should come from **adapter packaging and bootstrap flows**, not by making the generated output multi-host
 
 ## Canonical generated-repo truth hierarchy
@@ -102,7 +106,7 @@ The generated repo should converge on these canonical roles:
 - `docs/spec/CANONICAL-BRIEF.md` owns durable project facts, constraints, accepted decisions, and unresolved questions
 - `tickets/manifest.json` owns machine queue state
 - `tickets/BOARD.md` is the derived human queue board
-- `.opencode/state/workflow-state.json` owns transient stage and approval state
+- `.opencode/state/workflow-state.json` owns transient stage, approval, and process-version state
 - `.opencode/state/artifacts/` plus manifest-backed registration own stage proof
 - `.opencode/meta/bootstrap-provenance.json` owns provenance for scaffold, later synthesis, and repairs
 - `START-HERE.md` is the derived restart surface
@@ -185,6 +189,12 @@ It must distinguish between safe repairs and intent-changing repairs.
 
 ### `review-audit-bridge`
 Owns structured review passes, not initial scaffold creation.
+
+### `pr-review-ticket-bridge`
+Owns host-side PR comment triage and canonical ticket proposals for valid review findings.
+
+It should validate comments against the actual implementation and repo contract.
+It should not bypass generated-repo migration guards or become part of the default scaffold chain.
 
 ### `handoff-brief`
 Owns the restart surface and closeout summary, not planning.

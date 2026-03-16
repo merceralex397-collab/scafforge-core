@@ -7,11 +7,17 @@ const here = path.dirname(fileURLToPath(import.meta.url))
 const root = path.resolve(here, "..")
 
 function runPython(scriptPath, args) {
-  const result = spawnSync("python", [scriptPath, ...args], {
-    cwd: root,
-    stdio: "inherit",
-  })
-  process.exit(result.status ?? 1)
+  for (const executable of ["python3", "python"]) {
+    const result = spawnSync(executable, [scriptPath, ...args], {
+      cwd: process.cwd(),
+      stdio: "inherit",
+    })
+    if (!result.error || result.error.code !== "ENOENT") {
+      process.exit(result.status ?? 1)
+    }
+  }
+  console.error("Unable to find a Python interpreter. Install python3 or provide `python` in PATH.")
+  process.exit(1)
 }
 
 const [command, ...args] = process.argv.slice(2)

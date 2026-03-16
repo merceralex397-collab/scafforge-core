@@ -3,28 +3,47 @@
 <!-- SCAFFORGE:START_HERE_BLOCK START -->
 ## Project
 
-`__PROJECT_NAME__`
+__PROJECT_NAME__
 
 ## Current State
 
-Initial scaffold created. Replace the placeholders in `docs/spec/CANONICAL-BRIEF.md` with the normalized project brief before implementation begins.
+The repo is operating with a ticketed OpenCode workflow.
+
+## Process Contract
+
+- process_version: 2
+- parallel_mode: parallel-lanes
+- pending_process_verification: false
+- process_changed_at: Not yet recorded.
+- process_note: No recorded process change summary.
+- process_state: No pending process-change verification.
 
 ## Read In This Order
 
-1. `README.md`
-2. `AGENTS.md`
-3. `docs/spec/CANONICAL-BRIEF.md`
-4. `docs/process/workflow.md`
-5. `tickets/BOARD.md`
-6. `tickets/manifest.json`
+1. README.md
+2. AGENTS.md
+3. docs/spec/CANONICAL-BRIEF.md
+4. docs/process/workflow.md
+5. tickets/BOARD.md
+6. tickets/manifest.json
 
 ## Current Ticket
 
-`SETUP-001`
+- ID: SETUP-001
+- Title: Establish scaffold and canonical brief
+- Wave: 0
+- Lane: repo-foundation
+- Stage: planning
+- Status: todo
+- Parallel safe: no
 
 ## Validation Status
 
-Scaffold generated. Project-specific validation not yet run.
+Update this section with project-specific validation results.
+
+## Known Risks
+
+- Replace with live risks as the project evolves.
 
 ## Next Action
 

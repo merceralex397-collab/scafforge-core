@@ -36,6 +36,10 @@ OPENCODE_SCOPE_FILES = {
     ".opencode",
 }
 
+PROCESS_CONTRACT_VERSION = 2
+TICKET_CONTRACT_VERSION = 2
+DEFAULT_PARALLEL_MODE = "parallel-lanes"
+
 
 def slugify(value: str) -> str:
     value = value.lower()
@@ -157,6 +161,40 @@ def write_bootstrap_provenance(
             "skill_ping_tool": "skill_ping",
             "tracker_plugin": "invocation-tracker",
         },
+        "workflow_contract": {
+            "process_version": PROCESS_CONTRACT_VERSION,
+            "ticket_contract_version": TICKET_CONTRACT_VERSION,
+            "parallel_mode": DEFAULT_PARALLEL_MODE,
+            "supports_manager_hierarchy": False,
+            "post_migration_verification": {
+                "enabled": True,
+                "backlog_verifier_agent": f"{agent_prefix}-backlog-verifier",
+                "ticket_creator_agent": f"{agent_prefix}-ticket-creator",
+            },
+        },
+        "managed_surfaces": {
+            "replace_on_retrofit": [
+                ".opencode/agents",
+                ".opencode/tools",
+                ".opencode/plugins",
+                ".opencode/commands",
+                ".opencode/skills",
+                "docs/process",
+                "START-HERE.md managed block",
+            ],
+            "preserve_project_sources": [
+                "docs/spec/CANONICAL-BRIEF.md",
+                "tickets/manifest.json",
+                "tickets/*.md",
+                ".opencode/state/artifacts",
+                ".opencode/state/plans",
+                ".opencode/state/implementations",
+                ".opencode/state/reviews",
+                ".opencode/state/qa",
+                ".opencode/state/handoffs",
+            ],
+        },
+        "repair_history": [],
     }
 
     target = dest_root / ".opencode" / "meta" / "bootstrap-provenance.json"

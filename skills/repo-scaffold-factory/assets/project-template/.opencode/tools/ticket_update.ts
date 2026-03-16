@@ -8,6 +8,7 @@ import {
   loadWorkflowState,
   saveManifest,
   saveWorkflowState,
+  ticketsNeedingProcessVerification,
 } from "./_workflow"
 
 export default tool({
@@ -19,6 +20,7 @@ export default tool({
     summary: tool.schema.string().describe("Optional replacement summary.").optional(),
     activate: tool.schema.boolean().describe("Whether to set this ticket as the active ticket.").optional(),
     approved_plan: tool.schema.boolean().describe("Whether the workflow now has an approved plan.").optional(),
+    pending_process_verification: tool.schema.boolean().describe("Whether post-migration backlog verification is still pending.").optional(),
   },
   async execute(args) {
     const manifest = await loadManifest()
@@ -65,6 +67,18 @@ export default tool({
       }
     } else if (switchingActiveTicket) {
       workflow.approved_plan = false
+    }
+    if (typeof args.pending_process_verification === "boolean") {
+      if (args.pending_process_verification === false) {
+        // Intentionally inspect post-mutation state so the clear operation validates the repo exactly as it would be persisted.
+        const unverified = ticketsNeedingProcessVerification(manifest, workflow)
+        if (unverified.length > 0) {
+          throw new Error(
+            `Cannot clear pending_process_verification: ${unverified.length} done ticket(s) still require backlog verification (${unverified.map((t) => t.id).join(", ")}). Run the backlog-verifier flow for the listed tickets, register review/backlog-verification artifacts where needed, then retry.`,
+          )
+        }
+      }
+      workflow.pending_process_verification = args.pending_process_verification
     }
 
     await saveManifest(manifest)

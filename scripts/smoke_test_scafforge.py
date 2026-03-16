@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import shutil
 import subprocess
+import sys
 import tempfile
 from pathlib import Path
 
@@ -33,8 +34,31 @@ def verify_render(dest: Path, *, expect_full_repo: bool) -> None:
                 raise RuntimeError(f"Missing expected directory: {path}")
 
     manifest = json.loads((dest / "tickets" / "manifest.json").read_text(encoding="utf-8")) if expect_full_repo else None
-    if manifest is not None and "tickets" not in manifest:
-        raise RuntimeError("tickets/manifest.json is missing a tickets key")
+    if manifest is not None:
+        if "tickets" not in manifest:
+            raise RuntimeError("tickets/manifest.json is missing a tickets key")
+        if manifest.get("version") != 2:
+            raise RuntimeError("tickets/manifest.json should use version 2")
+        if not manifest["tickets"]:
+            raise RuntimeError("tickets/manifest.json must contain at least one ticket")
+        first_ticket = manifest["tickets"][0]
+        for key in ("wave", "parallel_safe", "overlap_risk", "decision_blockers"):
+            if key not in first_ticket:
+                raise RuntimeError(f"tickets/manifest.json first ticket is missing `{key}`")
+
+        workflow = json.loads((dest / ".opencode" / "state" / "workflow-state.json").read_text(encoding="utf-8"))
+        for key in ("process_version", "pending_process_verification", "parallel_mode"):
+            if key not in workflow:
+                raise RuntimeError(f".opencode/state/workflow-state.json is missing `{key}`")
+
+        agents_dir = dest / ".opencode" / "agents"
+        agent_names = {path.name for path in agents_dir.glob("*.md")}
+        required_agent_suffixes = checklist.get("required_agent_suffixes")
+        if not required_agent_suffixes:
+            raise RuntimeError("opencode-conformance-checklist.json is missing required_agent_suffixes")
+        for suffix in required_agent_suffixes:
+            if not any(name.endswith(f"{suffix}.md") for name in agent_names):
+                raise RuntimeError(f"Missing expected agent with suffix `{suffix}`")
 
 
 def main() -> int:
@@ -44,7 +68,7 @@ def main() -> int:
         opencode_dest = workspace / "opencode"
 
         common = [
-            "python",
+            sys.executable,
             str(BOOTSTRAP),
             "--project-name",
             "Smoke Example",

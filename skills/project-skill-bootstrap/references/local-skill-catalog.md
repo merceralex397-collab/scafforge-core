@@ -34,6 +34,7 @@ The default full-orchestration profile should expose these lanes, but heavier pa
 
 - `.opencode/meta/bootstrap-provenance.json`
 - `.opencode/state/invocation-log.jsonl`
+- process-version and migration verification state
 - unused or never-seen tool/agent/skill surfaces
 
 ## research-delegation
@@ -59,3 +60,4 @@ The default full-orchestration profile should expose these lanes, but heavier pa
 - repo-process audit checklist
 - migration notes for older OpenCode layers
 - prompt and workflow drift warnings
+- post-migration verification guidance

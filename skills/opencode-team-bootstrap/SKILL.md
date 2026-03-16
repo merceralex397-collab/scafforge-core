@@ -34,6 +34,8 @@ Decide which agents this project needs. Start from the baseline and add/modify b
 - `reviewer-security` — security review for trust boundaries and secrets
 - `tester-qa` — QA validation and closeout readiness
 - `docs-handoff` — closeout artifact synchronization
+- `backlog-verifier` — re-checks completed tickets after a workflow or process upgrade
+- `ticket-creator` — creates guarded follow-up tickets only from verifier proof
 
 **Project-specific agents (add based on project type):**
 
@@ -59,6 +61,8 @@ For CLI/library projects:
 - Documentation specialist
 
 You may create MULTIPLE implementer-type agents for different domains within a single project. For example, a full-stack app might have `implementer-frontend`, `implementer-backend`, and `implementer-infra`.
+
+Default to one visible team leader with explicit safe parallel lanes. Only introduce a manager or section-leader hierarchy when the canonical brief shows strong non-overlapping domains that justify the extra coordination layer.
 
 **Utility agents (include based on need):**
 - `utility-explore` — repo evidence gathering
@@ -113,6 +117,7 @@ The base scaffold generates these standard tools (keep them all):
 - `context_snapshot.ts` — generate context snapshots
 - `handoff_publish.ts` — publish START-HERE handoff
 - `skill_ping.ts` — record skill invocations
+- `ticket_create.ts` — guarded follow-up ticket creation from verifier proof
 - `ticket_lookup.ts` — resolve tickets from manifest
 - `ticket_update.ts` — update ticket state with stage gates
 - `_workflow.ts` — shared types and utilities

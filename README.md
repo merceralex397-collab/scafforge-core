@@ -4,15 +4,19 @@ A skill pack for CLI coding agents. Install these skills into GitHub Copilot, Co
 
 The generated output is intentionally shaped for **OpenCode-style projects** — with agents, tools, plugins, commands, local skills, a ticket system, and a structured truth hierarchy.
 
+Scafforge is designed first to make weaker or cheaper models more reliable through deterministic workflow contracts, explicit truth ownership, and narrow guarded roles. Stronger hosts still benefit, but the product bias is toward structure that reduces hallucination and uncontrolled drift.
+
 ## Installation
 
 ### GitHub Copilot (personal — all projects)
 
-Copy or symlink the `skills/` directory into your Copilot skills folder:
+Install the Scafforge skill folders into Copilot's user skills directory. The supported contract is to copy or symlink each folder under `skills/` as-is so every skill keeps its own `SKILL.md`, `scripts/`, `assets/`, and `references/`.
+
+The commands below install the full bundled skill pack, including the non-backbone `pr-review-ticket-bridge` extension skill. If you do not want that extension available, omit the `skills/pr-review-ticket-bridge/` directory when copying or symlinking.
 
 ```sh
 # From this repo
-cp -r skills/* ~/.copilot/skills/
+cp -r skills/*/ ~/.copilot/skills/
 
 # Or symlink each skill
 for skill in skills/*/; do
@@ -20,21 +24,21 @@ for skill in skills/*/; do
 done
 ```
 
-Verify with `/skills list` in Copilot — you should see all 10 Scafforge skills.
+Verify with Copilot's `/skills` command — you should see the full Scafforge skill set, including the bundled `pr-review-ticket-bridge` extension skill if you kept it installed.
 
 ### GitHub Copilot (per-project)
 
 Copy the skills into a specific project:
 
 ```sh
-cp -r skills/* <your-project>/.github/skills/
+cp -r skills/*/ <your-project>/.github/skills/
 ```
 
 ### Via npm
 
 ```sh
 npm install -g @scafforge/core
-# Then symlink from the installed package location
+# Then copy or symlink the installed package's `skills/*/` directories into ~/.copilot/skills/
 ```
 
 ## Usage
@@ -60,7 +64,7 @@ scaffold-kickoff (entrypoint)
   → handoff-brief            generates START-HERE.md restart surface
 ```
 
-The **Python scripts** handle deterministic mechanical work (copying 100+ template files, placeholder substitution, running 21 audit checks). The **agent** handles creative work (reading specs, designing agents, writing project-specific prompts, creating tickets, synthesizing skills).
+The package's Python 3 scripts handle deterministic mechanical work (copying 100+ template files, placeholder substitution, running 21 audit checks). The agent handles creative work (reading specs, designing agents, writing project-specific prompts, creating tickets, synthesizing skills).
 
 ## What the generated repo contains
 
@@ -86,7 +90,7 @@ Generated repos use a structured truth hierarchy so state does not drift:
 | `docs/spec/CANONICAL-BRIEF.md` | Durable project facts, constraints, decisions |
 | `tickets/manifest.json` | Machine-readable queue state |
 | `tickets/BOARD.md` | Derived human-readable board |
-| `.opencode/state/workflow-state.json` | Transient stage and approval state |
+| `.opencode/state/workflow-state.json` | Transient stage, approval, and process-version state |
 | `.opencode/state/artifacts/` | Stage proof and lifecycle evidence |
 | `.opencode/meta/bootstrap-provenance.json` | Scaffold provenance and repair history |
 | `START-HERE.md` | Derived restart surface |
@@ -105,6 +109,12 @@ Generated repos use a structured truth hierarchy so state does not drift:
 | `repo-process-doctor` | Script audits for 21 workflow smells; agent applies safe repairs |
 | `review-audit-bridge` | Structures review/QA passes during implementation cycles (post-scaffold) |
 | `handoff-brief` | Generates START-HERE.md with actual project state for restart |
+
+## Bundled extension skills
+
+| Skill | What it does |
+|-------|-------------|
+| `pr-review-ticket-bridge` | Host-side PR review, comment validation, and guarded follow-up ticket generation for valid findings. Bundled with the package, but outside the default scaffold backbone. |
 
 ## Retrofit path
 
@@ -125,5 +135,5 @@ scaffold-kickoff (detects existing repo)
 - **Agent does creative work, scripts do mechanical work** — clean separation
 - **Project-specific output** — agents, skills, and tickets are customized per project
 - **Structured truth hierarchy** — one source of truth per kind of state
-- **Weak-model friendly** — generated repos should be operable by smaller models
+- **Weak-model first** — generated repos are shaped so smaller or cheaper models can operate without inventing hidden workflow state
 - **Discovery as research, not deployment** — external skills used as reference only

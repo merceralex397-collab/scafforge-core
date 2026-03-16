@@ -17,3 +17,13 @@ Required order:
 6. security review when relevant
 7. QA
 8. handoff and closeout
+
+Parallel rules:
+
+- keep each ticket sequential through its own stage order
+- only advance tickets in parallel when `parallel_safe` is `true`, `overlap_risk` is `low`, and dependencies are already satisfied
+
+Process-change rules:
+
+- if `pending_process_verification` is `true`, verify affected done tickets before trusting their completion
+- migration follow-up tickets must come from backlog-verifier proof through `ticket_create`, not raw manifest edits

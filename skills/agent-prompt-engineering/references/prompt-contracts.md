@@ -19,6 +19,8 @@
 - Verify required artifacts before routing to the next stage.
 - Stop on contradictions instead of guessing through them.
 - Never route around a missing prior-stage artifact.
+- Keep each ticket sequential, but make any safe cross-ticket parallelism explicit through lane and overlap rules.
+- Treat post-migration verification as a first-class gate before trusting previously done work.
 
 ## Planner
 
@@ -43,6 +45,12 @@
 - Stay read-only.
 - When the workflow expects review or QA artifacts, write the full body first and register metadata separately.
 - Return findings first.
+
+## Verifier and guarded ticket creator
+
+- Backlog verifier stays read-only with artifact permissions only.
+- Ticket creator uses a dedicated ticket creation tool instead of raw manifest edits.
+- Follow-up ticket creation requires verifier proof instead of informal summaries.
 
 ## Utility agents
 

@@ -54,3 +54,13 @@
 
 - a preflight or status command also instructs the agent to continue the entire lifecycle
 - result: the agent skips the expected stopping point
+
+## Process change blindness
+
+- the repo cannot tell whether its operating process was replaced or materially upgraded
+- result: completed tickets continue to be trusted even after the workflow contract changed
+
+## Missing post-migration verification lane
+
+- the repo can replace its process layer but has no explicit backlog verifier or gated follow-up path
+- result: migration issues are either missed or turned into ad hoc tickets with no proof trail
