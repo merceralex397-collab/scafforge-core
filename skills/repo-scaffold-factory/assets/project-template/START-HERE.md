@@ -9,6 +9,12 @@
 
 Initial scaffold created. Replace the placeholders in `docs/spec/CANONICAL-BRIEF.md` with the normalized project brief before implementation begins.
 
+## Process Contract
+
+- process_version: 2
+- parallel_mode: parallel-lanes
+- pending_process_verification: false
+
 ## Read In This Order
 
 1. `README.md`

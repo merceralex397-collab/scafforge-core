@@ -37,7 +37,10 @@ Organize tickets into waves based on dependency order:
 For each piece of work, create a ticket with these fields:
 - `id` — unique identifier (e.g., `SETUP-001`, `CORE-001`, `FEAT-001`)
 - `title` — short descriptive title
-- `lane` — which wave this belongs to
+- `wave` — which execution wave this belongs to
+- `lane` — which project area or ownership lane this belongs to
+- `parallel_safe` — whether this ticket can be advanced in parallel with other tickets when dependencies are satisfied
+- `overlap_risk` — `low`, `medium`, or `high` expected overlap with other tickets
 - `stage` — `planning` (all new tickets start here)
 - `status` — `todo` or `blocked`
 - `depends_on` — list of ticket IDs this depends on
@@ -53,6 +56,12 @@ For each piece of work, create a ticket with these fields:
 - If a ticket has more than 5 acceptance criteria, consider splitting
 - Prefer many small tickets over few large ones
 
+### Parallel lane rules
+
+- Mark `parallel_safe: true` only when the ticket has no unresolved dependency on another unfinished ticket and the expected overlap risk is low
+- Use `overlap_risk` to make concurrency judgment explicit instead of assuming it from lane names
+- Default to `parallel_safe: false` when the ownership boundary is unclear
+
 ### Handling unresolved decisions
 
 - Do NOT fabricate implementation detail for work that depends on unresolved major choices
@@ -67,7 +76,7 @@ For each ticket, write a markdown file to `tickets/<id>.md` using the template i
 ### 5. Update the manifest
 
 Write `tickets/manifest.json` with the structure defined in `references/ticket-system.md`:
-- `version`: 1
+- `version`: 2
 - `project`: project name from canonical brief
 - `active_ticket`: first ticket in wave 0
 - `tickets`: array of all ticket objects
@@ -109,6 +118,7 @@ Continue to `../project-skill-bootstrap/SKILL.md` as directed by scaffold-kickof
 - Keep board human-readable (derived from manifest)
 - Keep queue status coarse: `todo`, `ready`, `in_progress`, `blocked`, `review`, `qa`, `done`
 - Do NOT use ticket status for transient approval state (that's in workflow-state.json)
+- Keep `wave`, `lane`, `parallel_safe`, and `overlap_risk` aligned with real execution boundaries
 - Record dependencies explicitly
 - Put acceptance criteria on every ticket
 

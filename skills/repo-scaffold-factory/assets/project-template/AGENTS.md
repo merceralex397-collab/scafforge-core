@@ -11,8 +11,9 @@ If this file conflicts with any global AI instruction file, this file wins for t
 3. Use `tickets/manifest.json` as the machine-readable work queue.
 4. Use `.opencode/state/workflow-state.json` for transient stage approval state.
 5. Treat the stage-specific artifact directories as the canonical stage-proof body locations.
-6. Keep the repo signposted and deterministic for weaker models.
-7. Follow the internal stage gates: plan -> review -> implement -> review -> QA -> closeout.
+6. Use the process version and verification state in `.opencode/state/workflow-state.json` before trusting old completed work.
+7. Keep the repo signposted and deterministic for weaker models.
+8. Follow the internal stage gates: plan -> review -> implement -> review -> QA -> closeout.
 
 ## Truth hierarchy
 
@@ -20,6 +21,7 @@ If this file conflicts with any global AI instruction file, this file wins for t
 - `tickets/manifest.json` owns machine queue state and registered artifact metadata
 - `tickets/BOARD.md` is the derived human queue board
 - `.opencode/state/workflow-state.json` owns transient stage and approval state
+- `.opencode/state/workflow-state.json` also owns process-version and post-migration verification state
 - `.opencode/state/plans/`, `.opencode/state/implementations/`, `.opencode/state/reviews/`, `.opencode/state/qa/`, and `.opencode/state/handoffs/` own stage artifact bodies
 - `.opencode/state/artifacts/registry.json` owns the cross-stage artifact registry
 - `.opencode/meta/bootstrap-provenance.json` owns bootstrap and repair provenance
@@ -50,3 +52,5 @@ If this file conflicts with any global AI instruction file, this file wins for t
 - Use ticket tools and workflow-state instead of raw file edits for stage transitions.
 - Keep `START-HERE.md`, `tickets/BOARD.md`, and `tickets/manifest.json` aligned with the canonical sources that feed them.
 - Use Ubuntu-safe commands and paths in generated project docs unless the project explicitly says otherwise.
+- Keep the default orchestration shape as one visible team leader with explicit safe parallel lanes rather than many overlapping leaders.
+- Only create migration follow-up tickets from backlog-verifier findings during an active process-verification window.

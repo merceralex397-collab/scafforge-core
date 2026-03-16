@@ -17,11 +17,15 @@ export type Ticket = {
   id: string
   title: string
   lane: string
+  wave: number
+  parallel_safe: boolean
+  overlap_risk: string
   stage: string
   status: string
   depends_on: string[]
   summary: string
   acceptance: string[]
+  decision_blockers?: string[]
   artifacts: Artifact[]
 }
 
@@ -37,6 +41,11 @@ export type WorkflowState = {
   stage: string
   status: string
   approved_plan: boolean
+  process_version: number
+  process_last_changed_at: string | null
+  process_last_change_summary: string | null
+  pending_process_verification: boolean
+  parallel_mode: string
 }
 
 export type ArtifactRegistry = {
@@ -88,6 +97,10 @@ export function ticketsManifestPath(root = rootPath()): string {
 
 export function ticketsBoardPath(root = rootPath()): string {
   return join(root, "tickets", "BOARD.md")
+}
+
+export function ticketFilePath(ticketId: string, root = rootPath()): string {
+  return join(root, "tickets", `${ticketId}.md`)
 }
 
 export function workflowStatePath(root = rootPath()): string {
@@ -194,6 +207,11 @@ export async function loadWorkflowState(root = rootPath()): Promise<WorkflowStat
     stage: "planning",
     status: "ready",
     approved_plan: false,
+    process_version: 2,
+    process_last_changed_at: null,
+    process_last_change_summary: null,
+    pending_process_verification: false,
+    parallel_mode: "parallel-lanes",
   }
   return readJson<WorkflowState>(workflowStatePath(root), fallback)
 }
@@ -241,10 +259,63 @@ export function renderBoard(manifest: Manifest): string {
   const rows = manifest.tickets
     .map((ticket) => {
       const dependsOn = ticket.depends_on.length > 0 ? ticket.depends_on.join(", ") : "-"
-      return `| ${ticket.id} | ${ticket.title} | ${ticket.stage} | ${ticket.status} | ${dependsOn} |`
+      const parallel = ticket.parallel_safe ? "yes" : "no"
+      return `| ${ticket.wave} | ${ticket.id} | ${ticket.title} | ${ticket.lane} | ${ticket.stage} | ${ticket.status} | ${parallel} | ${ticket.overlap_risk} | ${dependsOn} |`
     })
     .join("\n")
-  return `# Ticket Board\n\n| ID | Title | Stage | Status | Depends On |\n| --- | --- | --- | --- | --- |\n${rows}\n`
+  return `# Ticket Board\n\n| Wave | ID | Title | Lane | Stage | Status | Parallel Safe | Overlap Risk | Depends On |\n| --- | --- | --- | --- | --- | --- | --- | --- | --- |\n${rows}\n`
+}
+
+export function renderTicketDocument(ticket: Ticket): string {
+  const dependsOn = ticket.depends_on.length > 0 ? ticket.depends_on.join(", ") : "None"
+  const blockers = ticket.decision_blockers && ticket.decision_blockers.length > 0 ? ticket.decision_blockers.join("\n- ") : "None"
+  const acceptance = ticket.acceptance.map((item) => `- [ ] ${item}`).join("\n") || "- [ ]"
+
+  return `# ${ticket.id}: ${ticket.title}
+
+## Summary
+
+${ticket.summary}
+
+## Wave
+
+${ticket.wave}
+
+## Lane
+
+${ticket.lane}
+
+## Parallel Safety
+
+- parallel_safe: ${ticket.parallel_safe ? "true" : "false"}
+- overlap_risk: ${ticket.overlap_risk}
+
+## Stage
+
+${ticket.stage}
+
+## Status
+
+${ticket.status}
+
+## Depends On
+
+${dependsOn}
+
+## Decision Blockers
+
+${blockers === "None" ? "None" : `- ${blockers}`}
+
+## Acceptance Criteria
+
+${acceptance}
+
+## Artifacts
+
+- None yet
+
+## Notes
+`
 }
 
 export function renderContextSnapshot(manifest: Manifest, workflow: WorkflowState, note?: string): string {
@@ -259,12 +330,20 @@ export function renderContextSnapshot(manifest: Manifest, workflow: WorkflowStat
 
   const noteBlock = note ? `\n## Note\n\n${note}\n` : ""
 
-  return `# Context Snapshot\n\n## Project\n\n${manifest.project}\n\n## Active Ticket\n\n- ID: ${ticket.id}\n- Title: ${ticket.title}\n- Stage: ${ticket.stage}\n- Status: ${ticket.status}\n- Approved plan: ${workflow.approved_plan ? "yes" : "no"}\n\n## Ticket Summary\n\n${ticket.summary}\n\n## Recent Artifacts\n\n${artifactLines}${noteBlock}\n## Next Useful Step\n\nUse the team leader or the next required specialist for the current stage.\n`
+  return `# Context Snapshot\n\n## Project\n\n${manifest.project}\n\n## Active Ticket\n\n- ID: ${ticket.id}\n- Title: ${ticket.title}\n- Stage: ${ticket.stage}\n- Status: ${ticket.status}\n- Approved plan: ${workflow.approved_plan ? "yes" : "no"}\n\n## Process State\n\n- process_version: ${workflow.process_version}\n- pending_process_verification: ${workflow.pending_process_verification ? "true" : "false"}\n- parallel_mode: ${workflow.parallel_mode}\n\n## Ticket Summary\n\n${ticket.summary}\n\n## Recent Artifacts\n\n${artifactLines}${noteBlock}\n## Next Useful Step\n\nUse the team leader or the next required specialist for the current stage.\n`
 }
 
 export function renderStartHere(manifest: Manifest, workflow: WorkflowState, nextAction?: string): string {
   const ticket = getTicket(manifest, workflow.active_ticket)
-  return `# START HERE\n\n${START_HERE_MANAGED_START}\n## Project\n\n${manifest.project}\n\n## Current State\n\nThe repo is operating with a ticketed OpenCode workflow.\n\n## Read In This Order\n\n1. README.md\n2. AGENTS.md\n3. docs/spec/CANONICAL-BRIEF.md\n4. docs/process/workflow.md\n5. tickets/BOARD.md\n6. tickets/manifest.json\n\n## Current Ticket\n\n- ID: ${ticket.id}\n- Title: ${ticket.title}\n- Stage: ${ticket.stage}\n- Status: ${ticket.status}\n\n## Validation Status\n\nUpdate this section with project-specific validation results.\n\n## Known Risks\n\n- Replace with live risks as the project evolves.\n\n## Next Action\n\n${nextAction || "Continue the required internal lifecycle from the current ticket stage."}\n${START_HERE_MANAGED_END}\n`
+  const processState = workflow.pending_process_verification
+    ? "Process changed recently. Backlog verification is still pending before old completed work can be fully trusted."
+    : "No pending process-change verification."
+  const recommendedAction =
+    nextAction ||
+    (workflow.pending_process_verification
+      ? "Use the team leader to route the backlog verifier across affected done tickets before creating any follow-up migration tickets."
+      : "Continue the required internal lifecycle from the current ticket stage.")
+  return `# START HERE\n\n${START_HERE_MANAGED_START}\n## Project\n\n${manifest.project}\n\n## Current State\n\nThe repo is operating with a ticketed OpenCode workflow.\n\n## Process Contract\n\n- process_version: ${workflow.process_version}\n- parallel_mode: ${workflow.parallel_mode}\n- pending_process_verification: ${workflow.pending_process_verification ? "true" : "false"}\n- process_note: ${workflow.process_last_change_summary || "No recorded process change summary."}\n- process_state: ${processState}\n\n## Read In This Order\n\n1. README.md\n2. AGENTS.md\n3. docs/spec/CANONICAL-BRIEF.md\n4. docs/process/workflow.md\n5. tickets/BOARD.md\n6. tickets/manifest.json\n\n## Current Ticket\n\n- ID: ${ticket.id}\n- Title: ${ticket.title}\n- Wave: ${ticket.wave}\n- Lane: ${ticket.lane}\n- Stage: ${ticket.stage}\n- Status: ${ticket.status}\n- Parallel safe: ${ticket.parallel_safe ? "yes" : "no"}\n\n## Validation Status\n\nUpdate this section with project-specific validation results.\n\n## Known Risks\n\n- Replace with live risks as the project evolves.\n\n## Next Action\n\n${recommendedAction}\n${START_HERE_MANAGED_END}\n`
 }
 
 function escapeRegExp(value: string): string {

@@ -17,6 +17,7 @@ Important workflow tools:
 - `context_snapshot` refreshes the compact restart surface
 - `handoff_publish` refreshes the top-level handoff
 - `skill_ping` records explicit local or global skill use in `.opencode/state/invocation-log.jsonl`
+- `ticket_create` creates guarded follow-up tickets from backlog-verifier proof during a process-verification window
 
 Tracking surfaces:
 
@@ -25,3 +26,4 @@ Tracking surfaces:
 - `.opencode/state/workflow-state.json` stores transient approval and current-stage state
 - `.opencode/plugins/invocation-tracker.ts` logs chat, command, and tool execution events
 - `.opencode/meta/bootstrap-provenance.json` records how the OpenCode layer was generated or retrofitted
+- `.opencode/state/workflow-state.json` also records the active process version and whether post-migration verification is still pending

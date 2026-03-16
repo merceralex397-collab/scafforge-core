@@ -14,7 +14,7 @@ Use this skill to inspect and repair agent-workflow issues in an existing reposi
 The audit script runs 21 automated checks for workflow smells. Run it:
 
 ```
-python scripts/audit_repo_process.py <repo-root> --format both
+python3 scripts/audit_repo_process.py <repo-root> --format both
 ```
 
 The script is at `scripts/audit_repo_process.py` relative to this skill's directory.
@@ -40,6 +40,8 @@ Map each finding to `references/process-smells.md` to understand:
 
 **apply-repair** — Apply repairs directly. Use when findings are clearly safe to fix. You (the agent) make the changes, not the script.
 
+When a repo has an older or conflicting OpenCode operating layer, treat full managed-surface replacement as a form of `apply-repair`, not as a separate workflow. Replace the managed workflow surfaces in one deliberate pass instead of mixing old and new process contracts together.
+
 ### Safe vs intent-changing repairs
 
 Read `references/repair-playbook.md` for the boundary.
@@ -50,6 +52,7 @@ Read `references/repair-playbook.md` for the boundary.
 - Removing raw-file stage control where tool-backed alternatives exist
 - Normalizing contradictory status semantics into the coarse queue contract
 - Fixing read-only agents that have mutating shell commands
+- Replacing the managed OpenCode operating surfaces when the repo is clearly on an older Scafforge contract and durable project facts can be preserved
 
 **Intent-changing repairs (escalate to user):**
 - Changes that affect project scope or product intent
@@ -64,9 +67,12 @@ For each safe repair:
 1. Read the finding
 2. Read the safer pattern from `references/repair-playbook.md`
 3. Read `references/safe-stage-contracts.md` for the target contract
-4. Make the change
-5. Verify the change resolves the finding
-6. Leave an obvious repair trail (document what was changed and why)
+4. If the finding indicates an older or conflicting operating layer, replace the managed surfaces in one pass instead of patching them piecemeal
+5. Record the process change in `.opencode/meta/bootstrap-provenance.json` and `.opencode/state/workflow-state.json`
+6. If the process layer materially changed, set `pending_process_verification: true` so the backlog verifier lane can re-check previously completed tickets
+7. Make the change
+8. Verify the change resolves the finding
+9. Leave an obvious repair trail (document what was changed and why)
 
 For each intent-changing repair:
 1. Present the finding and proposed repair to the user
@@ -77,7 +83,7 @@ For each intent-changing repair:
 
 Re-run the audit script to confirm findings are resolved:
 ```
-python scripts/audit_repo_process.py <repo-root> --format both --fail-on warning
+python3 scripts/audit_repo_process.py <repo-root> --format both --fail-on warning
 ```
 
 ## How this differs from scaffold-kickoff
@@ -97,6 +103,8 @@ Continue to `../handoff-brief/SKILL.md` as directed by `../scaffold-kickoff/SKIL
 - Chosen mode (audit / propose-repair / apply-repair)
 - Exact files patched (if apply-repair)
 - Target safer pattern for each repair
+- Whether managed-surface replacement occurred
+- Whether post-migration verification was left pending
 - Post-repair verification results
 
 ## Rules
@@ -107,6 +115,7 @@ Continue to `../handoff-brief/SKILL.md` as directed by `../scaffold-kickoff/SKIL
 - Treat read-only mutation paths as blockers
 - Default to apply-repair for safe repairs, escalate intent-changing repairs
 - Always leave an obvious repair trail — never silently fix without evidence
+- Do not leave a repo in a mixed old/new workflow state across agents, tools, plugins, commands, and process docs
 
 ## References
 

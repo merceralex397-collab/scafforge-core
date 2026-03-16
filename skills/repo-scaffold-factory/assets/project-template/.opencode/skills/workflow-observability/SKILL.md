@@ -18,9 +18,11 @@ Read these in order:
 Return these sections:
 
 1. `Bootstrap`
-2. `Observed Usage`
-3. `Missing Or Never-Seen Surfaces`
-4. `Workflow Drift Risks`
-5. `Next Fix`
+2. `Process Changes`
+3. `Observed Usage`
+4. `Missing Or Never-Seen Surfaces`
+5. `Workflow Drift Risks`
+6. `Next Fix`
 
 If `.opencode/state/invocation-log.jsonl` does not exist yet, say `no invocation data yet` explicitly instead of implying the setup is healthy.
+If `pending_process_verification` is `true`, say so explicitly and call out the backlog verifier as the next required lane.

@@ -33,3 +33,15 @@
 - closeout uses the ticket tools and handoff tools
 - handoff publication updates the managed START-HERE block without overwriting curated repo-specific sections
 - derived views are regenerated instead of hand-edited
+
+## Process migration
+
+- managed-surface replacement records a repair entry in bootstrap provenance
+- workflow state records the active process version and whether post-migration verification is still pending
+- previously completed tickets are not assumed valid after a process replacement until the backlog verifier checks them
+
+## Guarded follow-up ticket creation
+
+- follow-up tickets created because of a process migration must point at a backlog-verifier artifact
+- ticket creation is gated to the verification window instead of being generally available
+- the team leader approves whether a verifier finding becomes a new ticket

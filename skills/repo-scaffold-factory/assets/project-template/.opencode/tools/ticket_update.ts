@@ -19,6 +19,7 @@ export default tool({
     summary: tool.schema.string().describe("Optional replacement summary.").optional(),
     activate: tool.schema.boolean().describe("Whether to set this ticket as the active ticket.").optional(),
     approved_plan: tool.schema.boolean().describe("Whether the workflow now has an approved plan.").optional(),
+    pending_process_verification: tool.schema.boolean().describe("Whether post-migration backlog verification is still pending.").optional(),
   },
   async execute(args) {
     const manifest = await loadManifest()
@@ -65,6 +66,9 @@ export default tool({
       }
     } else if (switchingActiveTicket) {
       workflow.approved_plan = false
+    }
+    if (typeof args.pending_process_verification === "boolean") {
+      workflow.pending_process_verification = args.pending_process_verification
     }
 
     await saveManifest(manifest)

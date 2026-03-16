@@ -21,7 +21,7 @@ If installed via npm, the path will be relative to the package root:
 ### Run the script
 
 ```
-python scripts/bootstrap_repo_scaffold.py \
+python3 scripts/bootstrap_repo_scaffold.py \
   --dest <destination-path> \
   --project-name "<Project Name>" \
   --model-provider "<provider>" \

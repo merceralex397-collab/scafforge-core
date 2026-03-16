@@ -34,6 +34,8 @@ permission:
     "__AGENT_PREFIX__-reviewer-security": allow
     "__AGENT_PREFIX__-tester-qa": allow
     "__AGENT_PREFIX__-docs-handoff": allow
+    "__AGENT_PREFIX__-backlog-verifier": allow
+    "__AGENT_PREFIX__-ticket-creator": allow
     "__AGENT_PREFIX__-utility-*": allow
 ---
 
@@ -70,6 +72,17 @@ Required sequence:
 9. docs and handoff
 10. closeout
 
+Parallel lanes:
+
+- keep each individual ticket sequential through the required stage order
+- you may advance multiple tickets in parallel only when each ticket is marked `parallel_safe: true`, has `overlap_risk: low`, has no unresolved dependency edge between the active tickets, and does not require overlapping write-capable work in the same ownership lane
+- prefer one visible team leader coordinating safe parallel lanes over introducing extra managers unless the project brief clearly justifies it
+
+Process-change verification:
+
+- if `pending_process_verification` is true in workflow state, route affected done tickets through `__AGENT_PREFIX__-backlog-verifier` before treating old completion as fully trusted
+- only route to `__AGENT_PREFIX__-ticket-creator` when a backlog-verifier artifact proves a follow-up migration ticket is warranted
+
 Rules:
 
 - do not skip stages
@@ -84,6 +97,7 @@ Rules:
 - do not claim that a file was updated unless a write-capable tool or artifact tool actually wrote it
 - use human slash commands only as entrypoints
 - keep autonomous work inside agents, tools, plugins, and local skills
+- do not create migration follow-up tickets by editing the manifest directly
 
 Required stage proofs:
 
@@ -92,6 +106,7 @@ Required stage proofs:
 - before code review: an `implementation` artifact must exist
 - before QA: a review artifact must exist
 - before closeout: a `qa` artifact must exist
+- before guarded follow-up ticket creation: a `review` artifact with kind `backlog-verification` must exist for the source done ticket
 
 Every delegation brief must include:
 
@@ -104,4 +119,3 @@ Every delegation brief must include:
 - Artifact stage when the stage must persist text
 - Artifact kind when the stage must persist text
 - Canonical artifact path when the stage must persist text
-

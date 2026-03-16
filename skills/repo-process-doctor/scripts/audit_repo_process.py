@@ -556,6 +556,80 @@ def audit_missing_observability_layer(root: Path, findings: list[Finding]) -> No
         )
 
 
+def audit_process_change_tracking(root: Path, findings: list[Finding]) -> None:
+    workflow_path = root / ".opencode" / "state" / "workflow-state.json"
+    provenance_path = root / ".opencode" / "meta" / "bootstrap-provenance.json"
+    workflow = read_json(workflow_path)
+    provenance = read_json(provenance_path)
+
+    missing: list[str] = []
+    evidence: list[str] = []
+
+    if not isinstance(workflow, dict):
+        missing.append(normalize_path(workflow_path, root))
+    else:
+        for key in ("process_version", "pending_process_verification", "parallel_mode"):
+            if key not in workflow:
+                evidence.append(f"{normalize_path(workflow_path, root)} is missing `{key}`.")
+
+    if not isinstance(provenance, dict):
+        missing.append(normalize_path(provenance_path, root))
+    else:
+        if not isinstance(provenance.get("workflow_contract"), dict):
+            evidence.append(f"{normalize_path(provenance_path, root)} is missing `workflow_contract`.")
+        if not isinstance(provenance.get("managed_surfaces"), dict):
+            evidence.append(f"{normalize_path(provenance_path, root)} is missing `managed_surfaces`.")
+        if "repair_history" not in provenance:
+            evidence.append(f"{normalize_path(provenance_path, root)} is missing `repair_history`.")
+
+    if missing or evidence:
+        add_finding(
+            findings,
+            Finding(
+                code="missing-process-change-tracking",
+                severity="warning",
+                problem="The repo cannot reliably tell whether its operating process was replaced or materially upgraded.",
+                root_cause="Workflow state and provenance do not expose a stable process version, managed-surface ownership, and pending post-migration verification state.",
+                files=missing or [normalize_path(workflow_path, root), normalize_path(provenance_path, root)],
+                safer_pattern="Record process version fields in workflow state and managed-surface plus repair history data in bootstrap provenance.",
+                evidence=missing + evidence,
+            ),
+        )
+
+
+def audit_missing_post_migration_verification(root: Path, findings: list[Finding]) -> None:
+    required = [
+        ".opencode/tools/ticket_create.ts",
+        ".opencode/agents/backlog-verifier.md",
+        ".opencode/agents/ticket-creator.md",
+    ]
+    found_agents_dir = root / ".opencode" / "agents"
+    actual_required: list[str] = []
+    if found_agents_dir.exists():
+        if not any("backlog-verifier" in path.name for path in found_agents_dir.glob("*.md")):
+            actual_required.append(".opencode/agents/*backlog-verifier*.md")
+        if not any("ticket-creator" in path.name for path in found_agents_dir.glob("*.md")):
+            actual_required.append(".opencode/agents/*ticket-creator*.md")
+    else:
+        actual_required.extend(required[1:])
+    if not (root / ".opencode" / "tools" / "ticket_create.ts").exists():
+        actual_required.append(required[0])
+
+    if actual_required:
+        add_finding(
+            findings,
+            Finding(
+                code="missing-post-migration-verification-lane",
+                severity="warning",
+                problem="The repo has no explicit post-migration verification and guarded follow-up ticket path.",
+                root_cause="A process replacement can change workflow expectations, but the repo lacks a verifier role or tightly scoped ticket creation tool for resulting backlog repairs.",
+                files=actual_required,
+                safer_pattern="Add a backlog verifier, a guarded ticket creator, and a ticket creation tool that requires verification proof.",
+                evidence=actual_required,
+            ),
+        )
+
+
 def audit_partial_workflow_layer_drift(root: Path, findings: list[Finding]) -> None:
     has_core_layer = any(
         (root / path).exists()
@@ -773,6 +847,8 @@ def audit_repo(root: Path) -> list[Finding]:
     audit_handoff_overwrites_start_here(root, findings)
     audit_invalid_tool_schemas(root, findings)
     audit_missing_observability_layer(root, findings)
+    audit_process_change_tracking(root, findings)
+    audit_missing_post_migration_verification(root, findings)
     audit_partial_workflow_layer_drift(root, findings)
     audit_raw_file_state_ownership(root, findings)
     audit_missing_artifact_gates(root, findings)

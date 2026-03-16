@@ -6,8 +6,37 @@
 - board: derived human board
 - ticket files: detailed ticket content
 - workflow-state: transient approval and current stage state
+- workflow-state: process version and post-migration verification state
 - artifact-write tool: writes canonical stage artifact bodies
 - registered artifacts: proof for stage transitions
+- bootstrap provenance: managed-surface ownership plus repair history
+
+## Managed-surface replacement contract
+
+When a repo has an older or conflicting OpenCode operating layer, replace these managed surfaces together:
+
+- `.opencode/agents/`
+- `.opencode/tools/`
+- `.opencode/plugins/`
+- `.opencode/commands/`
+- baseline `.opencode/skills/`
+- derived `docs/process/`
+- the managed block inside `START-HERE.md`
+
+Preserve these durable project surfaces unless a specific finding proves they are malformed:
+
+- `docs/spec/CANONICAL-BRIEF.md`
+- `tickets/manifest.json`
+- `tickets/*.md`
+- registered artifact bodies under `.opencode/state/`
+- repo code and project docs outside the managed workflow layer
+
+After replacement:
+
+- append a repair entry to `.opencode/meta/bootstrap-provenance.json`
+- update `.opencode/state/workflow-state.json` with the new process version metadata
+- set `pending_process_verification: true`
+- route completed-ticket rechecks through the backlog verifier before permitting guarded follow-up ticket creation
 
 ## Migration order
 
@@ -20,6 +49,7 @@
 7. harden read-only shell agents
 8. add artifact proofs for planning, implementation, review, and QA
 9. rerun the audit
+10. leave post-migration verification pending when the process contract materially changed
 
 ## Safe-repair boundary
 
@@ -49,3 +79,4 @@ Escalate instead of auto-applying when a repair would:
 - merge managed START-HERE handoff blocks instead of overwriting curated repo-specific content
 - remove mutating shell loopholes from inspection roles
 - narrow preflight commands so they stop at the intended stage
+- record the process version change and leave a verification trail when managed surfaces were replaced

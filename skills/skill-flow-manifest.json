@@ -109,6 +109,14 @@
       "outputs": ["START-HERE refresh", "closeout summary", "restart surface"],
       "upstreams": ["repo-process-doctor", "ticket-pack-builder"],
       "downstreams": []
+    },
+    "pr-review-ticket-bridge": {
+      "owner": "host-review",
+      "modes": ["review-pr"],
+      "inputs": ["pull request diff", "commit history", "review comments", "repo ticket format"],
+      "outputs": ["validated review findings", "follow-up tickets", "ticket generation rationale"],
+      "upstreams": [],
+      "downstreams": []
     }
   }
 }

@@ -24,6 +24,22 @@ Rules:
 - write stage artifact bodies with `artifact_write` and then register them with `artifact_register`
 - require a registered stage artifact before advancing to the next stage
 
+## Parallel lanes
+
+- keep each individual ticket sequential through its own stage order
+- the team leader may advance multiple tickets in parallel only when all of these are true:
+  - `parallel_safe` is `true`
+  - `overlap_risk` is `low`
+  - no direct or indirect dependency exists between the tickets being advanced
+  - the tickets do not target the same ownership lane for write-capable work at the same time
+- default to a single visible team leader with parallel lanes; treat manager or section-leader hierarchies as an advanced pattern for unusually large repos
+
+## Process-change verification
+
+- if `.opencode/state/workflow-state.json` shows `pending_process_verification: true`, completed tickets are not treated as fully trusted yet
+- route affected done tickets through the backlog verifier before creating migration follow-up work
+- create migration follow-up tickets only through the guarded `ticket_create` tool and only from a registered `backlog-verification` artifact
+
 ## Canonical ownership
 
 - durable project facts live in `docs/spec/CANONICAL-BRIEF.md`
