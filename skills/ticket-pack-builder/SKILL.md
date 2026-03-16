@@ -95,8 +95,18 @@ Ensure `.opencode/state/workflow-state.json` reflects the first active ticket:
 {
   "active_ticket": "<first-ticket-id>",
   "stage": "planning",
-  "status": "ready",
-  "approved_plan": false
+  "status": "todo",
+  "approved_plan": false,
+  "ticket_state": {
+    "<first-ticket-id>": {
+      "approved_plan": false
+    }
+  },
+  "process_version": 3,
+  "process_last_changed_at": null,
+  "process_last_change_summary": null,
+  "pending_process_verification": false,
+  "parallel_mode": "parallel-lanes"
 }
 ```
 

@@ -20,7 +20,7 @@ If this file conflicts with any global AI instruction file, this file wins for t
 - `docs/spec/CANONICAL-BRIEF.md` owns durable project facts and decisions
 - `tickets/manifest.json` owns machine queue state and registered artifact metadata
 - `tickets/BOARD.md` is the derived human queue board
-- `.opencode/state/workflow-state.json` owns transient stage and approval state plus the active process-version and post-migration verification state
+- `.opencode/state/workflow-state.json` owns the transient foreground stage, per-ticket approval state, and the active process-version plus post-migration verification state
 - `.opencode/state/plans/`, `.opencode/state/implementations/`, `.opencode/state/reviews/`, `.opencode/state/qa/`, and `.opencode/state/handoffs/` own stage artifact bodies
 - `.opencode/state/artifacts/registry.json` owns the cross-stage artifact registry
 - `.opencode/meta/bootstrap-provenance.json` owns bootstrap and repair provenance
@@ -52,5 +52,6 @@ If this file conflicts with any global AI instruction file, this file wins for t
 - Keep `START-HERE.md`, `tickets/BOARD.md`, and `tickets/manifest.json` aligned with the canonical sources that feed them.
 - Use Ubuntu-safe commands and paths in generated project docs unless the project explicitly says otherwise.
 - Keep the default orchestration shape as one visible team leader with explicit safe parallel lanes rather than many overlapping leaders.
+- Treat manager or section-leader hierarchies as advanced project-specific customization, not a first-class scaffold profile.
 - Treat `.opencode/meta/bootstrap-provenance.json` as the canonical source for the repo's process-contract version; workflow state mirrors that contract for active execution and verification routing.
 - Only create migration follow-up tickets from backlog-verifier findings during an active process-verification window.

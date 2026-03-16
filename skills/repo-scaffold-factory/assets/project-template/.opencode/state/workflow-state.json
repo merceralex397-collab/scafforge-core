@@ -3,7 +3,12 @@
   "stage": "planning",
   "status": "todo",
   "approved_plan": false,
-  "process_version": 2,
+  "ticket_state": {
+    "SETUP-001": {
+      "approved_plan": false
+    }
+  },
+  "process_version": 3,
   "process_last_changed_at": null,
   "process_last_change_summary": null,
   "pending_process_verification": false,

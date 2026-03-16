@@ -28,11 +28,13 @@ if (!command || command === "help" || command === "--help" || command === "-h") 
 Usage:
   scafforge render-full <args...>
   scafforge render-opencode <args...>
+  scafforge repair-process <repo-root> [args...]
   scafforge validate-contract
 
 Commands:
   render-full       Wrap skills/repo-scaffold-factory/scripts/bootstrap_repo_scaffold.py
   render-opencode   Wrap skills/opencode-team-bootstrap/scripts/bootstrap_opencode_team.py
+  repair-process    Wrap skills/repo-process-doctor/scripts/apply_repo_process_repair.py
   validate-contract Run the Scafforge contract validator
 `)
   process.exit(0)
@@ -48,6 +50,10 @@ if (command === "render-opencode") {
 
 if (command === "validate-contract") {
   runPython(path.join(root, "scripts", "validate_scafforge_contract.py"), args)
+}
+
+if (command === "repair-process") {
+  runPython(path.join(root, "skills", "repo-process-doctor", "scripts", "apply_repo_process_repair.py"), args)
 }
 
 console.error(`Unknown command: ${command}`)

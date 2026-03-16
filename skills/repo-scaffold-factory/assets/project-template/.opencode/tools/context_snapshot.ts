@@ -2,6 +2,7 @@ import { tool } from "@opencode-ai/plugin"
 import {
   contextSnapshotPath,
   getTicket,
+  isPlanApprovedForTicket,
   loadManifest,
   loadWorkflowState,
   renderContextSnapshot,
@@ -21,7 +22,7 @@ export default tool({
 
     // Use a copy for snapshot rendering to avoid mutating shared state
     const snapshotState = args.ticket_id
-      ? { ...workflow, active_ticket: ticket.id, stage: ticket.stage, status: ticket.status }
+      ? { ...workflow, active_ticket: ticket.id, stage: ticket.stage, status: ticket.status, approved_plan: isPlanApprovedForTicket(workflow, ticket.id) }
       : workflow
 
     const content = renderContextSnapshot(manifest, snapshotState, args.note)

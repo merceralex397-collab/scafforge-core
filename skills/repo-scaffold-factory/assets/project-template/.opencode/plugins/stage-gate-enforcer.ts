@@ -1,5 +1,5 @@
 import { type Plugin } from "@opencode-ai/plugin"
-import { getTicket, hasArtifact, loadManifest, loadWorkflowState } from "../tools/_workflow"
+import { getTicket, hasArtifact, isPlanApprovedForTicket, loadManifest, loadWorkflowState } from "../tools/_workflow"
 
 const SAFE_BASH = /^(pwd|ls|find|rg|grep|cat|head|tail|git status|git diff|git log)\b/i
 
@@ -23,21 +23,22 @@ export const StageGateEnforcer: Plugin = async () => {
   return {
     "tool.execute.before": async (input, output) => {
       const workflow = await loadWorkflowState().catch(() => undefined)
-      if (!workflow || workflow.approved_plan) {
+      if (!workflow) {
         return
       }
+      const activeApprovedPlan = isPlanApprovedForTicket(workflow, workflow.active_ticket)
 
       if (input.tool === "bash") {
         const command = typeof output.args.command === "string" ? output.args.command : ""
-        if (!SAFE_BASH.test(command)) {
-          throw new Error("Plan approval required before running implementation-oriented shell commands.")
+        if (!activeApprovedPlan && !SAFE_BASH.test(command)) {
+          throw new Error("The active ticket needs an approved plan before running implementation-oriented shell commands.")
         }
       }
 
       if (input.tool === "write" || input.tool === "edit") {
         const filePath = extractFilePath(output.args)
-        if (!filePath || !isDocPath(filePath)) {
-          throw new Error("Plan approval required before editing implementation files.")
+        if (!activeApprovedPlan && (!filePath || !isDocPath(filePath))) {
+          throw new Error("The active ticket needs an approved plan before editing implementation files.")
         }
       }
 
@@ -52,8 +53,8 @@ export const StageGateEnforcer: Plugin = async () => {
           throw new Error("Planning artifact required before marking the workflow as approved.")
         }
 
-        if (nextStatus === "in_progress" && !workflow.approved_plan && approving !== true) {
-          throw new Error("Approved plan required before moving a ticket to in_progress.")
+        if (nextStatus === "in_progress" && !isPlanApprovedForTicket(workflow, ticket.id) && approving !== true) {
+          throw new Error(`Approved plan required before moving ${ticket.id} to in_progress.`)
         }
       }
     },

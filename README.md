@@ -64,7 +64,7 @@ scaffold-kickoff (entrypoint)
   → handoff-brief            generates START-HERE.md restart surface
 ```
 
-The package's Python 3 scripts handle deterministic mechanical work (copying 100+ template files, placeholder substitution, running 21 audit checks). The agent handles creative work (reading specs, designing agents, writing project-specific prompts, creating tickets, synthesizing skills).
+The package's Python 3 scripts handle deterministic mechanical work (copying 100+ template files, placeholder substitution, running workflow audits, and applying managed-surface retrofit repairs). The agent handles creative work (reading specs, designing agents, writing project-specific prompts, creating tickets, synthesizing skills).
 
 ## What the generated repo contains
 
@@ -106,7 +106,7 @@ Generated repos use a structured truth hierarchy so state does not drift:
 | `ticket-pack-builder` | Creates wave-based ticket backlog with acceptance criteria and dependencies |
 | `project-skill-bootstrap` | Creates project-specific skills from real data and stack research |
 | `agent-prompt-engineering` | Hardens prompts with model-specific techniques (web-researches chosen model) |
-| `repo-process-doctor` | Script audits for 21 workflow smells; agent applies safe repairs |
+| `repo-process-doctor` | Script audits workflow drift; agent applies safe repairs or runs deterministic managed-surface replacement |
 | `review-audit-bridge` | Structures review/QA passes during implementation cycles (post-scaffold) |
 | `handoff-brief` | Generates START-HERE.md with actual project state for restart |
 
@@ -136,4 +136,5 @@ scaffold-kickoff (detects existing repo)
 - **Project-specific output** — agents, skills, and tickets are customized per project
 - **Structured truth hierarchy** — one source of truth per kind of state
 - **Weak-model first** — generated repos are shaped so smaller or cheaper models can operate without inventing hidden workflow state
+- **Default orchestration stays flat** — one visible team leader is standard; manager or section-leader layers remain advanced customization, not a first-class scaffold profile
 - **Discovery as research, not deployment** — external skills used as reference only

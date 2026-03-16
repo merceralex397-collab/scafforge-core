@@ -11,7 +11,7 @@ The repo is operating with a ticketed OpenCode workflow.
 
 ## Process Contract
 
-- process_version: 2
+- process_version: 3
 - parallel_mode: parallel-lanes
 - pending_process_verification: false
 - process_changed_at: Not yet recorded.

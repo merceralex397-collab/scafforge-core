@@ -4,6 +4,7 @@ import {
   getTicket,
   hasArtifact,
   hasReviewArtifact,
+  isPlanApprovedForTicket,
   latestArtifact,
   latestReviewArtifact,
   loadManifest,
@@ -22,6 +23,15 @@ export default tool({
     const manifest = await loadManifest()
     const workflow = await loadWorkflowState()
     const ticket = getTicket(manifest, args.ticket_id)
+    const resolvedWorkflow = args.ticket_id
+      ? {
+          ...workflow,
+          active_ticket: ticket.id,
+          stage: ticket.stage,
+          status: ticket.status,
+          approved_plan: isPlanApprovedForTicket(workflow, ticket.id),
+        }
+      : workflow
     const latestPlan = latestArtifact(ticket, { stage: "planning" }) || null
     const latestImplementation = latestArtifact(ticket, { stage: "implementation" }) || null
     const latestReview = latestReviewArtifact(ticket) || null
@@ -69,7 +79,7 @@ export default tool({
       {
         project: manifest.project,
         active_ticket: manifest.active_ticket,
-        workflow,
+        workflow: resolvedWorkflow,
         ticket,
         artifact_summary: artifactSummary,
         artifact_bodies: artifactBodies,

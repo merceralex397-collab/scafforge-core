@@ -7,6 +7,8 @@ import {
   loadWorkflowState,
   saveManifest,
   saveWorkflowState,
+  setPlanApprovedForTicket,
+  syncWorkflowSelection,
   ticketFilePath,
 } from "./_workflow"
 
@@ -110,11 +112,9 @@ export default tool({
 
     manifest.tickets.push(ticket)
     if (args.activate) {
+      setPlanApprovedForTicket(workflow, ticket.id, false)
       manifest.active_ticket = ticket.id
-      workflow.active_ticket = ticket.id
-      workflow.stage = ticket.stage
-      workflow.status = ticket.status
-      workflow.approved_plan = false
+      syncWorkflowSelection(workflow, manifest)
     }
 
     await saveManifest(manifest)

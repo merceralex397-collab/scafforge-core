@@ -14,7 +14,7 @@
 
 ## Implementation
 
-- implementer starts only after `approved_plan` is true
+- implementer starts only after the assigned ticket shows `approved_plan: true` in workflow-state
 - implementation artifact records what changed and validation run
 - implementation proof uses the canonical stage-specific artifact path plus registration in `.opencode/state/artifacts/registry.json`
 

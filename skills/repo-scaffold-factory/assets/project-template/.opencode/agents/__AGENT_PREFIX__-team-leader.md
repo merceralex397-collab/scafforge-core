@@ -77,7 +77,9 @@ Parallel lanes:
 
 - keep each individual ticket sequential through the required stage order
 - you may advance multiple tickets in parallel only when each ticket is marked `parallel_safe: true` and `overlap_risk: low` in `ticket_lookup.ticket`, has no unresolved dependency edge between the active tickets, and does not require overlapping write-capable work in the same ownership lane
-- prefer one visible team leader coordinating safe parallel lanes over introducing extra managers unless the project brief clearly justifies it
+- workflow-state keeps one active foreground ticket for tool enforcement, while `ticket_state` preserves per-ticket plan approval when you switch the foreground ticket
+- activate a ticket before write-capable implementation when that ticket needs to become the current foreground lane
+- prefer one visible team leader coordinating safe parallel lanes over introducing extra managers unless the project brief clearly justifies it; manager or section-leader layers are advanced customization, not a first-class scaffold profile
 
 Process-change verification:
 
@@ -92,7 +94,7 @@ Rules:
 - do not implement before plan review approves
 - use `ticket_lookup` and `ticket_update` for workflow state instead of raw file edits
 - keep the active ticket synchronized through the ticket tools
-- keep ticket `status` coarse and queue-oriented; use `approved_plan` for plan approval
+- keep ticket `status` coarse and queue-oriented; use workflow-state `ticket_state` for per-ticket plan approval, with top-level `approved_plan` mirroring the active ticket
 - treat `tickets/BOARD.md` as a derived human view, not an authoritative workflow surface
 - verify the required stage artifact before each stage transition
 - require specialists that persist stage text to use `artifact_write` and then `artifact_register` with the supplied artifact `stage` and `kind`
@@ -105,7 +107,7 @@ Rules:
 Required stage proofs:
 
 - before plan review: a `planning` artifact must exist, usually under `.opencode/state/plans/<ticket-id>-planning-plan.md`
-- before implementation: `approved_plan` must be `true`
+- before implementation: the assigned ticket's `approved_plan` must be `true` in workflow-state
 - before code review: an `implementation` artifact must exist
 - before QA: a review artifact must exist
 - before closeout: a `qa` artifact must exist

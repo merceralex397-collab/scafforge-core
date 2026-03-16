@@ -39,5 +39,5 @@ Before:
 After:
 
 - ticket status: `todo`, `ready`, `in_progress`, `blocked`, `review`, `qa`, `done`
-- workflow state: `approved_plan: true|false`
+- workflow state: `ticket_state.<ticket-id>.approved_plan: true|false` with the top-level `approved_plan` mirroring the current active ticket
 - stage proof: registered artifacts

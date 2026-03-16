@@ -36,7 +36,7 @@ OPENCODE_SCOPE_FILES = {
     ".opencode",
 }
 
-PROCESS_CONTRACT_VERSION = 2
+PROCESS_CONTRACT_VERSION = 3
 TICKET_CONTRACT_VERSION = 2
 DEFAULT_PARALLEL_MODE = "parallel-lanes"
 
@@ -165,7 +165,10 @@ def write_bootstrap_provenance(
             "process_version": PROCESS_CONTRACT_VERSION,
             "ticket_contract_version": TICKET_CONTRACT_VERSION,
             "parallel_mode": DEFAULT_PARALLEL_MODE,
-            "supports_manager_hierarchy": False,
+            "manager_hierarchy": {
+                "first_class_scaffold_profile": False,
+                "advanced_customization_allowed": True,
+            },
             "post_migration_verification": {
                 "enabled": True,
                 "backlog_verifier_agent": f"{agent_prefix}-backlog-verifier",
@@ -174,13 +177,20 @@ def write_bootstrap_provenance(
         },
         "managed_surfaces": {
             "replace_on_retrofit": [
-                ".opencode/agents",
+                "opencode.jsonc",
                 ".opencode/tools",
                 ".opencode/plugins",
                 ".opencode/commands",
-                ".opencode/skills",
-                "docs/process",
+                "scaffold-managed .opencode/skills",
+                "docs/process/workflow.md",
+                "docs/process/tooling.md",
+                "docs/process/model-matrix.md",
+                "docs/process/git-capability.md",
                 "START-HERE.md managed block",
+            ],
+            "project_specific_follow_up": [
+                ".opencode/agents",
+                "docs/process/agent-catalog.md",
             ],
             "preserve_project_sources": [
                 "docs/spec/CANONICAL-BRIEF.md",

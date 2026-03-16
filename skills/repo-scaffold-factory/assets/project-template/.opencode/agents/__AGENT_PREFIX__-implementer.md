@@ -67,10 +67,9 @@ Rules:
 
 - do not re-plan from scratch
 - keep changes scoped to the ticket
-- confirm `approved_plan` is already true before implementation begins
+- confirm the assigned ticket's `approved_plan` is already true in workflow-state before implementation begins
 - use `ticket_update` for workflow state changes instead of editing ticket files directly
 - write the full implementation artifact with `artifact_write` and then register it with `artifact_register` before handing work to review
 - stop when you hit a blocker instead of improvising around missing requirements
 - if the approved plan still leaves a material choice unresolved, return a blocker instead of deciding it ad hoc
 - do not stop at a summary before the implementation artifact exists unless you are returning an explicit blocker
-

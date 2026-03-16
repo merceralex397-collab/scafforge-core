@@ -113,10 +113,24 @@ def validate_template_surfaces(findings: list[Finding]) -> None:
     require_contains(findings, template / ".opencode" / "state" / "workflow-state.json", '"process_version"')
     require_contains(findings, template / ".opencode" / "state" / "workflow-state.json", '"pending_process_verification"')
     require_contains(findings, template / ".opencode" / "state" / "workflow-state.json", '"parallel_mode"')
+    require_contains(findings, template / ".opencode" / "state" / "workflow-state.json", '"ticket_state"')
     require_contains(findings, template / "tickets" / "manifest.json", '"wave"')
     require_contains(findings, template / "tickets" / "manifest.json", '"parallel_safe"')
     require_contains(findings, template / "tickets" / "manifest.json", '"overlap_risk"')
     require_contains(findings, template / "tickets" / "manifest.json", '"decision_blockers"')
+
+
+def validate_process_doctor_surfaces(findings: list[Finding]) -> None:
+    skill = ROOT / "skills" / "repo-process-doctor"
+    runner = skill / "scripts" / "apply_repo_process_repair.py"
+    cli = ROOT / "bin" / "scafforge.mjs"
+    for path in (runner, cli):
+        if not path.exists():
+            add_missing(findings, path)
+    if runner.exists():
+        require_contains(findings, runner, '"deterministic-workflow-engine-replacement"')
+    if cli.exists():
+        require_contains(findings, cli, "repair-process")
 
 
 def validate_no_hidden_defaults(findings: list[Finding]) -> None:
@@ -146,6 +160,7 @@ def main() -> int:
     validate_flow_manifest(findings)
     validate_core_docs(findings)
     validate_template_surfaces(findings)
+    validate_process_doctor_surfaces(findings)
     validate_no_hidden_defaults(findings)
 
     if findings:

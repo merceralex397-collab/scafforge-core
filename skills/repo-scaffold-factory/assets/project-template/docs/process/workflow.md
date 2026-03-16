@@ -32,7 +32,8 @@ Rules:
   - `overlap_risk` is `low`
   - no direct or indirect dependency exists between the tickets being advanced
   - the tickets do not target the same ownership lane for write-capable work at the same time
-- default to a single visible team leader with parallel lanes; treat manager or section-leader hierarchies as an advanced pattern for unusually large repos
+- workflow-state keeps one active foreground ticket for tool enforcement, while `ticket_state` preserves per-ticket plan approval when the foreground ticket changes
+- default to a single visible team leader with parallel lanes; treat manager or section-leader hierarchies as an advanced pattern for unusually large repos, not as a first-class scaffold profile
 
 ## Process-change verification
 
@@ -46,7 +47,7 @@ Rules:
 
 - durable project facts live in `docs/spec/CANONICAL-BRIEF.md`
 - machine queue state and artifact metadata live in `tickets/manifest.json`
-- transient approval and current-stage state live in `.opencode/state/workflow-state.json`
+- transient foreground stage and per-ticket approval state live in `.opencode/state/workflow-state.json`
 - artifact bodies live in the stage-specific directories under `.opencode/state/`
 - cross-stage artifact metadata lives in `.opencode/state/artifacts/registry.json`
 - restart guidance lives in `START-HERE.md` and should be regenerated from canonical state
@@ -54,7 +55,7 @@ Rules:
 ## Stage Proof
 
 - before plan review: a `planning` artifact must exist
-- before implementation: `approved_plan` must be `true`
+- before implementation: the assigned ticket's `approved_plan` must be `true` in workflow-state
 - before code review: an `implementation` artifact must exist
 - before QA: a review artifact must exist
 - before closeout: a `qa` artifact must exist

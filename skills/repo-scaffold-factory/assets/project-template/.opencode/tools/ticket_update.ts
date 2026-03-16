@@ -4,10 +4,13 @@ import {
   getTicket,
   hasArtifact,
   hasReviewArtifact,
+  isPlanApprovedForTicket,
   loadManifest,
   loadWorkflowState,
   saveManifest,
   saveWorkflowState,
+  setPlanApprovedForTicket,
+  syncWorkflowSelection,
   ticketsNeedingProcessVerification,
 } from "./_workflow"
 
@@ -19,7 +22,7 @@ export default tool({
     status: tool.schema.string().describe("Optional new status value.").optional(),
     summary: tool.schema.string().describe("Optional replacement summary.").optional(),
     activate: tool.schema.boolean().describe("Whether to set this ticket as the active ticket.").optional(),
-    approved_plan: tool.schema.boolean().describe("Whether the workflow now has an approved plan.").optional(),
+    approved_plan: tool.schema.boolean().describe("Whether this ticket's plan is approved in workflow-state.").optional(),
     pending_process_verification: tool.schema.boolean().describe("Whether post-migration backlog verification is still pending.").optional(),
   },
   async execute(args) {
@@ -35,8 +38,8 @@ export default tool({
       throw new Error("Cannot approve a plan before a planning artifact exists.")
     }
 
-    if (args.status === "in_progress" && !workflow.approved_plan && args.approved_plan !== true) {
-      throw new Error("Cannot move to in_progress before the workflow has an approved plan.")
+    if (args.status === "in_progress" && !isPlanApprovedForTicket(workflow, ticket.id) && args.approved_plan !== true) {
+      throw new Error(`Cannot move ${ticket.id} to in_progress before its plan is approved in workflow-state.`)
     }
 
     if (args.status === "review" && !hasArtifact(ticket, { stage: "implementation" })) {
@@ -54,20 +57,12 @@ export default tool({
     if (args.stage) ticket.stage = args.stage
     if (args.status) ticket.status = args.status
     if (args.summary) ticket.summary = args.summary
-    const switchingActiveTicket = Boolean(args.activate) && manifest.active_ticket !== ticket.id
     if (args.activate) manifest.active_ticket = ticket.id
 
-    const activeTicket = getTicket(manifest, manifest.active_ticket)
-    workflow.active_ticket = activeTicket.id
-    workflow.stage = activeTicket.stage
-    workflow.status = activeTicket.status
     if (typeof args.approved_plan === "boolean") {
-      if (activeTicket.id === ticket.id) {
-        workflow.approved_plan = args.approved_plan
-      }
-    } else if (switchingActiveTicket) {
-      workflow.approved_plan = false
+      setPlanApprovedForTicket(workflow, ticket.id, args.approved_plan)
     }
+    syncWorkflowSelection(workflow, manifest)
     if (typeof args.pending_process_verification === "boolean") {
       if (args.pending_process_verification === false) {
         // Intentionally inspect post-mutation state so the clear operation validates the repo exactly as it would be persisted.

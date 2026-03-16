@@ -11,7 +11,7 @@ Use this skill to inspect and repair agent-workflow issues in an existing reposi
 
 ### 1. Run the audit script
 
-The audit script runs 21 automated checks for workflow smells. Run it:
+The audit script runs the current set of automated workflow checks. Run it:
 
 ```
 python3 scripts/audit_repo_process.py <repo-root> --format both
@@ -40,7 +40,21 @@ Map each finding to `references/process-smells.md` to understand:
 
 **apply-repair** — Apply repairs directly. Use when findings are clearly safe to fix. You (the agent) make the changes, not the script.
 
-When a repo has an older or conflicting OpenCode operating layer, treat full managed-surface replacement as a form of `apply-repair`, not as a separate workflow. Replace the managed workflow surfaces in one deliberate pass instead of mixing old and new process contracts together.
+When a repo has an older or conflicting OpenCode operating layer, treat managed-surface replacement as a form of `apply-repair`, not as a separate workflow. Replace the deterministic workflow-engine surfaces in one deliberate pass instead of mixing old and new process contracts together, then follow up on any project-specific agent-team drift explicitly.
+
+For managed-surface replacement, prefer the deterministic repair runner:
+
+```sh
+python3 scripts/apply_repo_process_repair.py <repo-root>
+```
+
+If you are using the Scafforge package CLI directly, you can also run:
+
+```sh
+scafforge repair-process <repo-root>
+```
+
+Use manual edits for narrower safe repairs that do not require a full managed-surface pass, or for project-specific agent-team follow-up that cannot be regenerated mechanically from the base scaffold alone.
 
 ### Safe vs intent-changing repairs
 
@@ -67,8 +81,8 @@ For each safe repair:
 1. Read the finding
 2. Read the safer pattern from `references/repair-playbook.md`
 3. Read `references/safe-stage-contracts.md` for the target contract
-4. If the finding indicates an older or conflicting operating layer, replace the managed surfaces in one pass instead of patching them piecemeal
-5. Make the change
+4. If the finding indicates an older or conflicting operating layer, run the deterministic repair runner for the workflow-engine surfaces instead of patching them piecemeal
+5. Apply any remaining targeted follow-up for project-specific agent or process-doc drift
 6. Verify the change resolves the finding
 7. Record the process change in `.opencode/meta/bootstrap-provenance.json` and `.opencode/state/workflow-state.json`
 8. If the process layer materially changed, set `pending_process_verification: true` so the backlog verifier lane can re-check previously completed tickets
@@ -119,6 +133,6 @@ Continue to `../handoff-brief/SKILL.md` as directed by `../scaffold-kickoff/SKIL
 
 ## References
 
-- `references/process-smells.md` — the 21 workflow smells
+- `references/process-smells.md` — the workflow smells covered by the audit
 - `references/repair-playbook.md` — repair targets and safe/intent-changing boundary
 - `references/safe-stage-contracts.md` — stage contract definitions

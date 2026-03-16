@@ -12,16 +12,23 @@
 
 ## Managed-surface replacement contract
 
-When a repo has an older or conflicting OpenCode operating layer, replace these managed surfaces together:
+When a repo has an older or conflicting OpenCode operating layer, replace these deterministic workflow-engine surfaces together:
 
 - `opencode.jsonc`
-- `.opencode/agents/`
 - `.opencode/tools/`
 - `.opencode/plugins/`
 - `.opencode/commands/`
-- scaffold-managed `.opencode/skills/` entries that belong to the generated operating layer, while preserving clearly project-authored local skills
-- derived `docs/process/`
+- scaffold-managed foundation entries under `.opencode/skills/`, while preserving clearly project-authored local skills
+- `docs/process/workflow.md`
+- `docs/process/tooling.md`
+- `docs/process/model-matrix.md`
+- `docs/process/git-capability.md`
 - the managed block inside `START-HERE.md`
+
+Then repair or regenerate these project-specific follow-up surfaces only when audit evidence shows they drifted:
+
+- `.opencode/agents/`
+- `docs/process/agent-catalog.md`
 
 Preserve these durable project surfaces unless a specific finding proves they are malformed:
 
@@ -60,7 +67,7 @@ Safe repairs usually include:
 - aligning queue, workflow-state, and artifact contracts to the current scaffold model
 - removing raw-file stage control where a tool-backed path already exists
 - normalizing contradictory status semantics into the current coarse queue contract
-- replacing clearly scaffold-managed operating surfaces when audit evidence shows the repo is on an older Scafforge contract and curated project sources will be preserved
+- replacing the deterministic workflow-engine surfaces when audit evidence shows the repo is on an older Scafforge contract and curated project sources will be preserved
 
 Escalate instead of auto-applying when a repair would:
 

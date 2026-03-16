@@ -62,7 +62,7 @@ For CLI/library projects:
 
 You may create MULTIPLE implementer-type agents for different domains within a single project. For example, a full-stack app might have `implementer-frontend`, `implementer-backend`, and `implementer-infra`.
 
-Default to one visible team leader with explicit safe parallel lanes. Only introduce a manager or section-leader hierarchy when the canonical brief shows strong non-overlapping domains that justify the extra coordination layer.
+Default to one visible team leader with explicit safe parallel lanes. Only introduce a manager or section-leader hierarchy when the canonical brief shows strong non-overlapping domains that justify the extra coordination layer. Treat that hierarchy as advanced project-specific customization, not as a first-class scaffold profile.
 
 **Utility agents (include based on need):**
 - `utility-explore` — repo evidence gathering
