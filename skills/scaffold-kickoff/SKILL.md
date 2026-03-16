@@ -12,7 +12,7 @@ This is the default entrypoint. When a user asks you to scaffold a project, use 
 Before starting, classify the run type:
 
 1. **Greenfield** — No repo exists yet, or the repo contains only specs/plans/notes. Follow the full workflow below.
-2. **Retrofit** — A repo with code already exists but needs the OpenCode operating layer added. Skip to `opencode-team-bootstrap` (step 5), then continue from step 6.
+2. **Retrofit** — A repo with code already exists but needs the OpenCode operating layer added. Run `spec-pack-normalizer` first if the project lacks a canonical brief, then skip to `opencode-team-bootstrap` (step 4), and continue from step 5.
 3. **Refinement** — A scaffolded repo exists but needs its tickets, skills, or agents improved. Jump to the specific skill needed.
 
 ## Full greenfield workflow

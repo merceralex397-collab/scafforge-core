@@ -30,3 +30,6 @@ build/
 # Temp
 *.tmp
 *.bak
+
+# Dev docs (internal notes, not shipped)
+devdocs/

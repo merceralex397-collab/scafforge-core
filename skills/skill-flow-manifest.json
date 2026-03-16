@@ -36,7 +36,7 @@
       "inputs": ["messy project inputs", "normalized decisions"],
       "outputs": ["orchestrated run", "required downstream sequence"],
       "upstreams": [],
-      "downstreams": ["spec-pack-normalizer", "repo-scaffold-factory", "ticket-pack-builder", "project-skill-bootstrap", "agent-prompt-engineering", "repo-process-doctor", "handoff-brief"]
+      "downstreams": ["spec-pack-normalizer", "repo-scaffold-factory", "opencode-team-bootstrap", "ticket-pack-builder", "project-skill-bootstrap", "agent-prompt-engineering", "repo-process-doctor", "handoff-brief"]
     },
     "spec-pack-normalizer": {
       "owner": "intake",
@@ -52,7 +52,7 @@
       "inputs": ["canonical brief", "provider/model choices", "project identifiers"],
       "outputs": ["repo skeleton", "template docs", ".opencode layer", "bootstrap provenance"],
       "upstreams": ["spec-pack-normalizer", "scaffold-kickoff"],
-      "downstreams": ["ticket-pack-builder", "project-skill-bootstrap", "repo-process-doctor"]
+      "downstreams": ["opencode-team-bootstrap", "ticket-pack-builder", "project-skill-bootstrap", "repo-process-doctor"]
     },
     "opencode-team-bootstrap": {
       "owner": "agent-team-design",

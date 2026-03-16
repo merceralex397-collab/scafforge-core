@@ -1,4 +1,4 @@
-# Scafforge
+# Scafforge v1
 
 A skill pack for CLI coding agents. Install these skills into GitHub Copilot, Codex, or another compatible agent, then point the agent at a repo with specs, plans, or design docs. The agent follows the skill chain and generates a complete, structured project repository ready for autonomous development.
 

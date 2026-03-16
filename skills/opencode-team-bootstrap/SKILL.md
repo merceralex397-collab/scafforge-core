@@ -154,7 +154,7 @@ Customize these to reference project-specific agents and skills.
 
 ## After this step
 
-Run `repo-process-doctor` in audit mode to verify the customized team doesn't have workflow drift. Then continue to `ticket-pack-builder` or `project-skill-bootstrap` as directed by `scaffold-kickoff`.
+Continue to `../ticket-pack-builder/SKILL.md` as directed by `../scaffold-kickoff/SKILL.md`.
 
 ## References
 
