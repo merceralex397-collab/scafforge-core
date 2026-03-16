@@ -15,5 +15,6 @@ Rules:
 - treat `tickets/BOARD.md` as a derived human board, not a second state machine
 - use registered artifacts for stage proof instead of inferring state from raw ticket text
 - keep artifact metadata on the owning ticket entry in `tickets/manifest.json`
+- keep `tickets/<id>.md` synchronized with manifest-backed ticket state; use the Notes section for durable human context
 - mirror artifact metadata into `.opencode/state/artifacts/registry.json`
 - create migration follow-up tickets through the guarded `ticket_create` tool instead of raw manifest edits

@@ -112,9 +112,11 @@
     },
     "pr-review-ticket-bridge": {
       "owner": "host-review",
+      "extension": true,
+      "exclude_from_default": true,
       "modes": ["review-pr"],
       "inputs": ["pull request diff", "commit history", "review comments", "repo ticket format"],
-      "outputs": ["validated review findings", "follow-up tickets", "ticket generation rationale"],
+      "outputs": ["validated review findings", "follow-up ticket proposals", "ticket generation rationale"],
       "upstreams": [],
       "downstreams": []
     }

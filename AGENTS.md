@@ -190,6 +190,12 @@ It must distinguish between safe repairs and intent-changing repairs.
 ### `review-audit-bridge`
 Owns structured review passes, not initial scaffold creation.
 
+### `pr-review-ticket-bridge`
+Owns host-side PR comment triage and canonical ticket proposals for valid review findings.
+
+It should validate comments against the actual implementation and repo contract.
+It should not bypass generated-repo migration guards or become part of the default scaffold chain.
+
 ### `handoff-brief`
 Owns the restart surface and closeout summary, not planning.
 

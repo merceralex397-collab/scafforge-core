@@ -16,6 +16,6 @@ Adapter responsibilities:
 - explain how the host should pass provider/model choices
 - keep host-specific startup wording out of core generator docs
 
-For GitHub Copilot specifically, the supported installation shape is the Scafforge `skills/` folders themselves. Copy or symlink each skill directory into Copilot's skills directory so the skill-local `SKILL.md`, `scripts/`, `assets/`, and `references/` remain together.
+For GitHub Copilot specifically, the supported installation shape is the Scafforge `skills/` folders themselves. Copy or symlink each skill directory into `~/.copilot/skills/` so the skill-local `SKILL.md`, `scripts/`, `assets/`, and `references/` remain together.
 
 Use `adapters/manifest.json` as the machine-readable version of this split.

@@ -39,6 +39,8 @@ def verify_render(dest: Path, *, expect_full_repo: bool) -> None:
             raise RuntimeError("tickets/manifest.json is missing a tickets key")
         if manifest.get("version") != 2:
             raise RuntimeError("tickets/manifest.json should use version 2")
+        if not manifest["tickets"]:
+            raise RuntimeError("tickets/manifest.json must contain at least one ticket")
         first_ticket = manifest["tickets"][0]
         for key in ("wave", "parallel_safe", "overlap_risk", "decision_blockers"):
             if key not in first_ticket:
@@ -51,7 +53,10 @@ def verify_render(dest: Path, *, expect_full_repo: bool) -> None:
 
         agents_dir = dest / ".opencode" / "agents"
         agent_names = {path.name for path in agents_dir.glob("*.md")}
-        for suffix in checklist.get("required_agent_suffixes", []):
+        required_agent_suffixes = checklist.get("required_agent_suffixes")
+        if not required_agent_suffixes:
+            raise RuntimeError("opencode-conformance-checklist.json is missing required_agent_suffixes")
+        for suffix in required_agent_suffixes:
             if not any(name.endswith(f"{suffix}.md") for name in agent_names):
                 raise RuntimeError(f"Missing expected agent with suffix `{suffix}`")
 

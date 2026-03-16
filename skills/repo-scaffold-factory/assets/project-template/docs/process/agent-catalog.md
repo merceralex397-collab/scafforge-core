@@ -33,4 +33,5 @@ Workflow contract:
 - each major stage must leave a canonical artifact before the next stage begins
 - read-only specialists return findings, artifacts, or blockers instead of mutating repo files
 - per-ticket stage order stays sequential even when the repo advances multiple safe tickets in parallel lanes
+- the backlog verifier reads canonical artifact bodies through `ticket_lookup` before deciding whether old completion still holds
 - post-migration follow-up tickets are created only from backlog-verifier proof during an active verification window

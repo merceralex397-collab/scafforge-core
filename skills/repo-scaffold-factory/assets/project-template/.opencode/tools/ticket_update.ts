@@ -8,6 +8,7 @@ import {
   loadWorkflowState,
   saveManifest,
   saveWorkflowState,
+  ticketsNeedingProcessVerification,
 } from "./_workflow"
 
 export default tool({
@@ -69,13 +70,11 @@ export default tool({
     }
     if (typeof args.pending_process_verification === "boolean") {
       if (args.pending_process_verification === false) {
-        const doneTickets = manifest.tickets.filter((t) => t.status === "done")
-        const unverified = doneTickets.filter(
-          (t) => !t.artifacts.some((a) => a.stage === "review" && a.kind === "backlog-verification"),
-        )
+        // Intentionally inspect post-mutation state so the clear operation validates the repo exactly as it would be persisted.
+        const unverified = ticketsNeedingProcessVerification(manifest, workflow)
         if (unverified.length > 0) {
           throw new Error(
-            `Cannot clear pending_process_verification: ${unverified.length} done ticket(s) lack backlog-verification artifacts (${unverified.map((t) => t.id).join(", ")}).`,
+            `Cannot clear pending_process_verification: ${unverified.length} done ticket(s) still require backlog verification (${unverified.map((t) => t.id).join(", ")}). Run the backlog-verifier flow for the listed tickets, register review/backlog-verification artifacts where needed, then retry.`,
           )
         }
       }

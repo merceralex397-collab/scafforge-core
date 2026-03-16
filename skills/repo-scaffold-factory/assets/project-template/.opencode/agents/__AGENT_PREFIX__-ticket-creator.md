@@ -32,7 +32,12 @@ Return:
 
 Rules:
 
+- the delegation brief must provide: new ticket id, title, lane, wave, summary, acceptance criteria, source ticket id, and verification artifact path
+- if any required field is missing, return a blocker immediately instead of guessing
 - do not create tickets outside an active process-verification window
 - require a registered `backlog-verification` artifact for the source ticket
 - use `ticket_create` instead of raw file edits or direct manifest edits
-- keep scope narrow to the verified issue; do not expand into general backlog grooming
+- create exactly one narrow follow-up ticket per invocation; do not expand into general backlog grooming or scan for unrelated issues
+- use `ticket_lookup` only when you need to confirm source-ticket state or current workflow status
+- if `ticket_create` throws, return the error as a blocker without retrying
+- report remaining blockers from the `decision_blockers` you supplied, not from guessed state

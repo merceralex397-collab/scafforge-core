@@ -71,7 +71,7 @@ For each piece of work, create a ticket with these fields:
 
 ### 4. Write ticket files
 
-For each ticket, write a markdown file to `tickets/<id>.md` using the template in `assets/templates/TICKET.template.md`.
+For each ticket, write a markdown file to `tickets/<id>.md` using the template in `tickets/templates/TICKET.template.md`.
 
 ### 5. Update the manifest
 

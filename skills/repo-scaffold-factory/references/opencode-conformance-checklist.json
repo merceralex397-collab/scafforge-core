@@ -14,6 +14,7 @@
     ".opencode/state/workflow-state.json",
     ".opencode/state/artifacts/registry.json",
     ".opencode/tools/ticket_create.ts",
+    ".opencode/tools/ticket_update.ts",
     ".opencode/commands/kickoff.md",
     ".opencode/commands/resume.md"
   ],

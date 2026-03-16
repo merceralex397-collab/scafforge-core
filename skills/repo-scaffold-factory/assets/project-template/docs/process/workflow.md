@@ -36,8 +36,10 @@ Rules:
 
 ## Process-change verification
 
+- `.opencode/meta/bootstrap-provenance.json` owns the canonical `workflow_contract.process_version`; `.opencode/state/workflow-state.json` mirrors the active process state for day-to-day execution
 - if `.opencode/state/workflow-state.json` shows `pending_process_verification: true`, completed tickets are not treated as fully trusted yet
-- route affected done tickets through the backlog verifier before creating migration follow-up work
+- the affected done-ticket set is: done tickets whose latest QA proof predates the current recorded process change, plus any done ticket without a registered `review` / `backlog-verification` artifact for the current process window
+- use `ticket_lookup` to inspect the affected done-ticket set before routing work to the backlog verifier
 - create migration follow-up tickets only through the guarded `ticket_create` tool and only from a registered `backlog-verification` artifact
 
 ## Canonical ownership

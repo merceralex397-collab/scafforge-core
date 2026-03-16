@@ -19,7 +19,7 @@ This repository was scaffolded for a deterministic, ticketed, agent-friendly wor
 - `tickets/` for the work queue and machine-readable state
 - `.opencode/` for project-local OpenCode agents, tools, plugins, commands, and skills
 - `opencode.jsonc` for project-local OpenCode configuration
-- `.opencode/state/workflow-state.json` for transient stage state, plan approval, and process-version verification flags
+- `.opencode/state/workflow-state.json` for transient stage state, plan approval, and the active copy of process-version verification flags
 
 ## Truth hierarchy
 
@@ -39,4 +39,4 @@ This repository was scaffolded for a deterministic, ticketed, agent-friendly wor
 - `tickets/BOARD.md` is a derived human board.
 - Ticket `status` stays coarse and queue-oriented.
 - Plan approval lives in workflow state plus registered stage artifacts, not in ticket status.
-- Use the process-version fields to decide whether completed tickets need post-migration verification before they are trusted.
+- Use `.opencode/meta/bootstrap-provenance.json` as the canonical process-contract record, and use the process-version fields in workflow state to decide whether completed tickets need post-migration verification before they are trusted.

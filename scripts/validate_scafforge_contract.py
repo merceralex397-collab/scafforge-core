@@ -92,6 +92,7 @@ def validate_template_surfaces(findings: list[Finding]) -> None:
         template / "docs" / "process" / "model-matrix.md",
         template / "tickets" / "manifest.json",
         template / ".opencode" / "tools" / "ticket_create.ts",
+        template / ".opencode" / "tools" / "ticket_update.ts",
         template / ".opencode" / "state" / "workflow-state.json",
         template / ".opencode" / "state" / "artifacts" / "registry.json",
         template / ".opencode" / "agents" / "__AGENT_PREFIX__-backlog-verifier.md",
@@ -111,8 +112,11 @@ def validate_template_surfaces(findings: list[Finding]) -> None:
     require_contains(findings, template / "docs" / "spec" / "CANONICAL-BRIEF.md", "## Backlog Readiness")
     require_contains(findings, template / ".opencode" / "state" / "workflow-state.json", '"process_version"')
     require_contains(findings, template / ".opencode" / "state" / "workflow-state.json", '"pending_process_verification"')
+    require_contains(findings, template / ".opencode" / "state" / "workflow-state.json", '"parallel_mode"')
     require_contains(findings, template / "tickets" / "manifest.json", '"wave"')
     require_contains(findings, template / "tickets" / "manifest.json", '"parallel_safe"')
+    require_contains(findings, template / "tickets" / "manifest.json", '"overlap_risk"')
+    require_contains(findings, template / "tickets" / "manifest.json", '"decision_blockers"')
 
 
 def validate_no_hidden_defaults(findings: list[Finding]) -> None:

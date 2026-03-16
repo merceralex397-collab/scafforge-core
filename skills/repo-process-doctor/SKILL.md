@@ -52,7 +52,7 @@ Read `references/repair-playbook.md` for the boundary.
 - Removing raw-file stage control where tool-backed alternatives exist
 - Normalizing contradictory status semantics into the coarse queue contract
 - Fixing read-only agents that have mutating shell commands
-- Replacing the managed OpenCode operating surfaces when the repo is clearly on an older Scafforge contract and durable project facts can be preserved
+- Replacing clearly scaffold-managed OpenCode operating surfaces when audit evidence shows the repo is on an older Scafforge contract and durable project facts can be preserved
 
 **Intent-changing repairs (escalate to user):**
 - Changes that affect project scope or product intent
@@ -68,10 +68,10 @@ For each safe repair:
 2. Read the safer pattern from `references/repair-playbook.md`
 3. Read `references/safe-stage-contracts.md` for the target contract
 4. If the finding indicates an older or conflicting operating layer, replace the managed surfaces in one pass instead of patching them piecemeal
-5. Record the process change in `.opencode/meta/bootstrap-provenance.json` and `.opencode/state/workflow-state.json`
-6. If the process layer materially changed, set `pending_process_verification: true` so the backlog verifier lane can re-check previously completed tickets
-7. Make the change
-8. Verify the change resolves the finding
+5. Make the change
+6. Verify the change resolves the finding
+7. Record the process change in `.opencode/meta/bootstrap-provenance.json` and `.opencode/state/workflow-state.json`
+8. If the process layer materially changed, set `pending_process_verification: true` so the backlog verifier lane can re-check previously completed tickets
 9. Leave an obvious repair trail (document what was changed and why)
 
 For each intent-changing repair:
@@ -115,7 +115,7 @@ Continue to `../handoff-brief/SKILL.md` as directed by `../scaffold-kickoff/SKIL
 - Treat read-only mutation paths as blockers
 - Default to apply-repair for safe repairs, escalate intent-changing repairs
 - Always leave an obvious repair trail — never silently fix without evidence
-- Do not leave a repo in a mixed old/new workflow state across agents, tools, plugins, commands, and process docs
+- Do not leave a repo in a mixed old/new workflow state across agents, tools, plugins, commands, and process docs; findings like `partial-workflow-layer-drift` and `missing-process-change-tracking` are explicit signs that the operating layer is still mixed
 
 ## References
 

@@ -564,23 +564,38 @@ def audit_process_change_tracking(root: Path, findings: list[Finding]) -> None:
 
     missing: list[str] = []
     evidence: list[str] = []
+    affected_files: list[str] = []
 
     if not isinstance(workflow, dict):
-        missing.append(normalize_path(workflow_path, root))
+        workflow_rel = normalize_path(workflow_path, root)
+        missing.append(workflow_rel)
+        affected_files.append(workflow_rel)
     else:
-        for key in ("process_version", "pending_process_verification", "parallel_mode"):
+        workflow_rel = normalize_path(workflow_path, root)
+        for key in ("process_version", "process_last_changed_at", "process_last_change_summary", "pending_process_verification"):
             if key not in workflow:
-                evidence.append(f"{normalize_path(workflow_path, root)} is missing `{key}`.")
+                evidence.append(f"{workflow_rel} is missing `{key}`.")
+                if workflow_rel not in affected_files:
+                    affected_files.append(workflow_rel)
 
     if not isinstance(provenance, dict):
-        missing.append(normalize_path(provenance_path, root))
+        provenance_rel = normalize_path(provenance_path, root)
+        missing.append(provenance_rel)
+        affected_files.append(provenance_rel)
     else:
+        provenance_rel = normalize_path(provenance_path, root)
         if not isinstance(provenance.get("workflow_contract"), dict):
-            evidence.append(f"{normalize_path(provenance_path, root)} is missing `workflow_contract`.")
+            evidence.append(f"{provenance_rel} is missing `workflow_contract`.")
+            if provenance_rel not in affected_files:
+                affected_files.append(provenance_rel)
         if not isinstance(provenance.get("managed_surfaces"), dict):
-            evidence.append(f"{normalize_path(provenance_path, root)} is missing `managed_surfaces`.")
+            evidence.append(f"{provenance_rel} is missing `managed_surfaces`.")
+            if provenance_rel not in affected_files:
+                affected_files.append(provenance_rel)
         if "repair_history" not in provenance:
-            evidence.append(f"{normalize_path(provenance_path, root)} is missing `repair_history`.")
+            evidence.append(f"{provenance_rel} is missing `repair_history`.")
+            if provenance_rel not in affected_files:
+                affected_files.append(provenance_rel)
 
     if missing or evidence:
         add_finding(
@@ -590,7 +605,7 @@ def audit_process_change_tracking(root: Path, findings: list[Finding]) -> None:
                 severity="warning",
                 problem="The repo cannot reliably tell whether its operating process was replaced or materially upgraded.",
                 root_cause="Workflow state and provenance do not expose a stable process version, managed-surface ownership, and pending post-migration verification state.",
-                files=missing or [normalize_path(workflow_path, root), normalize_path(provenance_path, root)],
+                files=affected_files,
                 safer_pattern="Record process version fields in workflow state and managed-surface plus repair history data in bootstrap provenance.",
                 evidence=missing + evidence,
             ),
@@ -598,22 +613,22 @@ def audit_process_change_tracking(root: Path, findings: list[Finding]) -> None:
 
 
 def audit_missing_post_migration_verification(root: Path, findings: list[Finding]) -> None:
-    required = [
-        ".opencode/tools/ticket_create.ts",
-        ".opencode/agents/backlog-verifier.md",
-        ".opencode/agents/ticket-creator.md",
+    required_tool = ".opencode/tools/ticket_create.ts"
+    required_agent_patterns = [
+        ".opencode/agents/*backlog-verifier*.md",
+        ".opencode/agents/*ticket-creator*.md",
     ]
     found_agents_dir = root / ".opencode" / "agents"
     actual_required: list[str] = []
     if found_agents_dir.exists():
         if not any("backlog-verifier" in path.name for path in found_agents_dir.glob("*.md")):
-            actual_required.append(".opencode/agents/*backlog-verifier*.md")
+            actual_required.append(required_agent_patterns[0])
         if not any("ticket-creator" in path.name for path in found_agents_dir.glob("*.md")):
-            actual_required.append(".opencode/agents/*ticket-creator*.md")
+            actual_required.append(required_agent_patterns[1])
     else:
-        actual_required.extend(required[1:])
+        actual_required.extend(required_agent_patterns)
     if not (root / ".opencode" / "tools" / "ticket_create.ts").exists():
-        actual_required.append(required[0])
+        actual_required.append(required_tool)
 
     if actual_required:
         add_finding(

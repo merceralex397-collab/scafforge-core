@@ -17,7 +17,7 @@
   "adapter_responsibilities": {
     "github-copilot": [
       "install guidance",
-      "copy or symlink skills/* into Copilot skills",
+      "copy or symlink skill directories into ~/.copilot/skills/",
       "invoke scafforge package commands",
       "provide host-specific startup examples"
     ],

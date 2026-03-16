@@ -1,9 +1,11 @@
 import { tool } from "@opencode-ai/plugin"
 import {
+  bootstrapProvenancePath,
   mergeStartHere,
   latestHandoffPath,
   loadManifest,
   loadWorkflowState,
+  readJson,
   renderStartHere,
   startHerePath,
   writeText,
@@ -18,7 +20,18 @@ export default tool({
   async execute(args) {
     const manifest = await loadManifest()
     const workflow = await loadWorkflowState()
-    const content = renderStartHere(manifest, workflow, args.next_action)
+    const provenance = await readJson<{
+      workflow_contract?: {
+        post_migration_verification?: {
+          backlog_verifier_agent?: string
+        }
+      }
+    }>(bootstrapProvenancePath(), {})
+    const backlogVerifierAgent = provenance.workflow_contract?.post_migration_verification?.backlog_verifier_agent
+    const content = renderStartHere(manifest, workflow, {
+      nextAction: args.next_action,
+      backlogVerifierAgent: typeof backlogVerifierAgent === "string" ? backlogVerifierAgent : undefined,
+    })
 
     const startHere = startHerePath()
     const handoffCopy = latestHandoffPath()

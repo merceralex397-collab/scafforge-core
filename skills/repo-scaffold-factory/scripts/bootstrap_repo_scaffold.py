@@ -36,6 +36,10 @@ OPENCODE_SCOPE_FILES = {
     ".opencode",
 }
 
+PROCESS_CONTRACT_VERSION = 2
+TICKET_CONTRACT_VERSION = 2
+DEFAULT_PARALLEL_MODE = "parallel-lanes"
+
 
 def slugify(value: str) -> str:
     value = value.lower()
@@ -158,9 +162,9 @@ def write_bootstrap_provenance(
             "tracker_plugin": "invocation-tracker",
         },
         "workflow_contract": {
-            "process_version": 2,
-            "ticket_contract_version": 2,
-            "parallel_mode": "parallel-lanes",
+            "process_version": PROCESS_CONTRACT_VERSION,
+            "ticket_contract_version": TICKET_CONTRACT_VERSION,
+            "parallel_mode": DEFAULT_PARALLEL_MODE,
             "supports_manager_hierarchy": False,
             "post_migration_verification": {
                 "enabled": True,

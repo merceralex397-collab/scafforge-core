@@ -12,9 +12,11 @@ Scafforge is designed first to make weaker or cheaper models more reliable throu
 
 Install the Scafforge skill folders into Copilot's user skills directory. The supported contract is to copy or symlink each folder under `skills/` as-is so every skill keeps its own `SKILL.md`, `scripts/`, `assets/`, and `references/`.
 
+The commands below install the full bundled skill pack, including the non-backbone `pr-review-ticket-bridge` extension skill. If you do not want that extension available, omit the `skills/pr-review-ticket-bridge/` directory when copying or symlinking.
+
 ```sh
 # From this repo
-cp -r skills/* ~/.copilot/skills/
+cp -r skills/*/ ~/.copilot/skills/
 
 # Or symlink each skill
 for skill in skills/*/; do
@@ -22,21 +24,21 @@ for skill in skills/*/; do
 done
 ```
 
-Verify with Copilot's `/skills` command — you should see the full Scafforge skill set, including the optional `pr-review-ticket-bridge` extension skill.
+Verify with Copilot's `/skills` command — you should see the full Scafforge skill set, including the bundled `pr-review-ticket-bridge` extension skill if you kept it installed.
 
 ### GitHub Copilot (per-project)
 
 Copy the skills into a specific project:
 
 ```sh
-cp -r skills/* <your-project>/.github/skills/
+cp -r skills/*/ <your-project>/.github/skills/
 ```
 
 ### Via npm
 
 ```sh
 npm install -g @scafforge/core
-# Then copy or symlink the installed package's `skills/*` folders into ~/.copilot/skills/
+# Then copy or symlink the installed package's `skills/*/` directories into ~/.copilot/skills/
 ```
 
 ## Usage
@@ -108,11 +110,11 @@ Generated repos use a structured truth hierarchy so state does not drift:
 | `review-audit-bridge` | Structures review/QA passes during implementation cycles (post-scaffold) |
 | `handoff-brief` | Generates START-HERE.md with actual project state for restart |
 
-## Optional extension skills
+## Bundled extension skills
 
 | Skill | What it does |
 |-------|-------------|
-| `pr-review-ticket-bridge` | Host-side PR review, comment validation, and guarded follow-up ticket generation for valid findings |
+| `pr-review-ticket-bridge` | Host-side PR review, comment validation, and guarded follow-up ticket generation for valid findings. Bundled with the package, but outside the default scaffold backbone. |
 
 ## Retrofit path
 

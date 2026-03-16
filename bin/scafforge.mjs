@@ -9,7 +9,7 @@ const root = path.resolve(here, "..")
 function runPython(scriptPath, args) {
   for (const executable of ["python3", "python"]) {
     const result = spawnSync(executable, [scriptPath, ...args], {
-      cwd: root,
+      cwd: process.cwd(),
       stdio: "inherit",
     })
     if (!result.error || result.error.code !== "ENOENT") {

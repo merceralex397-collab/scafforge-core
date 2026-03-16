@@ -2,13 +2,13 @@
 
 ## Scope
 
-This review compares Scafforge with the local reference repos `GPS` and `GPTTalker`, then cross-checks those patterns against broader public multi-agent workflow guidance.
+This note compares Scafforge with two internal reference repos, `GPS` and `GPTTalker`, then cross-checks those patterns against broader public multi-agent workflow guidance.
 
-Local evidence reviewed:
+Internal evidence reviewed:
 
 - `Scafforge`
-- `/home/a/GPS`
-- `/home/a/GPTTalker`
+- `GPS`
+- `GPTTalker`
 
 External references:
 
@@ -34,8 +34,8 @@ Scafforge should continue positioning itself as a structured workflow-agent scaf
 
 | System | Lane ownership | Sequential vs parallel | Hierarchy | Migration / revalidation | Guarded ticket creation | PR review to ticket generation |
 | --- | --- | --- | --- | --- | --- | --- |
-| `Scafforge` | explicit `wave`, `lane`, `parallel_safe`, `overlap_risk` | sequential per ticket; bounded parallel lanes | single visible team leader by default | explicit `pending_process_verification`, backlog verifier, guarded `ticket_create` | strong and proof-backed | now formalized as an optional host-side skill |
-| `GPS` | strongest domain-lane taxonomy | very strict; one specialist at a time | single visible team leader | strong artifact truth recomputation | strong execution gating, less formal ticket-creation guard | concrete `pr-review.md` follow-up pattern |
+| `Scafforge` | explicit `wave`, `lane`, `parallel_safe`, `overlap_risk` | sequential per ticket; bounded parallel lanes | single visible team leader by default | explicit `pending_process_verification`, backlog verifier, guarded `ticket_create` | strong and proof-backed | formalized as an optional host-side skill |
+| `GPS` | strong domain-lane taxonomy | very strict; one specialist at a time | single visible team leader | strong artifact truth recomputation | strong execution gating, less formal ticket-creation guard | concrete review-to-follow-up pattern |
 | `GPTTalker` | clear hub / node-agent / context split | sequential per ticket | single visible team leader | strong stage validation, weaker migration-specific lane | strong execution gating | follow-up risks exist, but no dedicated bridge |
 
 ## Key findings
@@ -56,11 +56,11 @@ This is more robust for weaker models than introducing broad peer collaboration.
 
 ### Manager hierarchy
 
-Neither GPS nor GPTTalker proves that an extra manager layer should be the default. Scafforge should keep a single visible team leader by default and reserve manager or section-leader hierarchies for unusually large repos with clear non-overlapping domains.
+Neither GPS nor GPTTalker shows that an extra manager layer should be the default. Scafforge should keep a single visible team leader by default and reserve manager or section-leader hierarchies for unusually large repos with clear non-overlapping domains.
 
 ### Post-migration verification
 
-This is where Scafforge should lean in. GPS is useful because it aggressively recomputes truth from artifacts. GPTTalker is good at stage validation. Scafforge’s stronger contract is to record process changes, set `pending_process_verification`, and re-check old completed work before it is trusted again.
+This is where Scafforge should lean in. GPS is useful because it aggressively recomputes truth from artifacts. GPTTalker is good at stage validation. Scafforge's stronger contract is to record process changes, set `pending_process_verification`, and re-check old completed work before it is trusted again.
 
 ### Guarded ticket creation
 
@@ -74,7 +74,7 @@ This prevents ad hoc ticket inflation and keeps a clear evidence trail.
 
 ### PR review to ticket generation
 
-GPS shows the practical pattern: review findings become prioritized later work. Scafforge now formalizes that as a host-side skill rather than leaving it as implied reviewer behavior.
+GPS shows the practical pattern: review findings become prioritized later work. Scafforge should formalize that as a host-side bridge that validates comments first and emits canonical ticket proposals unless the target repo exposes a safe direct intake path.
 
 ## Recommendations for Scafforge
 
@@ -82,10 +82,10 @@ GPS shows the practical pattern: review findings become prioritized later work. 
 2. Keep per-ticket flow strictly sequential.
 3. Make lane ownership concrete in generated repos.
 4. Preserve and strengthen process-migration verification.
-5. Extend guarded ticket creation to review-driven follow-up work.
+5. Keep review-driven follow-up ticket creation guarded and evidence-backed.
 6. Continue preferring blockers over assumption-making.
 7. Keep workflow truth hierarchical and tool-backed.
 
 ## Bottom line
 
-Scafforge should continue to be a structured workflow-agent scaffold optimized for reliable execution under tighter constraints. GPS contributes strong ownership and review-follow-up ideas. GPTTalker contributes stronger prompt hardening and domain-specialist role shaping. Scafforge’s own differentiator should be explicit process migration awareness plus verifier-backed follow-up ticket creation.
+Scafforge should continue to be a structured workflow-agent scaffold optimized for reliable execution under tighter constraints. The internal reference repos reinforce strong ownership and sequential flow. Scafforge's differentiator should remain explicit process migration awareness plus verifier-backed follow-up ticket handling.

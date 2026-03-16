@@ -1,13 +1,13 @@
 import { tool } from "@opencode-ai/plugin"
 import {
+  assertValidTicketId,
+  DEFAULT_OVERLAP_RISK,
   getTicket,
   loadManifest,
   loadWorkflowState,
-  renderTicketDocument,
   saveManifest,
   saveWorkflowState,
   ticketFilePath,
-  writeText,
 } from "./_workflow"
 
 export default tool({
@@ -30,43 +30,81 @@ export default tool({
   async execute(args) {
     const manifest = await loadManifest()
     const workflow = await loadWorkflowState()
+    const ticketId = assertValidTicketId(args.id.trim())
+    const title = args.title.trim()
+    const lane = args.lane.trim()
+    const summary = args.summary.trim()
+    const sourceTicketId = args.source_ticket_id.trim()
+    const acceptance = args.acceptance.map((item) => item.trim()).filter(Boolean)
+    const dependsOn = [...new Set((args.depends_on || []).map((item) => item.trim()).filter(Boolean))]
+    const decisionBlockers = (args.decision_blockers || []).map((item) => item.trim()).filter(Boolean)
+    const verificationArtifactPath = args.verification_artifact_path.trim()
 
     if (!workflow.pending_process_verification) {
       throw new Error("Guarded ticket creation is only available while post-migration verification is pending.")
     }
 
-    if (manifest.tickets.some((ticket) => ticket.id === args.id)) {
-      throw new Error(`Ticket already exists: ${args.id}`)
+    if (!title) {
+      throw new Error("Ticket title must not be empty.")
     }
 
-    for (const dependency of args.depends_on || []) {
+    if (!lane) {
+      throw new Error("Ticket lane must not be empty.")
+    }
+
+    if (!summary) {
+      throw new Error("Ticket summary must not be empty.")
+    }
+
+    if (args.wave < 0) {
+      throw new Error(`Ticket wave must be zero or greater: ${args.wave}`)
+    }
+
+    if (acceptance.length === 0) {
+      throw new Error("At least one acceptance criterion is required.")
+    }
+
+    if (dependsOn.includes(ticketId)) {
+      throw new Error(`Ticket ${ticketId} cannot depend on itself.`)
+    }
+
+    if (manifest.tickets.some((ticket) => ticket.id === ticketId)) {
+      throw new Error(`Ticket already exists: ${ticketId}`)
+    }
+
+    for (const dependency of dependsOn) {
       getTicket(manifest, dependency)
     }
 
-    const sourceTicket = getTicket(manifest, args.source_ticket_id)
+    const sourceTicket = getTicket(manifest, sourceTicketId)
+    if (sourceTicket.status !== "done") {
+      throw new Error(`Source ticket ${sourceTicket.id} must be done before creating a migration follow-up ticket.`)
+    }
     const verificationArtifact = sourceTicket.artifacts.find(
       (artifact) =>
-        artifact.path === args.verification_artifact_path &&
+        artifact.path === verificationArtifactPath &&
         artifact.stage === "review" &&
         artifact.kind === "backlog-verification",
     )
     if (!verificationArtifact) {
-      throw new Error("A registered backlog-verification artifact is required before creating a follow-up ticket.")
+      throw new Error(
+        `Source ticket ${sourceTicket.id} does not have a registered review/backlog-verification artifact at ${verificationArtifactPath}.`,
+      )
     }
 
     const ticket = {
-      id: args.id,
-      title: args.title,
-      lane: args.lane,
+      id: ticketId,
+      title,
       wave: args.wave,
+      lane,
       parallel_safe: args.parallel_safe ?? false,
-      overlap_risk: args.overlap_risk ?? "medium",
+      overlap_risk: args.overlap_risk ?? DEFAULT_OVERLAP_RISK,
       stage: "planning",
-      status: (args.decision_blockers?.length || 0) > 0 ? "blocked" : "todo",
-      depends_on: args.depends_on || [],
-      summary: args.summary,
-      acceptance: args.acceptance,
-      decision_blockers: args.decision_blockers || [],
+      status: decisionBlockers.length > 0 ? "blocked" : "todo",
+      depends_on: dependsOn,
+      summary,
+      acceptance,
+      decision_blockers: decisionBlockers,
       artifacts: [],
     }
 
@@ -77,17 +115,19 @@ export default tool({
       workflow.stage = ticket.stage
       workflow.status = ticket.status
       workflow.approved_plan = false
-      await saveWorkflowState(workflow)
     }
 
     await saveManifest(manifest)
+    if (args.activate) {
+      await saveWorkflowState(workflow)
+    }
     const path = ticketFilePath(ticket.id)
-    await writeText(path, renderTicketDocument(ticket))
 
     return JSON.stringify(
       {
         created_ticket: ticket.id,
         path,
+        status: ticket.status,
         source_ticket_id: sourceTicket.id,
         verification_artifact_path: verificationArtifact.path,
         activated: Boolean(args.activate),

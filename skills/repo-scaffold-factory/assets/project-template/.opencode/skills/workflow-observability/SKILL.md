@@ -25,4 +25,5 @@ Return these sections:
 6. `Next Fix`
 
 If `.opencode/state/invocation-log.jsonl` does not exist yet, say `no invocation data yet` explicitly instead of implying the setup is healthy.
-If `pending_process_verification` is `true`, say so explicitly and call out the backlog verifier as the next required lane.
+Treat `.opencode/meta/bootstrap-provenance.json` as the canonical source for `workflow_contract.process_version`; use `.opencode/state/workflow-state.json` to explain the active execution copy of that state.
+If `pending_process_verification` is `true`, say so explicitly, list the affected done tickets from `ticket_lookup`, and call out the backlog verifier as the next required lane.
