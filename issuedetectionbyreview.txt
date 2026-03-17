@@ -1,0 +1,11 @@
+  Root cause: Inspection-only validation. The entire workflow validated artifacts by existence
+  rather than correctness:
+
+   - Implementers generated code but never ran python -m py_compile or import checks
+   - Reviewers read code files but never executed them — approved files with syntax errors
+   - QA agents produced "via code inspection" approvals — zero test execution, some QA artifacts
+  were 50 bytes
+   - Team leader accepted artifact existence as proof of correctness
+   - Stage gates checked "does an artifact file exist?" not "does the code actually work?"
+   - Model choice (MiniMax-M2.5 at temperature
+    0.12) produced deterministic template-filling, not creative validation
