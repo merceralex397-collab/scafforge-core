@@ -7,7 +7,7 @@ description: >-
   before promotion". Also use for post-failure diagnostics when a skill
   misbehaves but the root cause is unclear. Do not use for full skill rewrites
   (use skill-authoring), trigger-only fixes (use skill-trigger-optimization),
-  surgical fixes to known problems (use skill-refinement), or measuring
+  surgical fixes to known problems (use skill-improver), or measuring
   routing precision/recall (use skill-evaluation).
 license: Apache-2.0
 compatibility:
@@ -34,7 +34,7 @@ Scan a SKILL.md against a concrete anti-pattern checklist (AP-1 through AP-12). 
 
 - Full rewrite needed → `skill-authoring`
 - Only trigger/description needs fixing → `skill-trigger-optimization`
-- Specific known problem needs a surgical fix → `skill-refinement`
+- Specific known problem needs a surgical fix → `skill-improver`
 - Need to measure routing precision/recall quantitatively → `skill-evaluation`
 - Skill is working correctly — do not audit healthy skills
 
