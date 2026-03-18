@@ -9,9 +9,14 @@ import os
 import sys
 import urllib.error
 
-from github_utils import github_api_contents_url, github_request
+from github_utils import (
+    CLIENT_CHOICES,
+    DEFAULT_CLIENT,
+    client_skills_dir,
+    github_api_contents_url,
+    github_request,
+)
 
-DEFAULT_REPO = "openai/skills"
 DEFAULT_PATH = "skills/.curated"
 DEFAULT_REF = "main"
 
@@ -25,18 +30,15 @@ class Args(argparse.Namespace):
     path: str
     ref: str
     format: str
+    client: str
 
 
 def _request(url: str) -> bytes:
-    return github_request(url, "codex-skill-list")
+    return github_request(url, "scafforge-skill-list")
 
 
-def _codex_home() -> str:
-    return os.environ.get("CODEX_HOME", os.path.expanduser("~/.codex"))
-
-
-def _installed_skills() -> set[str]:
-    root = os.path.join(_codex_home(), "skills")
+def _installed_skills(client: str) -> set[str]:
+    root = client_skills_dir(client)
     if not os.path.isdir(root):
         return set()
     entries = set()
@@ -67,7 +69,7 @@ def _list_skills(repo: str, path: str, ref: str) -> list[str]:
 
 def _parse_args(argv: list[str]) -> Args:
     parser = argparse.ArgumentParser(description="List skills.")
-    parser.add_argument("--repo", default=DEFAULT_REPO)
+    parser.add_argument("--repo", required=True, help="owner/repo to list skills from")
     parser.add_argument(
         "--path",
         default=DEFAULT_PATH,
@@ -80,6 +82,12 @@ def _parse_args(argv: list[str]) -> Args:
         default="text",
         help="Output format",
     )
+    parser.add_argument(
+        "--client",
+        choices=CLIENT_CHOICES,
+        default=DEFAULT_CLIENT,
+        help="Target agent client (determines installed-skill check path)",
+    )
     return parser.parse_args(argv, namespace=Args())
 
 
@@ -87,7 +95,7 @@ def main(argv: list[str]) -> int:
     args = _parse_args(argv)
     try:
         skills = _list_skills(args.repo, args.path, args.ref)
-        installed = _installed_skills()
+        installed = _installed_skills(args.client)
         if args.format == "json":
             payload = [
                 {"name": name, "installed": name in installed} for name in skills

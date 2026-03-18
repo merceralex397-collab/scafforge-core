@@ -71,12 +71,9 @@ Do NOT use when:
 | `scripts/install-skill-from-github.py` | Download and install from any GitHub path |
 | `scripts/list-skills.py` | List available skills with install status |
 
-Install script options: `--repo`, `--path` (repeatable), `--url`, `--ref` (default: main), `--dest`, `--method auto|download|git`, `--name`.
+Install script options: `--repo`, `--path` (repeatable), `--url`, `--ref` (default: main), `--dest`, `--method auto|download|git`, `--name`, `--client copilot|codex|opencode|claude-code|gemini-cli`.
 
-> **Script limitation**: Both scripts currently default to Codex-specific paths
-> (`CODEX_HOME` / `~/.codex`) and the `openai/skills` registry. Pass `--dest`
-> explicitly to install into the correct client skill directory. The download
-> and git-checkout logic is host-agnostic and works for any GitHub source.
+The `--client` flag selects the default install path for the target agent client (default: `copilot`). Use `--dest` to override the path entirely. The list script requires `--repo` to specify which GitHub repository to query.
 
 # Safety
 

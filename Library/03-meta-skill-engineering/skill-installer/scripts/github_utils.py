@@ -1,10 +1,27 @@
 #!/usr/bin/env python3
-"""Shared GitHub helpers for skill install scripts."""
+"""Shared helpers for skill install scripts."""
 
 from __future__ import annotations
 
 import os
 import urllib.request
+
+CLIENT_CHOICES = ["copilot", "codex", "opencode", "claude-code", "gemini-cli"]
+DEFAULT_CLIENT = "copilot"
+
+
+def client_skills_dir(client: str) -> str:
+    """Return the default skills directory for the given client."""
+    paths = {
+        "copilot": os.path.expanduser("~/.copilot/skills"),
+        "codex": os.path.expanduser("~/.codex/skills"),
+        "opencode": os.path.join(".opencode", "skills"),
+        "claude-code": os.path.expanduser("~/.claude/skills"),
+        "gemini-cli": os.path.expanduser("~/.gemini/skills"),
+    }
+    if client not in paths:
+        raise ValueError(f"Unknown client: {client}")
+    return paths[client]
 
 
 def github_request(url: str, user_agent: str) -> bytes:

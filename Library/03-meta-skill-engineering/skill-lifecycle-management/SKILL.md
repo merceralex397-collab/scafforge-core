@@ -1,6 +1,13 @@
 ---
 name: skill-lifecycle-management
-description: Promote, deprecate, and track skills through lifecycle states (draft → beta → stable → deprecated → archived). Use when auditing maturity across a skill library, promoting a tested skill to stable, retiring a superseded skill, or checking which skills are production-ready. Do not use for creating new skills (use skill-authoring), improving individual skill quality (use skill-improver), or reorganizing the library catalog (use skill-catalog-curation).
+description: >-
+  Promote, deprecate, and track skills through lifecycle states
+  (draft → beta → stable → deprecated → archived). Use when auditing maturity
+  across a skill library, promoting a tested skill to stable, retiring a
+  superseded skill, or checking which skills are production-ready. Do not use for
+  creating new skills (use skill-authoring), improving individual skill quality
+  (use skill-improver), or reorganizing the library catalog
+  (use skill-catalog-curation).
 license: Apache-2.0
 compatibility:
   clients: [opencode, copilot, codex, gemini-cli, claude-code]
@@ -44,7 +51,7 @@ Do NOT use when:
    - Consistently fails evaluation
 4. **Execute transitions**: Update `metadata.maturity` in the skill's frontmatter.
 5. **Check dependents**: If a deprecated skill is referenced in AGENTS.md, commands, or other skills, flag each reference for update.
-6. **Update library index**: Ensure the catalog reflects new states.
+6. **Update library index**: Set each skill's catalog entry to its new state.
 
 # Output contract
 

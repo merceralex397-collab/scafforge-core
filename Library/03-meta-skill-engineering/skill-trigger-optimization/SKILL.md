@@ -1,6 +1,6 @@
 ---
 name: skill-trigger-optimization
-description: >
+description: >-
   Rewrite a skill's description field and "When to use" triggers to fix routing
   precision and recall. Use when a skill isn't firing when it should
   ("fix the triggers", "why isn't this skill being used?"), fires on wrong

@@ -65,12 +65,6 @@ description: >-
 license: Apache-2.0
 compatibility:
   clients: [opencode, copilot, codex, gemini-cli, claude-code]
-metadata:
-  owner: [owner-name]
-  domain: [domain-name]
-  maturity: draft|stable|deprecated
-  risk: low|medium|high
-  tags: [relevant, tags]
 ---
 ```
 
@@ -97,11 +91,6 @@ Flag a description if it: is under 12 words, has no action verb first, has no co
 | `description` | Yes | Routing logic, not documentation |
 | `license` | Recommended | Default: Apache-2.0 |
 | `compatibility.clients` | Recommended | Which agent clients support this skill |
-| `metadata.owner` | Recommended | Team or person responsible |
-| `metadata.domain` | Recommended | Category for catalog organization |
-| `metadata.maturity` | Recommended | draft, stable, or deprecated |
-| `metadata.risk` | Recommended | low, medium, or high |
-| `metadata.tags` | Recommended | Searchable keywords |
 
 ## Step 4 — Write the body sections
 

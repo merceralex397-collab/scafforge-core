@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Install a skill from a GitHub repo path into $CODEX_HOME/skills."""
+"""Install a skill from a GitHub repo path into the local agent client."""
 
 from __future__ import annotations
 
@@ -14,7 +14,13 @@ import urllib.error
 import urllib.parse
 import zipfile
 
-from github_utils import github_request
+from github_utils import (
+    CLIENT_CHOICES,
+    DEFAULT_CLIENT,
+    client_skills_dir,
+    github_request,
+)
+
 DEFAULT_REF = "main"
 
 
@@ -27,6 +33,7 @@ class Args:
     dest: str | None = None
     name: str | None = None
     method: str = "auto"
+    client: str = DEFAULT_CLIENT
 
 
 @dataclass
@@ -42,18 +49,14 @@ class InstallError(Exception):
     pass
 
 
-def _codex_home() -> str:
-    return os.environ.get("CODEX_HOME", os.path.expanduser("~/.codex"))
-
-
 def _tmp_root() -> str:
-    base = os.path.join(tempfile.gettempdir(), "codex")
+    base = os.path.join(tempfile.gettempdir(), "scafforge")
     os.makedirs(base, exist_ok=True)
     return base
 
 
 def _request(url: str) -> bytes:
-    return github_request(url, "codex-skill-install")
+    return github_request(url, "scafforge-skill-install")
 
 
 def _parse_github_url(url: str, default_ref: str) -> tuple[str, str, str, str | None]:
@@ -240,8 +243,8 @@ def _resolve_source(args: Args) -> Source:
     )
 
 
-def _default_dest() -> str:
-    return os.path.join(_codex_home(), "skills")
+def _default_dest(client: str) -> str:
+    return client_skills_dir(client)
 
 
 def _parse_args(argv: list[str]) -> Args:
@@ -263,6 +266,12 @@ def _parse_args(argv: list[str]) -> Args:
         choices=["auto", "download", "git"],
         default="auto",
     )
+    parser.add_argument(
+        "--client",
+        choices=CLIENT_CHOICES,
+        default=DEFAULT_CLIENT,
+        help="Target agent client (determines default install path)",
+    )
     return parser.parse_args(argv, namespace=Args())
 
 
@@ -275,7 +284,7 @@ def main(argv: list[str]) -> int:
             raise InstallError("No skill paths provided.")
         for path in source.paths:
             _validate_relative_path(path)
-        dest_root = args.dest or _default_dest()
+        dest_root = args.dest or _default_dest(args.client)
         tmp_dir = tempfile.mkdtemp(prefix="skill-install-", dir=_tmp_root())
         try:
             repo_root = _prepare_repo(source, args.method, tmp_dir)

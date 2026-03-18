@@ -138,6 +138,6 @@ All JSONL files use one JSON object per line, newline-delimited.
 
 - **No clear triggers in description**: Cannot write trigger tests — flag for `skill-trigger-optimization` first
 - **Output format undefined**: Cannot write output tests — flag for `skill-improver` to add output contract
-- **Too few distinct trigger phrases**: Minimum 5 positive, 5 negative; if the skill is too narrow, consider merging
+- **Too few distinct trigger phrases**: Minimum 5 positive, 5 negative; if the skill is too narrow, merge via `skill-variant-splitting` or widen the trigger set
 - **Skill too complex for single harness**: Split into sub-capabilities with separate JSONL files per capability
 - **No comparable baseline**: Skip baseline comparison; focus on trigger accuracy and output format compliance

@@ -1,6 +1,6 @@
 ---
 name: skill-benchmarking
-description: >
+description: >-
   Compare skill variants head-to-head using pass rate, token usage, and win rate
   to pick a winner. Use when choosing between two skill versions ("which is
   better?", "did the refinement help?", "benchmark these variants"), measuring
