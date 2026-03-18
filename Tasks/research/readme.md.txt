@@ -1,0 +1,1 @@
+This folder contains potentially useful research carried out that may help the projects development
