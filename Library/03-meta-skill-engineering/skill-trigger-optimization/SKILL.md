@@ -9,12 +9,9 @@ description: >
   correct (use skill-improver), structural anti-pattern audits
   (use skill-anti-patterns), creating new skills (use skill-authoring), or when
   the problem is procedure not routing.
+license: Apache-2.0
 compatibility:
   clients: [opencode, copilot, codex, gemini-cli, claude-code]
-metadata:
-  owner: scafforge
-  maturity: draft
-  risk: low
 ---
 
 # Purpose

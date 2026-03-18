@@ -11,12 +11,6 @@ description: >-
 license: Apache-2.0
 compatibility:
   clients: [opencode, copilot, codex, gemini-cli, claude-code]
-metadata:
-  owner: scafforge
-  domain: meta-skill-engineering
-  maturity: stable
-  risk: low
-  tags: [skill, authoring, creation, SKILL.md, format]
 ---
 
 # Purpose

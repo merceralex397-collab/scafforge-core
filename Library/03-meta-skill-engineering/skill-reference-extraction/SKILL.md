@@ -12,12 +12,6 @@ description: >-
 license: Apache-2.0
 compatibility:
   clients: [opencode, copilot, codex, gemini-cli, claude-code]
-metadata:
-  owner: scafforge
-  domain: skill-reference-extraction
-  maturity: draft
-  risk: low
-  tags: [skill, reference, extraction]
 ---
 
 # Purpose

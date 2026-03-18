@@ -4,12 +4,6 @@ description: Promote, deprecate, and track skills through lifecycle states (draf
 license: Apache-2.0
 compatibility:
   clients: [opencode, copilot, codex, gemini-cli, claude-code]
-metadata:
-  owner: scafforge
-  domain: skill-lifecycle-management
-  maturity: draft
-  risk: low
-  tags: [skill, lifecycle, management]
 ---
 
 # Purpose

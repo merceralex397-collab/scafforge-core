@@ -10,11 +10,6 @@ description: >-
 license: Apache-2.0
 compatibility:
   clients: [opencode, copilot, codex, gemini-cli, claude-code]
-metadata:
-  owner: scafforge
-  maturity: draft
-  risk: low
-  tags: [skill, testing, harness]
 ---
 
 # Purpose
