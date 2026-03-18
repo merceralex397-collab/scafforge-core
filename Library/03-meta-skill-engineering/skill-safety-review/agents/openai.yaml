@@ -1,0 +1,6 @@
+interface:
+  display_name: "Skill Safety Review"
+  short_description: "Build skill safety review artifacts with deterministic struct..."
+  default_prompt: "Use $skill-safety-review-codex-c to handle this task with a concrete workflow and explicit verification."
+policy:
+  allow_implicit_invocation: true

@@ -1,0 +1,6 @@
+interface:
+  display_name: "Skill Catalog Curation"
+  short_description: "Build skill catalog curation artifacts with deterministic str..."
+  default_prompt: "Use $skill-catalog-curation-codex-c to handle this task with a concrete workflow and explicit verification."
+policy:
+  allow_implicit_invocation: true

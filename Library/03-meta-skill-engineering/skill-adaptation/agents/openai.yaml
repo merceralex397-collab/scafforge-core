@@ -1,0 +1,6 @@
+interface:
+  display_name: "Skill Adaptation"
+  short_description: "Build skill adaptation artifacts with deterministic structure..."
+  default_prompt: "Use $skill-adaptation-codex-c to handle this task with a concrete workflow and explicit verification."
+policy:
+  allow_implicit_invocation: true

@@ -1,0 +1,18 @@
+name: skill-packaging-codex-c
+version: 1
+summary: "Build skill packaging artifacts with deterministic structure, validation, and handoff notes."
+invocation:
+  policy: auto
+  aliases:
+    - "skill-packaging"
+    - "skill packaging"
+artifacts:
+  skill_file: "../../SKILL.md"
+  references:
+    - "../../references/inputs-and-variants.md"
+    - "../../references/packaging-checklist.md"
+    - "../../references/handoff-notes.md"
+  evals:
+    - "../../evals/trigger-positive.jsonl"
+    - "../../evals/trigger-negative.jsonl"
+    - "../../evals/behavior.jsonl"

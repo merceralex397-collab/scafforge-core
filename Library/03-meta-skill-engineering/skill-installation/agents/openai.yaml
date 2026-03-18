@@ -1,0 +1,6 @@
+interface:
+  display_name: "Skill Installation"
+  short_description: "Build skill installation artifacts with deterministic structu..."
+  default_prompt: "Use $skill-installation-codex-c to handle this task with a concrete workflow and explicit verification."
+policy:
+  allow_implicit_invocation: true

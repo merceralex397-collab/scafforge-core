@@ -1,0 +1,18 @@
+name: skill-variant-splitting-codex-c
+version: 1
+summary: "Build skill variant splitting artifacts with deterministic structure, validation, and handoff notes."
+invocation:
+  policy: auto
+  aliases:
+    - "skill-variant-splitting"
+    - "skill variant splitting"
+artifacts:
+  skill_file: "../../SKILL.md"
+  references:
+    - "../../references/inputs-and-variants.md"
+    - "../../references/packaging-checklist.md"
+    - "../../references/handoff-notes.md"
+  evals:
+    - "../../evals/trigger-positive.jsonl"
+    - "../../evals/trigger-negative.jsonl"
+    - "../../evals/behavior.jsonl"

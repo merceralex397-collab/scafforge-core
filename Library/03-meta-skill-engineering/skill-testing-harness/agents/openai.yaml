@@ -1,0 +1,6 @@
+interface:
+  display_name: "Skill Testing Harness"
+  short_description: "Build skill testing harness artifacts with deterministic stru..."
+  default_prompt: "Use $skill-testing-harness-codex-c to handle this task with a concrete workflow and explicit verification."
+policy:
+  allow_implicit_invocation: true

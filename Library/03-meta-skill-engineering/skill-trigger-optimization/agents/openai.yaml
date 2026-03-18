@@ -1,0 +1,6 @@
+interface:
+  display_name: "Skill Trigger Optimization"
+  short_description: "Build skill trigger optimization artifacts with deterministic..."
+  default_prompt: "Use $skill-trigger-optimization-codex-c to handle this task with a concrete workflow and explicit verification."
+policy:
+  allow_implicit_invocation: true

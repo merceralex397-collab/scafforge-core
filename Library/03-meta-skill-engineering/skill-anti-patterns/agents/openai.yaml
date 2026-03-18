@@ -1,0 +1,6 @@
+interface:
+  display_name: "Skill Anti-Patterns"
+  short_description: "Build skill anti-patterns artifacts with deterministic struct..."
+  default_prompt: "Use $skill-anti-patterns-codex-c to handle this task with a concrete workflow and explicit verification."
+policy:
+  allow_implicit_invocation: true

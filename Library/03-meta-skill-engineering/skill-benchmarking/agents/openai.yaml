@@ -1,0 +1,6 @@
+interface:
+  display_name: "Skill Benchmarking"
+  short_description: "Build skill benchmarking artifacts with deterministic structu..."
+  default_prompt: "Use $skill-benchmarking-codex-c to handle this task with a concrete workflow and explicit verification."
+policy:
+  allow_implicit_invocation: true

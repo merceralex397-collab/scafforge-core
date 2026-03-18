@@ -1,0 +1,6 @@
+interface:
+  display_name: "Skill Packaging"
+  short_description: "Build skill packaging artifacts with deterministic structure,..."
+  default_prompt: "Use $skill-packaging-codex-c to handle this task with a concrete workflow and explicit verification."
+policy:
+  allow_implicit_invocation: true

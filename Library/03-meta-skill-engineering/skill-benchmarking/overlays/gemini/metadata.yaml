@@ -1,0 +1,11 @@
+name: skill-benchmarking-codex-c
+activation:
+  requires_user_approval: true
+  description: "Allows the agent to load the Skill Benchmarking skill and its bundled references."
+permissions:
+  read_paths:
+    - ./SKILL.md
+    - ./references/**
+    - ./evals/**
+  execute_paths:
+    - ./scripts/**

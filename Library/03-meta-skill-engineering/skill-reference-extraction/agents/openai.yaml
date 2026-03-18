@@ -1,0 +1,6 @@
+interface:
+  display_name: "Skill Reference Extraction"
+  short_description: "Build skill reference extraction artifacts with deterministic..."
+  default_prompt: "Use $skill-reference-extraction-codex-c to handle this task with a concrete workflow and explicit verification."
+policy:
+  allow_implicit_invocation: true
