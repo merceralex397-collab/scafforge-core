@@ -42,6 +42,12 @@ Produce quantitative evidence that a single skill adds value: it triggers on the
    - 5–10 negative trigger cases (should NOT activate)
    - 3–5 quality cases for output assessment
 
+   **How to construct effective test cases:**
+   - **Positive cases**: Read the skill's "When to use" section. Each bullet becomes at least one test case using realistic phrasing. Then add paraphrased versions — formal ("Please evaluate this skill's effectiveness"), casual ("is this skill any good?"), and indirect ("I'm not sure this skill helps"). This tests routing robustness, not just keyword matching.
+   - **Negative cases**: Read the skill's "Do NOT use when" section. Each bullet becomes at least one test case. Then add near-miss cases drawn from adjacent skills' trigger phrases — these test whether the boundary is sharp. For example, if evaluating `skill-evaluation`, add trigger phrases from `skill-benchmarking` as negative cases.
+   - **Quality cases**: Use realistic, complete task prompts that exercise the full procedure — not just routing. Include at least one edge case where the skill must make a judgment call (e.g., ambiguous input, missing data, conflicting requirements).
+   - **Anti-pattern to avoid**: Do not write trigger tests that contain the skill name (e.g., "use skill-evaluation to assess this"). Real users rarely name the skill explicitly; tests that do will inflate precision and miss real routing failures.
+
 3. **Evaluate routing accuracy**
    - Run each positive case — did the skill trigger? (target: 100%)
    - Run each negative case — did the skill stay silent? (target: 100%)

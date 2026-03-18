@@ -50,6 +50,16 @@ Compare two or more skill variants (A vs B, before vs after, skill vs no-skill) 
    - **Routing accuracy**: Precision and recall if routing is in scope.
    - **Win rate**: For each case, judge which variant produced better output (A / B / Tie). Calculate overall win percentage.
 
+   **Win-rate judging method:**
+   - **Blind comparison**: Strip skill-name indicators and variant labels from outputs before comparing. Present as "Output A" and "Output B" so judgment isn't biased by which variant is "new".
+   - **Scoring rubric** (apply to each case independently):
+     - *Correctness*: Is the output factually right and free of hallucination?
+     - *Completeness*: Are all required sections and elements present?
+     - *Conciseness*: Is there unnecessary padding, repetition, or filler?
+     - *Actionability*: Could someone act on this output without further clarification?
+   - **Ties**: If the quality difference is marginal across all rubric dimensions, favor the shorter or cheaper output (token efficiency as tiebreaker). Do not force a winner when there isn't one.
+   - **>2 variants**: Use round-robin pairwise comparison (A vs B, A vs C, B vs C), not free-for-all ranking. Tally wins per variant across all pairs. This avoids the "middle option bias" that free-form ranking introduces.
+
 4. **Assess significance**
    - Pass rate: Is the difference > 5 percentage points?
    - Token usage: Is the difference > 10%?

@@ -37,9 +37,11 @@ Detect duplicates, enforce category consistency, flag deprecation candidates, an
 
 ## 2. Detect duplicates and overlaps
 
-- Compare description text pairwise; flag pairs whose trigger phrases or stated purpose cover the same user intent
-- Flag identical names at different paths
-- For each flagged pair, recommend one of: **merge**, **differentiate** (rewrite boundaries), or **keep** (with rationale)
+- **Extract action signatures**: For each skill, extract the first verb+object phrase from the description (e.g., "Audit a skill library" → `audit library`, "Compare skill variants" → `compare variants`). This is the skill's action signature.
+- **Group by action signature**: Skills with the same or synonymous action signature (e.g., `audit library` ≈ `review catalog`) are potential duplicates. Compare trigger phrases within each group — if >50% of one skill's trigger phrases also appear in or paraphrase the other, flag as duplicate.
+- **Check cross-references**: For skills not grouped by action signature, inspect "Do not use for" sections. Mutual cross-references (A says "not for X, use B" and B says "not for Y, use A") suggest related scopes that may overlap or have ambiguous boundaries.
+- Flag identical names at different paths.
+- For each flagged pair, recommend one of: **merge**, **differentiate** (rewrite boundaries), or **keep** (with rationale).
 
 ## 3. Audit categories
 
@@ -52,6 +54,11 @@ Detect duplicates, enforce category consistency, flag deprecation candidates, an
 - Does each description start with an action verb?
 - Are negative boundaries present and naming the correct neighbor skills?
 - Would a user with a realistic task phrase find this skill via keyword match?
+
+Flag concrete defects using these thresholds:
+- **Too terse**: Description under 20 words → insufficient for reliable routing. Recommend expanding to at least one sentence with verb, scope, and context.
+- **No trigger phrases**: Description lacks quoted example phrases (e.g., `"audit the library"`) → routing relies entirely on keyword overlap, which is fragile. Recommend adding 2–3 realistic trigger phrases.
+- **Weak boundaries**: "Do not use" section names fewer than 2 alternative skills → the skill's scope edges are undefined. Check the catalog for the most likely confused neighbors and add them.
 
 ## 5. Flag deprecation candidates
 

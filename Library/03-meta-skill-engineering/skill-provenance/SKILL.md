@@ -36,6 +36,11 @@ Produce a provenance record for a skill—answering "where did this come from, w
 - If created from scratch: state "created", note the motivating requirement
 - If derived from multiple sources: list all, note which informed which sections
 
+**If origin is unclear**, investigate before defaulting to "unknown":
+- Run `git log --diff-filter=A -- <skill-path>` to find the initial commit; the commit message often names the source or motivation.
+- Search commit messages near that date for phrases like "imported from", "based on", "ported from", or "adapted".
+- Check the SKILL.md file itself for license headers, attribution comments, or URLs in the body text — these are provenance signals left by the original author.
+
 ## 2. Record authorship
 - Original author(s) with identifiers
 - Adapter(s) if modified, with date of adaptation
@@ -47,10 +52,23 @@ Produce a provenance record for a skill—answering "where did this come from, w
 - Which expert knowledge was encoded and by whom?
 - Which failure patterns were learned from?
 
+**If evidence sources aren't explicitly documented**, extract them from the skill content:
+- Scan the SKILL.md body for URLs — these are almost always evidence sources. Record each with a note on which section it informs.
+- Check for a `references/` directory; if present, each file is an evidence source. Note its content and which procedure steps rely on it.
+- Look for terminology that implies a specific framework or standard (e.g., "OWASP Top 10", "12-factor", "semver") — these name the evidence basis even when not linked.
+
 ## 4. Catalog encoded assumptions
 - Runtime environment requirements (OS, tool versions, runtimes)
 - Expected conventions (file layout, naming, package manager)
 - Implicit dependencies not declared in frontmatter
+
+**Concrete heuristic for finding hidden assumptions**: Search the procedure text for these indicators:
+- **Tool names** (`npm`, `pip`, `docker`, `cargo`, `go`) → assumes that tool is installed and is the project's package manager
+- **Path patterns** (`/src`, `.opencode/`, `docs/`) → assumes a specific directory layout
+- **File extensions** (`.py`, `.ts`, `.rs`, `.go`) → assumes a specific language stack
+- **Command invocations** (`git`, `make`, `curl`) → assumes CLI tooling availability
+
+Each match is an encoded assumption. Record it with the specific line or section where it appears so future editors can assess whether it still holds.
 
 ## 5. Assess trust level
 

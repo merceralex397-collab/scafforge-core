@@ -43,8 +43,9 @@ Do NOT use when:
 
 1. **Inventory current states**: List all skills with their `metadata.maturity` field. Flag anomalies — draft skills older than 2 cycles, stable skills with known bugs.
 2. **Apply promotion criteria**:
-   - draft → beta: Tested with ≥3 real prompts, all passed
-   - beta → stable: Formal evaluation returned a "Promote" verdict
+   - draft → beta: Tested with ≥3 **diverse** prompts — one core use case, one edge case, one negative case (should NOT trigger). All three produce expected output or correct non-trigger. Diversity matters more than count; three paraphrases of the same query do not qualify.
+   - beta → stable: Formal evaluation (via `skill-evaluation`) returned a Pass verdict. At least 10 test cases with ≥90% pass rate. Used in at least 2 real projects or sessions without reported failure.
+   - stable → deprecated: Before transitioning, document the replacement skill by name, verify the replacement is itself stable, and update all cross-references (AGENTS.md, other skills' "Do not use" sections, command definitions) to point to the replacement. The state change does not take effect until these updates are committed.
 3. **Apply deprecation criteria** (any one sufficient):
    - A strictly better replacement exists and is stable
    - Unused for ≥3 cycles
