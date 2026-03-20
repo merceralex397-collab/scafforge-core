@@ -3,8 +3,9 @@ description: Hidden reviewer that approves or rejects a proposed plan before imp
 model: __PLANNER_MODEL__
 mode: subagent
 hidden: true
-temperature: 0.14
-top_p: 0.6
+temperature: 1.0
+top_p: 0.95
+top_k: 40
 tools:
   write: false
   edit: false

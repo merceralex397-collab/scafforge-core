@@ -3,11 +3,11 @@ import { stat } from "node:fs/promises"
 import { defaultArtifactPath, getTicket, loadArtifactRegistry, loadManifest, normalizeRepoPath, saveArtifactRegistry, saveManifest } from "./_workflow"
 
 export default tool({
-  description: "Register an existing canonical planning, implementation, review, QA, or handoff artifact.",
+  description: "Register an existing canonical planning, implementation, review, QA, smoke-test, or handoff artifact.",
   args: {
     ticket_id: tool.schema.string().describe("Ticket id that owns the artifact."),
     path: tool.schema.string().describe("Repo-relative path to the artifact."),
-    kind: tool.schema.string().describe("Artifact kind, for example plan, review, qa, handoff, or note."),
+    kind: tool.schema.string().describe("Artifact kind, for example plan, review, qa, smoke-test, handoff, or note."),
     stage: tool.schema.string().describe("Workflow stage associated with the artifact."),
     summary: tool.schema.string().describe("Short artifact summary.").optional(),
   },

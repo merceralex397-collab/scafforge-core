@@ -12,6 +12,9 @@ import {
   setPlanApprovedForTicket,
   syncWorkflowSelection,
   ticketsNeedingProcessVerification,
+  validateImplementationArtifactEvidence,
+  validateQaArtifactEvidence,
+  validateSmokeTestArtifactEvidence,
 } from "./_workflow"
 
 export default tool({
@@ -42,16 +45,29 @@ export default tool({
       throw new Error(`Cannot move ${ticket.id} to in_progress before its plan is approved in workflow-state.`)
     }
 
-    if (args.status === "review" && !hasArtifact(ticket, { stage: "implementation" })) {
-      throw new Error("Cannot move to review before an implementation artifact exists.")
+    if (args.status === "review") {
+      const implementationBlocker = await validateImplementationArtifactEvidence(ticket)
+      if (implementationBlocker) {
+        throw new Error(implementationBlocker)
+      }
     }
 
     if (args.status === "qa" && !hasReviewArtifact(ticket)) {
       throw new Error("Cannot move to qa before at least one review artifact exists.")
     }
 
-    if (args.status === "done" && !hasArtifact(ticket, { stage: "qa" })) {
-      throw new Error("Cannot move to done before a QA artifact exists.")
+    if (args.status === "smoke_test") {
+      const qaBlocker = await validateQaArtifactEvidence(ticket)
+      if (qaBlocker) {
+        throw new Error(qaBlocker)
+      }
+    }
+
+    if (args.status === "done") {
+      const smokeTestBlocker = await validateSmokeTestArtifactEvidence(ticket)
+      if (smokeTestBlocker) {
+        throw new Error(smokeTestBlocker)
+      }
     }
 
     if (args.stage) ticket.stage = args.stage

@@ -85,6 +85,7 @@ export const COARSE_STATUSES = new Set([
   "blocked",
   "review",
   "qa",
+  "smoke_test",
   "done",
 ])
 
@@ -94,6 +95,15 @@ export const START_HERE_MANAGED_START = "<!-- SCAFFORGE:START_HERE_BLOCK START -
 export const START_HERE_MANAGED_END = "<!-- SCAFFORGE:START_HERE_BLOCK END -->"
 export const DEFAULT_OVERLAP_RISK: OverlapRisk = "high"
 export const DEFAULT_PARALLEL_MODE: ParallelMode = "parallel-lanes"
+export const MIN_EXECUTION_ARTIFACT_BYTES = 200
+
+const EXECUTION_EVIDENCE_PATTERNS = [
+  /```(?:bash|sh|shell|console|text)?[\s\S]*?(?:npm|pnpm|yarn|bun|pytest|cargo|go test|go vet|python(?:3)? -m|node(?:\s|$)|tsc(?:\s|$)|make(?:\s|$)|exit code|passed|failed)/i,
+  /(?:^|\n)(?:\$ |>|command: ).*(?:npm|pnpm|yarn|bun|pytest|cargo|go test|go vet|python(?:3)? -m|node|tsc|make)/i,
+  /\b(?:exit[_ -]?code|pass(?:ed)?|fail(?:ed)?|ok)\b/i,
+]
+
+const INSPECTION_ONLY_PATTERNS = [/code inspection/i, /inspection only/i]
 
 const TICKET_DEFAULTS = {
   wave: 0,
@@ -171,6 +181,7 @@ export function artifactStageDirectory(stage: string): string {
   if (bucket === "planning") return ".opencode/state/plans"
   if (bucket === "implementation") return ".opencode/state/implementations"
   if (bucket === "qa") return ".opencode/state/qa"
+  if (bucket === "smoke-test") return ".opencode/state/smoke-tests"
   if (bucket === "handoff") return ".opencode/state/handoffs"
   if (bucket === "review" || LEGACY_REVIEW_STAGES.has(stage)) return ".opencode/state/reviews"
   return ".opencode/state/artifacts"
@@ -407,7 +418,7 @@ export async function loadWorkflowState(root = rootPath()): Promise<WorkflowStat
     status: "todo",
     approved_plan: false,
     ticket_state: {},
-    process_version: 3,
+    process_version: 4,
     process_last_changed_at: null,
     process_last_change_summary: null,
     pending_process_verification: false,
@@ -504,14 +515,81 @@ export function hasReviewArtifact(ticket: Ticket): boolean {
   return latestReviewArtifact(ticket) !== undefined
 }
 
+export async function readArtifactContent(artifact: Artifact | undefined, root = rootPath()): Promise<string> {
+  if (!artifact) {
+    return ""
+  }
+  return readText(join(root, normalizeRepoPath(artifact.path)))
+}
+
+function artifactByteLength(content: string): number {
+  return Buffer.byteLength(content, "utf8")
+}
+
+function hasExecutionEvidence(content: string): boolean {
+  return EXECUTION_EVIDENCE_PATTERNS.some((pattern) => pattern.test(content))
+}
+
+function claimsInspectionOnly(content: string): boolean {
+  return INSPECTION_ONLY_PATTERNS.some((pattern) => pattern.test(content))
+}
+
+export async function validateImplementationArtifactEvidence(ticket: Ticket, root = rootPath()): Promise<string | null> {
+  const artifact = latestArtifact(ticket, { stage: "implementation" })
+  if (!artifact) {
+    return "Cannot move to review before an implementation artifact exists."
+  }
+  const content = await readArtifactContent(artifact, root)
+  if (!hasExecutionEvidence(content)) {
+    return "Implementation artifact must include compile, syntax, or import-check command output before review."
+  }
+  return null
+}
+
+export async function validateQaArtifactEvidence(ticket: Ticket, root = rootPath()): Promise<string | null> {
+  const artifact = latestArtifact(ticket, { stage: "qa" })
+  if (!artifact) {
+    return "Cannot move to smoke_test before a QA artifact exists."
+  }
+  const content = await readArtifactContent(artifact, root)
+  if (artifactByteLength(content) < MIN_EXECUTION_ARTIFACT_BYTES) {
+    return `QA artifact must be at least ${MIN_EXECUTION_ARTIFACT_BYTES} bytes before the smoke-test stage.`
+  }
+  if (claimsInspectionOnly(content) && !hasExecutionEvidence(content)) {
+    return "QA artifact that claims validation only via code inspection is insufficient."
+  }
+  if (!hasExecutionEvidence(content)) {
+    return "QA artifact must include raw command output before the smoke-test stage."
+  }
+  return null
+}
+
+export async function validateSmokeTestArtifactEvidence(ticket: Ticket, root = rootPath()): Promise<string | null> {
+  const artifact = latestArtifact(ticket, { stage: "smoke-test" })
+  if (!artifact) {
+    return "Cannot move to done before a smoke-test artifact exists."
+  }
+  const content = await readArtifactContent(artifact, root)
+  if (artifactByteLength(content) < MIN_EXECUTION_ARTIFACT_BYTES) {
+    return `Smoke-test artifact must be at least ${MIN_EXECUTION_ARTIFACT_BYTES} bytes before closeout.`
+  }
+  if (!hasExecutionEvidence(content)) {
+    return "Smoke-test artifact must include raw command output before closeout."
+  }
+  if (!/Overall Result:\s*PASS/i.test(content)) {
+    return "Smoke-test artifact must record an explicit PASS result before closeout."
+  }
+  return null
+}
+
 export function ticketNeedsProcessVerification(ticket: Ticket, workflow: WorkflowState): boolean {
   if (ticket.status !== "done") {
     return false
   }
 
   const processChangedAt = workflow.process_last_changed_at
-  const latestQaArtifact = latestArtifact(ticket, { stage: "qa" })
-  if (processChangedAt && latestQaArtifact && latestQaArtifact.created_at >= processChangedAt) {
+  const latestExecutionArtifact = latestArtifact(ticket, { stage: "smoke-test" }) || latestArtifact(ticket, { stage: "qa" })
+  if (processChangedAt && latestExecutionArtifact && latestExecutionArtifact.created_at >= processChangedAt) {
     return false
   }
 

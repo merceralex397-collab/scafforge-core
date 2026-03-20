@@ -114,8 +114,8 @@ def main() -> int:
         run([sys.executable, str(REPAIR), str(full_dest), "--fail-on", "error"], ROOT)
 
         repaired_workflow = json.loads((full_dest / ".opencode" / "state" / "workflow-state.json").read_text(encoding="utf-8"))
-        if repaired_workflow.get("process_version") != 3:
-            raise RuntimeError("Repair should update workflow-state to process version 3")
+        if repaired_workflow.get("process_version") != 4:
+            raise RuntimeError("Repair should update workflow-state to process version 4")
         if repaired_workflow.get("pending_process_verification") is not True:
             raise RuntimeError("Repair should reopen post-migration verification")
         if not repaired_workflow.get("process_last_changed_at"):

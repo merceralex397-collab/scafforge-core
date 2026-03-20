@@ -36,7 +36,7 @@ OPENCODE_SCOPE_FILES = {
     ".opencode",
 }
 
-PROCESS_CONTRACT_VERSION = 3
+PROCESS_CONTRACT_VERSION = 4
 TICKET_CONTRACT_VERSION = 2
 DEFAULT_PARALLEL_MODE = "parallel-lanes"
 
@@ -201,6 +201,7 @@ def write_bootstrap_provenance(
                 ".opencode/state/implementations",
                 ".opencode/state/reviews",
                 ".opencode/state/qa",
+                ".opencode/state/smoke-tests",
                 ".opencode/state/handoffs",
             ],
         },
@@ -218,6 +219,7 @@ def ensure_state_directories(dest_root: Path) -> None:
         ".opencode/state/implementations",
         ".opencode/state/reviews",
         ".opencode/state/qa",
+        ".opencode/state/smoke-tests",
         ".opencode/state/handoffs",
         ".opencode/state/artifacts",
     ):

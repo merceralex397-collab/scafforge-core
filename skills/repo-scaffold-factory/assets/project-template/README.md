@@ -27,7 +27,7 @@ This repository was scaffolded for a deterministic, ticketed, agent-friendly wor
 - `tickets/manifest.json` owns machine queue state and registered artifact metadata
 - `tickets/BOARD.md` is the derived human queue board
 - `.opencode/state/workflow-state.json` owns transient stage, approval, and process-version state
-- `.opencode/state/plans/`, `.opencode/state/implementations/`, `.opencode/state/reviews/`, `.opencode/state/qa/`, and `.opencode/state/handoffs/` store canonical stage artifact bodies
+- `.opencode/state/plans/`, `.opencode/state/implementations/`, `.opencode/state/reviews/`, `.opencode/state/qa/`, `.opencode/state/smoke-tests/`, and `.opencode/state/handoffs/` store canonical stage artifact bodies
 - `.opencode/state/artifacts/registry.json` stores artifact metadata
 - `.opencode/meta/bootstrap-provenance.json` records how this operating layer was generated and later repaired
 - `START-HERE.md` is the derived restart surface

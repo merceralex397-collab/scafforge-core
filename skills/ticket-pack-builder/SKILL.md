@@ -110,7 +110,7 @@ Ensure `.opencode/state/workflow-state.json` reflects the first active ticket:
       "approved_plan": false
     }
   },
-  "process_version": 3,
+  "process_version": 4,
   "process_last_changed_at": null,
   "process_last_change_summary": null,
   "pending_process_verification": false,
@@ -139,6 +139,7 @@ Continue to `../project-skill-bootstrap/SKILL.md` as directed by scaffold-kickof
 - Keep `wave`, `lane`, `parallel_safe`, and `overlap_risk` aligned with real execution boundaries
 - Record dependencies explicitly
 - Put acceptance criteria on every ticket
+- Prefer executable acceptance criteria where possible so downstream agents have concrete commands or observable pass/fail checks to run (for example, `python -c "from package import symbol"` succeeds or `npm test` exits successfully)
 
 ## References
 

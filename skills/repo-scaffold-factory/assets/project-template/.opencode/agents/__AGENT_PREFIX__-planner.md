@@ -3,8 +3,9 @@ description: Hidden planner that turns a ticket into an explicit implementation 
 model: __PLANNER_MODEL__
 mode: subagent
 hidden: true
-temperature: 0.18
-top_p: 0.65
+temperature: 1.0
+top_p: 0.95
+top_k: 40
 tools:
   write: false
   edit: false

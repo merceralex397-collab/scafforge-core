@@ -3,8 +3,9 @@ description: Hidden summarizer that compresses evidence into short handoff-ready
 model: __UTILITY_MODEL__
 mode: subagent
 hidden: true
-temperature: 0.08
-top_p: 0.5
+temperature: 1.0
+top_p: 0.95
+top_k: 40
 tools:
   write: false
   edit: false

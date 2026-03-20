@@ -16,7 +16,8 @@
     ".opencode/tools/ticket_create.ts",
     ".opencode/tools/ticket_update.ts",
     ".opencode/commands/kickoff.md",
-    ".opencode/commands/resume.md"
+    ".opencode/commands/resume.md",
+    ".opencode/tools/smoke_test.ts"
   ],
   "required_directories": [
     ".opencode/agents",
@@ -28,6 +29,7 @@
     ".opencode/state/implementations",
     ".opencode/state/reviews",
     ".opencode/state/qa",
+    ".opencode/state/smoke-tests",
     ".opencode/state/handoffs",
     ".opencode/state/artifacts"
   ],

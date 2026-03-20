@@ -1,6 +1,6 @@
 ---
 name: ticket-execution
-description: Follow the required ticket lifecycle for this repo. Use when an agent is advancing a ticket through planning, review, implementation, QA, and closeout and needs the repo-specific stage rules.
+description: Follow the required ticket lifecycle for this repo. Use when an agent is advancing a ticket through planning, review, implementation, QA, deterministic smoke testing, and closeout and needs the repo-specific stage rules.
 ---
 
 # Ticket Execution
@@ -16,7 +16,8 @@ Required order:
 5. code review
 6. security review when relevant
 7. QA
-8. handoff and closeout
+8. deterministic smoke test
+9. handoff and closeout
 
 Parallel rules:
 

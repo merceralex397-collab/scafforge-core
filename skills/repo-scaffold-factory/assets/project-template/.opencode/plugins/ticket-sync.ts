@@ -7,6 +7,7 @@ const SYNCED_TOOLS = new Set([
   "artifact_register",
   "context_snapshot",
   "handoff_publish",
+  "smoke_test",
 ])
 
 export const TicketSync: Plugin = async () => {

@@ -3,8 +3,9 @@ description: Hidden guarded ticket creator for migration follow-up work proven b
 model: __PLANNER_MODEL__
 mode: subagent
 hidden: true
-temperature: 0.12
-top_p: 0.55
+temperature: 1.0
+top_p: 0.95
+top_k: 40
 tools:
   write: false
   edit: false

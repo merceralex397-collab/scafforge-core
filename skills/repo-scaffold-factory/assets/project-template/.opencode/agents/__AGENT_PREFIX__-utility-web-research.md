@@ -3,8 +3,9 @@ description: Hidden researcher for focused external technical research
 model: __UTILITY_MODEL__
 mode: subagent
 hidden: true
-temperature: 0.1
-top_p: 0.55
+temperature: 1.0
+top_p: 0.95
+top_k: 40
 tools:
   write: false
   edit: false

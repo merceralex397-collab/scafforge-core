@@ -10,7 +10,8 @@ The default workflow for `__PROJECT_NAME__` is:
 6. code review
 7. security review when relevant
 8. QA
-9. handoff and closeout
+9. deterministic smoke test
+10. handoff and closeout
 
 Rules:
 
@@ -18,7 +19,7 @@ Rules:
 - do not start implementation without an approved plan
 - do not close a ticket until artifacts and state files are updated
 - keep the autonomous flow internal to agents, tools, and plugins
-- keep ticket `status` coarse and queue-oriented: `todo`, `ready`, `in_progress`, `blocked`, `review`, `qa`, `done`
+- keep ticket `status` coarse and queue-oriented: `todo`, `ready`, `in_progress`, `blocked`, `review`, `qa`, `smoke_test`, `done`
 - keep plan approval in `.opencode/state/workflow-state.json`, not in ticket status
 - treat `tickets/BOARD.md` as a derived human view, not an authoritative workflow surface
 - write stage artifact bodies with `artifact_write` and then register them with `artifact_register`
@@ -39,7 +40,7 @@ Rules:
 
 - `.opencode/meta/bootstrap-provenance.json` owns the canonical `workflow_contract.process_version`; `.opencode/state/workflow-state.json` mirrors the active process state for day-to-day execution
 - if `.opencode/state/workflow-state.json` shows `pending_process_verification: true`, completed tickets are not treated as fully trusted yet
-- the affected done-ticket set is: done tickets whose latest QA proof predates the current recorded process change, plus any done ticket without a registered `review` / `backlog-verification` artifact for the current process window
+- the affected done-ticket set is: done tickets whose latest smoke-test proof (or QA proof from an older contract) predates the current recorded process change, plus any done ticket without a registered `review` / `backlog-verification` artifact for the current process window
 - use `ticket_lookup` to inspect the affected done-ticket set before routing work to the backlog verifier
 - create migration follow-up tickets only through the guarded `ticket_create` tool and only from a registered `backlog-verification` artifact
 
@@ -58,4 +59,5 @@ Rules:
 - before implementation: the assigned ticket's `approved_plan` must be `true` in workflow-state
 - before code review: an `implementation` artifact must exist
 - before QA: a review artifact must exist
-- before closeout: a `qa` artifact must exist
+- before deterministic smoke test: a `qa` artifact must exist and include executable evidence
+- before closeout: a passing `smoke-test` artifact must exist

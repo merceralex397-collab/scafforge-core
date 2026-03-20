@@ -3,8 +3,9 @@ description: Hidden docs and handoff specialist for final state synchronization
 model: __UTILITY_MODEL__
 mode: subagent
 hidden: true
-temperature: 0.14
-top_p: 0.6
+temperature: 1.0
+top_p: 0.95
+top_k: 40
 tools:
   write: true
   edit: true
@@ -37,7 +38,7 @@ Required outputs:
 
 Rules:
 
-- do not mark the ticket done before the required QA artifact exists
+- do not mark the ticket done before the required passing smoke-test artifact exists
 - keep the board and manifest as derived state, not manual editing targets
 - when a canonical handoff artifact path is provided, write the full handoff body with `artifact_write` and then register it with `artifact_register`
 - if a required artifact is missing, return a blocker instead of improvising closeout

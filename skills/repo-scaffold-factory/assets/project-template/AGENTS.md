@@ -13,7 +13,7 @@ If this file conflicts with any global AI instruction file, this file wins for t
 5. Treat the stage-specific artifact directories as the canonical stage-proof body locations.
 6. Use the process version and verification state in `.opencode/state/workflow-state.json` before trusting old completed work.
 7. Keep the repo signposted and deterministic for weaker models.
-8. Follow the internal stage gates: plan -> review -> implement -> review -> QA -> closeout.
+8. Follow the internal stage gates: plan -> plan review -> implement -> review -> QA -> smoke test -> closeout.
 
 ## Truth hierarchy
 
@@ -21,7 +21,7 @@ If this file conflicts with any global AI instruction file, this file wins for t
 - `tickets/manifest.json` owns machine queue state and registered artifact metadata
 - `tickets/BOARD.md` is the derived human queue board
 - `.opencode/state/workflow-state.json` owns the transient foreground stage, per-ticket approval state, and the active process-version plus post-migration verification state
-- `.opencode/state/plans/`, `.opencode/state/implementations/`, `.opencode/state/reviews/`, `.opencode/state/qa/`, and `.opencode/state/handoffs/` own stage artifact bodies
+- `.opencode/state/plans/`, `.opencode/state/implementations/`, `.opencode/state/reviews/`, `.opencode/state/qa/`, `.opencode/state/smoke-tests/`, and `.opencode/state/handoffs/` own stage artifact bodies
 - `.opencode/state/artifacts/registry.json` owns the cross-stage artifact registry
 - `.opencode/meta/bootstrap-provenance.json` owns bootstrap and repair provenance
 - `START-HERE.md` is the derived restart surface
@@ -45,7 +45,7 @@ If this file conflicts with any global AI instruction file, this file wins for t
 - Do not implement before an approved plan exists.
 - Do not treat slash commands as the autonomous workflow.
 - Prefer local tools, plugins, and project skills over prompt-only improvisation.
-- Keep queue status coarse: `todo`, `ready`, `in_progress`, `blocked`, `review`, `qa`, `done`.
+- Keep queue status coarse: `todo`, `ready`, `in_progress`, `blocked`, `review`, `qa`, `smoke_test`, `done`.
 - Keep plan approval in workflow state and artifacts, not in ticket status.
 - Treat `tickets/BOARD.md` as a derived human view, not a second state machine.
 - Use ticket tools and workflow-state instead of raw file edits for stage transitions.

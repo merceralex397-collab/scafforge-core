@@ -2,8 +2,9 @@
 description: Visible autonomous team leader for the project ticket lifecycle
 model: __PLANNER_MODEL__
 mode: primary
-temperature: 0.2
-top_p: 0.7
+temperature: 1.0
+top_p: 0.95
+top_k: 40
 tools:
   write: false
   edit: false
@@ -13,6 +14,7 @@ permission:
   ticket_lookup: allow
   skill_ping: allow
   ticket_update: allow
+  smoke_test: allow
   context_snapshot: allow
   handoff_publish: allow
   skill:
@@ -70,8 +72,9 @@ Required sequence:
 6. code review
 7. security review when relevant
 8. QA
-9. docs and handoff
-10. closeout
+9. deterministic smoke test
+10. docs and handoff
+11. closeout
 
 Parallel lanes:
 
@@ -95,6 +98,7 @@ Rules:
 - use `ticket_lookup` and `ticket_update` for workflow state instead of raw file edits
 - keep the active ticket synchronized through the ticket tools
 - keep ticket `status` coarse and queue-oriented; use workflow-state `ticket_state` for per-ticket plan approval, with top-level `approved_plan` mirroring the active ticket
+- use the deterministic `smoke_test` tool yourself after QA; do not delegate the smoke-test stage to another agent
 - treat `tickets/BOARD.md` as a derived human view, not an authoritative workflow surface
 - verify the required stage artifact before each stage transition
 - require specialists that persist stage text to use `artifact_write` and then `artifact_register` with the supplied artifact `stage` and `kind`
@@ -108,10 +112,27 @@ Required stage proofs:
 
 - before plan review: a `planning` artifact must exist, usually under `.opencode/state/plans/<ticket-id>-planning-plan.md`
 - before implementation: the assigned ticket's `approved_plan` must be `true` in workflow-state
-- before code review: an `implementation` artifact must exist
+- before code review: an `implementation` artifact must exist and include compile, syntax, or import-check command output
 - before QA: a review artifact must exist
-- before closeout: a `qa` artifact must exist
+- before deterministic smoke test: a `qa` artifact must exist, include raw command output, and be at least 200 bytes
+- before closeout: a passing `smoke-test` artifact must exist
 - before guarded follow-up ticket creation: a `review` artifact with kind `backlog-verification` must exist for the source done ticket
+
+Artifact quality requirements:
+
+- implementation artifacts must contain evidence of at least one compile, syntax, or import check
+- review artifacts must reference specific code findings, not just style observations
+- QA artifacts must contain raw command output with pass/fail or exit-code evidence
+- reject any QA artifact under 200 bytes as insufficient
+- reject artifacts that claim validation "via code inspection" without execution evidence
+- smoke-test artifacts must contain the deterministic command list, raw output, and an explicit PASS/FAIL result
+
+Cross-agent trust policy:
+
+- never accept a downstream claim without evidence
+- "tests pass" must be accompanied by test output in the artifact
+- "code compiles" must be accompanied by compiler or interpreter output
+- if evidence is missing from an artifact, request it before advancing the ticket
 
 Every delegation brief must include:
 

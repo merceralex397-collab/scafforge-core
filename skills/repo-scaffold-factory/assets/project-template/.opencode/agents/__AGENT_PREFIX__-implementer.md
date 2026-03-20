@@ -3,8 +3,9 @@ description: Hidden implementer for approved ticket work
 model: __IMPLEMENTER_MODEL__
 mode: subagent
 hidden: true
-temperature: 0.22
-top_p: 0.7
+temperature: 1.0
+top_p: 0.95
+top_k: 40
 tools:
   write: true
   edit: true
@@ -70,6 +71,12 @@ Rules:
 - confirm the assigned ticket's `approved_plan` is already true in workflow-state before implementation begins
 - use `ticket_update` for workflow state changes instead of editing ticket files directly
 - write the full implementation artifact with `artifact_write` and then register it with `artifact_register` before handing work to review
+- before creating the implementation artifact, run at minimum:
+  - a compile or syntax check on all new or modified source files
+  - an import check for the primary module
+  - the project test suite if it exists
+- include the command output in the implementation artifact
+- do not create an implementation artifact for code that fails these checks
 - stop when you hit a blocker instead of improvising around missing requirements
 - if the approved plan still leaves a material choice unresolved, return a blocker instead of deciding it ad hoc
 - do not stop at a summary before the implementation artifact exists unless you are returning an explicit blocker

@@ -1,5 +1,5 @@
 import { type Plugin } from "@opencode-ai/plugin"
-import { getTicket, hasArtifact, isPlanApprovedForTicket, loadManifest, loadWorkflowState } from "../tools/_workflow"
+import { getTicket, hasArtifact, isPlanApprovedForTicket, loadManifest, loadWorkflowState, validateImplementationArtifactEvidence, validateQaArtifactEvidence, validateSmokeTestArtifactEvidence } from "../tools/_workflow"
 
 const SAFE_BASH = /^(pwd|ls|find|rg|grep|cat|head|tail|git status|git diff|git log)\b/i
 
@@ -55,6 +55,27 @@ export const StageGateEnforcer: Plugin = async () => {
 
         if (nextStatus === "in_progress" && !isPlanApprovedForTicket(workflow, ticket.id) && approving !== true) {
           throw new Error(`Approved plan required before moving ${ticket.id} to in_progress.`)
+        }
+
+        if (nextStatus === "review") {
+          const implementationBlocker = await validateImplementationArtifactEvidence(ticket)
+          if (implementationBlocker) {
+            throw new Error(implementationBlocker)
+          }
+        }
+
+        if (nextStatus === "smoke_test") {
+          const qaBlocker = await validateQaArtifactEvidence(ticket)
+          if (qaBlocker) {
+            throw new Error(qaBlocker)
+          }
+        }
+
+        if (nextStatus === "done") {
+          const smokeTestBlocker = await validateSmokeTestArtifactEvidence(ticket)
+          if (smokeTestBlocker) {
+            throw new Error(smokeTestBlocker)
+          }
         }
       }
     },

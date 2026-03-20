@@ -9,7 +9,7 @@ This repo uses:
 
 Rules:
 
-- keep ticket `status` coarse: `todo`, `ready`, `in_progress`, `blocked`, `review`, `qa`, `done`
+- keep ticket `status` coarse: `todo`, `ready`, `in_progress`, `blocked`, `review`, `qa`, `smoke_test`, `done`
 - keep `wave`, `lane`, `parallel_safe`, and `overlap_risk` aligned with the real ownership and concurrency boundaries
 - keep plan approval in `.opencode/state/workflow-state.json`
 - treat `tickets/BOARD.md` as a derived human board, not a second state machine

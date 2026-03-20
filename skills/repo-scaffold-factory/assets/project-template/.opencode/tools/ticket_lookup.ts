@@ -37,22 +37,26 @@ export default tool({
     const latestReview = latestReviewArtifact(ticket) || null
     const latestBacklogVerification = latestArtifact(ticket, { stage: "review", kind: "backlog-verification" }) || null
     const latestQa = latestArtifact(ticket, { stage: "qa" }) || null
+    const latestSmokeTest = latestArtifact(ticket, { stage: "smoke-test" }) || null
 
     const artifactSummary = {
       has_plan: hasArtifact(ticket, { stage: "planning" }),
       has_implementation: hasArtifact(ticket, { stage: "implementation" }),
       has_review: hasReviewArtifact(ticket),
       has_qa: hasArtifact(ticket, { stage: "qa" }),
+      has_smoke_test: hasArtifact(ticket, { stage: "smoke-test" }),
       latest_plan: latestPlan,
       latest_implementation: latestImplementation,
       latest_review: latestReview,
       latest_backlog_verification: latestBacklogVerification,
       latest_qa: latestQa,
+      latest_smoke_test: latestSmokeTest,
     }
     const affectedDoneTickets = ticketsNeedingProcessVerification(manifest, workflow).map((item) => ({
       id: item.id,
       title: item.title,
       latest_qa: latestArtifact(item, { stage: "qa" }) || null,
+      latest_smoke_test: latestArtifact(item, { stage: "smoke-test" }) || null,
       latest_backlog_verification: latestArtifact(item, { stage: "review", kind: "backlog-verification" }) || null,
     }))
     const artifactBodies = args.include_artifact_contents
@@ -71,6 +75,9 @@ export default tool({
             : null,
           latest_qa: latestQa
             ? { ...latestQa, content: await readFile(latestQa.path, "utf-8").catch(() => null) }
+            : null,
+          latest_smoke_test: latestSmokeTest
+            ? { ...latestSmokeTest, content: await readFile(latestSmokeTest.path, "utf-8").catch(() => null) }
             : null,
         }
       : undefined
