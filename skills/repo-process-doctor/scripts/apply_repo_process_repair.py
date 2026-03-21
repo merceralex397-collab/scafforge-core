@@ -176,17 +176,27 @@ def replace_file(source: Path, target: Path) -> None:
     shutil.copy2(source, target)
 
 
-def normalize_ticket_state_map(value: Any) -> dict[str, dict[str, bool]]:
+def normalize_ticket_state_map(value: Any) -> dict[str, dict[str, Any]]:
     if not isinstance(value, dict):
         return {}
-    normalized: dict[str, dict[str, bool]] = {}
+    normalized: dict[str, dict[str, Any]] = {}
     for ticket_id, ticket_state in value.items():
         if not isinstance(ticket_id, str) or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_-]*", ticket_id):
             continue
         approved_plan = False
+        reopen_count = 0
+        needs_reverification = False
         if isinstance(ticket_state, dict) and isinstance(ticket_state.get("approved_plan"), bool):
             approved_plan = ticket_state["approved_plan"]
-        normalized[ticket_id] = {"approved_plan": approved_plan}
+        if isinstance(ticket_state, dict) and isinstance(ticket_state.get("reopen_count"), int) and ticket_state["reopen_count"] >= 0:
+            reopen_count = ticket_state["reopen_count"]
+        if isinstance(ticket_state, dict) and isinstance(ticket_state.get("needs_reverification"), bool):
+            needs_reverification = ticket_state["needs_reverification"]
+        normalized[ticket_id] = {
+            "approved_plan": approved_plan,
+            "reopen_count": reopen_count,
+            "needs_reverification": needs_reverification,
+        }
     return normalized
 
 
@@ -225,8 +235,15 @@ def update_workflow_state(repo_root: Path, rendered_provenance: dict[str, Any], 
     ticket_state = normalize_ticket_state_map(workflow.get("ticket_state") if isinstance(workflow, dict) else None)
     legacy_approved_plan = workflow.get("approved_plan") if isinstance(workflow, dict) and isinstance(workflow.get("approved_plan"), bool) else False
     if isinstance(active_ticket, str) and re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_-]*", active_ticket) and active_ticket not in ticket_state:
-        ticket_state[active_ticket] = {"approved_plan": legacy_approved_plan}
+        ticket_state[active_ticket] = {
+            "approved_plan": legacy_approved_plan,
+            "reopen_count": 0,
+            "needs_reverification": False,
+        }
     approved_plan = ticket_state.get(active_ticket, {}).get("approved_plan", legacy_approved_plan)
+    existing_bootstrap = workflow.get("bootstrap") if isinstance(workflow, dict) and isinstance(workflow.get("bootstrap"), dict) else {}
+    existing_lane_leases = workflow.get("lane_leases") if isinstance(workflow, dict) and isinstance(workflow.get("lane_leases"), list) else []
+    existing_state_revision = workflow.get("state_revision") if isinstance(workflow, dict) and isinstance(workflow.get("state_revision"), int) and workflow.get("state_revision") >= 0 else 0
 
     workflow_contract = rendered_provenance.get("workflow_contract", {}) if isinstance(rendered_provenance, dict) else {}
     payload = {
@@ -235,11 +252,19 @@ def update_workflow_state(repo_root: Path, rendered_provenance: dict[str, Any], 
         "status": status,
         "approved_plan": approved_plan,
         "ticket_state": ticket_state,
-        "process_version": workflow_contract.get("process_version", 3),
+        "process_version": workflow_contract.get("process_version", 5),
         "process_last_changed_at": current_iso_timestamp(),
         "process_last_change_summary": change_summary,
         "pending_process_verification": True,
         "parallel_mode": workflow_contract.get("parallel_mode", "parallel-lanes"),
+        "bootstrap": {
+            "status": existing_bootstrap.get("status", "pending"),
+            "last_verified_at": existing_bootstrap.get("last_verified_at"),
+            "environment_fingerprint": existing_bootstrap.get("environment_fingerprint"),
+            "proof_artifact": existing_bootstrap.get("proof_artifact"),
+        },
+        "lane_leases": existing_lane_leases,
+        "state_revision": existing_state_revision,
     }
     write_json(workflow_path, payload)
 
@@ -300,6 +325,8 @@ def apply_repair(repo_root: Path, rendered_root: Path, change_summary: str) -> l
     existing_start_here = target_start_here_path.read_text(encoding="utf-8") if target_start_here_path.exists() else ""
     target_start_here_path.write_text(merge_start_here(existing_start_here, rendered_start_here), encoding="utf-8")
     replaced_surfaces.append("START-HERE.md managed block")
+
+    (repo_root / ".opencode" / "state" / "bootstrap").mkdir(parents=True, exist_ok=True)
 
     update_provenance(repo_root, rendered_root, replaced_surfaces, change_summary)
     update_workflow_state(repo_root, read_json(rendered_root / ".opencode" / "meta" / "bootstrap-provenance.json"), change_summary)

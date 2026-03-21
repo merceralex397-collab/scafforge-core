@@ -97,9 +97,22 @@ def validate_template_surfaces(findings: list[Finding]) -> None:
         template / "docs" / "process" / "model-matrix.md",
         template / "tickets" / "manifest.json",
         template / ".opencode" / "tools" / "ticket_create.ts",
+        template / ".opencode" / "tools" / "ticket_claim.ts",
+        template / ".opencode" / "tools" / "ticket_release.ts",
+        template / ".opencode" / "tools" / "ticket_reopen.ts",
+        template / ".opencode" / "tools" / "ticket_reverify.ts",
+        template / ".opencode" / "tools" / "environment_bootstrap.ts",
+        template / ".opencode" / "tools" / "issue_intake.ts",
         template / ".opencode" / "tools" / "ticket_update.ts",
+        template / ".opencode" / "commands" / "bootstrap-check.md",
+        template / ".opencode" / "commands" / "issue-triage.md",
+        template / ".opencode" / "commands" / "plan-wave.md",
+        template / ".opencode" / "commands" / "run-lane.md",
+        template / ".opencode" / "commands" / "join-lanes.md",
+        template / ".opencode" / "commands" / "reverify-ticket.md",
         template / ".opencode" / "state" / "workflow-state.json",
         template / ".opencode" / "state" / "artifacts" / "registry.json",
+        template / ".opencode" / "agents" / "__AGENT_PREFIX__-lane-executor.md",
         template / ".opencode" / "agents" / "__AGENT_PREFIX__-backlog-verifier.md",
         template / ".opencode" / "agents" / "__AGENT_PREFIX__-ticket-creator.md",
         template / ".opencode" / "skills" / "research-delegation" / "SKILL.md",
@@ -120,10 +133,15 @@ def validate_template_surfaces(findings: list[Finding]) -> None:
     require_contains(findings, template / ".opencode" / "state" / "workflow-state.json", '"pending_process_verification"')
     require_contains(findings, template / ".opencode" / "state" / "workflow-state.json", '"parallel_mode"')
     require_contains(findings, template / ".opencode" / "state" / "workflow-state.json", '"ticket_state"')
+    require_contains(findings, template / ".opencode" / "state" / "workflow-state.json", '"bootstrap"')
+    require_contains(findings, template / ".opencode" / "state" / "workflow-state.json", '"lane_leases"')
+    require_contains(findings, template / ".opencode" / "state" / "workflow-state.json", '"state_revision"')
     require_contains(findings, template / "tickets" / "manifest.json", '"wave"')
     require_contains(findings, template / "tickets" / "manifest.json", '"parallel_safe"')
     require_contains(findings, template / "tickets" / "manifest.json", '"overlap_risk"')
     require_contains(findings, template / "tickets" / "manifest.json", '"decision_blockers"')
+    require_contains(findings, template / "tickets" / "manifest.json", '"resolution_state"')
+    require_contains(findings, template / "tickets" / "manifest.json", '"verification_state"')
 
 
 def validate_process_doctor_surfaces(findings: list[Finding]) -> None:

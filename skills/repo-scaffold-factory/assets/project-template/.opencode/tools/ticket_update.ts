@@ -7,6 +7,7 @@ import {
   isPlanApprovedForTicket,
   loadManifest,
   loadWorkflowState,
+  markTicketDone,
   saveManifest,
   saveWorkflowState,
   setPlanApprovedForTicket,
@@ -32,9 +33,14 @@ export default tool({
     const manifest = await loadManifest()
     const workflow = await loadWorkflowState()
     const ticket = getTicket(manifest, args.ticket_id)
+    const wasDone = ticket.status === "done"
 
     if (args.status && !COARSE_STATUSES.has(args.status)) {
       throw new Error(`Unsupported ticket status: ${args.status}`)
+    }
+
+    if (wasDone && args.status && args.status !== "done") {
+      throw new Error(`Ticket ${ticket.id} is already done. Use ticket_reopen to resume ownership instead of mutating status directly.`)
     }
 
     if (typeof args.approved_plan === "boolean" && args.approved_plan && !hasArtifact(ticket, { stage: "planning" })) {
@@ -71,7 +77,11 @@ export default tool({
     }
 
     if (args.stage) ticket.stage = args.stage
-    if (args.status) ticket.status = args.status
+    if (args.status === "done") {
+      markTicketDone(ticket, workflow)
+    } else if (args.status) {
+      ticket.status = args.status
+    }
     if (args.summary) ticket.summary = args.summary
     if (args.activate) manifest.active_ticket = ticket.id
 

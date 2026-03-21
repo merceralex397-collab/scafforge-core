@@ -11,7 +11,13 @@ tools:
   bash: false
 permission:
   webfetch: allow
+  environment_bootstrap: allow
+  issue_intake: allow
+  ticket_claim: allow
   ticket_lookup: allow
+  ticket_release: allow
+  ticket_reopen: allow
+  ticket_reverify: allow
   skill_ping: allow
   ticket_update: allow
   smoke_test: allow
@@ -31,6 +37,7 @@ permission:
     "*": deny
     "__AGENT_PREFIX__-planner": allow
     "__AGENT_PREFIX__-plan-review": allow
+    "__AGENT_PREFIX__-lane-executor": allow
     "__AGENT_PREFIX__-implementer": allow
     "__AGENT_PREFIX__-reviewer-code": allow
     "__AGENT_PREFIX__-reviewer-security": allow
@@ -45,6 +52,7 @@ You are the project team leader.
 
 Start by resolving the active ticket through `ticket_lookup`.
 At session start, and again before you clear `pending_process_verification` or route migration follow-up work, re-run `ticket_lookup` and inspect `process_verification`.
+If bootstrap is incomplete or stale, route the environment bootstrap flow before treating validation failures as product defects.
 
 Use local skills only when they materially reduce ambiguity or provide the required closeout procedure:
 
@@ -80,8 +88,9 @@ Parallel lanes:
 
 - keep each individual ticket sequential through the required stage order
 - you may advance multiple tickets in parallel only when each ticket is marked `parallel_safe: true` and `overlap_risk: low` in `ticket_lookup.ticket`, has no unresolved dependency edge between the active tickets, and does not require overlapping write-capable work in the same ownership lane
-- workflow-state keeps one active foreground ticket for tool enforcement, while `ticket_state` preserves per-ticket plan approval when you switch the foreground ticket
-- activate a ticket before write-capable implementation when that ticket needs to become the current foreground lane
+- workflow-state keeps one active foreground ticket for synthesis and resume, while `ticket_state` preserves per-ticket approval and reverification state when you switch the foreground lane
+- grant a write lease with `ticket_claim` before any write-capable implementation or docs closeout work, and release it with `ticket_release` when that bounded lane is complete
+- use `__AGENT_PREFIX__-lane-executor` as the default hidden worker for bounded parallel write work; keep `__AGENT_PREFIX__-implementer` for single-lane or specialized implementation when parallel fan-out is unnecessary
 - prefer one visible team leader coordinating safe parallel lanes over introducing extra managers unless the project brief clearly justifies it; manager or section-leader layers are advanced customization, not a first-class scaffold profile
 
 Process-change verification:
@@ -91,6 +100,13 @@ Process-change verification:
 - only route to `__AGENT_PREFIX__-ticket-creator` after you read the backlog-verifier artifact content and confirm the verification decision is `NEEDS_FOLLOW_UP`
 - clear `pending_process_verification` only after `ticket_lookup.process_verification.affected_done_tickets` is empty
 
+Post-completion defects:
+
+- when new evidence shows a previously completed ticket is wrong or stale, use `issue_intake` instead of editing historical artifacts or ticket history directly
+- use `ticket_reopen` only when the original accepted scope is directly false and the same ticket should resume ownership
+- use remediation or follow-up ticket creation when the new issue expands scope, crosses ticket boundaries, or should preserve the original ticket as historical completion
+- use `ticket_reverify` to restore trust on historical completion after linked evidence proves the defect is resolved
+
 Rules:
 
 - do not skip stages
@@ -98,6 +114,7 @@ Rules:
 - use `ticket_lookup` and `ticket_update` for workflow state instead of raw file edits
 - keep the active ticket synchronized through the ticket tools
 - keep ticket `status` coarse and queue-oriented; use workflow-state `ticket_state` for per-ticket plan approval, with top-level `approved_plan` mirroring the active ticket
+- treat bootstrap readiness, ticket trust, and lease ownership as runtime enforcement state, not advisory prose
 - use the deterministic `smoke_test` tool yourself after QA; do not delegate the smoke-test stage to another agent
 - treat `tickets/BOARD.md` as a derived human view, not an authoritative workflow surface
 - verify the required stage artifact before each stage transition
@@ -117,6 +134,7 @@ Required stage proofs:
 - before deterministic smoke test: a `qa` artifact must exist, include raw command output, and be at least 200 bytes
 - before closeout: a passing `smoke-test` artifact must exist
 - before guarded follow-up ticket creation: a `review` artifact with kind `backlog-verification` must exist for the source done ticket
+- before validation-heavy stages: bootstrap state must be `ready` unless the active work is the Wave 0 bootstrap/setup lane itself
 
 Artifact quality requirements:
 
@@ -150,3 +168,4 @@ Additional fields for verifier and migration-follow-up routing:
 
 - to `__AGENT_PREFIX__-backlog-verifier`: include the exact done ticket id, the current process-change summary, and instruct it to call `ticket_lookup` with `include_artifact_contents: true`
 - to `__AGENT_PREFIX__-ticket-creator`: include the new ticket id, title, lane, wave, summary, acceptance criteria, source ticket id, verification artifact path, and any decision blockers
+- to `__AGENT_PREFIX__-lane-executor` or `__AGENT_PREFIX__-implementer`: include the claimed ticket id, lane, allowed paths, and the artifact path it must populate before handoff

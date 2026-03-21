@@ -35,7 +35,7 @@ Read `docs/spec/CANONICAL-BRIEF.md`. Identify:
 
 Organize tickets into waves based on dependency order:
 
-- **Wave 0: Foundation** — repo setup, CI/CD, dependency installation, configuration
+- **Wave 0: Foundation** — repo setup, environment bootstrap, dependency installation, configuration
 - **Wave 1: Core** — the primary functionality the project exists to provide
 - **Wave 2: Secondary** — supporting features, integrations, secondary workflows
 - **Wave 3: Polish** — error handling hardening, performance, documentation, UX refinement
@@ -51,7 +51,11 @@ For each piece of work, create a ticket with these fields:
 - `overlap_risk` — `low`, `medium`, or `high` expected overlap with other tickets
 - `stage` — `planning` (all new tickets start here)
 - `status` — `todo` or `blocked`
+- `resolution_state` — `open` for new tickets, later `done`, `reopened`, or `superseded`
+- `verification_state` — `trusted` only after current proof exists; initialize new tickets as `suspect`
 - `depends_on` — list of ticket IDs this depends on
+- `source_ticket_id` — source ticket when this is a follow-up or remediation ticket, otherwise `null`
+- `follow_up_ticket_ids` — linked downstream remediation or expansion tickets, initially empty
 - `summary` — one-paragraph description of what needs to be done
 - `acceptance` — list of specific acceptance criteria
 - `artifacts` — empty list (populated during execution)
@@ -69,6 +73,18 @@ For each piece of work, create a ticket with these fields:
 - Mark `parallel_safe: true` only when the ticket has no unresolved dependency on another unfinished ticket and the expected overlap risk is low
 - Use `overlap_risk` to make concurrency judgment explicit instead of assuming it from lane names
 - Default to `parallel_safe: false` when the ownership boundary is unclear
+- Keep lane names aligned with real write ownership so lease-based execution has a credible boundary
+
+### Mandatory Wave 0 bootstrap ticket
+
+Wave 0 must always include one bootstrap/setup ticket that covers:
+- runtime and toolchain presence
+- project dependency installation
+- test dependency installation
+- verification command readiness
+- initial canonical brief and scaffold sanity checks
+
+Treat that ticket as the default first active ticket unless the canonical brief proves a different setup sequence is required.
 
 ### Handling unresolved decisions
 
@@ -84,7 +100,7 @@ For each ticket, write a markdown file to `tickets/<id>.md` using the template i
 ### 5. Update the manifest
 
 Write `tickets/manifest.json` with the structure defined in `references/ticket-system.md`:
-- `version`: 2
+- `version`: 3
 - `project`: project name from canonical brief
 - `active_ticket`: first ticket in wave 0
 - `tickets`: array of all ticket objects
@@ -107,14 +123,24 @@ Ensure `.opencode/state/workflow-state.json` reflects the first active ticket:
   "approved_plan": false,
   "ticket_state": {
     "<first-ticket-id>": {
-      "approved_plan": false
+      "approved_plan": false,
+      "reopen_count": 0,
+      "needs_reverification": false
     }
   },
-  "process_version": 4,
+  "process_version": 5,
   "process_last_changed_at": null,
   "process_last_change_summary": null,
   "pending_process_verification": false,
-  "parallel_mode": "parallel-lanes"
+  "parallel_mode": "parallel-lanes",
+  "bootstrap": {
+    "status": "pending",
+    "last_verified_at": null,
+    "environment_fingerprint": null,
+    "proof_artifact": null
+  },
+  "lane_leases": [],
+  "state_revision": 0
 }
 ```
 
@@ -140,6 +166,7 @@ Continue to `../project-skill-bootstrap/SKILL.md` as directed by scaffold-kickof
 - Record dependencies explicitly
 - Put acceptance criteria on every ticket
 - Prefer executable acceptance criteria where possible so downstream agents have concrete commands or observable pass/fail checks to run (for example, `python -c "from package import symbol"` succeeds or `npm test` exits successfully)
+- Keep historical completion separate from current trust: `status` stays queue-oriented, while `resolution_state` and `verification_state` represent historical closure and present trust
 
 ## References
 

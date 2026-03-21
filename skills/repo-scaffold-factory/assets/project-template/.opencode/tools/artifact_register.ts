@@ -1,6 +1,15 @@
 import { tool } from "@opencode-ai/plugin"
 import { stat } from "node:fs/promises"
-import { defaultArtifactPath, getTicket, loadArtifactRegistry, loadManifest, normalizeRepoPath, saveArtifactRegistry, saveManifest } from "./_workflow"
+import {
+  defaultArtifactPath,
+  getTicket,
+  loadArtifactRegistry,
+  loadManifest,
+  normalizeRepoPath,
+  registerArtifactSnapshot,
+  saveArtifactRegistry,
+  saveManifest,
+} from "./_workflow"
 
 export default tool({
   description: "Register an existing canonical planning, implementation, review, QA, smoke-test, or handoff artifact.",
@@ -26,22 +35,14 @@ export default tool({
       throw new Error(`Artifact file does not exist at ${resolvedPath}. Write it with artifact_write before registering it.`)
     }
 
-    const artifact = {
+    const registry = await loadArtifactRegistry()
+    const artifact = await registerArtifactSnapshot({
+      ticket,
+      registry,
+      source_path: resolvedPath,
       kind: args.kind,
-      path: resolvedPath,
       stage: args.stage,
       summary: args.summary,
-      created_at: new Date().toISOString(),
-    }
-
-    ticket.artifacts = ticket.artifacts.filter((entry) => entry.path !== resolvedPath)
-    ticket.artifacts.push(artifact)
-
-    const registry = await loadArtifactRegistry()
-    registry.artifacts = registry.artifacts.filter((entry) => entry.path !== resolvedPath)
-    registry.artifacts.push({
-      ticket_id: ticket.id,
-      ...artifact,
     })
 
     await saveManifest(manifest)
