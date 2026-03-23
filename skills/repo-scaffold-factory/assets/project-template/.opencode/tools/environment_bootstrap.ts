@@ -13,9 +13,7 @@ import {
   normalizeRepoPath,
   registerArtifactSnapshot,
   rootPath,
-  saveArtifactRegistry,
-  saveManifest,
-  saveWorkflowState,
+  saveWorkflowBundle,
   writeText,
 } from "./_workflow"
 
@@ -267,9 +265,7 @@ export default tool({
       proof_artifact: artifact.path,
     }
 
-    await saveManifest(manifest)
-    await saveArtifactRegistry(registry)
-    await saveWorkflowState(workflow)
+    await saveWorkflowBundle({ workflow, manifest, registry })
 
     return JSON.stringify(
       {

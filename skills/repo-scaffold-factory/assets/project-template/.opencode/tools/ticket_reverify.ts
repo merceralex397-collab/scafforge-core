@@ -8,9 +8,7 @@ import {
   loadWorkflowState,
   normalizeRepoPath,
   registerArtifactSnapshot,
-  saveArtifactRegistry,
-  saveManifest,
-  saveWorkflowState,
+  saveWorkflowBundle,
   type Artifact,
   writeText,
 } from "./_workflow"
@@ -104,9 +102,7 @@ export default tool({
     sourceTicket.verification_state = "reverified"
     getTicketWorkflowState(workflow, sourceTicket.id).needs_reverification = false
 
-    await saveManifest(manifest)
-    await saveArtifactRegistry(registry)
-    await saveWorkflowState(workflow)
+    await saveWorkflowBundle({ workflow, manifest, registry })
 
     return JSON.stringify(
       {

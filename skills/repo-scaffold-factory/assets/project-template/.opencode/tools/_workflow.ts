@@ -470,6 +470,9 @@ export function findConflictingLease(workflow: WorkflowState, ticket: Ticket): L
 export function hasWriteLeaseForTicket(workflow: WorkflowState, ticketId: string, ownerAgent?: string): boolean {
   return workflow.lane_leases.some((lease) => lease.ticket_id === ticketId && lease.write_lock && (!ownerAgent || lease.owner_agent === ownerAgent))
 }
+export function getWriteLeaseForTicket(workflow: WorkflowState, ticketId: string, ownerAgent?: string): LaneLease | undefined {
+  return workflow.lane_leases.find((lease) => lease.ticket_id === ticketId && lease.write_lock && (!ownerAgent || lease.owner_agent === ownerAgent))
+}
 function pathCoveredByAllowedPath(pathValue: string, allowedPath: string): boolean {
   const normalizedPath = normalizeRepoPath(pathValue).replace(/\/+$/g, "")
   const normalizedAllowed = normalizeRepoPath(allowedPath).replace(/\/+$/g, "")
@@ -484,6 +487,12 @@ export function hasWriteLeaseForPath(workflow: WorkflowState, pathValue: string,
       (!ownerAgent || lease.owner_agent === ownerAgent) &&
       (lease.allowed_paths.length === 0 || lease.allowed_paths.some((allowed) => pathCoveredByAllowedPath(normalized, allowed))),
   )
+}
+export function hasWriteLeaseForTicketPath(workflow: WorkflowState, ticketId: string, pathValue: string, ownerAgent?: string): boolean {
+  const lease = getWriteLeaseForTicket(workflow, ticketId, ownerAgent)
+  if (!lease) return false
+  const normalized = normalizeRepoPath(pathValue)
+  return lease.allowed_paths.length === 0 || lease.allowed_paths.some((allowed) => pathCoveredByAllowedPath(normalized, allowed))
 }
 export function allowsPreBootstrapWriteClaim(workflow: WorkflowState, ticket: Ticket): boolean {
   return workflow.bootstrap.status !== "ready" && workflow.lane_leases.length === 0 && ticket.wave === 0
@@ -633,6 +642,19 @@ export async function saveManifest(manifest: Manifest, root = rootPath()): Promi
 export async function saveArtifactRegistry(registry: ArtifactRegistry, root = rootPath()): Promise<void> {
   registry.version = Math.max(registry.version || 0, 2)
   await writeJson(artifactRegistryPath(root), registry)
+}
+type SaveWorkflowBundle = {
+  workflow: WorkflowState
+  manifest?: Manifest
+  registry?: ArtifactRegistry
+  root?: string
+  expectedRevision?: number
+}
+export async function saveWorkflowBundle(bundle: SaveWorkflowBundle): Promise<void> {
+  const root = bundle.root ?? rootPath()
+  await saveWorkflowState(bundle.workflow, root, bundle.expectedRevision)
+  if (bundle.manifest) await saveManifest(bundle.manifest, root)
+  if (bundle.registry) await saveArtifactRegistry(bundle.registry, root)
 }
 
 export function ticketNeedsProcessVerification(ticket: Ticket, workflow: WorkflowState): boolean {

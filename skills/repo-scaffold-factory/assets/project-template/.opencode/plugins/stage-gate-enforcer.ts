@@ -5,7 +5,7 @@ import {
   getTicketWorkflowState,
   hasArtifact,
   hasReviewArtifact,
-  hasWriteLeaseForPath,
+  hasWriteLeaseForTicketPath,
   hasWriteLeaseForTicket,
   isPlanApprovedForTicket,
   loadManifest,
@@ -44,7 +44,7 @@ async function ensureWriteLease(pathValue?: string) {
   if (!hasWriteLeaseForTicket(workflow, workflow.active_ticket)) {
     throw new Error(`Active ticket ${workflow.active_ticket} must hold an active write lease before write-capable work can proceed.`)
   }
-  if (pathValue && !hasWriteLeaseForPath(workflow, pathValue)) {
+  if (pathValue && !hasWriteLeaseForTicketPath(workflow, workflow.active_ticket, pathValue)) {
     throw new Error(`The active write lease for ${workflow.active_ticket} does not cover ${pathValue}. Claim a lease with the correct allowed_paths first.`)
   }
 }
@@ -160,8 +160,7 @@ export const StageGateEnforcer: Plugin = async () => {
       if (input.tool === "ticket_reverify") {
         const manifest = await loadManifest()
         const ticketId = typeof output.args.ticket_id === "string" ? output.args.ticket_id : manifest.active_ticket
-        const evidenceTicketId = typeof output.args.evidence_ticket_id === "string" ? output.args.evidence_ticket_id : ""
-        await ensureTargetTicketWriteLease(evidenceTicketId || ticketId)
+        await ensureTargetTicketWriteLease(ticketId)
         if (typeof output.args.evidence_artifact_path !== "string" || !output.args.evidence_artifact_path.trim()) {
           throw new Error("ticket_reverify requires evidence_artifact_path.")
         }

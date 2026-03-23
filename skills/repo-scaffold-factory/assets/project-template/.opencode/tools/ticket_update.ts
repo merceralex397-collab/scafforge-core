@@ -8,8 +8,7 @@ import {
   loadManifest,
   loadWorkflowState,
   markTicketDone,
-  saveManifest,
-  saveWorkflowState,
+  saveWorkflowBundle,
   setPlanApprovedForTicket,
   syncWorkflowSelection,
   ticketsNeedingProcessVerification,
@@ -102,8 +101,7 @@ export default tool({
       workflow.pending_process_verification = args.pending_process_verification
     }
 
-    await saveManifest(manifest)
-    await saveWorkflowState(workflow)
+    await saveWorkflowBundle({ workflow, manifest })
 
     return JSON.stringify(
       {

@@ -5,8 +5,7 @@ import {
   loadWorkflowState,
   markTicketReopened,
   releaseLaneLease,
-  saveManifest,
-  saveWorkflowState,
+  saveWorkflowBundle,
   setPlanApprovedForTicket,
   syncWorkflowSelection,
   ticketFilePath,
@@ -49,8 +48,7 @@ export default tool({
     }
     syncWorkflowSelection(workflow, manifest)
 
-    await saveManifest(manifest)
-    await saveWorkflowState(workflow)
+    await saveWorkflowBundle({ workflow, manifest })
 
     return JSON.stringify(
       {

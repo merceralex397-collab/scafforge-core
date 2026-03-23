@@ -12,9 +12,7 @@ import {
   normalizeRepoPath,
   registerArtifactSnapshot,
   resolveDefectOutcome,
-  saveArtifactRegistry,
-  saveManifest,
-  saveWorkflowState,
+  saveWorkflowBundle,
   setPlanApprovedForTicket,
   syncWorkflowSelection,
   type DefectOutcome,
@@ -168,9 +166,7 @@ export default tool({
       summary: `${defectClass} intake routed to ${outcome}.`,
     })
 
-    await saveManifest(manifest)
-    await saveArtifactRegistry(registry)
-    await saveWorkflowState(workflow)
+    await saveWorkflowBundle({ workflow, manifest, registry })
 
     return JSON.stringify(
       {

@@ -4,17 +4,17 @@
 
 This review compares Scafforge's current scaffold/runtime behavior against:
 
-- [SCAFFORGE-REMEDIATION-PLAN.md](/C:/Users/PC/Documents/GitHub/Scafforge/Tasks/SCAFFORGE-REMEDIATION-PLAN.md)
-- [SCAFFORGE-PERMISSIVE-GUARDRAILS-PLAN.md](/C:/Users/PC/Documents/GitHub/Scafforge/Tasks/SCAFFORGE-PERMISSIVE-GUARDRAILS-PLAN.md)
+- [SCAFFORGE-REMEDIATION-PLAN.md](./SCAFFORGE-REMEDIATION-PLAN.md)
+- [SCAFFORGE-PERMISSIVE-GUARDRAILS-PLAN.md](./SCAFFORGE-PERMISSIVE-GUARDRAILS-PLAN.md)
 - Current Scafforge scaffold/runtime surfaces:
-  [\_workflow.ts](/C:/Users/PC/Documents/GitHub/Scafforge/skills/repo-scaffold-factory/assets/project-template/.opencode/tools/_workflow.ts),
-  [stage-gate-enforcer.ts](/C:/Users/PC/Documents/GitHub/Scafforge/skills/repo-scaffold-factory/assets/project-template/.opencode/plugins/stage-gate-enforcer.ts),
-  [artifact_register.ts](/C:/Users/PC/Documents/GitHub/Scafforge/skills/repo-scaffold-factory/assets/project-template/.opencode/tools/artifact_register.ts),
-  [handoff_publish.ts](/C:/Users/PC/Documents/GitHub/Scafforge/skills/repo-scaffold-factory/assets/project-template/.opencode/tools/handoff_publish.ts),
-  [opencode.jsonc](/C:/Users/PC/Documents/GitHub/Scafforge/skills/repo-scaffold-factory/assets/project-template/opencode.jsonc),
-  [apply_repo_process_repair.py](/C:/Users/PC/Documents/GitHub/Scafforge/skills/repo-process-doctor/scripts/apply_repo_process_repair.py),
-  [validate_scafforge_contract.py](/C:/Users/PC/Documents/GitHub/Scafforge/scripts/validate_scafforge_contract.py),
-  [smoke_test_scafforge.py](/C:/Users/PC/Documents/GitHub/Scafforge/scripts/smoke_test_scafforge.py)
+  [\_workflow.ts](../skills/repo-scaffold-factory/assets/project-template/.opencode/tools/_workflow.ts),
+  [stage-gate-enforcer.ts](../skills/repo-scaffold-factory/assets/project-template/.opencode/plugins/stage-gate-enforcer.ts),
+  [artifact_register.ts](../skills/repo-scaffold-factory/assets/project-template/.opencode/tools/artifact_register.ts),
+  [handoff_publish.ts](../skills/repo-scaffold-factory/assets/project-template/.opencode/tools/handoff_publish.ts),
+  [opencode.jsonc](../skills/repo-scaffold-factory/assets/project-template/opencode.jsonc),
+  [apply_repo_process_repair.py](../skills/repo-process-doctor/scripts/apply_repo_process_repair.py),
+  [validate_scafforge_contract.py](../scripts/validate_scafforge_contract.py),
+  [smoke_test_scafforge.py](../scripts/smoke_test_scafforge.py)
 - Current OpenCode docs:
   [Config](https://opencode.ai/docs/config/),
   [Permissions](https://opencode.ai/docs/permissions/),
@@ -40,17 +40,17 @@ That matters because several of the highest-risk issues below are not "missing f
 ### 1. [High] False completion is still possible because workflow truth can be mutated outside the stage gate
 
 - Current code:
-  [stage-gate-enforcer.ts#L31](/C:/Users/PC/Documents/GitHub/Scafforge/skills/repo-scaffold-factory/assets/project-template/.opencode/plugins/stage-gate-enforcer.ts#L31) only intercepts `bash`, `write`/`edit`, and `ticket_update`.
-  [artifact_register.ts#L14](/C:/Users/PC/Documents/GitHub/Scafforge/skills/repo-scaffold-factory/assets/project-template/.opencode/tools/artifact_register.ts#L14) directly appends ticket and registry entries after only checking canonical path and file existence.
-  [handoff_publish.ts#L20](/C:/Users/PC/Documents/GitHub/Scafforge/skills/repo-scaffold-factory/assets/project-template/.opencode/tools/handoff_publish.ts#L20) publishes `START-HERE.md` without any explicit stage-proof or completion guard.
+  [stage-gate-enforcer.ts#L31](../skills/repo-scaffold-factory/assets/project-template/.opencode/plugins/stage-gate-enforcer.ts#L31) only intercepts `bash`, `write`/`edit`, and `ticket_update`.
+  [artifact_register.ts#L14](../skills/repo-scaffold-factory/assets/project-template/.opencode/tools/artifact_register.ts#L14) directly appends ticket and registry entries after only checking canonical path and file existence.
+  [handoff_publish.ts#L20](../skills/repo-scaffold-factory/assets/project-template/.opencode/tools/handoff_publish.ts#L20) publishes `START-HERE.md` without any explicit stage-proof or completion guard.
 - OpenCode baseline:
   [Plugins](https://opencode.ai/docs/plugins/) documents `tool.execute.before` and `tool.execute.after` as first-class enforcement hooks.
   [Custom Tools](https://opencode.ai/docs/custom-tools/) says custom tools can override or replace built-in tool behavior.
 - Weak-agent failure path:
   a weaker agent does not need to beat the `ticket_update` gate if it can write an artifact, register it, and publish a handoff surface that looks finished.
 - Plan comparison:
-  [SCAFFORGE-PERMISSIVE-GUARDRAILS-PLAN.md#L54](/C:/Users/PC/Documents/GitHub/Scafforge/Tasks/SCAFFORGE-PERMISSIVE-GUARDRAILS-PLAN.md#L54) identifies this directly and is correct.
-  [SCAFFORGE-REMEDIATION-PLAN.md#L73](/C:/Users/PC/Documents/GitHub/Scafforge/Tasks/SCAFFORGE-REMEDIATION-PLAN.md#L73) reaches the same problem via stronger proof and broader validator work, but does not isolate "all workflow-mutating tools" as its own enforcement surface.
+  [SCAFFORGE-PERMISSIVE-GUARDRAILS-PLAN.md#L54](./SCAFFORGE-PERMISSIVE-GUARDRAILS-PLAN.md#L54) identifies this directly and is correct.
+  [SCAFFORGE-REMEDIATION-PLAN.md#L73](./SCAFFORGE-REMEDIATION-PLAN.md#L73) reaches the same problem via stronger proof and broader validator work, but does not isolate "all workflow-mutating tools" as its own enforcement surface.
 - Overlap status:
   `same problem, different mechanism`
 - Missing decision before implementation:
@@ -59,17 +59,17 @@ That matters because several of the highest-risk issues below are not "missing f
 ### 2. [High] Proof is still heuristic, markdown-first, and easy for weaker agents to satisfy cosmetically
 
 - Current code:
-  [\_workflow.ts#L529](/C:/Users/PC/Documents/GitHub/Scafforge/skills/repo-scaffold-factory/assets/project-template/.opencode/tools/_workflow.ts#L529) treats execution evidence as regex hits.
-  [\_workflow.ts#L555](/C:/Users/PC/Documents/GitHub/Scafforge/skills/repo-scaffold-factory/assets/project-template/.opencode/tools/_workflow.ts#L555) and [\_workflow.ts#L573](/C:/Users/PC/Documents/GitHub/Scafforge/skills/repo-scaffold-factory/assets/project-template/.opencode/tools/_workflow.ts#L573) add byte-length gates.
-  [\_workflow.ts#L579](/C:/Users/PC/Documents/GitHub/Scafforge/skills/repo-scaffold-factory/assets/project-template/.opencode/tools/_workflow.ts#L579) looks for `Overall Result: PASS`.
-  [artifact_register.ts#L29](/C:/Users/PC/Documents/GitHub/Scafforge/skills/repo-scaffold-factory/assets/project-template/.opencode/tools/artifact_register.ts#L29) records artifacts without schema validation, contradiction checks, or command/result integrity.
+  [\_workflow.ts#L529](../skills/repo-scaffold-factory/assets/project-template/.opencode/tools/_workflow.ts#L529) treats execution evidence as regex hits.
+  [\_workflow.ts#L555](../skills/repo-scaffold-factory/assets/project-template/.opencode/tools/_workflow.ts#L555) and [\_workflow.ts#L573](../skills/repo-scaffold-factory/assets/project-template/.opencode/tools/_workflow.ts#L573) add byte-length gates.
+  [\_workflow.ts#L579](../skills/repo-scaffold-factory/assets/project-template/.opencode/tools/_workflow.ts#L579) looks for `Overall Result: PASS`.
+  [artifact_register.ts#L29](../skills/repo-scaffold-factory/assets/project-template/.opencode/tools/artifact_register.ts#L29) records artifacts without schema validation, contradiction checks, or command/result integrity.
 - OpenCode baseline:
   [Custom Tools](https://opencode.ai/docs/custom-tools/) exposes structured argument validation through `tool.schema` / Zod. That does not force Scafforge to use JSON artifacts, but it means the platform is designed for machine-validated contracts rather than regex-only proof.
 - Weak-agent failure path:
   a weaker agent can produce a long markdown artifact with command-looking text and a PASS marker, then rely on the gate to treat appearance as proof.
 - Plan comparison:
-  [SCAFFORGE-REMEDIATION-PLAN.md#L73](/C:/Users/PC/Documents/GitHub/Scafforge/Tasks/SCAFFORGE-REMEDIATION-PLAN.md#L73) and [SCAFFORGE-REMEDIATION-PLAN.md#L79](/C:/Users/PC/Documents/GitHub/Scafforge/Tasks/SCAFFORGE-REMEDIATION-PLAN.md#L79) propose stricter executable proof and structured artifact schemas.
-  [SCAFFORGE-PERMISSIVE-GUARDRAILS-PLAN.md#L29](/C:/Users/PC/Documents/GitHub/Scafforge/Tasks/SCAFFORGE-PERMISSIVE-GUARDRAILS-PLAN.md#L29) proposes the same core change from the "structured proof" angle.
+  [SCAFFORGE-REMEDIATION-PLAN.md#L73](./SCAFFORGE-REMEDIATION-PLAN.md#L73) and [SCAFFORGE-REMEDIATION-PLAN.md#L79](./SCAFFORGE-REMEDIATION-PLAN.md#L79) propose stricter executable proof and structured artifact schemas.
+  [SCAFFORGE-PERMISSIVE-GUARDRAILS-PLAN.md#L29](./SCAFFORGE-PERMISSIVE-GUARDRAILS-PLAN.md#L29) proposes the same core change from the "structured proof" angle.
 - Overlap status:
   `same change`
 - Missing decision before implementation:
@@ -82,16 +82,16 @@ That matters because several of the highest-risk issues below are not "missing f
 ### 3. [High] State mutation is plain read/modify/write file IO, so the transactional/concurrency problem is real and not covered by the remediation plan in enough detail
 
 - Current code:
-  [\_workflow.ts#L202](/C:/Users/PC/Documents/GitHub/Scafforge/skills/repo-scaffold-factory/assets/project-template/.opencode/tools/_workflow.ts#L202) and [\_workflow.ts#L222](/C:/Users/PC/Documents/GitHub/Scafforge/skills/repo-scaffold-factory/assets/project-template/.opencode/tools/_workflow.ts#L222) do direct JSON reads and writes.
-  [\_workflow.ts#L402](/C:/Users/PC/Documents/GitHub/Scafforge/skills/repo-scaffold-factory/assets/project-template/.opencode/tools/_workflow.ts#L402) and [\_workflow.ts#L410](/C:/Users/PC/Documents/GitHub/Scafforge/skills/repo-scaffold-factory/assets/project-template/.opencode/tools/_workflow.ts#L410) persist manifest and registry independently.
+  [\_workflow.ts#L202](../skills/repo-scaffold-factory/assets/project-template/.opencode/tools/_workflow.ts#L202) and [\_workflow.ts#L222](../skills/repo-scaffold-factory/assets/project-template/.opencode/tools/_workflow.ts#L222) do direct JSON reads and writes.
+  [\_workflow.ts#L402](../skills/repo-scaffold-factory/assets/project-template/.opencode/tools/_workflow.ts#L402) and [\_workflow.ts#L410](../skills/repo-scaffold-factory/assets/project-template/.opencode/tools/_workflow.ts#L410) persist manifest and registry independently.
 - OpenCode baseline:
   [Permissions](https://opencode.ai/docs/permissions/) and [Agents](https://opencode.ai/docs/agents/) are permissive by default and support subagents, which makes parallel mutation a realistic operating mode rather than an edge case.
   [Config](https://opencode.ai/docs/config/) also documents layered project-local configuration, which reinforces that Scafforge is expected to live inside a mutable repo-local runtime, not a serialized control plane.
 - Weak-agent failure path:
   two agents can each appear to comply locally while racing on manifest, artifact registry, or workflow state and producing an incoherent but plausible workflow story.
 - Plan comparison:
-  [SCAFFORGE-PERMISSIVE-GUARDRAILS-PLAN.md#L43](/C:/Users/PC/Documents/GitHub/Scafforge/Tasks/SCAFFORGE-PERMISSIVE-GUARDRAILS-PLAN.md#L43) calls this out directly and correctly.
-  [SCAFFORGE-REMEDIATION-PLAN.md#L103](/C:/Users/PC/Documents/GitHub/Scafforge/Tasks/SCAFFORGE-REMEDIATION-PLAN.md#L103) touches registry integrity, but not the underlying transaction model clearly enough.
+  [SCAFFORGE-PERMISSIVE-GUARDRAILS-PLAN.md#L43](./SCAFFORGE-PERMISSIVE-GUARDRAILS-PLAN.md#L43) calls this out directly and correctly.
+  [SCAFFORGE-REMEDIATION-PLAN.md#L103](./SCAFFORGE-REMEDIATION-PLAN.md#L103) touches registry integrity, but not the underlying transaction model clearly enough.
 - Overlap status:
   `distinct but dependent`
 - Missing decision before implementation:
@@ -104,17 +104,17 @@ That matters because several of the highest-risk issues below are not "missing f
 ### 4. [High] The generated restart surface still ships placeholders and can overclaim trust because it is not truly derived-only
 
 - Current code:
-  [\_workflow.ts#L703](/C:/Users/PC/Documents/GitHub/Scafforge/skills/repo-scaffold-factory/assets/project-template/.opencode/tools/_workflow.ts#L703) renders `START-HERE.md` with literal placeholder text for validation results and known risks.
-  [handoff_publish.ts#L31](/C:/Users/PC/Documents/GitHub/Scafforge/skills/repo-scaffold-factory/assets/project-template/.opencode/tools/handoff_publish.ts#L31) publishes that surface from current state, but does not verify that the state is itself trustworthy.
-  [apply_repo_process_repair.py#L68](/C:/Users/PC/Documents/GitHub/Scafforge/skills/repo-process-doctor/scripts/apply_repo_process_repair.py#L68) and [apply_repo_process_repair.py#L301](/C:/Users/PC/Documents/GitHub/Scafforge/skills/repo-process-doctor/scripts/apply_repo_process_repair.py#L301) merge the managed block rather than replacing the entire surface with one canonical derivation path.
+  [\_workflow.ts#L703](../skills/repo-scaffold-factory/assets/project-template/.opencode/tools/_workflow.ts#L703) renders `START-HERE.md` with literal placeholder text for validation results and known risks.
+  [handoff_publish.ts#L31](../skills/repo-scaffold-factory/assets/project-template/.opencode/tools/handoff_publish.ts#L31) publishes that surface from current state, but does not verify that the state is itself trustworthy.
+  [apply_repo_process_repair.py#L68](../skills/repo-process-doctor/scripts/apply_repo_process_repair.py#L68) and [apply_repo_process_repair.py#L301](../skills/repo-process-doctor/scripts/apply_repo_process_repair.py#L301) merge the managed block rather than replacing the entire surface with one canonical derivation path.
 - OpenCode baseline:
   [Rules](https://opencode.ai/docs/rules) says `AGENTS.md` content is included in model context, which is useful guidance but not enforcement.
   For weaker agents, a top-level `START-HERE.md` is a dominant affordance, so any placeholder or overclaim there is more dangerous than similar text buried in a skill.
 - Weak-agent failure path:
   the agent treats the top restart surface as authoritative, trusts stale or placeholder validation sections, and continues from a false status baseline.
 - Plan comparison:
-  [SCAFFORGE-REMEDIATION-PLAN.md#L98](/C:/Users/PC/Documents/GitHub/Scafforge/Tasks/SCAFFORGE-REMEDIATION-PLAN.md#L98) is right that `START-HERE.md` must become derived-only.
-  [SCAFFORGE-PERMISSIVE-GUARDRAILS-PLAN.md#L51](/C:/Users/PC/Documents/GitHub/Scafforge/Tasks/SCAFFORGE-PERMISSIVE-GUARDRAILS-PLAN.md#L51) correctly broadens that into "derived surfaces from source state, never writable truth."
+  [SCAFFORGE-REMEDIATION-PLAN.md#L98](./SCAFFORGE-REMEDIATION-PLAN.md#L98) is right that `START-HERE.md` must become derived-only.
+  [SCAFFORGE-PERMISSIVE-GUARDRAILS-PLAN.md#L51](./SCAFFORGE-PERMISSIVE-GUARDRAILS-PLAN.md#L51) correctly broadens that into "derived surfaces from source state, never writable truth."
 - Overlap status:
   `same problem, different mechanism`
 - Missing decision before implementation:
@@ -123,15 +123,15 @@ That matters because several of the highest-risk issues below are not "missing f
 ### 5. [Medium] The current validator and smoke test are meaningful, but they still validate conformance more than adversarial behavior
 
 - Current code:
-  [validate_scafforge_contract.py#L75](/C:/Users/PC/Documents/GitHub/Scafforge/scripts/validate_scafforge_contract.py#L75) through [validate_scafforge_contract.py#L170](/C:/Users/PC/Documents/GitHub/Scafforge/scripts/validate_scafforge_contract.py#L170) mainly checks required files, required strings, manifest shape, and disallowed text.
-  [smoke_test_scafforge.py#L23](/C:/Users/PC/Documents/GitHub/Scafforge/scripts/smoke_test_scafforge.py#L23) through [smoke_test_scafforge.py#L136](/C:/Users/PC/Documents/GitHub/Scafforge/scripts/smoke_test_scafforge.py#L136) verifies template render and repair round-trip, but does not intentionally attempt fake proof, future-stage artifacts, illegal handoff publication, or concurrent updates.
+  [validate_scafforge_contract.py#L75](../scripts/validate_scafforge_contract.py#L75) through [validate_scafforge_contract.py#L170](../scripts/validate_scafforge_contract.py#L170) mainly checks required files, required strings, manifest shape, and disallowed text.
+  [smoke_test_scafforge.py#L23](../scripts/smoke_test_scafforge.py#L23) through [smoke_test_scafforge.py#L136](../scripts/smoke_test_scafforge.py#L136) verifies template render and repair round-trip, but does not intentionally attempt fake proof, future-stage artifacts, illegal handoff publication, or concurrent updates.
 - OpenCode baseline:
   [Permissions](https://opencode.ai/docs/permissions/) is permissive by default, and [Commands](https://opencode.ai/docs/commands/) plus [Agents](https://opencode.ai/docs/agents/) make subagent routing and parallel execution first-class. Scafforge therefore needs adversarial behavior tests, not only happy-path generation tests.
 - Weak-agent failure path:
   a weak agent fails in exactly the ways the current test harness does not simulate, so the scaffold can pass release checks while still being easy to game.
 - Plan comparison:
-  [SCAFFORGE-REMEDIATION-PLAN.md#L84](/C:/Users/PC/Documents/GitHub/Scafforge/Tasks/SCAFFORGE-REMEDIATION-PLAN.md#L84) and [SCAFFORGE-REMEDIATION-PLAN.md#L93](/C:/Users/PC/Documents/GitHub/Scafforge/Tasks/SCAFFORGE-REMEDIATION-PLAN.md#L93) are correct about self-tests and contract verification.
-  [SCAFFORGE-PERMISSIVE-GUARDRAILS-PLAN.md#L86](/C:/Users/PC/Documents/GitHub/Scafforge/Tasks/SCAFFORGE-PERMISSIVE-GUARDRAILS-PLAN.md#L86) is more specific about adversarial and concurrency scenarios.
+  [SCAFFORGE-REMEDIATION-PLAN.md#L84](./SCAFFORGE-REMEDIATION-PLAN.md#L84) and [SCAFFORGE-REMEDIATION-PLAN.md#L93](./SCAFFORGE-REMEDIATION-PLAN.md#L93) are correct about self-tests and contract verification.
+  [SCAFFORGE-PERMISSIVE-GUARDRAILS-PLAN.md#L86](./SCAFFORGE-PERMISSIVE-GUARDRAILS-PLAN.md#L86) is more specific about adversarial and concurrency scenarios.
 - Overlap status:
   `distinct but dependent`
 - Missing decision before implementation:
@@ -140,15 +140,15 @@ That matters because several of the highest-risk issues below are not "missing f
 ### 6. [Medium] Repair is still deterministic replacement, not a declared managed-merge contract
 
 - Current code:
-  [apply_repo_process_repair.py#L168](/C:/Users/PC/Documents/GitHub/Scafforge/skills/repo-process-doctor/scripts/apply_repo_process_repair.py#L168) and [apply_repo_process_repair.py#L174](/C:/Users/PC/Documents/GitHub/Scafforge/skills/repo-process-doctor/scripts/apply_repo_process_repair.py#L174) implement whole-file and whole-directory replacement.
-  [apply_repo_process_repair.py#L278](/C:/Users/PC/Documents/GitHub/Scafforge/skills/repo-process-doctor/scripts/apply_repo_process_repair.py#L278) through [apply_repo_process_repair.py#L301](/C:/Users/PC/Documents/GitHub/Scafforge/skills/repo-process-doctor/scripts/apply_repo_process_repair.py#L301) replace `opencode.jsonc`, `.opencode/tools`, `.opencode/plugins`, `.opencode/commands`, managed skills, and process docs, then merge the `START-HERE` managed block.
+  [apply_repo_process_repair.py#L168](../skills/repo-process-doctor/scripts/apply_repo_process_repair.py#L168) and [apply_repo_process_repair.py#L174](../skills/repo-process-doctor/scripts/apply_repo_process_repair.py#L174) implement whole-file and whole-directory replacement.
+  [apply_repo_process_repair.py#L278](../skills/repo-process-doctor/scripts/apply_repo_process_repair.py#L278) through [apply_repo_process_repair.py#L301](../skills/repo-process-doctor/scripts/apply_repo_process_repair.py#L301) replace `opencode.jsonc`, `.opencode/tools`, `.opencode/plugins`, `.opencode/commands`, managed skills, and process docs, then merge the `START-HERE` managed block.
 - OpenCode baseline:
   [Config](https://opencode.ai/docs/config/) and [Plugins](https://opencode.ai/docs/plugins/) make repo-local customization normal. That means Scafforge repair has to distinguish "managed authoritative replacement" from "local extension point" deliberately, not implicitly.
 - Weak-agent failure path:
   stronger host agents will customize generated repos; later repair can silently flatten those changes or preserve the wrong ones, and weaker follow-up agents will trust the repaired state as canonical.
 - Plan comparison:
-  [SCAFFORGE-PERMISSIVE-GUARDRAILS-PLAN.md#L61](/C:/Users/PC/Documents/GitHub/Scafforge/Tasks/SCAFFORGE-PERMISSIVE-GUARDRAILS-PLAN.md#L61) identifies this clearly.
-  [SCAFFORGE-REMEDIATION-PLAN.md#L108](/C:/Users/PC/Documents/GitHub/Scafforge/Tasks/SCAFFORGE-REMEDIATION-PLAN.md#L108) hints at reducing duplicate authority, but not at merge semantics with enough specificity.
+  [SCAFFORGE-PERMISSIVE-GUARDRAILS-PLAN.md#L61](./SCAFFORGE-PERMISSIVE-GUARDRAILS-PLAN.md#L61) identifies this clearly.
+  [SCAFFORGE-REMEDIATION-PLAN.md#L108](./SCAFFORGE-REMEDIATION-PLAN.md#L108) hints at reducing duplicate authority, but not at merge semantics with enough specificity.
 - Overlap status:
   `distinct but dependent`
 - Missing decision before implementation:
@@ -161,8 +161,8 @@ That matters because several of the highest-risk issues below are not "missing f
 ### 7. [Medium] "OpenCode alignment" is real, but both plans are too broad in that section and need to be broken into concrete compatibility checks
 
 - Current code:
-  [opencode.jsonc#L1](/C:/Users/PC/Documents/GitHub/Scafforge/skills/repo-scaffold-factory/assets/project-template/opencode.jsonc#L1) already uses `permission`, which matches current OpenCode docs better than older `tools` gating.
-  But [opencode.jsonc#L13](/C:/Users/PC/Documents/GitHub/Scafforge/skills/repo-scaffold-factory/assets/project-template/opencode.jsonc#L13) also disables `browser_research`, `project_github`, and `openai_docs` by default, and the broader workflow still assumes a heavier process layer than OpenCode itself provides natively.
+  [opencode.jsonc#L1](../skills/repo-scaffold-factory/assets/project-template/opencode.jsonc#L1) already uses `permission`, which matches current OpenCode docs better than older `tools` gating.
+  But [opencode.jsonc#L13](../skills/repo-scaffold-factory/assets/project-template/opencode.jsonc#L13) also disables `browser_research`, `project_github`, and `openai_docs` by default, and the broader workflow still assumes a heavier process layer than OpenCode itself provides natively.
 - OpenCode baseline:
   [Config](https://opencode.ai/docs/config/) documents precedence across remote, global, custom, project, `.opencode`, and inline sources.
   [Permissions](https://opencode.ai/docs/permissions/) says legacy `tools` booleans are deprecated in favor of `permission`.
@@ -170,8 +170,8 @@ That matters because several of the highest-risk issues below are not "missing f
 - Weak-agent failure path:
   if Scafforge treats "OpenCode alignment" as one abstract clean-up item, the later implementation can easily miss concrete runtime semantics like precedence, pattern matching, subagent permissions, or plugin load order.
 - Plan comparison:
-  [SCAFFORGE-REMEDIATION-PLAN.md#L68](/C:/Users/PC/Documents/GitHub/Scafforge/Tasks/SCAFFORGE-REMEDIATION-PLAN.md#L68) addresses disabled integrations and misleading availability.
-  [SCAFFORGE-PERMISSIVE-GUARDRAILS-PLAN.md#L71](/C:/Users/PC/Documents/GitHub/Scafforge/Tasks/SCAFFORGE-PERMISSIVE-GUARDRAILS-PLAN.md#L71) addresses broader OpenCode-model alignment.
+  [SCAFFORGE-REMEDIATION-PLAN.md#L68](./SCAFFORGE-REMEDIATION-PLAN.md#L68) addresses disabled integrations and misleading availability.
+  [SCAFFORGE-PERMISSIVE-GUARDRAILS-PLAN.md#L71](./SCAFFORGE-PERMISSIVE-GUARDRAILS-PLAN.md#L71) addresses broader OpenCode-model alignment.
 - Overlap status:
   `distinct but dependent`
 - Missing decision before implementation:
@@ -187,15 +187,15 @@ That matters because several of the highest-risk issues below are not "missing f
 
 | Theme | Current state | Remediation plan | Permissive guardrails plan | Overlap result |
 | --- | --- | --- | --- | --- |
-| Structured proof | Regex and size heuristics in [\_workflow.ts#L529](/C:/Users/PC/Documents/GitHub/Scafforge/skills/repo-scaffold-factory/assets/project-template/.opencode/tools/_workflow.ts#L529) | [#L73](/C:/Users/PC/Documents/GitHub/Scafforge/Tasks/SCAFFORGE-REMEDIATION-PLAN.md#L73) and [#L79](/C:/Users/PC/Documents/GitHub/Scafforge/Tasks/SCAFFORGE-REMEDIATION-PLAN.md#L79) | [#L29](/C:/Users/PC/Documents/GitHub/Scafforge/Tasks/SCAFFORGE-PERMISSIVE-GUARDRAILS-PLAN.md#L29) | Same change |
-| Stage-gate coverage across mutating tools | Plugin gates only `bash`, `write`/`edit`, `ticket_update` | Implicit via stricter proof and validator work | Explicit in [#L54](/C:/Users/PC/Documents/GitHub/Scafforge/Tasks/SCAFFORGE-PERMISSIVE-GUARDRAILS-PLAN.md#L54) | Same problem, different mechanism |
-| Dynamic and adversarial validation | Static validator plus happy-path smoke test | [#L84](/C:/Users/PC/Documents/GitHub/Scafforge/Tasks/SCAFFORGE-REMEDIATION-PLAN.md#L84) and [#L93](/C:/Users/PC/Documents/GitHub/Scafforge/Tasks/SCAFFORGE-REMEDIATION-PLAN.md#L93) | [#L86](/C:/Users/PC/Documents/GitHub/Scafforge/Tasks/SCAFFORGE-PERMISSIVE-GUARDRAILS-PLAN.md#L86) | Distinct but dependent |
-| Derived restart and handoff surfaces | Placeholder-backed `START-HERE` plus managed-block merge | [#L98](/C:/Users/PC/Documents/GitHub/Scafforge/Tasks/SCAFFORGE-REMEDIATION-PLAN.md#L98) | [#L51](/C:/Users/PC/Documents/GitHub/Scafforge/Tasks/SCAFFORGE-PERMISSIVE-GUARDRAILS-PLAN.md#L51) | Same problem, different mechanism |
-| Registry invariants and chronology | Registry is append/replace by path only | [#L103](/C:/Users/PC/Documents/GitHub/Scafforge/Tasks/SCAFFORGE-REMEDIATION-PLAN.md#L103) | [#L54](/C:/Users/PC/Documents/GitHub/Scafforge/Tasks/SCAFFORGE-PERMISSIVE-GUARDRAILS-PLAN.md#L54) | Same problem, different mechanism |
-| Duplicate authority surfaces | Still possible across restart/process surfaces | [#L108](/C:/Users/PC/Documents/GitHub/Scafforge/Tasks/SCAFFORGE-REMEDIATION-PLAN.md#L108) | Implicit via derived-state and merge work | Distinct but dependent |
-| Disabled integrations and config drift | MCP integrations disabled by default in template | [#L68](/C:/Users/PC/Documents/GitHub/Scafforge/Tasks/SCAFFORGE-REMEDIATION-PLAN.md#L68) | Included in [#L71](/C:/Users/PC/Documents/GitHub/Scafforge/Tasks/SCAFFORGE-PERMISSIVE-GUARDRAILS-PLAN.md#L71) | Distinct but dependent |
-| Transactional state and concurrency | Plain file IO with no transaction model | Only partial coverage | [#L43](/C:/Users/PC/Documents/GitHub/Scafforge/Tasks/SCAFFORGE-PERMISSIVE-GUARDRAILS-PLAN.md#L43) | Distinct and necessary |
-| Repair and managed merge behavior | Deterministic replacement, partial merge only | Mostly indirect | [#L61](/C:/Users/PC/Documents/GitHub/Scafforge/Tasks/SCAFFORGE-PERMISSIVE-GUARDRAILS-PLAN.md#L61) | Distinct and necessary |
+| Structured proof | Regex and size heuristics in [\_workflow.ts#L529](../skills/repo-scaffold-factory/assets/project-template/.opencode/tools/_workflow.ts#L529) | [#L73](./SCAFFORGE-REMEDIATION-PLAN.md#L73) and [#L79](./SCAFFORGE-REMEDIATION-PLAN.md#L79) | [#L29](./SCAFFORGE-PERMISSIVE-GUARDRAILS-PLAN.md#L29) | Same change |
+| Stage-gate coverage across mutating tools | Plugin gates only `bash`, `write`/`edit`, `ticket_update` | Implicit via stricter proof and validator work | Explicit in [#L54](./SCAFFORGE-PERMISSIVE-GUARDRAILS-PLAN.md#L54) | Same problem, different mechanism |
+| Dynamic and adversarial validation | Static validator plus happy-path smoke test | [#L84](./SCAFFORGE-REMEDIATION-PLAN.md#L84) and [#L93](./SCAFFORGE-REMEDIATION-PLAN.md#L93) | [#L86](./SCAFFORGE-PERMISSIVE-GUARDRAILS-PLAN.md#L86) | Distinct but dependent |
+| Derived restart and handoff surfaces | Placeholder-backed `START-HERE` plus managed-block merge | [#L98](./SCAFFORGE-REMEDIATION-PLAN.md#L98) | [#L51](./SCAFFORGE-PERMISSIVE-GUARDRAILS-PLAN.md#L51) | Same problem, different mechanism |
+| Registry invariants and chronology | Registry is append/replace by path only | [#L103](./SCAFFORGE-REMEDIATION-PLAN.md#L103) | [#L54](./SCAFFORGE-PERMISSIVE-GUARDRAILS-PLAN.md#L54) | Same problem, different mechanism |
+| Duplicate authority surfaces | Still possible across restart/process surfaces | [#L108](./SCAFFORGE-REMEDIATION-PLAN.md#L108) | Implicit via derived-state and merge work | Distinct but dependent |
+| Disabled integrations and config drift | MCP integrations disabled by default in template | [#L68](./SCAFFORGE-REMEDIATION-PLAN.md#L68) | Included in [#L71](./SCAFFORGE-PERMISSIVE-GUARDRAILS-PLAN.md#L71) | Distinct but dependent |
+| Transactional state and concurrency | Plain file IO with no transaction model | Only partial coverage | [#L43](./SCAFFORGE-PERMISSIVE-GUARDRAILS-PLAN.md#L43) | Distinct and necessary |
+| Repair and managed merge behavior | Deterministic replacement, partial merge only | Mostly indirect | [#L61](./SCAFFORGE-PERMISSIVE-GUARDRAILS-PLAN.md#L61) | Distinct and necessary |
 | OpenCode model alignment | Real issue, but docs/runtime need more precise mapping | Partial | Partial | Conflict if left too vague |
 
 ## Decision On Plan Overlap
@@ -284,3 +284,4 @@ The remediation plan and the permissive-guardrails plan are mostly describing th
 - managed merge versus blunt repair replacement
 
 The next implementation plan should therefore be a single consolidated plan that keeps the remediation plan's validator/hygiene/test rigor and the guardrails plan's enforcement/state/repair precision.
+

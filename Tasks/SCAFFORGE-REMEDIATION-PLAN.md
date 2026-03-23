@@ -1,7 +1,7 @@
 # Scafforge Remediation Plan to Prevent GPTTalker-Class Failures
 
 ## Summary
-I verified the scaffold generator directly in [Scafforge/README.md](C:/Users/PC/Documents/GitHub/Scafforge/README.md), [Scafforge/AGENTS.md](C:/Users/PC/Documents/GitHub/Scafforge/AGENTS.md), [Scafforge/skills/skill-flow-manifest.json](C:/Users/PC/Documents/GitHub/Scafforge/skills/skill-flow-manifest.json), [bootstrap_repo_scaffold.py](C:/Users/PC/Documents/GitHub/Scafforge/skills/repo-scaffold-factory/scripts/bootstrap_repo_scaffold.py), [project-template/opencode.jsonc](C:/Users/PC/Documents/GitHub/Scafforge/skills/repo-scaffold-factory/assets/project-template/opencode.jsonc), [project-template/_workflow.ts](C:/Users/PC/Documents/GitHub/Scafforge/skills/repo-scaffold-factory/assets/project-template/.opencode/tools/_workflow.ts), [stage-gate-enforcer.ts](C:/Users/PC/Documents/GitHub/Scafforge/skills/repo-scaffold-factory/assets/project-template/.opencode/plugins/stage-gate-enforcer.ts), [apply_repo_process_repair.py](C:/Users/PC/Documents/GitHub/Scafforge/skills/repo-process-doctor/scripts/apply_repo_process_repair.py), and [validate_scafforge_contract.py](C:/Users/PC/Documents/GitHub/Scafforge/scripts/validate_scafforge_contract.py).
+I verified the scaffold generator directly in [Scafforge/README.md](../README.md), [Scafforge/AGENTS.md](../AGENTS.md), [Scafforge/skills/skill-flow-manifest.json](../skills/skill-flow-manifest.json), [bootstrap_repo_scaffold.py](../skills/repo-scaffold-factory/scripts/bootstrap_repo_scaffold.py), [project-template/opencode.jsonc](../skills/repo-scaffold-factory/assets/project-template/opencode.jsonc), [project-template/_workflow.ts](../skills/repo-scaffold-factory/assets/project-template/.opencode/tools/_workflow.ts), [stage-gate-enforcer.ts](../skills/repo-scaffold-factory/assets/project-template/.opencode/plugins/stage-gate-enforcer.ts), [apply_repo_process_repair.py](../skills/repo-process-doctor/scripts/apply_repo_process_repair.py), and [validate_scafforge_contract.py](../scripts/validate_scafforge_contract.py).
 
 The core finding is that Scafforge successfully generates a strong-looking workflow shell, but it still leaves several failure paths open: placeholder scaffold content can survive into generated repos, important integrations are disabled by default, validator coverage is shallow, and the workflow is still vulnerable to “artifact exists therefore pass” behavior unless runtime proof is enforced everywhere. GPTTalker appears to be a direct example of those weaknesses.
 
@@ -9,55 +9,55 @@ The core finding is that Scafforge successfully generates a strong-looking workf
 ### 1. Scafforge generates the right structure, but structure is treated as stronger proof than execution
 - The generator clearly intends a deterministic OpenCode repo with truth hierarchy, state, agents, tools, plugins, skills, tickets, and restart surfaces.
 - That structure is real in both template and output, but GPTTalker shows that generated process surfaces can still drift into false completion while preserving the appearance of rigor.
-- Evidence: [Scafforge/README.md](C:/Users/PC/Documents/GitHub/Scafforge/README.md), [GPTTalker/.opencode/state/workflow-state.json](C:/Users/PC/Documents/GitHub/GPTTalker/.opencode/state/workflow-state.json), [GPTTalker/.opencode/state/artifacts/registry.json](C:/Users/PC/Documents/GitHub/GPTTalker/.opencode/state/artifacts/registry.json)
+- Evidence: [Scafforge/README.md](../README.md), `../../GPTTalker/.opencode/state/workflow-state.json`, `../../GPTTalker/.opencode/state/artifacts/registry.json`
 
 ### 2. The template still ships disabled integrations as the default operating state
 - The template `opencode.jsonc` disables `browser_research`, `project_github`, and `openai_docs`.
 - That makes the generated repo more isolated than its docs and workflow language suggest, and it encourages users to assume capabilities that are present in config but not active.
-- Evidence: [project-template/opencode.jsonc](C:/Users/PC/Documents/GitHub/Scafforge/skills/repo-scaffold-factory/assets/project-template/opencode.jsonc), [GPTTalker/opencode.jsonc](C:/Users/PC/Documents/GitHub/GPTTalker/opencode.jsonc)
+- Evidence: [project-template/opencode.jsonc](../skills/repo-scaffold-factory/assets/project-template/opencode.jsonc), `../../GPTTalker/opencode.jsonc`
 
 ### 3. Placeholder scaffold content is allowed to survive into “completed” repos
 - The template `stack-standards` skill literally says “Replace this file with stack-specific rules once the real project stack is known.”
 - GPTTalker retained that kind of scaffold residue, which means the scaffold and repair path do not guarantee replacement of generic placeholder content before a repo can be treated as complete.
-- Evidence: [stack-standards template](C:/Users/PC/Documents/GitHub/Scafforge/skills/repo-scaffold-factory/assets/project-template/.opencode/skills/stack-standards/SKILL.md), [GPTTalker/.opencode/skills/stack-standards/SKILL.md](C:/Users/PC/Documents/GitHub/GPTTalker/.opencode/skills/stack-standards/SKILL.md)
+- Evidence: [stack-standards template](../skills/repo-scaffold-factory/assets/project-template/.opencode/skills/stack-standards/SKILL.md), `../../GPTTalker/.opencode/skills/stack-standards/SKILL.md`
 
 ### 4. Validator coverage is mostly shape/content-string based, not behavior based
 - `validate_scafforge_contract.py` checks required files and required text fragments.
 - It does not verify that the generated repo’s workflow actually blocks bad progress, that artifact validators reject weak proofs, that placeholders were eliminated, that integrations were intentionally configured, or that restart surfaces reflect actual runtime truth.
 - This is one of the biggest generator-level gaps.
-- Evidence: [validate_scafforge_contract.py](C:/Users/PC/Documents/GitHub/Scafforge/scripts/validate_scafforge_contract.py)
+- Evidence: [validate_scafforge_contract.py](../scripts/validate_scafforge_contract.py)
 
 ### 5. Process doctor repairs deterministic surfaces, but not semantic correctness
 - `apply_repo_process_repair.py` can replace managed files and update provenance/state, but it mostly repairs surface conformance.
 - It does not appear to prove that the generated repo’s product implementation works, nor that repair outputs remove stale claims from docs/handoff surfaces beyond the managed block.
-- Evidence: [apply_repo_process_repair.py](C:/Users/PC/Documents/GitHub/Scafforge/skills/repo-process-doctor/scripts/apply_repo_process_repair.py)
+- Evidence: [apply_repo_process_repair.py](../skills/repo-process-doctor/scripts/apply_repo_process_repair.py)
 
 ### 6. Scafforge already documents many lessons from GPTTalker, but enforcement is incomplete
 - `Tasks/recommendations.md` explicitly calls out the need for execution evidence, stronger reviewer/QA behavior, smoke-test hardening, and cross-agent trust rules.
 - The important issue is that these are recorded as recommendations, not universally guaranteed invariants across generation, repair, and validation.
-- Evidence: [Tasks/recommendations.md](C:/Users/PC/Documents/GitHub/Scafforge/Tasks/recommendations.md)
+- Evidence: [Tasks/recommendations.md](./recommendations.md)
 
 ### 7. Stage-gate enforcement is real, but only as good as artifact validators and workflow truth
 - The template stage gate blocks status changes without artifacts and plan approval.
 - That is necessary, but GPTTalker demonstrates that weak artifacts, stale state, and inconsistent registry entries can still let the process tell a misleading story.
-- Evidence: [stage-gate-enforcer.ts](C:/Users/PC/Documents/GitHub/Scafforge/skills/repo-scaffold-factory/assets/project-template/.opencode/plugins/stage-gate-enforcer.ts), [project-template/_workflow.ts](C:/Users/PC/Documents/GitHub/Scafforge/skills/repo-scaffold-factory/assets/project-template/.opencode/tools/_workflow.ts), [GPTTalker/.opencode/state/plans/fix-017-planning-plan.md](C:/Users/PC/Documents/GitHub/GPTTalker/.opencode/state/plans/fix-017-planning-plan.md)
+- Evidence: [stage-gate-enforcer.ts](../skills/repo-scaffold-factory/assets/project-template/.opencode/plugins/stage-gate-enforcer.ts), [project-template/_workflow.ts](../skills/repo-scaffold-factory/assets/project-template/.opencode/tools/_workflow.ts), `../../GPTTalker/.opencode/state/plans/fix-017-planning-plan.md`
 
 ### 8. GPTTalker shows artifact-stage truth was not reliably enforced in practice
 - Artifact timestamps and registry ordering drifted.
 - Some QA artifacts were inspection-only.
 - Smoke-test artifacts could record `compileall` success while `pytest` failed.
 - Some review/backlog-verification artifacts were extremely thin.
-- Evidence: [GPTTalker/.opencode/state/artifacts/registry.json](C:/Users/PC/Documents/GitHub/GPTTalker/.opencode/state/artifacts/registry.json), [GPTTalker/.opencode/state/qa/fix-013-qa-qa.md](C:/Users/PC/Documents/GitHub/GPTTalker/.opencode/state/qa/fix-013-qa-qa.md), [GPTTalker/.opencode/state/smoke-tests/fix-015-smoke-test-smoke-test.md](C:/Users/PC/Documents/GitHub/GPTTalker/.opencode/state/smoke-tests/fix-015-smoke-test-smoke-test.md), [GPTTalker/.opencode/state/reviews/core-001-review-backlog-verification.md](C:/Users/PC/Documents/GitHub/GPTTalker/.opencode/state/reviews/core-001-review-backlog-verification.md)
+- Evidence: `../../GPTTalker/.opencode/state/artifacts/registry.json`, `../../GPTTalker/.opencode/state/qa/fix-013-qa-qa.md`, `../../GPTTalker/.opencode/state/smoke-tests/fix-015-smoke-test-smoke-test.md`, `../../GPTTalker/.opencode/state/reviews/core-001-review-backlog-verification.md`
 
 ### 9. Restart and docs surfaces can overclaim completion
 - GPTTalker’s docs are internally coherent, but `START-HERE.md` and related docs overstated completion and left placeholders around validation/risk state.
 - Scafforge currently does not appear to have a hard “truth regeneration” step that cross-checks restart/docs claims against test reality before marking work complete.
-- Evidence: [GPTTalker/START-HERE.md](C:/Users/PC/Documents/GitHub/GPTTalker/START-HERE.md), [GPTTalker/docs/process/workflow.md](C:/Users/PC/Documents/GitHub/GPTTalker/docs/process/workflow.md)
+- Evidence: `../../GPTTalker/START-HERE.md`, `../../GPTTalker/docs/process/workflow.md`
 
 ### 10. Generated repos can retain duplicated or ambiguous authority surfaces
 - GPTTalker’s `workflow-observability` skill and nested `agents/openai.yaml` duplicate part of the skill authority surface.
 - This is a smaller issue, but it is another sign that scaffold synthesis and repair do not aggressively prune redundant sources of truth.
-- Evidence: [GPTTalker/.opencode/skills/workflow-observability/SKILL.md](C:/Users/PC/Documents/GitHub/GPTTalker/.opencode/skills/workflow-observability/SKILL.md), [GPTTalker/.opencode/skills/workflow-observability/agents/openai.yaml](C:/Users/PC/Documents/GitHub/GPTTalker/.opencode/skills/workflow-observability/agents/openai.yaml)
+- Evidence: `../../GPTTalker/.opencode/skills/workflow-observability/SKILL.md`, `../../GPTTalker/.opencode/skills/workflow-observability/agents/openai.yaml`
 
 ## Step-by-Step Remediation for Scafforge
 ### Step 1. Make generated repos fail closed on unresolved scaffold placeholders
@@ -111,7 +111,7 @@ The core finding is that Scafforge successfully generates a strong-looking workf
 - Add duplicate-authority checks to the process doctor.
 
 ### Step 10. Turn GPTTalker lessons into release-gated Scafforge policy
-- Convert the recommendations from [Tasks/recommendations.md](C:/Users/PC/Documents/GitHub/Scafforge/Tasks/recommendations.md) into concrete template rules, validator assertions, and generated test cases.
+- Convert the recommendations from [Tasks/recommendations.md](./recommendations.md) into concrete template rules, validator assertions, and generated test cases.
 - Do not allow “lessons learned” to remain as advisory prose after they have been proven by a real failure case.
 
 ## Public Interface / Contract Changes
@@ -134,3 +134,4 @@ The core finding is that Scafforge successfully generates a strong-looking workf
 - GPTTalker is treated as a representative failure case for Scafforge’s current contract, not as a one-off user misuse.
 - The preferred fix is stronger generation/validation/repair guarantees, not more prose guidance.
 - If there is a tradeoff between generator flexibility and fail-closed workflow truth, Scafforge should choose fail-closed by default.
+

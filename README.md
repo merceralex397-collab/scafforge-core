@@ -44,7 +44,7 @@ npm install -g @scafforge/core
 ## Usage
 
 1. Open a repo that contains specs, plans, notes, or design docs
-2. Tell the agent: "scaffold this project" (or invoke `/scaffold-kickoff`)
+2. Tell the agent: "scaffold this project" (or invoke `/scaffold-kickoff`) even if the repo already exists and needs retrofit or process repair
 3. The agent reads your specs, asks about ambiguities, then follows the full skill chain
 4. Output: a complete project repo with agents, tickets, skills, docs, and a restart surface
 
@@ -63,6 +63,8 @@ scaffold-kickoff (entrypoint)
   → repo-process-doctor      audits for workflow drift, applies safe repairs
   → handoff-brief            generates START-HERE.md restart surface
 ```
+
+`scaffold-kickoff` remains the public entrypoint for existing repos as well. It classifies whether the job is greenfield scaffold, retrofit, or managed workflow repair, then routes to the right downstream skills without asking the user to choose the lower-level skill manually.
 
 The package's Python 3 scripts handle deterministic mechanical work (copying 100+ template files, placeholder substitution, running workflow audits, and applying managed-surface retrofit repairs). The agent handles creative work (reading specs, designing agents, writing project-specific prompts, creating tickets, synthesizing skills).
 
@@ -136,18 +138,21 @@ Baseline generated local skills include:
 |-------|-------------|
 | `pr-review-ticket-bridge` | Host-side PR review, comment validation, and guarded follow-up ticket generation for valid findings. Bundled with the package, but outside the default scaffold chain. |
 
-## Retrofit path
+## Existing repo path
 
-For repos that already have code but need the OpenCode operating layer:
+For repos that already have code, start at `scaffold-kickoff` and let it classify whether the repo needs retrofit or doctor-led repair:
 
 ```
-scaffold-kickoff (detects existing repo)
-  → opencode-team-bootstrap  adds .opencode/ layer
-  → ticket-pack-builder      creates backlog if missing
-  → project-skill-bootstrap  creates local skills
-  → repo-process-doctor      audits and repairs
+scaffold-kickoff (detects existing repo state)
+  → spec-pack-normalizer     only if the canonical brief is missing or badly fragmented
+  → opencode-team-bootstrap  adds or repairs the .opencode layer when needed
+  → ticket-pack-builder      repairs backlog state if missing or weak
+  → project-skill-bootstrap  repairs local skills when needed
+  → repo-process-doctor      audits or runs apply-repair for managed-surface correction
   → handoff-brief            generates restart surface
 ```
+
+If the repo is already Scafforge-managed and mainly needs a workflow-contract update, kickoff should route straight into `repo-process-doctor` in `apply-repair` mode. The doctor applies safe repairs by default and escalates intent-changing choices instead of silently rewriting project intent.
 
 ## Design principles
 
