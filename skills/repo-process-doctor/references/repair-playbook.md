@@ -90,3 +90,55 @@ Escalate instead of auto-applying when a repair would:
 - remove mutating shell loopholes from inspection roles
 - narrow preflight commands so they stop at the intended stage
 - record the process version change and leave a verification trail when managed surfaces were replaced
+
+## EXEC repair actions (EXEC001 / EXEC002 / EXEC003)
+
+EXEC findings mean source-layer bugs exist that the Scafforge process failed to catch before tickets were closed. The repair is two-part: **sync the agent process layer** so agents enforce execution proof going forward, and **create remediation tickets** so OpenCode agents fix the source bugs.
+
+### Part 1 — Sync agent execution-enforcement rules
+
+The implementer and tester-qa agent prompts in the repo may pre-date the PR6 execution-enforcement rules. Check whether the following lines are present in every `*-implementer*.md` and `*-tester-qa.md` agent under `.opencode/agents/`:
+
+**Implementer agents must contain:**
+```
+- before creating the implementation artifact, run at minimum:
+  - a compile or syntax check on all new or modified source files
+  - an import check for the primary module
+  - the project test suite if it exists
+- include the command output in the implementation artifact
+- do not create an implementation artifact for code that fails these checks
+```
+
+**Tester-QA agent must contain:**
+```
+- "code inspection" alone is not validation — you must execute tests or compile checks
+- run the project test suite and report pass/fail counts with command output
+- if no test suite exists, run compile or syntax checks and import verification on all source files
+- include raw command output in the QA artifact
+- if the QA artifact does not contain command output, it will be rejected by the team leader
+- a QA artifact under 200 bytes is almost certainly insufficient — add more evidence or return a blocker
+```
+
+If any of these lines are absent, add them. This is a safe repair — it enforces the existing scaffold contract, it does not change project intent. Reference the current template at `skills/repo-scaffold-factory/assets/project-template/.opencode/agents/` for the authoritative wording.
+
+### Part 2 — Create remediation tickets for source-layer bugs
+
+Do **not** fix source code directly. Instead, create one ticket per EXEC finding in the repo's `tickets/manifest.json` and as a ticket file. Each ticket must:
+
+- have a unique ID (e.g. `EXEC-001`, `EXEC-002`)
+- status: `ready`
+- stage: `planning`
+- wave: next available wave number
+- lane: `bugfix`
+- title: a precise description of the specific error (include file and line if known)
+- description: include the error message verbatim from the audit evidence, the safer pattern from the audit finding, and the acceptance criterion: "service imports cleanly and `pytest tests/` exits 0"
+- `parallel_safe: yes` (execution fixes are typically independent)
+- `overlap_risk: high` (imports affect the whole service)
+
+After creating tickets, update `tickets/BOARD.md` to show the new entries, and set `pending_process_verification: true` in workflow-state so the backlog verifier lane re-checks previously completed tickets against the repaired process.
+
+### What counts as resolved
+
+Re-run `audit_repo_process.py` after the repair agent completes the tickets. EXEC findings are resolved only when:
+- `from src.<pkg>.main import app` exits 0 for every main package
+- `pytest tests/` exits 0 with 0 failures and 0 collection errors

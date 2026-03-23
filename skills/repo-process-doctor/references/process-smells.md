@@ -64,3 +64,22 @@
 
 - the repo can replace its process layer but has no explicit backlog verifier or gated follow-up path
 - result: migration issues are either missed or turned into ad hoc tickets with no proof trail
+
+## Execution blindness (EXEC001 — module import failure)
+
+- one or more Python packages fail to import at runtime due to errors invisible to static analysis
+- common causes: TYPE_CHECKING-guarded names used as unquoted runtime annotations (`-> ServiceType:` instead of `-> "ServiceType":`), FastAPI dependency functions parameterised with non-Pydantic types (e.g. `app: FastAPI` instead of `request: Request`), circular imports
+- result: the hub or node agent cannot start; all 25+ MCP tools are blocked regardless of how much implementation code exists; tickets can reach `closeout/done` without the service ever being run
+- why agents miss it: each ticket is implemented in isolation; no integration step imports the full module chain; the QA agent accepted "code exists and looks correct" as sufficient proof
+
+## Test collection blocked (EXEC002 — pytest collection error)
+
+- one or more test files import a broken module, causing pytest to abort collection before any test runs
+- result: the test suite cannot execute at all; QA artifacts that claim tests passed were never actually run
+- why agents miss it: agents ran `pytest` on individual files or checked exit codes without reading stderr; collection errors exit with code 2 not 1, and may have been misread as "tests ran but failed"
+
+## Test suite failures (EXEC003 — tests ran but some failed)
+
+- pytest collected and ran tests but one or more failed
+- result: implementation is incomplete or regressed; closeout evidence is invalid
+- why agents miss it: QA artifacts recorded "validation complete" without including raw pytest output; the team leader accepted thin QA artifacts without requiring pass/fail counts with command output

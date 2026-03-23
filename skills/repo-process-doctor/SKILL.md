@@ -75,6 +75,8 @@ Read `references/repair-playbook.md` for the boundary.
 - Normalizing contradictory status semantics into the coarse queue contract
 - Fixing read-only agents that have mutating shell commands
 - Replacing clearly scaffold-managed OpenCode operating surfaces when audit evidence shows the repo is on an older Scafforge contract and durable project facts can be preserved
+- Syncing missing execution-enforcement rules into implementer and tester-qa agent prompts (EXEC001/002/003)
+- Creating remediation tickets for source-layer bugs found by EXEC001/002/003
 
 **Intent-changing repairs (escalate to user):**
 - Changes that affect project scope or product intent
@@ -82,6 +84,10 @@ Read `references/repair-playbook.md` for the boundary.
 - Changing provider or model choices
 - Deleting or rewriting curated human decisions
 - Collapsing repo-specific patterns that aren't clearly broken
+
+**EXEC findings require a two-part repair (see `references/repair-playbook.md` → EXEC repair actions):**
+1. Sync agent execution-enforcement rules — safe, apply directly
+2. Create remediation tickets for each source bug — safe, apply directly; do NOT fix source code yourself
 
 ### 4. Apply repairs (if in apply-repair mode)
 
