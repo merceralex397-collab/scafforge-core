@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 import re
+import subprocess
 import sys
 from dataclasses import asdict, dataclass
 from pathlib import Path
@@ -847,6 +848,184 @@ def audit_eager_skill_loading(root: Path, findings: list[Finding]) -> None:
         )
 
 
+def _run(cmd: list[str], cwd: Path, timeout: int = 30) -> tuple[int, str]:
+    """Run a subprocess and return (returncode, combined output). Never raises."""
+    try:
+        result = subprocess.run(
+            cmd,
+            cwd=str(cwd),
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+        )
+        return result.returncode, (result.stdout + result.stderr).strip()
+    except subprocess.TimeoutExpired:
+        return -1, f"[timeout after {timeout}s]"
+    except FileNotFoundError:
+        return -1, f"[command not found: {cmd[0]}]"
+    except Exception as exc:  # noqa: BLE001
+        return -1, f"[error: {exc}]"
+
+
+def _detect_python(root: Path) -> str | None:
+    """Return the Python executable to use for this repo (uv run python > python3 > python)."""
+    uv = root / ".venv" / "bin" / "python"
+    if uv.exists():
+        return str(uv)
+    for candidate in ("python3", "python"):
+        rc, _ = _run([candidate, "--version"], root, timeout=5)
+        if rc == 0:
+            return candidate
+    return None
+
+
+def _detect_pytest(root: Path) -> str | None:
+    """Return the pytest executable to use for this repo."""
+    venv_pytest = root / ".venv" / "bin" / "pytest"
+    if venv_pytest.exists():
+        return str(venv_pytest)
+    rc, _ = _run(["pytest", "--version"], root, timeout=5)
+    if rc == 0:
+        return "pytest"
+    return None
+
+
+def audit_python_execution(root: Path, findings: list[Finding]) -> None:
+    """Check that a Python project can actually import its main modules and collect tests.
+
+    This catches runtime errors (NameError, FastAPIError, broken DI patterns, etc.)
+    that are invisible to workflow-structure checks.
+    Only runs when pyproject.toml or setup.py is present in the repo root.
+    """
+    if not (root / "pyproject.toml").exists() and not (root / "setup.py").exists():
+        return
+
+    python = _detect_python(root)
+    if python is None:
+        return  # No Python available — skip silently
+
+    src_candidates: list[Path] = []
+    for name in ("src", "app", "lib"):
+        candidate = root / name
+        if candidate.is_dir():
+            src_candidates.append(candidate)
+
+    # --- Import check for each top-level package under src/ ---
+    import_errors: list[str] = []
+    for src_dir in src_candidates:
+        for pkg in sorted(src_dir.iterdir()):
+            if not pkg.is_dir() or not (pkg / "__init__.py").exists():
+                continue
+            module = f"{src_dir.name}.{pkg.name}"
+            rc, output = _run(
+                [python, "-c", f"import {module}"],
+                root,
+                timeout=20,
+            )
+            if rc != 0:
+                # Trim to first error line to keep evidence compact
+                first_error = next(
+                    (ln for ln in output.splitlines() if "Error" in ln or "error" in ln),
+                    output.splitlines()[-1] if output.splitlines() else output,
+                )
+                import_errors.append(f"{module}: {first_error}")
+
+    if import_errors:
+        add_finding(
+            findings,
+            Finding(
+                code="EXEC001",
+                severity="error",
+                problem="One or more Python packages fail to import — the service cannot start.",
+                root_cause=(
+                    "Runtime errors (NameError, FastAPIError, missing dependency, broken DI pattern, etc.) "
+                    "that are invisible to static analysis prevent module load. "
+                    "Common causes: TYPE_CHECKING-guarded names used in runtime annotations, "
+                    "FastAPI dependency functions with non-Pydantic parameter types, circular imports."
+                ),
+                files=[str(src_dir) for src_dir in src_candidates],
+                safer_pattern=(
+                    "Verify every import succeeds: `python -c 'from src.<pkg>.main import app'`. "
+                    "Use string annotations (`-> \"TypeName\"`) for TYPE_CHECKING-only imports. "
+                    "Use `request: Request` (not `app: FastAPI`) in FastAPI dependency functions."
+                ),
+                evidence=import_errors,
+            ),
+        )
+
+    # --- pytest --collect-only to catch test collection errors ---
+    pytest = _detect_pytest(root)
+    if pytest is None:
+        return
+
+    tests_dir = root / "tests"
+    if not tests_dir.exists():
+        return
+
+    rc, output = _run(
+        [pytest, str(tests_dir), "--collect-only", "-q", "--tb=no"],
+        root,
+        timeout=60,
+    )
+
+    # pytest exits 2 on collection error, 4 if no tests found, 0/1 for pass/fail
+    collection_errors = [
+        ln for ln in output.splitlines()
+        if "ERROR" in ln or "error" in ln.lower() and "collect" in ln.lower()
+    ]
+    if rc == 2 or collection_errors:
+        add_finding(
+            findings,
+            Finding(
+                code="EXEC002",
+                severity="error",
+                problem="pytest cannot collect tests — at least one test file has an import or syntax error.",
+                root_cause=(
+                    "A test file imports a broken module (e.g. the node agent with a broken DI pattern), "
+                    "preventing the entire test suite from running. "
+                    "This means QA was never actually executed against these tests."
+                ),
+                files=[str(tests_dir)],
+                safer_pattern=(
+                    "Run `pytest tests/ --collect-only` and fix all collection errors before marking QA done. "
+                    "A QA artifact that claims tests passed when pytest cannot even collect is invalid."
+                ),
+                evidence=(collection_errors or output.splitlines())[:5],
+            ),
+        )
+
+    # --- Check for failing tests (exit code 1 = tests ran but some failed) ---
+    if rc == 1:
+        # Run with short output to count failures
+        rc2, output2 = _run(
+            [pytest, str(tests_dir), "-q", "--tb=no", "--no-header"],
+            root,
+            timeout=120,
+        )
+        # Find summary line e.g. "20 failed, 84 passed in 1.31s"
+        summary_lines = [ln for ln in output2.splitlines() if "failed" in ln or "passed" in ln or "error" in ln]
+        failed_count_match = re.search(r"(\d+) failed", output2)
+        failed_count = int(failed_count_match.group(1)) if failed_count_match else "unknown"
+        add_finding(
+            findings,
+            Finding(
+                code="EXEC003",
+                severity="warning",
+                problem=f"Test suite has failures: {failed_count} test(s) failed.",
+                root_cause=(
+                    "Tests were marked done in QA artifacts without verifying the full suite passes. "
+                    "Failing tests indicate incomplete implementations, broken contracts, or regressions."
+                ),
+                files=[str(tests_dir)],
+                safer_pattern=(
+                    "Run `pytest tests/ -v` and fix all failures before marking a ticket done. "
+                    "QA artifacts must include pytest output showing 0 failures."
+                ),
+                evidence=summary_lines[:5],
+            ),
+        )
+
+
 def audit_repo(root: Path) -> list[Finding]:
     findings: list[Finding] = []
     audit_status_model(root, findings)
@@ -871,6 +1050,7 @@ def audit_repo(root: Path) -> list[Finding]:
     audit_read_only_write_language(root, findings)
     audit_over_scoped_commands(root, findings)
     audit_eager_skill_loading(root, findings)
+    audit_python_execution(root, findings)
     return findings
 
 
