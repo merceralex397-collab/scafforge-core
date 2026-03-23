@@ -13,10 +13,22 @@
     "tickets/BOARD.md",
     ".opencode/state/workflow-state.json",
     ".opencode/state/artifacts/registry.json",
+    ".opencode/tools/environment_bootstrap.ts",
+    ".opencode/tools/issue_intake.ts",
+    ".opencode/tools/ticket_claim.ts",
     ".opencode/tools/ticket_create.ts",
+    ".opencode/tools/ticket_release.ts",
+    ".opencode/tools/ticket_reopen.ts",
+    ".opencode/tools/ticket_reverify.ts",
     ".opencode/tools/ticket_update.ts",
+    ".opencode/commands/bootstrap-check.md",
+    ".opencode/commands/issue-triage.md",
     ".opencode/commands/kickoff.md",
+    ".opencode/commands/join-lanes.md",
+    ".opencode/commands/plan-wave.md",
+    ".opencode/commands/reverify-ticket.md",
     ".opencode/commands/resume.md",
+    ".opencode/commands/run-lane.md",
     ".opencode/tools/smoke_test.ts"
   ],
   "required_directories": [
@@ -31,7 +43,8 @@
     ".opencode/state/qa",
     ".opencode/state/smoke-tests",
     ".opencode/state/handoffs",
-    ".opencode/state/artifacts"
+    ".opencode/state/artifacts",
+    ".opencode/state/bootstrap"
   ],
   "required_skill_ids": [
     "project-context",
@@ -47,6 +60,7 @@
   ],
   "required_agent_suffixes": [
     "team-leader",
+    "lane-executor",
     "planner",
     "plan-review",
     "implementer",

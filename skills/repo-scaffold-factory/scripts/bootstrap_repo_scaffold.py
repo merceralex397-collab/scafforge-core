@@ -36,8 +36,8 @@ OPENCODE_SCOPE_FILES = {
     ".opencode",
 }
 
-PROCESS_CONTRACT_VERSION = 4
-TICKET_CONTRACT_VERSION = 2
+PROCESS_CONTRACT_VERSION = 5
+TICKET_CONTRACT_VERSION = 3
 DEFAULT_PARALLEL_MODE = "parallel-lanes"
 
 
@@ -197,6 +197,7 @@ def write_bootstrap_provenance(
                 "tickets/manifest.json",
                 "tickets/*.md",
                 ".opencode/state/artifacts",
+                ".opencode/state/bootstrap",
                 ".opencode/state/plans",
                 ".opencode/state/implementations",
                 ".opencode/state/reviews",
@@ -222,6 +223,7 @@ def ensure_state_directories(dest_root: Path) -> None:
         ".opencode/state/smoke-tests",
         ".opencode/state/handoffs",
         ".opencode/state/artifacts",
+        ".opencode/state/bootstrap",
     ):
         (dest_root / relative).mkdir(parents=True, exist_ok=True)
 

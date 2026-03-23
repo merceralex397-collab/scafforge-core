@@ -38,17 +38,17 @@ def verify_render(dest: Path, *, expect_full_repo: bool) -> None:
     if manifest is not None:
         if "tickets" not in manifest:
             raise RuntimeError("tickets/manifest.json is missing a tickets key")
-        if manifest.get("version") != 2:
-            raise RuntimeError("tickets/manifest.json should use version 2")
+        if manifest.get("version") != 3:
+            raise RuntimeError("tickets/manifest.json should use version 3")
         if not manifest["tickets"]:
             raise RuntimeError("tickets/manifest.json must contain at least one ticket")
         first_ticket = manifest["tickets"][0]
-        for key in ("wave", "parallel_safe", "overlap_risk", "decision_blockers"):
+        for key in ("wave", "parallel_safe", "overlap_risk", "decision_blockers", "resolution_state", "verification_state"):
             if key not in first_ticket:
                 raise RuntimeError(f"tickets/manifest.json first ticket is missing `{key}`")
 
         workflow = json.loads((dest / ".opencode" / "state" / "workflow-state.json").read_text(encoding="utf-8"))
-        for key in ("process_version", "pending_process_verification", "parallel_mode", "ticket_state"):
+        for key in ("process_version", "pending_process_verification", "parallel_mode", "ticket_state", "bootstrap", "lane_leases", "state_revision"):
             if key not in workflow:
                 raise RuntimeError(f".opencode/state/workflow-state.json is missing `{key}`")
         active_ticket = manifest.get("active_ticket")
@@ -56,6 +56,10 @@ def verify_render(dest: Path, *, expect_full_repo: bool) -> None:
             raise RuntimeError(".opencode/state/workflow-state.json must contain a ticket_state map")
         if isinstance(active_ticket, str) and active_ticket not in workflow["ticket_state"]:
             raise RuntimeError("workflow-state ticket_state must contain the active ticket entry")
+        active_ticket_state = workflow["ticket_state"].get(active_ticket, {}) if isinstance(active_ticket, str) else {}
+        for key in ("reopen_count", "needs_reverification"):
+            if key not in active_ticket_state:
+                raise RuntimeError(f"workflow-state active ticket entry is missing `{key}`")
 
         agents_dir = dest / ".opencode" / "agents"
         agent_names = {path.name for path in agents_dir.glob("*.md")}
@@ -114,12 +118,15 @@ def main() -> int:
         run([sys.executable, str(REPAIR), str(full_dest), "--fail-on", "error"], ROOT)
 
         repaired_workflow = json.loads((full_dest / ".opencode" / "state" / "workflow-state.json").read_text(encoding="utf-8"))
-        if repaired_workflow.get("process_version") != 4:
-            raise RuntimeError("Repair should update workflow-state to process version 4")
+        if repaired_workflow.get("process_version") != 5:
+            raise RuntimeError("Repair should update workflow-state to process version 5")
         if repaired_workflow.get("pending_process_verification") is not True:
             raise RuntimeError("Repair should reopen post-migration verification")
         if not repaired_workflow.get("process_last_changed_at"):
             raise RuntimeError("Repair should record process_last_changed_at")
+        for key in ("bootstrap", "lane_leases", "state_revision"):
+            if key not in repaired_workflow:
+                raise RuntimeError(f"Repair should preserve workflow key `{key}`")
 
         repaired_provenance = json.loads((full_dest / ".opencode" / "meta" / "bootstrap-provenance.json").read_text(encoding="utf-8"))
         if not repaired_provenance.get("repair_history"):

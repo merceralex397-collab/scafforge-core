@@ -7,13 +7,15 @@ __PROJECT_NAME__
 
 ## Current State
 
-The repo is operating with a ticketed OpenCode workflow.
+The repo is operating with a ticketed OpenCode workflow that separates historical completion from current trust and enforces lease-based write lanes.
 
 ## Process Contract
 
-- process_version: 4
+- process_version: 5
 - parallel_mode: parallel-lanes
 - pending_process_verification: false
+- bootstrap_status: pending
+- bootstrap_proof: not yet recorded
 - process_changed_at: Not yet recorded.
 - process_note: No recorded process change summary.
 - process_state: No pending process-change verification.
@@ -30,22 +32,27 @@ The repo is operating with a ticketed OpenCode workflow.
 ## Current Ticket
 
 - ID: SETUP-001
-- Title: Establish scaffold and canonical brief
+- Title: Bootstrap environment and confirm scaffold readiness
 - Wave: 0
 - Lane: repo-foundation
 - Stage: planning
 - Status: todo
+- Resolution state: open
+- Verification state: suspect
 - Parallel safe: no
 
-## Validation Status
+## Bootstrap and Trust Status
 
-Update this section with project-specific validation results.
+- Bootstrap is still pending. Run the bootstrap/setup lane before treating missing dependencies as product defects.
+- No completed tickets currently require reverification.
+- No reopened or done-but-untrusted tickets are recorded yet.
 
 ## Known Risks
 
-- Replace with live risks as the project evolves.
+- Validation can fail for environment reasons until bootstrap proof exists.
+- Historical completion should not be treated as current trust once defects or process drift are discovered.
 
 ## Next Action
 
-Replace the canonical brief placeholders, then use the OpenCode `/kickoff` command or the team leader agent to begin planning.
+Replace the canonical brief placeholders, run `/bootstrap-check` or the Wave 0 setup lane to install and verify dependencies, then use `/kickoff` or the team leader agent to begin planning.
 <!-- SCAFFORGE:START_HERE_BLOCK END -->

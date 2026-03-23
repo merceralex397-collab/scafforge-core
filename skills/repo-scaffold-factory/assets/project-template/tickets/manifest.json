@@ -1,23 +1,30 @@
 {
-  "version": 2,
+  "version": 3,
   "project": "__PROJECT_NAME__",
   "active_ticket": "SETUP-001",
   "tickets": [
     {
       "id": "SETUP-001",
-      "title": "Establish scaffold and canonical brief",
+      "title": "Bootstrap environment and confirm scaffold readiness",
       "wave": 0,
       "lane": "repo-foundation",
       "parallel_safe": false,
       "overlap_risk": "high",
       "stage": "planning",
       "status": "todo",
+      "resolution_state": "open",
+      "verification_state": "suspect",
       "depends_on": [],
-      "summary": "Replace placeholders in the canonical brief, review the scaffold, and begin ticketed planning.",
+      "source_ticket_id": null,
+      "follow_up_ticket_ids": [],
+      "summary": "Confirm runtime and toolchain prerequisites, install project and test dependencies, verify validation commands can run in this environment, and replace scaffold placeholders before deeper implementation work begins.",
       "acceptance": [
+        "Runtime and required toolchain executables are present or the gap is explicitly reported",
+        "Project dependencies are installed using repo-appropriate Ubuntu-safe commands",
+        "Test dependencies are installed using repo-appropriate Ubuntu-safe commands",
+        "Canonical validation commands are identified and can be executed from the repo root",
         "Canonical brief updated with real project content",
-        "Team entrypoints verified",
-        "Ticket tools working"
+        "Team entrypoints and ticket tools verified"
       ],
       "decision_blockers": [],
       "artifacts": []
