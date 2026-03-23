@@ -28,12 +28,22 @@
         "repo-process-doctor:audit_then_apply_safe_repairs_if_needed",
         "handoff-brief"
       ]
+    },
+    "managed-repair": {
+      "entrypoint": "scaffold-kickoff",
+      "sequence": [
+        "repo-process-doctor:apply-repair",
+        "opencode-team-bootstrap:follow_up_if_project_specific_drift",
+        "ticket-pack-builder:refine_if_needed",
+        "project-skill-bootstrap:repair_if_needed",
+        "handoff-brief"
+      ]
     }
   },
   "skills": {
     "scaffold-kickoff": {
       "owner": "conductor",
-      "modes": ["greenfield", "retrofit"],
+      "modes": ["greenfield", "retrofit", "managed-repair", "refinement-routing"],
       "inputs": ["messy project inputs", "normalized decisions"],
       "outputs": ["orchestrated run", "required downstream sequence"],
       "upstreams": [],

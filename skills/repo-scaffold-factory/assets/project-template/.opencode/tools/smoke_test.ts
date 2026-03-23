@@ -4,11 +4,16 @@ import { existsSync } from "node:fs"
 import { access, readFile } from "node:fs/promises"
 import { join } from "node:path"
 import {
+  currentArtifacts,
   defaultArtifactPath,
   getTicket,
+  latestArtifact,
   loadArtifactRegistry,
   loadManifest,
+  loadWorkflowState,
   normalizeRepoPath,
+  registerArtifactSnapshot,
+  requireBootstrapReady,
   rootPath,
   saveArtifactRegistry,
   saveManifest,
@@ -277,24 +282,19 @@ async function persistArtifact(ticketId: string, body: string, passed: boolean):
   const path = normalizeRepoPath(defaultArtifactPath(ticket.id, SMOKE_STAGE, SMOKE_KIND))
   await writeText(path, body)
 
-  const artifact = {
+  const registry = await loadArtifactRegistry()
+  const artifact = await registerArtifactSnapshot({
+    ticket,
+    registry,
+    source_path: path,
     kind: SMOKE_KIND,
-    path,
     stage: SMOKE_STAGE,
     summary: passed ? "Deterministic smoke test passed." : "Deterministic smoke test failed.",
-    created_at: new Date().toISOString(),
-  }
-
-  ticket.artifacts = ticket.artifacts.filter((entry) => entry.path !== path)
-  ticket.artifacts.push(artifact)
-
-  const registry = await loadArtifactRegistry()
-  registry.artifacts = registry.artifacts.filter((entry) => entry.path !== path)
-  registry.artifacts.push({ ticket_id: ticket.id, ...artifact })
+  })
 
   await saveManifest(manifest)
   await saveArtifactRegistry(registry)
-  return path
+  return artifact.path
 }
 
 export default tool({
@@ -304,9 +304,11 @@ export default tool({
   },
   async execute(args) {
     const manifest = await loadManifest()
+    const workflow = await loadWorkflowState()
     const ticket = getTicket(manifest, args.ticket_id)
     const root = rootPath()
-    const latestQaArtifact = [...ticket.artifacts].reverse().find((artifact) => artifact.stage === "qa")
+    await requireBootstrapReady(workflow, root)
+    const latestQaArtifact = latestArtifact(ticket, { stage: "qa", trust_state: "current" }) || currentArtifacts(ticket, { stage: "qa" }).at(-1)
 
     if (!latestQaArtifact) {
       throw new Error(`Cannot run smoke tests for ${ticket.id} before a QA artifact exists.`)

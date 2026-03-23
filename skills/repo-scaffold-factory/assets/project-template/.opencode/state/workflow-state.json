@@ -5,12 +5,22 @@
   "approved_plan": false,
   "ticket_state": {
     "SETUP-001": {
-      "approved_plan": false
+      "approved_plan": false,
+      "reopen_count": 0,
+      "needs_reverification": false
     }
   },
-  "process_version": 4,
+  "process_version": 5,
   "process_last_changed_at": null,
   "process_last_change_summary": null,
   "pending_process_verification": false,
-  "parallel_mode": "parallel-lanes"
+  "parallel_mode": "parallel-lanes",
+  "bootstrap": {
+    "status": "pending",
+    "last_verified_at": null,
+    "environment_fingerprint": null,
+    "proof_artifact": null
+  },
+  "lane_leases": [],
+  "state_revision": 0
 }

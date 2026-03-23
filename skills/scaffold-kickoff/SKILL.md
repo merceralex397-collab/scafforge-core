@@ -1,21 +1,22 @@
 ---
 name: scaffold-kickoff
-description: Orchestrate the full spec-to-repo kickoff flow for greenfield or early-stage projects. Use when asked to scaffold, generate, or bootstrap a new project repository from specs, plans, or requirements. This is the single entrypoint — it sequences all other Scafforge skills automatically.
+description: Orchestrate the full Scafforge kickoff flow for greenfield, retrofit, or managed-repair work. Use when asked to scaffold a new repo, add the OpenCode operating layer to an existing repo, or update a Scafforge-managed workflow contract. This is the single public entrypoint — it classifies repo state and routes to the correct downstream skills automatically.
 ---
 
 # Scaffold Kickoff
 
-This is the default entrypoint. When a user asks you to scaffold a project, use this skill.
+This is the default public entrypoint. When a user asks you to scaffold, retrofit, repair, or refresh a Scafforge-managed project, start here and route internally.
 
 ## Decision tree
 
 Before starting, classify the run type:
 
 1. **Greenfield** — No repo exists yet, or the repo contains only specs/plans/notes. Follow the full workflow below.
-2. **Retrofit** — A repo with code already exists but needs the OpenCode operating layer added. Run `spec-pack-normalizer` first if the project lacks a canonical brief, then skip to `opencode-team-bootstrap` (step 4), and continue from step 5.
-3. **Refinement** — A scaffolded repo exists but needs its tickets, skills, or agents improved. Jump to the specific skill needed.
+2. **Retrofit** — A repo with code already exists but is missing the current OpenCode operating layer. Run `spec-pack-normalizer` first if the project lacks a canonical brief, then route to `opencode-team-bootstrap`, continue through ticket and local-skill repair as needed, and finish with `repo-process-doctor`.
+3. **Managed repair / refresh** — A Scafforge-managed or OpenCode-oriented repo already exists but needs workflow-contract repair, upgrade, or managed-surface replacement. Route directly to `repo-process-doctor` in `apply-repair` mode, then run any targeted follow-up skills it reveals and finish with `handoff-brief`.
+4. **Refinement** — A scaffolded repo exists and the user wants a narrower improvement such as ticket expansion, agent tuning, or local-skill synthesis. Still start here. Route to the specific downstream skill once you have confirmed the repo does not first need `repo-process-doctor`.
 
-If the repo state and the user's request do not make the run type clear, ask the user before proceeding. Do not silently choose between greenfield, retrofit, and refinement when that choice would materially change scope.
+If the repo state and the user's request do not make the run type clear, ask the user before proceeding. Do not silently choose between greenfield, retrofit, managed repair, and refinement when that choice would materially change scope.
 
 ## Full greenfield workflow
 
@@ -125,7 +126,8 @@ The scaffold is complete when ALL of these exist:
 
 - Prefer this umbrella flow for greenfield work instead of manually starting with lower-level skills.
 - Keep generated docs and prompts weak-model friendly: short sections, explicit steps, obvious source-of-truth files.
-- If the repo already exists and only needs the OpenCode layer, switch to opencode-team-bootstrap instead of forcing a full scaffold reset.
+- Keep `scaffold-kickoff` as the human entrypoint even when the repo already exists; route internally to `opencode-team-bootstrap`, `repo-process-doctor`, or another downstream skill instead of asking the user to pick the lower-level entry.
+- If a Scafforge-managed repo needs workflow correction or contract upgrade, prefer `repo-process-doctor` in `apply-repair` mode and let it escalate only intent-changing decisions.
 - When the stack is still unknown, keep the scaffold framework-agnostic and record unresolved choices in the canonical brief.
 - Do not let ticket-pack-builder fabricate implementation detail for unresolved major decisions.
 - Preserve exact model/provider strings and project names when the source material specifies them.

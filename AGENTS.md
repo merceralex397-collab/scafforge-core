@@ -92,6 +92,7 @@ These refinements now govern implementation of the package contract:
 - intake is **opportunistic first**: scan messy docs, notes, and fragmented inputs before normalizing them into a canonical brief
 - meaningful ambiguity must be converted into a **batched decision packet** and asked, not silently assumed
 - the default output remains **one full orchestration OpenCode scaffold**
+- `scaffold-kickoff` remains the **single public entrypoint** for greenfield, retrofit, and managed-repair/update flows; downstream skills are routing targets, not user-facing starting points
 - the generated repo must have a **structured truth hierarchy** with exact canonical owners for facts, queue state, transient workflow state, artifacts, provenance, and restart surfaces
 - the initial backlog should be **implementation-ready where decisions are resolved**, while unresolved major choices become explicit blocked or decision tickets instead of fabricated detail
 - `repo-process-doctor` should support `audit`, `propose-repair`, and `apply-repair`, with safe repairs applied by default unless blocked and intent-changing repairs escalated
@@ -122,6 +123,17 @@ Use the lighter path when a repo already exists and mainly needs an OpenCode ope
 6. `repo-process-doctor` audits the resulting workflow
 7. `handoff-brief` publishes restart state
 
+### Managed repair / update flow
+
+Use this path when a repo is already Scafforge-managed or otherwise OpenCode-oriented and mainly needs workflow-contract correction, managed-surface replacement, or process-version refresh:
+
+1. `scaffold-kickoff` decides this is managed repair/update work
+2. `repo-process-doctor` runs in `apply-repair` mode for safe workflow repairs
+3. `opencode-team-bootstrap` follows up only if project-specific `.opencode/` drift remains
+4. `ticket-pack-builder` repairs backlog state if needed
+5. `project-skill-bootstrap` repairs local skills if needed
+6. `handoff-brief` publishes restart state
+
 ### Review / QA flow
 
 Implementation, review, security, and QA procedure should be emitted as generated repo-local skills under `.opencode/skills/`, not carried as top-level Scafforge package skills.
@@ -134,6 +146,7 @@ The conductor.
 It should:
 - classify the run type
 - sequence downstream skills
+- remain the single public entrypoint
 - enforce required outputs
 - avoid duplicating scaffold logic itself
 

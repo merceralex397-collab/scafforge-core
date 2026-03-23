@@ -1,19 +1,24 @@
 import { tool } from "@opencode-ai/plugin"
 import {
-  assertValidTicketId,
-  DEFAULT_OVERLAP_RISK,
+  createTicketRecord,
   getTicket,
   loadManifest,
   loadWorkflowState,
-  saveManifest,
-  saveWorkflowState,
+  saveWorkflowBundle,
   setPlanApprovedForTicket,
   syncWorkflowSelection,
   ticketFilePath,
+  type TicketSourceMode,
 } from "./_workflow"
 
+function normalizeOptional(value: string | undefined): string | undefined {
+  if (typeof value !== "string") return undefined
+  const normalized = value.trim()
+  return normalized || undefined
+}
+
 export default tool({
-  description: "Create a guarded follow-up ticket from a verified backlog-verifier finding during a process-verification window.",
+  description: "Create a new ticket or linked follow-up ticket, including post-completion issue remediation tickets.",
   args: {
     id: tool.schema.string().describe("New ticket id."),
     title: tool.schema.string().describe("New ticket title."),
@@ -25,111 +30,107 @@ export default tool({
     decision_blockers: tool.schema.array(tool.schema.string()).describe("Unresolved blockers for this ticket.").optional(),
     parallel_safe: tool.schema.boolean().describe("Whether the ticket can be advanced in a parallel lane when dependencies are satisfied.").optional(),
     overlap_risk: tool.schema.enum(["low", "medium", "high"]).describe("Expected overlap risk with other tickets.").optional(),
-    source_ticket_id: tool.schema.string().describe("Done ticket that produced the verification finding."),
-    verification_artifact_path: tool.schema.string().describe("Canonical backlog-verification artifact path from the verifier."),
+    source_ticket_id: tool.schema.string().describe("Optional source ticket that this ticket extends or remediates.").optional(),
+    source_mode: tool.schema.enum(["process_verification", "post_completion_issue", "net_new_scope"]).describe("Why this ticket is being created.").optional(),
+    evidence_artifact_path: tool.schema.string().describe("Optional registered artifact path that justifies creation of this linked ticket.").optional(),
     activate: tool.schema.boolean().describe("Whether to make the new ticket active immediately.").optional(),
   },
   async execute(args) {
     const manifest = await loadManifest()
     const workflow = await loadWorkflowState()
-    const ticketId = assertValidTicketId(args.id.trim())
-    const title = args.title.trim()
-    const lane = args.lane.trim()
-    const summary = args.summary.trim()
-    const sourceTicketId = args.source_ticket_id.trim()
-    const acceptance = args.acceptance.map((item) => item.trim()).filter(Boolean)
-    const dependsOn = [...new Set((args.depends_on || []).map((item) => item.trim()).filter(Boolean))]
-    const decisionBlockers = (args.decision_blockers || []).map((item) => item.trim()).filter(Boolean)
-    const verificationArtifactPath = args.verification_artifact_path.trim()
+    const sourceMode: TicketSourceMode = args.source_mode || "net_new_scope"
+    const sourceTicketId = normalizeOptional(args.source_ticket_id)
+    const evidenceArtifactPath = normalizeOptional(args.evidence_artifact_path)
 
-    if (!workflow.pending_process_verification) {
-      throw new Error("Guarded ticket creation is only available while post-migration verification is pending.")
+    if (manifest.tickets.some((ticket) => ticket.id === args.id.trim())) {
+      throw new Error(`Ticket already exists: ${args.id.trim()}`)
     }
 
-    if (!title) {
-      throw new Error("Ticket title must not be empty.")
-    }
+    const ticket = createTicketRecord({
+      id: args.id,
+      title: args.title,
+      lane: args.lane,
+      wave: args.wave,
+      summary: args.summary,
+      acceptance: args.acceptance,
+      depends_on: args.depends_on,
+      decision_blockers: args.decision_blockers,
+      parallel_safe: args.parallel_safe,
+      overlap_risk: args.overlap_risk,
+      source_ticket_id: sourceTicketId,
+      source_mode: sourceMode,
+    })
 
-    if (!lane) {
-      throw new Error("Ticket lane must not be empty.")
-    }
-
-    if (!summary) {
-      throw new Error("Ticket summary must not be empty.")
-    }
-
-    if (args.wave < 0) {
-      throw new Error(`Ticket wave must be zero or greater: ${args.wave}`)
-    }
-
-    if (acceptance.length === 0) {
-      throw new Error("At least one acceptance criterion is required.")
-    }
-
-    if (dependsOn.includes(ticketId)) {
-      throw new Error(`Ticket ${ticketId} cannot depend on itself.`)
-    }
-
-    if (manifest.tickets.some((ticket) => ticket.id === ticketId)) {
-      throw new Error(`Ticket already exists: ${ticketId}`)
-    }
-
-    for (const dependency of dependsOn) {
+    for (const dependency of ticket.depends_on) {
       getTicket(manifest, dependency)
     }
 
-    const sourceTicket = getTicket(manifest, sourceTicketId)
-    if (sourceTicket.status !== "done") {
-      throw new Error(`Source ticket ${sourceTicket.id} must be done before creating a migration follow-up ticket.`)
-    }
-    const verificationArtifact = sourceTicket.artifacts.find(
-      (artifact) =>
-        artifact.path === verificationArtifactPath &&
-        artifact.stage === "review" &&
-        artifact.kind === "backlog-verification",
-    )
-    if (!verificationArtifact) {
-      throw new Error(
-        `Source ticket ${sourceTicket.id} does not have a registered review/backlog-verification artifact at ${verificationArtifactPath}.`,
-      )
-    }
+    let sourceTicket = undefined as ReturnType<typeof getTicket> | undefined
+    if (sourceMode !== "net_new_scope") {
+      if (!sourceTicketId) {
+        throw new Error(`source_ticket_id is required when source_mode is ${sourceMode}.`)
+      }
+      sourceTicket = getTicket(manifest, sourceTicketId)
 
-    const ticket = {
-      id: ticketId,
-      title,
-      wave: args.wave,
-      lane,
-      parallel_safe: args.parallel_safe ?? false,
-      overlap_risk: args.overlap_risk ?? DEFAULT_OVERLAP_RISK,
-      stage: "planning",
-      status: decisionBlockers.length > 0 ? "blocked" : "todo",
-      depends_on: dependsOn,
-      summary,
-      acceptance,
-      decision_blockers: decisionBlockers,
-      artifacts: [],
+      if (sourceMode === "process_verification") {
+        if (!workflow.pending_process_verification) {
+          throw new Error("process_verification ticket creation is only available while pending_process_verification is true.")
+        }
+        if (sourceTicket.status !== "done") {
+          throw new Error(`Source ticket ${sourceTicket.id} must be done before creating a process-verification follow-up ticket.`)
+        }
+        if (!evidenceArtifactPath) {
+          throw new Error("evidence_artifact_path is required for process_verification ticket creation.")
+        }
+        const verificationArtifact = sourceTicket.artifacts.find(
+          (artifact) =>
+            artifact.path === evidenceArtifactPath &&
+            artifact.stage === "review" &&
+            artifact.kind === "backlog-verification" &&
+            artifact.trust_state === "current",
+        )
+        if (!verificationArtifact) {
+          throw new Error(
+            `Source ticket ${sourceTicket.id} does not have a current review/backlog-verification artifact at ${evidenceArtifactPath}.`,
+          )
+        }
+      }
+
+      if (sourceMode === "post_completion_issue") {
+        if (!["done", "reopened", "superseded"].includes(sourceTicket.resolution_state)) {
+          throw new Error(`Source ticket ${sourceTicket.id} must already represent completed historical scope before creating a post-completion issue ticket.`)
+        }
+        if (!evidenceArtifactPath) {
+          throw new Error("evidence_artifact_path is required for post_completion_issue ticket creation.")
+        }
+        const evidenceArtifact = sourceTicket.artifacts.find((artifact) => artifact.path === evidenceArtifactPath)
+        if (!evidenceArtifact) {
+          throw new Error(`Source ticket ${sourceTicket.id} does not reference the evidence artifact ${evidenceArtifactPath}.`)
+        }
+      }
     }
 
     manifest.tickets.push(ticket)
-    if (args.activate) {
-      setPlanApprovedForTicket(workflow, ticket.id, false)
-      manifest.active_ticket = ticket.id
-      syncWorkflowSelection(workflow, manifest)
+    if (sourceTicket && !sourceTicket.follow_up_ticket_ids.includes(ticket.id)) {
+      sourceTicket.follow_up_ticket_ids.push(ticket.id)
     }
 
-    await saveManifest(manifest)
+    setPlanApprovedForTicket(workflow, ticket.id, false)
     if (args.activate) {
-      await saveWorkflowState(workflow)
+      manifest.active_ticket = ticket.id
     }
-    const path = ticketFilePath(ticket.id)
+    syncWorkflowSelection(workflow, manifest)
+
+    await saveWorkflowBundle({ workflow, manifest })
 
     return JSON.stringify(
       {
         created_ticket: ticket.id,
-        path,
+        path: ticketFilePath(ticket.id),
         status: ticket.status,
-        source_ticket_id: sourceTicket.id,
-        verification_artifact_path: verificationArtifact.path,
+        source_ticket_id: sourceTicket?.id || null,
+        source_mode: sourceMode,
+        evidence_artifact_path: evidenceArtifactPath || null,
         activated: Boolean(args.activate),
       },
       null,

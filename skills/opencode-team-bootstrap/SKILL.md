@@ -33,6 +33,7 @@ Decide which agents this project needs. Start from the baseline and add/modify b
 
 **Baseline agents (always present):**
 - `team-leader` — visible orchestrator, delegates to specialists
+- `lane-executor` — hidden write-capable worker for lease-bound parallel work
 - `planner` — turns tickets into implementation plans
 - `plan-review` — approves/rejects plans before implementation
 - `implementer` — implements the approved plan (at least one, may have multiple)
@@ -68,7 +69,7 @@ For CLI/library projects:
 
 You may create MULTIPLE implementer-type agents for different domains within a single project. For example, a full-stack app might have `implementer-frontend`, `implementer-backend`, and `implementer-infra`.
 
-Default to one visible team leader with explicit safe parallel lanes. Only introduce a manager or section-leader hierarchy when the canonical brief shows strong non-overlapping domains that justify the extra coordination layer. Treat that hierarchy as advanced project-specific customization, not as a first-class scaffold profile.
+Default to one visible team leader with explicit safe parallel lanes. Keep `lane-executor` as the default hidden worker for bounded parallel implementation. Only introduce a manager or section-leader hierarchy when the canonical brief shows strong non-overlapping domains that justify the extra coordination layer. Treat that hierarchy as advanced project-specific customization, not as a first-class scaffold profile.
 
 **Utility agents (include based on need):**
 - `utility-explore` — repo evidence gathering
@@ -121,10 +122,16 @@ The base scaffold generates these standard tools (keep them all):
 - `artifact_write.ts` — write canonical artifacts
 - `artifact_register.ts` — register artifact metadata
 - `context_snapshot.ts` — generate context snapshots
+- `environment_bootstrap.ts` — install and verify project/toolchain/test prerequisites
 - `handoff_publish.ts` — publish START-HERE handoff
+- `issue_intake.ts` — route post-completion defects through reopen or follow-up flow
 - `skill_ping.ts` — record skill invocations
-- `ticket_create.ts` — guarded follow-up ticket creation from verifier proof
+- `ticket_claim.ts` — claim a lease for lane-bound write work
+- `ticket_create.ts` — guarded follow-up or remediation ticket creation
 - `ticket_lookup.ts` — resolve tickets from manifest
+- `ticket_release.ts` — release a lease after write work completes
+- `ticket_reopen.ts` — reopen a ticket when original accepted scope is no longer true
+- `ticket_reverify.ts` — restore trust on historical completion after new evidence
 - `ticket_update.ts` — update ticket state with stage gates
 - `_workflow.ts` — shared types and utilities
 
@@ -151,17 +158,25 @@ These are generic and work for any project. Only add project-specific plugins if
 The base scaffold generates:
 - `kickoff.md` — start the autonomous planning cycle
 - `resume.md` — resume from the latest state
+- `bootstrap-check.md` — verify environment bootstrap readiness
+- `issue-triage.md` — route defects found after prior completion
+- `reverify-ticket.md` — restore trust on historical completion
+- `plan-wave.md` — choose safe parallel candidates for the next wave
+- `run-lane.md` — run one bounded lane through lease-based execution
+- `join-lanes.md` — reconcile completed parallel lanes into one foreground path
 
 Customize these to reference project-specific agents and skills.
 
 ## Team design principles
 
 - One visible team leader, all specialists hidden
+- Keep the default topology shallow: team leader plus hidden specialists, with `lane-executor` as the default parallel write worker
 - No `ask` permissions — agents don't prompt the user
 - Explicit `permission.task` allowlists — agents can only delegate to named agents
 - Commands are for humans only
 - Tools/plugins handle autonomous internal flow
 - Workflow state and ticket tools for stage control, not raw file edits
+- Lease-based write execution should be operational, not just described in prompt prose
 
 ## After this step
 

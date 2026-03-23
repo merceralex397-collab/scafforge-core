@@ -1,9 +1,12 @@
 import { tool } from "@opencode-ai/plugin"
 import { readFile } from "node:fs/promises"
 import {
+  currentArtifacts,
   getTicket,
+  getTicketWorkflowState,
   hasArtifact,
   hasReviewArtifact,
+  historicalArtifacts,
   isPlanApprovedForTicket,
   latestArtifact,
   latestReviewArtifact,
@@ -40,6 +43,8 @@ export default tool({
     const latestSmokeTest = latestArtifact(ticket, { stage: "smoke-test" }) || null
 
     const artifactSummary = {
+      current_valid_artifacts: currentArtifacts(ticket),
+      historical_artifacts: historicalArtifacts(ticket),
       has_plan: hasArtifact(ticket, { stage: "planning" }),
       has_implementation: hasArtifact(ticket, { stage: "implementation" }),
       has_review: hasReviewArtifact(ticket),
@@ -89,6 +94,17 @@ export default tool({
         workflow: resolvedWorkflow,
         ticket,
         artifact_summary: artifactSummary,
+        trust: {
+          resolution_state: ticket.resolution_state,
+          verification_state: ticket.verification_state,
+          needs_reverification: getTicketWorkflowState(workflow, ticket.id).needs_reverification,
+          reopen_count: getTicketWorkflowState(workflow, ticket.id).reopen_count,
+        },
+        lineage: {
+          source_ticket_id: ticket.source_ticket_id || null,
+          follow_up_ticket_ids: ticket.follow_up_ticket_ids,
+        },
+        bootstrap: workflow.bootstrap,
         artifact_bodies: artifactBodies,
         process_verification: {
           pending: workflow.pending_process_verification,
