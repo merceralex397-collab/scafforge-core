@@ -8,5 +8,11 @@ These values should come from an explicit user choice during scaffold generation
 - team lead / planner / reviewers: `__PLANNER_MODEL__`
 - implementer: `__IMPLEMENTER_MODEL__`
 - utilities, docs, and QA helpers: `__UTILITY_MODEL__`
+- operating profile: `__MODEL_OPERATING_PROFILE_NAME__`
+- repo-local profile skill: `.opencode/skills/model-operating-profile/SKILL.md`
 
-If the project chooses a different runtime model strategy later, update the canonical brief and this file together.
+Profile guidance:
+
+- `__MODEL_OPERATING_PROFILE_DESCRIPTION__`
+
+If the project chooses a different runtime model strategy later, update the canonical brief, this file, and `.opencode/skills/model-operating-profile/SKILL.md` together.

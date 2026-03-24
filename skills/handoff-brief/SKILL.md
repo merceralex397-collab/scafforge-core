@@ -39,7 +39,9 @@ Use the template in `assets/templates/START-HERE.template.md` as a starting stru
 
 **Current Or Next Ticket** — the actual active ticket or recommended next ticket from the manifest
 
-**Validation Status** — results of the last `scafforge-audit` run and any follow-up `scafforge-repair` verification
+**Generation Status** — the current generation state and whether the repo is ready for the first development handoff
+
+**Post-Generation Audit Status** — optional later audit or repair state, if any exists
 
 **Known Risks** — actual risks and open questions from the canonical brief
 
@@ -52,6 +54,7 @@ Verify the handoff:
 - The referenced ticket actually exists in the manifest
 - The reading order files all exist
 - The next action is specific and actionable
+- The handoff is valid for immediate development even when no later audit or repair has run yet
 
 ## After this step
 

@@ -1,24 +1,13 @@
 # START HERE
 
 <!-- SCAFFORGE:START_HERE_BLOCK START -->
-## Project
+## What This Repo Is
 
 __PROJECT_NAME__
 
 ## Current State
 
-The repo is operating with a ticketed OpenCode workflow that separates historical completion from current trust and enforces lease-based write lanes.
-
-## Process Contract
-
-- process_version: 5
-- parallel_mode: parallel-lanes
-- pending_process_verification: false
-- bootstrap_status: pending
-- bootstrap_proof: not yet recorded
-- process_changed_at: Not yet recorded.
-- process_note: No recorded process change summary.
-- process_state: No pending process-change verification.
+The repo is operating with a ticketed OpenCode workflow that separates historical completion from current trust and defaults to a single-lane-first execution posture.
 
 ## Read In This Order
 
@@ -29,7 +18,7 @@ The repo is operating with a ticketed OpenCode workflow that separates historica
 5. tickets/BOARD.md
 6. tickets/manifest.json
 
-## Current Ticket
+## Current Or Next Ticket
 
 - ID: SETUP-001
 - Title: Bootstrap environment and confirm scaffold readiness
@@ -41,11 +30,24 @@ The repo is operating with a ticketed OpenCode workflow that separates historica
 - Verification state: suspect
 - Parallel safe: no
 
-## Bootstrap and Trust Status
+## Generation Status
 
-- Bootstrap is still pending. Run the bootstrap/setup lane before treating missing dependencies as product defects.
-- No completed tickets currently require reverification.
-- No reopened or done-but-untrusted tickets are recorded yet.
+- handoff_status: ready for the first development pass
+- process_version: 5
+- parallel_mode: sequential
+- pending_process_verification: false
+- bootstrap_status: pending
+- bootstrap_proof: not yet recorded
+- process_changed_at: Not yet recorded.
+- process_note: No recorded process change summary.
+- process_state: No pending process-change verification.
+
+## Post-Generation Audit Status
+
+- audit_or_repair_follow_up: none recorded
+- reopened_tickets: none
+- done_but_not_fully_trusted: none
+- pending_reverification: none
 
 ## Known Risks
 
@@ -54,5 +56,5 @@ The repo is operating with a ticketed OpenCode workflow that separates historica
 
 ## Next Action
 
-Replace the canonical brief placeholders, run `/bootstrap-check` or the Wave 0 setup lane to install and verify dependencies, then use `/kickoff` or the team leader agent to begin planning.
+Replace the canonical brief placeholders, run `/bootstrap-check` or the Wave 0 setup lane to install and verify dependencies, then use `/kickoff` or the team leader agent to begin the first development pass.
 <!-- SCAFFORGE:START_HERE_BLOCK END -->

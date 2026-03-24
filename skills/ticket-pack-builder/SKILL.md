@@ -24,14 +24,22 @@ Use this skill to create or refine the repo-local work queue.
 
 ## Bootstrap mode procedure
 
-### 1. Read the canonical brief
+### 1. Read the finalized generation surfaces
 
-Read `docs/spec/CANONICAL-BRIEF.md`. Identify:
+Read:
+- `docs/spec/CANONICAL-BRIEF.md`
+- `.opencode/skills/`
+- `.opencode/agents/`
+- `.opencode/commands/`
+- `.opencode/state/workflow-state.json`
+
+Identify:
 - What features/capabilities need to be built
 - What infrastructure/setup is required
 - What the acceptance criteria are
 - Which areas are blocked on unresolved decisions
 - The backlog readiness signal
+- The finalized repo-local validation commands and workflow surfaces
 
 ### 2. Break work into implementation waves
 
@@ -59,7 +67,7 @@ For each piece of work, create a ticket with these fields:
 - `source_ticket_id` — source ticket when this is a follow-up or remediation ticket, otherwise `null`
 - `follow_up_ticket_ids` — linked downstream remediation or expansion tickets, initially empty
 - `summary` — one-paragraph description of what needs to be done
-- `acceptance` — list of specific acceptance criteria
+- `acceptance` — list of specific acceptance criteria tied to finalized repo-local commands, checks, or observable workflow surfaces
 - `artifacts` — empty list (populated during execution)
 - `decision_blockers` — list of unresolved decisions that block this ticket (empty if none)
 
@@ -134,7 +142,7 @@ Ensure `.opencode/state/workflow-state.json` reflects the first active ticket:
   "process_last_changed_at": null,
   "process_last_change_summary": null,
   "pending_process_verification": false,
-  "parallel_mode": "parallel-lanes",
+  "parallel_mode": "sequential",
   "bootstrap": {
     "status": "pending",
     "last_verified_at": null,
@@ -200,7 +208,7 @@ After applying the follow-up:
 
 ## After this step
 
-Continue to `../project-skill-bootstrap/SKILL.md` as directed by scaffold-kickoff.
+Continue to `../handoff-brief/SKILL.md` as directed by scaffold-kickoff.
 
 ## Rules
 
@@ -211,7 +219,7 @@ Continue to `../project-skill-bootstrap/SKILL.md` as directed by scaffold-kickof
 - Keep `wave`, `lane`, `parallel_safe`, and `overlap_risk` aligned with real execution boundaries
 - Record dependencies explicitly
 - Put acceptance criteria on every ticket
-- Prefer executable acceptance criteria where possible so downstream agents have concrete commands or observable pass/fail checks to run (for example, `python -c "from package import symbol"` succeeds or `npm test` exits successfully)
+- Prefer executable acceptance criteria where possible so downstream agents have concrete repo-local commands or observable pass/fail checks to run
 - Keep historical completion separate from current trust: `status` stays queue-oriented, while `resolution_state` and `verification_state` represent historical closure and present trust
 - Treat post-audit and post-repair ticket creation as a first-class workflow path, not an ad hoc backlog note
 

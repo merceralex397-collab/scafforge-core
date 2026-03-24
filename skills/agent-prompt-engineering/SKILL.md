@@ -7,7 +7,7 @@ description: Design and harden agent, command, workflow, and tool prompts for re
 
 Use this skill when prompt wording controls how agents coordinate, route work, and use tools.
 
-During standard greenfield scaffolding, this is a required pass after `project-skill-bootstrap` and before `scafforge-audit`. The pass may be light or heavy depending on the chosen models and project-specific coordination risk, but it should not be skipped.
+During standard greenfield scaffolding, this is a required same-session pass after `opencode-team-bootstrap` and before `ticket-pack-builder`. The pass may be light or heavy depending on the chosen models and project-specific coordination risk, but it should not be skipped.
 
 ## Procedure
 
@@ -42,8 +42,8 @@ Read `references/anti-patterns.md` and eliminate:
 
 Different models have different prompting best practices. When hardening prompts for a specific model:
 
-**Step A: Check for local model docs**
-Look in `references/model-notes/` for existing documentation on the chosen model.
+**Step A: Check package-side model notes**
+Look in `references/model-notes/` for existing documentation on the chosen model. Treat these notes as read-only package reference material.
 
 **Step B: Research if needed**
 If no local docs exist for the chosen model, web search for:
@@ -53,24 +53,29 @@ If no local docs exist for the chosen model, web search for:
 
 **Step C: Apply model-specific techniques**
 Common model-specific differences:
-- Some models work better with XML tags for structure, others with markdown headers
-- Some models need explicit chain-of-thought instructions
-- Some models have specific context window considerations
-- Some models have specific tool-use patterns or JSON mode requirements
-- Some models handle temperature/top_p differently
+- Some models work better with stricter markdown or tagged structure
+- Some models need clearer output formatting requirements
+- Some models respond better when the purpose of each instruction is stated explicitly
+- Some models benefit from example-led instructions for expected outputs
+- Some models need bounded single-goal asks instead of broad parallel asks
+- Some models have specific tool-use or context-window considerations
 
-**Step D: Document findings**
-Write any discovered model-specific techniques to `references/model-notes/<model-name>.md` so future scaffolds can reuse them.
+**Step D: Record project-specific adaptations**
+If the generation run discovers project-specific prompt adaptations worth preserving, write them into the generated repo's local notes or skill surfaces. Do not write back into Scafforge package files during project generation.
 
 ### 5. Apply weak-model hardening
 
 Read `references/weak-model-profile.md` and ensure:
 - Outputs are short but highly structured
 - Exact required sections are stated
+- Formatting requirements are clear and specific
+- The reason for a requirement is stated when that extra rationale improves compliance
+- Example-shaped outputs are included when they materially reduce ambiguity
 - Blocker returns are preferred over hidden guesswork
 - Proof is required before stage transitions
 - Next specialist or action is named explicitly
 - Stable procedure lives in tools/skills, not long prose
+- Goals are bounded one at a time unless the workflow explicitly supports safe parallel work
 
 ### 6. Final verification
 
@@ -93,7 +98,7 @@ Re-read the final prompt and ask:
 
 ## After this step
 
-Continue to `../scafforge-audit/SKILL.md` if an audit pass is needed, or return to `../scaffold-kickoff/SKILL.md` for the next step in the flow.
+Continue to `../ticket-pack-builder/SKILL.md` for bootstrap ticketing in greenfield generation, or return to `../scaffold-kickoff/SKILL.md` for the next step in the flow.
 
 ## References
 
@@ -101,4 +106,4 @@ Continue to `../scafforge-audit/SKILL.md` if an audit pass is needed, or return 
 - `references/anti-patterns.md` — common prompt failures
 - `references/examples.md` — before/after prompt improvements
 - `references/weak-model-profile.md` — rules for weak-model robustness
-- `references/model-notes/` — model-specific prompting documentation (populated during scaffolding)
+- `references/model-notes/` — model-specific prompting documentation used as read-only package reference

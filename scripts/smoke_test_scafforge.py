@@ -80,6 +80,14 @@ def verify_render(dest: Path, *, expect_full_repo: bool) -> None:
             if not skill_file.exists():
                 raise RuntimeError(f"Missing expected local skill `{skill_id}`")
 
+        start_here = (dest / "START-HERE.md").read_text(encoding="utf-8")
+        for heading in ("## Current Or Next Ticket", "## Generation Status", "## Post-Generation Audit Status"):
+            if heading not in start_here:
+                raise RuntimeError(f"START-HERE.md is missing required section `{heading}`")
+        for forbidden in ("## Process Contract", "## Current Ticket"):
+            if forbidden in start_here:
+                raise RuntimeError(f"START-HERE.md still contains deprecated section `{forbidden}`")
+
 
 def main() -> int:
     workspace = Path(tempfile.mkdtemp(prefix="scafforge-smoke-"))

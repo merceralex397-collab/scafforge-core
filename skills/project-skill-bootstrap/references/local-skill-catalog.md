@@ -19,6 +19,12 @@ The default full-orchestration profile should expose these lanes, but heavier pa
 - framework and language rules
 - testing and validation commands
 
+## model-operating-profile
+
+- the selected downstream model operating profile for this repo
+- concrete instruction-shaping rules tied to the chosen model family
+- example-led guidance when the chosen profile benefits from it
+
 ## ticket-execution
 
 - required stage order

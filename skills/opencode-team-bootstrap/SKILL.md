@@ -15,7 +15,7 @@ Use this skill to design the agent team for the project. This is creative work �
 
 ## Context
 
-The `repo-scaffold-factory` script generates a BASE set of generic agent templates. These are a starting structure, not the final output. Your job is to read the canonical brief and customize these agents to be project-specific.
+The `repo-scaffold-factory` script generates a base set of generic agent templates. `project-skill-bootstrap` then creates the repo-local skill pack those agents are allowed to use. In retrofit mode, this skill restores `.opencode/` first so `project-skill-bootstrap` has a concrete local skill layer to rewrite. Your job is to read the canonical brief, use the already-generated local skills when they exist, and customize the agents to be project-specific.
 
 ## Procedure
 
@@ -32,7 +32,7 @@ Read `docs/spec/CANONICAL-BRIEF.md` to understand:
 Decide which agents this project needs. Start from the baseline and add/modify based on project type.
 
 **Baseline agents (always present):**
-- `team-leader` — visible orchestrator, delegates to specialists
+- `team-leader` — the single visible coordinator, delegates to specialists
 - `lane-executor` — hidden write-capable worker for lease-bound parallel work
 - `planner` — turns tickets into implementation plans
 - `plan-review` — approves/rejects plans before implementation
@@ -67,9 +67,9 @@ For CLI/library projects:
 - API surface reviewer
 - Documentation specialist
 
-You may create MULTIPLE implementer-type agents for different domains within a single project. For example, a full-stack app might have `implementer-frontend`, `implementer-backend`, and `implementer-infra`.
+You may create multiple implementer-type agents for different domains within a single project, but keep the total agent count conservative unless the canonical brief proves genuinely disjoint domains.
 
-Default to one visible team leader with explicit safe parallel lanes. Keep `lane-executor` as the default hidden worker for bounded parallel implementation. Only introduce a manager or section-leader hierarchy when the canonical brief shows strong non-overlapping domains that justify the extra coordination layer. Treat that hierarchy as advanced project-specific customization, not as a first-class scaffold profile.
+Default to one visible team leader with a shallow hidden specialist topology. Keep `lane-executor` as the default hidden worker for bounded parallel implementation. Only introduce a manager or section-leader hierarchy when the canonical brief shows strong non-overlapping domains that justify the extra coordination layer. Treat that hierarchy as advanced project-specific customization, not as a first-class scaffold profile.
 
 **Utility agents (include based on need):**
 - `utility-explore` — repo evidence gathering
@@ -90,6 +90,7 @@ For EVERY agent, rewrite the generic prompt to be project-specific:
 - **First instruction**: state the agent's role in the context of THIS project
 - **Tool permissions**: adjust based on what the agent actually needs
 - **Skill allowlists**: reference project-specific skills
+- **Skill allowlists**: reference only repo-local skills that already exist
 - **Task allowlists**: reference the actual agents that exist (including any new ones)
 - **Bash allowlists**: add project-specific commands (e.g., `cargo test*` for Rust, `flutter test*` for Flutter)
 
@@ -111,7 +112,7 @@ Write each agent to `.opencode/agents/<prefix>-<role>.md` with proper YAML front
 Verify:
 - Every agent has `description`, `model`, `mode`, `hidden`, `temperature`, `top_p`
 - Tool permissions are explicit (deny by default, allow specifically)
-- Skill allowlists reference only skills that exist in `.opencode/skills/`
+- Skill allowlists reference only skills that already exist in `.opencode/skills/`
 - Task allowlists reference only agents that exist in `.opencode/agents/`
 - Read-only agents (planner, reviewers, QA) have `write: false, edit: false`
 - Only implementer and docs-handoff have `write: true, edit: true`
@@ -170,7 +171,8 @@ Customize these to reference project-specific agents and skills.
 ## Team design principles
 
 - One visible team leader, all specialists hidden
-- Keep the default topology shallow: team leader plus hidden specialists, with `lane-executor` as the default parallel write worker
+- Keep the default topology shallow: one visible coordinator plus hidden specialists, with `lane-executor` as the default bounded parallel write worker
+- Keep total agent count conservative unless the brief proves disjoint domains
 - No `ask` permissions — agents don't prompt the user
 - Explicit `permission.task` allowlists — agents can only delegate to named agents
 - Commands are for humans only
@@ -180,7 +182,7 @@ Customize these to reference project-specific agents and skills.
 
 ## After this step
 
-Continue to `../ticket-pack-builder/SKILL.md` as directed by `../scaffold-kickoff/SKILL.md`.
+Continue to `../agent-prompt-engineering/SKILL.md` as directed by `../scaffold-kickoff/SKILL.md`.
 
 ## References
 

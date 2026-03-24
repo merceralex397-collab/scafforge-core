@@ -260,7 +260,7 @@ def update_workflow_state(repo_root: Path, rendered_provenance: dict[str, Any], 
         "process_last_changed_at": current_iso_timestamp(),
         "process_last_change_summary": change_summary,
         "pending_process_verification": True,
-        "parallel_mode": workflow_contract.get("parallel_mode", "parallel-lanes"),
+        "parallel_mode": workflow_contract.get("parallel_mode", "sequential"),
         "bootstrap": {
             "status": existing_bootstrap.get("status", "pending"),
             "last_verified_at": existing_bootstrap.get("last_verified_at"),

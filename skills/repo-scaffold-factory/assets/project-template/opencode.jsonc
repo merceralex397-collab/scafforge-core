@@ -16,11 +16,6 @@
       "command": ["npx", "-y", "@playwright/mcp@latest"],
       "enabled": false
     },
-    "project_github": {
-      "type": "remote",
-      "url": "https://api.githubcopilot.com/mcp/",
-      "enabled": false
-    },
     "openai_docs": {
       "type": "remote",
       "url": "https://developers.openai.com/mcp",

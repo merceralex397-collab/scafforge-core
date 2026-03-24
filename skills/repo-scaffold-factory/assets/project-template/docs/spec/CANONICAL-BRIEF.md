@@ -44,11 +44,12 @@ Replace this section with the normalized project brief.
 
 ## Blocking Decisions
 
-- Replace with unresolved choices that must be answered before detailed implementation
+- Replace with the recorded batched decision packet for this repo
+- Resolve every blocking item here before generation continues
 
 ## Backlog Readiness
 
-- Replace with whether the first execution wave can be generated immediately
+- Replace with whether the first execution wave can be generated immediately after the blocking decision packet is resolved
 
 ## Acceptance Signals
 
