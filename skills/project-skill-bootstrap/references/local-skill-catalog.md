@@ -29,6 +29,8 @@ The default full-orchestration profile should expose these lanes, but heavier pa
 - evidence-first review ordering
 - code review, security review, and QA output structure
 - blocker rules when required artifacts or validation are missing
+- remediation-ticket recommendations tied back to current evidence
+- repo-local process-log guidance for explaining workflow failures without mutating canonical queue state
 
 ## docs-and-handoff
 
@@ -61,9 +63,7 @@ The default full-orchestration profile should expose these lanes, but heavier pa
 - when to isolate versus work in-place
 - lightweight default guidance for autonomous runs
 
-## process-doctor (optional)
+## optional synthesized review extensions
 
-- repo-process audit checklist
-- migration notes for older OpenCode layers
-- prompt and workflow drift warnings
-- post-migration verification guidance
+- add repo-specific review references when the project has unusual security, QA, or compliance rules
+- keep heavier diagnosis or remediation examples in the generated skill's `references/` folder rather than adding a package-level doctor skill back into Scafforge

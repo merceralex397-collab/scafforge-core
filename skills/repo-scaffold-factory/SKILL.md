@@ -21,9 +21,6 @@ The Python script handles deterministic mechanical work: copying 100+ template f
 
 The script is at `scripts/bootstrap_repo_scaffold.py` relative to this skill's directory.
 
-If installed via npm, the path will be relative to the package root:
-`<package-root>/skills/repo-scaffold-factory/scripts/bootstrap_repo_scaffold.py`
-
 ### Run the script
 
 ```

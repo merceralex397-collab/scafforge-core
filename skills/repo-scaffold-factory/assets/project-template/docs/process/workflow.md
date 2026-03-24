@@ -42,7 +42,8 @@ Rules:
 - if `.opencode/state/workflow-state.json` shows `pending_process_verification: true`, completed tickets are not treated as fully trusted yet
 - the affected done-ticket set is: done tickets whose latest smoke-test proof (or QA proof from an older contract) predates the current recorded process change, plus any done ticket without a registered `review` / `backlog-verification` artifact for the current process window
 - use `ticket_lookup` to inspect the affected done-ticket set before routing work to the backlog verifier
-- create migration follow-up tickets only through the guarded `ticket_create` tool and only from a registered `backlog-verification` artifact
+- create migration, remediation, or reverification follow-up tickets only through the guarded `ticket_create` tool and only from current registered evidence
+- treat post-audit and post-repair follow-up as a first-class workflow path when diagnosis or repair work identifies concrete next tickets
 
 ## Canonical ownership
 
@@ -61,3 +62,9 @@ Rules:
 - before QA: a review artifact must exist
 - before deterministic smoke test: a `qa` artifact must exist and include executable evidence
 - before closeout: a passing `smoke-test` artifact must exist
+
+## Diagnosis outputs
+
+- diagnosis or review work may create a repo-local `diagnosis/` folder for report packs, process logs, and machine-readable manifests
+- those diagnosis outputs are evidence surfaces, not implementation edits
+- do not treat diagnosis report creation as permission to mutate product code or bypass canonical ticket and artifact tools

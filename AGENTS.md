@@ -61,7 +61,7 @@ These skills are the current backbone and should remain coherent as a chain:
 - `ticket-pack-builder`
 - `project-skill-bootstrap`
 - `agent-prompt-engineering`
-- `repo-process-doctor`
+- `scafforge-audit`
 - `handoff-brief`
 
 Optional extension skills may exist outside this default scaffold spine when they solve later host-side workflow needs without polluting the scaffold chain. These should stay clearly marked as optional.
@@ -80,7 +80,7 @@ The default route should be:
 6. `project-skill-bootstrap` runs in foundation mode
 7. `project-skill-bootstrap` may then run in synthesis mode if enough project evidence exists
 8. `agent-prompt-engineering` runs the required prompt-hardening pass
-9. `repo-process-doctor` audits the result
+9. `scafforge-audit` audits the result and decides whether the next step is closeout, manual diagnosis-pack handoff into the Scafforge dev repo, or later repair
 10. `handoff-brief` refreshes the restart surface
 
 A greenfield scaffold should not be considered complete until this cycle finishes.
@@ -92,10 +92,13 @@ These refinements now govern implementation of the package contract:
 - intake is **opportunistic first**: scan messy docs, notes, and fragmented inputs before normalizing them into a canonical brief
 - meaningful ambiguity must be converted into a **batched decision packet** and asked, not silently assumed
 - the default output remains **one full orchestration OpenCode scaffold**
-- `scaffold-kickoff` remains the **single public entrypoint** for greenfield, retrofit, and managed-repair/update flows; downstream skills are routing targets, not user-facing starting points
+- `scaffold-kickoff` remains the **single public entrypoint** for greenfield, retrofit, managed-repair/update, and diagnosis/review flows; downstream skills are routing targets, not user-facing starting points
 - the generated repo must have a **structured truth hierarchy** with exact canonical owners for facts, queue state, transient workflow state, artifacts, provenance, and restart surfaces
 - the initial backlog should be **implementation-ready where decisions are resolved**, while unresolved major choices become explicit blocked or decision tickets instead of fabricated detail
-- `repo-process-doctor` should support `audit`, `propose-repair`, and `apply-repair`, with safe repairs applied by default unless blocked and intent-changing repairs escalated
+- `scafforge-audit` should own read-only diagnosis, review validation, and report generation
+- `scafforge-repair` should consume audit outputs, apply safe repairs, and escalate intent-changing repairs
+- package-level PR evidence intake should be folded into `scafforge-audit` instead of surviving as a separate primary skill
+- standalone refinement routing should not remain as a package-level flow
 - managed-surface process replacement must leave explicit version and verification state so the generated repo can tell when its workflow contract changed
 - cross-host installability should come from **adapter packaging and bootstrap flows**, not by making the generated output multi-host
 
@@ -120,7 +123,7 @@ Use the lighter path when a repo already exists and mainly needs an OpenCode ope
 3. `opencode-team-bootstrap` adds or repairs `.opencode/`
 4. `ticket-pack-builder` runs if ticketing is missing or weak
 5. `project-skill-bootstrap` creates or repairs local skills
-6. `repo-process-doctor` audits the resulting workflow
+6. `scafforge-audit` audits the resulting workflow
 7. `handoff-brief` publishes restart state
 
 ### Managed repair / update flow
@@ -128,11 +131,23 @@ Use the lighter path when a repo already exists and mainly needs an OpenCode ope
 Use this path when a repo is already Scafforge-managed or otherwise OpenCode-oriented and mainly needs workflow-contract correction, managed-surface replacement, or process-version refresh:
 
 1. `scaffold-kickoff` decides this is managed repair/update work
-2. `repo-process-doctor` runs in `apply-repair` mode for safe workflow repairs
+2. `scafforge-repair` runs for safe workflow repairs and managed-surface refresh
 3. `opencode-team-bootstrap` follows up only if project-specific `.opencode/` drift remains
 4. `ticket-pack-builder` repairs backlog state if needed
 5. `project-skill-bootstrap` repairs local skills if needed
 6. `handoff-brief` publishes restart state
+
+### Diagnosis / review flow
+
+Use this path when a repo needs read-only diagnosis, evidence validation, or the four-report diagnosis pack:
+
+1. `scaffold-kickoff` decides this is diagnosis/review work
+2. `scafforge-audit` validates findings and emits the diagnosis outputs
+3. if package defects or prevention work are required, the user manually carries the diagnosis pack into the Scafforge dev repo
+4. Scafforge package changes land there before any subject-repo repair run
+5. `scafforge-repair` runs only if the audit still recommends workflow repair after those package changes exist
+6. `ticket-pack-builder` follows up when remediation tickets are needed
+7. `handoff-brief` publishes restart state when a closeout surface is needed
 
 ### Review / QA flow
 
@@ -196,17 +211,16 @@ Owns prompt hardening, not overall flow control.
 
 It remains a required step in the standard greenfield scaffold chain even when the resulting hardening pass is light.
 
-### `repo-process-doctor`
-Owns workflow diagnosis and repair guidance.
+### `scafforge-audit`
+Owns workflow diagnosis, review validation, and diagnosis-pack generation.
 
-It should surface findings clearly and should not silently mutate state without leaving an obvious trail.
-It must distinguish between safe repairs and intent-changing repairs.
+It must remain read-only.
+It should validate PR or review evidence against the actual repo before treating anything as a canonical finding.
 
-### `pr-review-ticket-bridge`
-Owns host-side PR comment triage and canonical ticket proposals for valid review findings.
+### `scafforge-repair`
+Owns workflow repair execution and post-audit follow-up.
 
-It should validate comments against the actual implementation and repo contract.
-It should not bypass generated-repo migration guards or become part of the default scaffold chain.
+It should consume audit outputs, apply safe managed-surface repairs, and leave explicit provenance and verification state.
 
 ### `handoff-brief`
 Owns the restart surface and closeout summary, not planning.

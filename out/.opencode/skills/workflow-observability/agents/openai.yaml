@@ -1,2 +1,0 @@
-name: workflow-observability
-description: Inspect bootstrap provenance, invocation tracking, and workflow state to explain what this repo is actually using.

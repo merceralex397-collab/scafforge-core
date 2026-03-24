@@ -1,89 +1,92 @@
 # Scafforge v1
 
-A skill pack for CLI coding agents. Install these skills into GitHub Copilot, Codex, or another compatible agent, then point the agent at a repo with specs, plans, or design docs. The agent follows the skill chain and generates a complete, structured project repository ready for autonomous development.
+Scafforge is a host-side skill bundle for coding agents. Install the skills into a compatible host, point the host at a repo with specs, plans, or design docs, and let the skill chain generate or repair a complete OpenCode-oriented project workspace.
 
-The generated output is intentionally shaped for **OpenCode-style projects** — with agents, tools, plugins, commands, local skills, a ticket system, and a structured truth hierarchy.
+The generated output is intentionally shaped for OpenCode-style repos with agents, tools, plugins, commands, local skills, ticketing, provenance, and a structured truth hierarchy.
 
-Scafforge is designed first to make weaker or cheaper models more reliable through deterministic workflow contracts, explicit truth ownership, and narrow guarded roles. Stronger hosts still benefit, but the product bias is toward structure that reduces hallucination and uncontrolled drift.
+Weak-model first remains the product bias. The package is designed to make weaker or cheaper models more reliable through deterministic workflow contracts, explicit truth ownership, and narrow guarded roles.
 
 ## Installation
 
-### GitHub Copilot (personal — all projects)
+Copy or symlink each folder under `skills/` into the host's skill directory. Keep each skill directory intact so its `SKILL.md`, `scripts/`, `assets/`, and `references/` remain together.
 
-Install the Scafforge skill folders into Copilot's user skills directory. The supported contract is to copy or symlink each folder under `skills/` as-is so every skill keeps its own `SKILL.md`, `scripts/`, `assets/`, and `references/`.
-
-The commands below install the full bundled skill pack, including the non-backbone `pr-review-ticket-bridge` extension skill. If you do not want that extension available, omit the `skills/pr-review-ticket-bridge/` directory when copying or symlinking.
+Example for GitHub Copilot user skills:
 
 ```sh
-# From this repo
 cp -r skills/*/ ~/.copilot/skills/
+```
 
-# Or symlink each skill
+Or symlink each skill:
+
+```sh
 for skill in skills/*/; do
-  ln -s "$(pwd)/$skill" ~/.copilot/skills/$(basename $skill)
+  ln -s "$(pwd)/$skill" ~/.copilot/skills/$(basename "$skill")
 done
 ```
 
-Verify with Copilot's `/skills` command — you should see the full Scafforge skill set, including the bundled `pr-review-ticket-bridge` extension skill if you kept it installed.
-
-### GitHub Copilot (per-project)
-
-Copy the skills into a specific project:
+Per-project installation works the same way:
 
 ```sh
 cp -r skills/*/ <your-project>/.github/skills/
 ```
 
-### Via npm
-
-```sh
-npm install -g @scafforge/core
-# Then copy or symlink the installed package's `skills/*/` directories into ~/.copilot/skills/
-```
+Scafforge should be treated as a skill bundle, not as a CLI product.
 
 ## Usage
 
-1. Open a repo that contains specs, plans, notes, or design docs
-2. Tell the agent: "scaffold this project" (or invoke `/scaffold-kickoff`) even if the repo already exists and needs retrofit or process repair
-3. The agent reads your specs, asks about ambiguities, then follows the full skill chain
-4. Output: a complete project repo with agents, tickets, skills, docs, and a restart surface
+1. Open a repo that contains specs, plans, notes, or design docs.
+2. Tell the agent to scaffold, retrofit, repair, or diagnose the project, or invoke `scaffold-kickoff`.
+3. The agent reads the inputs, asks for blocking decisions, and routes through the correct skill path.
+4. Output: a complete project repo or an evidence-backed diagnosis and repair path.
+
+## Default scaffold chain
+
+The default greenfield chain is:
+
+```text
+scaffold-kickoff
+  -> spec-pack-normalizer
+  -> repo-scaffold-factory
+  -> opencode-team-bootstrap
+  -> ticket-pack-builder
+  -> project-skill-bootstrap
+  -> agent-prompt-engineering
+  -> scafforge-audit
+  -> handoff-brief
+```
+
+If the audit identifies safe managed-surface drift that can be repaired with the current package, kickoff routes next into `scafforge-repair` before closeout. If the diagnosis identifies a Scafforge package defect first, the diagnosis pack is the handoff: the user manually carries it into the Scafforge dev repo, the package is updated there, and only then does repair return to the subject repo.
+
+`scaffold-kickoff` remains the single public entrypoint for:
+- greenfield scaffold
+- retrofit scaffold
+- managed repair or update
+- diagnosis or review of an in-progress repo
 
 ## What the agent does
 
-The skill chain guides the agent through a single orchestrated cycle:
+The package splits work between deterministic scripts and host reasoning:
 
-```
-scaffold-kickoff (entrypoint)
-  → spec-pack-normalizer     reads messy inputs, produces canonical brief
-  → repo-scaffold-factory    generates base file tree (script), then customizes (agent)
-  → opencode-team-bootstrap  designs project-specific agent team
-  → ticket-pack-builder      creates implementation-ready ticket backlog
-  → project-skill-bootstrap  creates project-specific local skills
-  → agent-prompt-engineering  runs the required prompt-hardening pass
-  → repo-process-doctor      audits for workflow drift, applies safe repairs
-  → handoff-brief            generates START-HERE.md restart surface
-```
+- scripts handle mechanical scaffold generation, workflow audits, and deterministic managed-surface repair
+- the host agent handles spec reading, decision packets, agent-team design, prompt hardening, ticket creation, and synthesized local skills
 
-`scaffold-kickoff` remains the public entrypoint for existing repos as well. It classifies whether the job is greenfield scaffold, retrofit, or managed workflow repair, then routes to the right downstream skills without asking the user to choose the lower-level skill manually.
-
-The package's Python 3 scripts handle deterministic mechanical work (copying 100+ template files, placeholder substitution, running workflow audits, and applying managed-surface retrofit repairs). The agent handles creative work (reading specs, designing agents, writing project-specific prompts, creating tickets, synthesizing skills).
-
-In the standard greenfield path, `agent-prompt-engineering` always runs before `repo-process-doctor`. The pass may be light or heavy depending on the selected models and project-specific coordination risk, but it is not skipped.
+In the standard greenfield path, `agent-prompt-engineering` always runs before `scafforge-audit`. The pass may be light or heavy depending on the chosen models and project-specific coordination risk, but it is not skipped.
 
 ## What the generated repo contains
 
 A full greenfield run produces:
 
-- `docs/spec/CANONICAL-BRIEF.md` — normalized project brief (source of truth for facts)
-- `tickets/manifest.json` + `tickets/BOARD.md` — implementation-ready work queue
-- `.opencode/agents/` — project-specific agent team (customized, not generic)
-- `.opencode/tools/` — workflow tools (artifact write, ticket update, etc.)
-- `.opencode/plugins/` — enforcement plugins (stage gates, tool guards, etc.)
-- `.opencode/commands/` — human commands (kickoff, resume)
-- `.opencode/skills/` — project-specific local skills (stack standards, repo navigation, etc.)
-- `.opencode/state/` — workflow state and artifact registry
-- `START-HERE.md` — restart surface for the next session
-- `README.md`, `AGENTS.md`, process docs
+- `docs/spec/CANONICAL-BRIEF.md`
+- `tickets/manifest.json` and `tickets/BOARD.md`
+- `.opencode/agents/`
+- `.opencode/tools/`
+- `.opencode/plugins/`
+- `.opencode/commands/`
+- `.opencode/skills/`
+- `.opencode/state/`
+- `.opencode/meta/bootstrap-provenance.json`
+- `START-HERE.md`
+- root docs such as `README.md` and `AGENTS.md`
 
 ## Truth hierarchy
 
@@ -91,31 +94,42 @@ Generated repos use a structured truth hierarchy so state does not drift:
 
 | File | Owns |
 |------|------|
-| `docs/spec/CANONICAL-BRIEF.md` | Durable project facts, constraints, decisions |
+| `docs/spec/CANONICAL-BRIEF.md` | Durable project facts, constraints, decisions, unresolved questions |
 | `tickets/manifest.json` | Machine-readable queue state |
 | `tickets/BOARD.md` | Derived human-readable board |
 | `.opencode/state/workflow-state.json` | Transient stage, approval, and process-version state |
 | `.opencode/state/artifacts/` | Stage proof and lifecycle evidence |
-| `.opencode/meta/bootstrap-provenance.json` | Scaffold provenance and repair history |
+| `.opencode/meta/bootstrap-provenance.json` | Scaffold provenance, synthesis history, and repair history |
 | `START-HERE.md` | Derived restart surface |
 
-## Default scaffold chain
+## Package skills
 
 | Skill | What it does |
 |-------|-------------|
-| `scaffold-kickoff` | Entrypoint — classifies run type, orchestrates the full chain |
-| `spec-pack-normalizer` | Reads messy inputs, extracts facts, asks about ambiguities, writes canonical brief |
-| `repo-scaffold-factory` | Script generates base template tree; agent customizes docs and config |
-| `opencode-team-bootstrap` | Analyzes project type, designs project-specific agent team with domain specialists |
-| `ticket-pack-builder` | Creates wave-based ticket backlog with acceptance criteria and dependencies |
-| `project-skill-bootstrap` | Creates project-specific skills from real data and stack research |
-| `agent-prompt-engineering` | Runs the required prompt-hardening pass for the generated agent, command, and workflow surfaces |
-| `repo-process-doctor` | Script audits workflow drift; agent applies safe repairs or runs deterministic managed-surface replacement |
-| `handoff-brief` | Generates START-HERE.md with actual project state for restart |
+| `scaffold-kickoff` | Public entrypoint that classifies the run type and routes the chain |
+| `spec-pack-normalizer` | Reads messy inputs, extracts facts, asks about ambiguities, writes the canonical brief |
+| `repo-scaffold-factory` | Generates the base template tree and structural repo surfaces |
+| `opencode-team-bootstrap` | Designs the project-specific agent team and operating layer |
+| `ticket-pack-builder` | Creates or repairs a wave-based ticket backlog and remediation follow-up |
+| `project-skill-bootstrap` | Creates project-local skills from repo evidence and stack needs |
+| `agent-prompt-engineering` | Hardens prompts for generated agents, commands, and workflow surfaces |
+| `scafforge-audit` | Runs read-only workflow diagnosis, review validation, and the diagnosis pack |
+| `scafforge-repair` | Applies safe workflow-contract repair and managed-surface refreshes |
+| `handoff-brief` | Publishes `START-HERE.md` and the restart surface |
+
+## Diagnosis and repair
+
+Diagnosis and repair are now separate host-side skills.
+
+- `scafforge-audit` is read-only and can validate review evidence, run the audit script, and emit the four-report diagnosis pack in the subject repo's `diagnosis/` folder.
+- `scafforge-repair` consumes the audit outputs, applies safe managed-surface repairs, records provenance, and routes ticket follow-up when needed.
+- When the diagnosis identifies package defects or prevention gaps, the user manually copies the diagnosis pack into the Scafforge dev repo, package changes are implemented there, and repair happens only after returning to the subject repo with the updated package surface.
+
+PR comments, review threads, and check metadata are optional evidence only. They do not become canonical findings until the repo validates them.
 
 ## Generated repo-local skills
 
-Scafforge ships the scaffold logic that creates `.opencode/skills/` inside output repos. Those generated local skills belong to the output repo operating layer, not to Scafforge's own top-level package skill taxonomy.
+Scafforge ships the scaffold logic that creates `.opencode/skills/` inside generated repos. Those local skills belong to the output repo operating layer, not to Scafforge's own top-level package skill taxonomy.
 
 Baseline generated local skills include:
 
@@ -130,36 +144,40 @@ Baseline generated local skills include:
 - `local-git-specialist`
 - `isolation-guidance`
 
-`review-audit-bridge` lives here because it is consumed by the generated repo's implementation, review, security, and QA lanes after scaffold creation.
-
-## Bundled optional extension skills
-
-| Skill | What it does |
-|-------|-------------|
-| `pr-review-ticket-bridge` | Host-side PR review, comment validation, and guarded follow-up ticket generation for valid findings. Bundled with the package, but outside the default scaffold chain. |
+`review-audit-bridge` remains repo-local generated functionality. It helps the live repo review itself, recommend remediation tickets, and emit process-log output without becoming a top-level Scafforge skill.
 
 ## Existing repo path
 
-For repos that already have code, start at `scaffold-kickoff` and let it classify whether the repo needs retrofit or doctor-led repair:
+For repos that already have code, start at `scaffold-kickoff` and let it classify the path:
 
-```
-scaffold-kickoff (detects existing repo state)
-  → spec-pack-normalizer     only if the canonical brief is missing or badly fragmented
-  → opencode-team-bootstrap  adds or repairs the .opencode layer when needed
-  → ticket-pack-builder      repairs backlog state if missing or weak
-  → project-skill-bootstrap  repairs local skills when needed
-  → repo-process-doctor      audits or runs apply-repair for managed-surface correction
-  → handoff-brief            generates restart surface
-```
+```text
+retrofit
+  -> spec-pack-normalizer (if needed)
+  -> opencode-team-bootstrap
+  -> ticket-pack-builder
+  -> project-skill-bootstrap
+  -> scafforge-audit
+  -> handoff-brief
 
-If the repo is already Scafforge-managed and mainly needs a workflow-contract update, kickoff should route straight into `repo-process-doctor` in `apply-repair` mode. The doctor applies safe repairs by default and escalates intent-changing choices instead of silently rewriting project intent.
+managed repair or update
+  -> scafforge-repair
+  -> opencode-team-bootstrap (if project-specific drift remains)
+  -> ticket-pack-builder (if follow-up is needed)
+  -> project-skill-bootstrap (if repair is needed)
+  -> handoff-brief
+
+diagnosis or review
+  -> scafforge-audit
+  -> manual diagnosis-pack handoff into the Scafforge dev repo when package work is required
+  -> scafforge-repair (only if recommended and the required package changes already exist)
+  -> handoff-brief
+```
 
 ## Design principles
 
-- **One orchestrated cycle** — no manual enrichment phases
-- **Agent does creative work, scripts do mechanical work** — clean separation
-- **Project-specific output** — agents, skills, and tickets are customized per project
-- **Structured truth hierarchy** — one source of truth per kind of state
-- **Weak-model first** — generated repos are shaped so smaller or cheaper models can operate without inventing hidden workflow state
-- **Default orchestration stays flat** — one visible team leader is standard; manager or section-leader layers remain advanced customization, not a first-class scaffold profile
-- **Discovery as research, not deployment** — external skills used as reference only
+- One orchestrated cycle instead of scaffold-now-enrich-later by default
+- Agent does creative work, scripts do deterministic mechanical work
+- Structured truth hierarchy with exact ownership boundaries
+- Weak-model first workflow contracts
+- Discovery as research, not deployment
+- No standalone package-level refinement route

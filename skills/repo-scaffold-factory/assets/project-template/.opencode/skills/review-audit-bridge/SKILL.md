@@ -8,6 +8,7 @@ description: Keep code review, security review, and QA passes evidence-based and
 Before starting a code review, security review, or QA pass, call `skill_ping` with `skill_id: "review-audit-bridge"` and `scope: "project"`.
 
 Use this skill after implementation exists. It bridges the review and QA lanes so they return evidence-backed findings instead of vague commentary.
+This is a generated repo-local skill. It may recommend remediation or reverification follow-up, but it does not become the canonical ticket owner by itself.
 
 Prioritize findings in this order:
 
@@ -36,4 +37,10 @@ Rules:
 - reference exact files, diffs, commands, or artifact paths
 - if the approved plan, implementation artifact, or required validation context is missing, return a blocker instead of inferring correctness
 - use `ticket-execution` for lifecycle order and `project-context` for canonical repo docs
+- write any workflow-failure explanation or review retrospective to the repo-local process-log path described in `references/review-contract.md`
+- recommend follow-up tickets only when current evidence justifies them, and route canonical ticket creation through the repo's guarded ticket workflow
 - do not claim that repo files changed
+
+## References
+
+- `references/review-contract.md`

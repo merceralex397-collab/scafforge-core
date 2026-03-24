@@ -1,0 +1,4 @@
+interface:
+  display_name: "Scafforge Repair"
+  short_description: "Apply safe workflow-contract repairs and managed-surface refreshes"
+  default_prompt: "Use $scafforge-repair to apply validated Scafforge workflow repairs, record provenance, and verify the managed surface after changes."

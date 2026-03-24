@@ -11,13 +11,15 @@ Use this skill to create or refine the repo-local work queue.
 
 - **bootstrap**: generate the first implementation-ready backlog during the initial scaffold
 - **refine**: regenerate, expand, or normalize an existing backlog later
+- **remediation-follow-up**: add or normalize canonical follow-up tickets after audit, diagnosis, review, or repair work identifies concrete remediation or reverification needs
 
 ## Mode selection
 
 - If this skill is reached from `scaffold-kickoff` during greenfield scaffolding, use `bootstrap`.
 - If this skill is reached from retrofit or later backlog maintenance work, use `refine`.
+- If audit, diagnosis, generated review, or repair outputs already identify specific remediation or reverification work, use `remediation-follow-up`.
 - If invoked directly and `tickets/manifest.json` does not exist yet, use `bootstrap`.
-- If invoked directly and a backlog already exists, use `refine`.
+- If invoked directly and a backlog already exists, use `refine` unless the request is explicitly about post-audit or post-repair follow-up, in which case use `remediation-follow-up`.
 - If the user request is ambiguous about whether to create the first backlog or revise an existing one, ask the user before choosing a mode.
 
 ## Bootstrap mode procedure
@@ -152,6 +154,50 @@ Use when expanding or normalizing an existing backlog:
 3. Add/modify tickets following the same rules
 4. Regenerate BOARD.md
 
+## Remediation-follow-up mode
+
+Use when audit, diagnosis, review, or repair work already produced concrete findings and the repo needs canonical follow-up tickets.
+
+### 1. Read the source evidence first
+
+Collect the current source of truth for the follow-up:
+- the latest diagnosis pack in `diagnosis/<timestamp>/` when working from `scafforge-audit`
+- the current repair summary and recorded process-version state when working from `scafforge-repair`
+- the latest registered `review`, `qa`, `smoke-test`, or `backlog-verification` artifacts when working inside a generated repo
+- any machine-readable recommended-ticket payload emitted alongside the audit or diagnosis reports
+
+Do not infer remediation work from vague commentary when canonical evidence already exists.
+
+### 2. Decide whether to create, reopen, or defer
+
+For each finding:
+- create a new follow-up ticket when the work is net-new and scoped
+- reopen or reverification-route an existing ticket when the historical ticket already owns the defect and current evidence justifies restoring or revising trust
+- defer ticket creation when the evidence is incomplete or intent-changing and requires a human decision first
+
+### 3. Preserve canonical linkage
+
+For every remediation or reverification ticket:
+- set `source_ticket_id` when the work came from a prior ticket
+- append the new ticket ID to the source ticket's `follow_up_ticket_ids`
+- keep `verification_state: suspect` until current evidence proves the issue resolved
+- record the evidence source in the ticket summary or Notes so downstream agents can trace the follow-up back to the diagnosis, review, or repair artifact
+
+### 4. Respect guarded ticket creation
+
+When the generated repo exposes guarded ticket tooling:
+- route creation through the canonical `ticket_create` flow instead of raw manifest edits when the workflow contract requires it
+- preserve any source-mode or provenance fields that distinguish process verification, post-completion defects, or net-new scoped work
+
+When operating at package level without the generated tooling available, emit the canonical ticket payload and update the generated ticket surfaces in the same contract shape the repo expects.
+
+### 5. Regenerate derived views
+
+After applying the follow-up:
+- update `tickets/manifest.json`
+- regenerate `tickets/BOARD.md`
+- ensure any changed trust, reverification, or process-follow-up state stays consistent with `.opencode/state/workflow-state.json`
+
 ## After this step
 
 Continue to `../project-skill-bootstrap/SKILL.md` as directed by scaffold-kickoff.
@@ -167,6 +213,7 @@ Continue to `../project-skill-bootstrap/SKILL.md` as directed by scaffold-kickof
 - Put acceptance criteria on every ticket
 - Prefer executable acceptance criteria where possible so downstream agents have concrete commands or observable pass/fail checks to run (for example, `python -c "from package import symbol"` succeeds or `npm test` exits successfully)
 - Keep historical completion separate from current trust: `status` stays queue-oriented, while `resolution_state` and `verification_state` represent historical closure and present trust
+- Treat post-audit and post-repair ticket creation as a first-class workflow path, not an ad hoc backlog note
 
 ## References
 
