@@ -17,4 +17,5 @@ Rules:
 - keep artifact metadata on the owning ticket entry in `tickets/manifest.json`
 - keep `tickets/<id>.md` synchronized with manifest-backed ticket state; use the Notes section for durable human context
 - mirror artifact metadata into `.opencode/state/artifacts/registry.json`
-- create migration follow-up tickets through the guarded `ticket_create` tool instead of raw manifest edits
+- create migration, remediation, or reverification follow-up tickets through the guarded `ticket_create` tool instead of raw manifest edits
+- treat post-audit and post-repair follow-up as a first-class ticket flow when current evidence identifies concrete next work

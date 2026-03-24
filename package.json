@@ -1,14 +1,10 @@
 {
   "name": "@scafforge/core",
   "version": "0.1.0",
-  "description": "Skill pack for CLI coding agents — generates complete OpenCode-oriented project repos from specs and plans",
+  "description": "Host-side Scafforge skill bundle for generating, auditing, and repairing OpenCode-oriented project repos",
   "type": "module",
-  "bin": {
-    "scafforge": "./bin/scafforge.mjs"
-  },
   "files": [
     "skills",
-    "bin",
     "scripts",
     "adapters",
     "README.md",
@@ -21,11 +17,12 @@
   "keywords": [
     "agent",
     "skills",
-    "copilot",
-    "codex",
+    "host-side",
     "scaffold",
     "opencode",
-    "generator"
+    "generator",
+    "audit",
+    "repair"
   ],
   "license": "UNLICENSED",
   "scripts": {

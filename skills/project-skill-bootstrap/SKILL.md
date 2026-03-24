@@ -61,10 +61,12 @@ For each baseline skill in `.opencode/skills/`, rewrite the SKILL.md with actual
 - Any project-specific stage requirements
 - Project-specific validation expectations
 
-**review-audit-bridge** — Keep the evidence-first review order but add project-specific review and QA expectations:
+**review-audit-bridge** — Keep this generated skill repo-local and advisory-only, then add project-specific review and QA expectations:
 - Repo-specific review commands, validation commands, and artifact paths
 - Security-sensitive areas that need explicit attention
 - Approval vs blocker rules for code review, security review, and QA
+- Guidance for writing a repo-local process log under `diagnosis/` or the generated repo's chosen review-log path when workflow misuse or weak implementation quality needs to be explained
+- Guidance for recommending remediation or reverification tickets without becoming the canonical ticket owner itself
 
 **docs-and-handoff** — Add project-specific doc paths and conventions
 
@@ -80,6 +82,7 @@ For each baseline skill in `.opencode/skills/`, rewrite the SKILL.md with actual
 
 Write each updated skill to `.opencode/skills/<name>/SKILL.md`.
 Each skill MUST have YAML frontmatter with `name` and `description`.
+If `review-audit-bridge` needs heavier examples or review policy detail, place that material in `.opencode/skills/review-audit-bridge/references/` rather than bloating the skill body.
 
 ## Synthesis mode procedure
 
@@ -137,6 +140,7 @@ Continue to `../agent-prompt-engineering/SKILL.md` as directed by scaffold-kicko
 - When creating or revising skills, follow `../agent-prompt-engineering/SKILL.md` rules to avoid anti-patterns
 - Start with the smallest useful pack; add only when project evidence justifies it
 - Never auto-install external skills — synthesis from reference only
+- Keep generated review and diagnosis guidance repo-local; do not promote it into a Scafforge core skill
 
 ## References
 

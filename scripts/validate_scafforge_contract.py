@@ -62,7 +62,7 @@ def validate_flow_manifest(findings: list[Finding]) -> None:
         "ticket-pack-builder:bootstrap",
         "project-skill-bootstrap:foundation",
         "agent-prompt-engineering",
-        "repo-process-doctor:audit_then_apply_safe_repairs_if_needed",
+        "scafforge-audit:audit_then_route_repair_if_needed",
         "handoff-brief",
     ]
     for item in expected:
@@ -70,6 +70,34 @@ def validate_flow_manifest(findings: list[Finding]) -> None:
             findings.append(Finding("error", f"Greenfield sequence is missing required step: {item}"))
     if "review-audit-bridge" in sequence:
         findings.append(Finding("error", "Greenfield sequence should not include review-audit-bridge"))
+    if any("repo-process-doctor" in str(item) for item in sequence):
+        findings.append(Finding("error", "Greenfield sequence should not reference repo-process-doctor"))
+
+    run_types = manifest.get("run_types", {})
+    diagnosis = run_types.get("diagnosis-review", {})
+    diagnosis_sequence = diagnosis.get("sequence", [])
+    if "scafforge-audit:review_and_emit_diagnosis_pack" not in diagnosis_sequence:
+        findings.append(Finding("error", "diagnosis-review sequence must route through scafforge-audit"))
+
+    managed_repair = run_types.get("managed-repair", {})
+    managed_repair_sequence = managed_repair.get("sequence", [])
+    if "scafforge-repair:apply-safe-repair" not in managed_repair_sequence:
+        findings.append(Finding("error", "managed-repair sequence must route through scafforge-repair"))
+
+    kickoff = skills.get("scaffold-kickoff", {})
+    modes = kickoff.get("modes", [])
+    if "diagnosis-review" not in modes:
+        findings.append(Finding("error", "scaffold-kickoff must expose diagnosis-review mode"))
+    if "refinement-routing" in modes:
+        findings.append(Finding("error", "scaffold-kickoff must not expose refinement-routing"))
+
+    if "repo-process-doctor" in skills:
+        findings.append(Finding("error", "skill-flow-manifest.json must not expose repo-process-doctor"))
+    if "pr-review-ticket-bridge" in skills:
+        findings.append(Finding("error", "skill-flow-manifest.json must not expose pr-review-ticket-bridge"))
+    for required_skill in ("scafforge-audit", "scafforge-repair"):
+        if required_skill not in skills:
+            findings.append(Finding("error", f"skill-flow-manifest.json is missing required skill: {required_skill}"))
 
 
 def validate_core_docs(findings: list[Finding]) -> None:
@@ -144,17 +172,81 @@ def validate_template_surfaces(findings: list[Finding]) -> None:
     require_contains(findings, template / "tickets" / "manifest.json", '"verification_state"')
 
 
-def validate_process_doctor_surfaces(findings: list[Finding]) -> None:
-    skill = ROOT / "skills" / "repo-process-doctor"
-    runner = skill / "scripts" / "apply_repo_process_repair.py"
-    cli = ROOT / "bin" / "scafforge.mjs"
-    for path in (runner, cli):
+def validate_audit_repair_surfaces(findings: list[Finding]) -> None:
+    audit_skill = ROOT / "skills" / "scafforge-audit"
+    repair_skill = ROOT / "skills" / "scafforge-repair"
+    required = [
+        audit_skill / "SKILL.md",
+        audit_skill / "agents" / "openai.yaml",
+        audit_skill / "scripts" / "audit_repo_process.py",
+        audit_skill / "references" / "four-report-templates.md",
+        audit_skill / "references" / "pr-review-workflow.md",
+        audit_skill / "references" / "review-contract.md",
+        repair_skill / "SKILL.md",
+        repair_skill / "agents" / "openai.yaml",
+        repair_skill / "scripts" / "apply_repo_process_repair.py",
+    ]
+    for path in required:
         if not path.exists():
             add_missing(findings, path)
+
+    runner = repair_skill / "scripts" / "apply_repo_process_repair.py"
     if runner.exists():
         require_contains(findings, runner, '"deterministic-workflow-engine-replacement"')
+        require_contains(findings, runner, "scafforge-repair")
+
+    audit_runner = audit_skill / "scripts" / "audit_repo_process.py"
+    if audit_runner.exists():
+        require_contains(findings, audit_runner, "01-initial-codebase-review.md")
+        require_contains(findings, audit_runner, "04-live-repo-repair-plan.md")
+        require_contains(findings, audit_runner, "recommended-ticket-payload.json")
+        require_contains(findings, audit_runner, 'root / "diagnosis"')
+
+    audit_doc = audit_skill / "SKILL.md"
+    if audit_doc.exists():
+        require_contains(findings, audit_doc, "manually copy the diagnosis pack")
+        require_contains(findings, audit_doc, "Do not tell the user to go straight from report generation to repair")
+        require_contains(findings, audit_doc, "references/four-report-templates.md")
+
+    repair_doc = repair_skill / "SKILL.md"
+    if repair_doc.exists():
+        require_contains(findings, repair_doc, "stale package version")
+        require_contains(findings, repair_doc, "manually copy that pack into the Scafforge dev repo first")
+
+    old_skill = ROOT / "skills" / "repo-process-doctor" / "SKILL.md"
+    old_bridge = ROOT / "skills" / "pr-review-ticket-bridge" / "SKILL.md"
+    if old_skill.exists():
+        findings.append(Finding("error", "Deprecated skill still present: skills/repo-process-doctor/SKILL.md"))
+    if old_bridge.exists():
+        findings.append(Finding("error", "Deprecated skill still present: skills/pr-review-ticket-bridge/SKILL.md"))
+
+    cli = ROOT / "bin" / "scafforge.mjs"
     if cli.exists():
-        require_contains(findings, cli, "repair-process")
+        findings.append(Finding("error", "Deprecated CLI wrapper should not exist: bin/scafforge.mjs"))
+
+
+def validate_ticket_follow_up_contract(findings: list[Finding]) -> None:
+    ticket_builder = ROOT / "skills" / "ticket-pack-builder" / "SKILL.md"
+    project_skill = ROOT / "skills" / "project-skill-bootstrap" / "SKILL.md"
+    template = ROOT / "skills" / "repo-scaffold-factory" / "assets" / "project-template"
+
+    for path in (ticket_builder, project_skill):
+        if not path.exists():
+            add_missing(findings, path)
+            return
+
+    require_contains(findings, ticket_builder, "**remediation-follow-up**")
+    require_contains(findings, ticket_builder, "diagnosis/<timestamp>")
+    require_contains(findings, ticket_builder, "ticket_create")
+    require_contains(findings, project_skill, "repo-local and advisory-only")
+    require_contains(findings, project_skill, "diagnosis/")
+
+    require_contains(findings, template / "docs" / "process" / "workflow.md", "diagnosis/")
+    require_contains(findings, template / "docs" / "process" / "workflow.md", "create migration, remediation, or reverification follow-up tickets")
+    require_contains(findings, template / "docs" / "process" / "tooling.md", "review-audit-bridge")
+    require_contains(findings, template / "tickets" / "README.md", "post-audit and post-repair follow-up")
+    require_contains(findings, template / ".opencode" / "skills" / "review-audit-bridge" / "SKILL.md", "does not become the canonical ticket owner")
+    require_contains(findings, template / ".opencode" / "skills" / "review-audit-bridge" / "references" / "review-contract.md", "process log")
 
 
 def validate_no_hidden_defaults(findings: list[Finding]) -> None:
@@ -184,7 +276,8 @@ def main() -> int:
     validate_flow_manifest(findings)
     validate_core_docs(findings)
     validate_template_surfaces(findings)
-    validate_process_doctor_surfaces(findings)
+    validate_audit_repair_surfaces(findings)
+    validate_ticket_follow_up_contract(findings)
     validate_no_hidden_defaults(findings)
 
     if findings:

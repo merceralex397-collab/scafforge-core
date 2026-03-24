@@ -29,6 +29,7 @@
     ".opencode/commands/reverify-ticket.md",
     ".opencode/commands/resume.md",
     ".opencode/commands/run-lane.md",
+    ".opencode/skills/review-audit-bridge/references/review-contract.md",
     ".opencode/tools/smoke_test.ts"
   ],
   "required_directories": [

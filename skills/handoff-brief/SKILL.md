@@ -39,7 +39,7 @@ Use the template in `assets/templates/START-HERE.template.md` as a starting stru
 
 **Current Or Next Ticket** — the actual active ticket or recommended next ticket from the manifest
 
-**Validation Status** — results of the last repo-process-doctor audit
+**Validation Status** — results of the last `scafforge-audit` run and any follow-up `scafforge-repair` verification
 
 **Known Risks** — actual risks and open questions from the canonical brief
 

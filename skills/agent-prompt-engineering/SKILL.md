@@ -7,7 +7,7 @@ description: Design and harden agent, command, workflow, and tool prompts for re
 
 Use this skill when prompt wording controls how agents coordinate, route work, and use tools.
 
-During standard greenfield scaffolding, this is a required pass after `project-skill-bootstrap` and before `repo-process-doctor`. The pass may be light or heavy depending on the chosen models and project-specific coordination risk, but it should not be skipped.
+During standard greenfield scaffolding, this is a required pass after `project-skill-bootstrap` and before `scafforge-audit`. The pass may be light or heavy depending on the chosen models and project-specific coordination risk, but it should not be skipped.
 
 ## Procedure
 
@@ -93,7 +93,7 @@ Re-read the final prompt and ask:
 
 ## After this step
 
-Continue to `../repo-process-doctor/SKILL.md` if an audit pass is needed, or return to `../scaffold-kickoff/SKILL.md` for the next step in the flow.
+Continue to `../scafforge-audit/SKILL.md` if an audit pass is needed, or return to `../scaffold-kickoff/SKILL.md` for the next step in the flow.
 
 ## References
 

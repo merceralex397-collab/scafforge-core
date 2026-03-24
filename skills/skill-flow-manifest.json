@@ -2,7 +2,7 @@
   "version": 1,
   "product": "Scafforge",
   "output_profiles": ["opencode"],
-  "optional_extensions": ["pr-review-ticket-bridge"],
+  "optional_extensions": [],
   "run_types": {
     "greenfield": {
       "entrypoint": "scaffold-kickoff",
@@ -14,7 +14,7 @@
         "project-skill-bootstrap:foundation",
         "project-skill-bootstrap:synthesis_if_evidence",
         "agent-prompt-engineering",
-        "repo-process-doctor:audit_then_apply_safe_repairs_if_needed",
+        "scafforge-audit:audit_then_route_repair_if_needed",
         "handoff-brief"
       ]
     },
@@ -25,17 +25,24 @@
         "opencode-team-bootstrap",
         "ticket-pack-builder:refine_if_needed",
         "project-skill-bootstrap:foundation_or_repair",
-        "repo-process-doctor:audit_then_apply_safe_repairs_if_needed",
+        "scafforge-audit:audit_then_route_repair_if_needed",
         "handoff-brief"
       ]
     },
     "managed-repair": {
       "entrypoint": "scaffold-kickoff",
       "sequence": [
-        "repo-process-doctor:apply-repair",
+        "scafforge-repair:apply-safe-repair",
         "opencode-team-bootstrap:follow_up_if_project_specific_drift",
         "ticket-pack-builder:refine_if_needed",
         "project-skill-bootstrap:repair_if_needed",
+        "handoff-brief"
+      ]
+    },
+    "diagnosis-review": {
+      "entrypoint": "scaffold-kickoff",
+      "sequence": [
+        "scafforge-audit:review_and_emit_diagnosis_pack",
         "handoff-brief"
       ]
     }
@@ -43,11 +50,11 @@
   "skills": {
     "scaffold-kickoff": {
       "owner": "conductor",
-      "modes": ["greenfield", "retrofit", "managed-repair", "refinement-routing"],
+      "modes": ["greenfield", "retrofit", "managed-repair", "diagnosis-review"],
       "inputs": ["messy project inputs", "normalized decisions"],
       "outputs": ["orchestrated run", "required downstream sequence"],
       "upstreams": [],
-      "downstreams": ["spec-pack-normalizer", "repo-scaffold-factory", "opencode-team-bootstrap", "ticket-pack-builder", "project-skill-bootstrap", "agent-prompt-engineering", "repo-process-doctor", "handoff-brief"]
+      "downstreams": ["spec-pack-normalizer", "repo-scaffold-factory", "opencode-team-bootstrap", "ticket-pack-builder", "project-skill-bootstrap", "agent-prompt-engineering", "scafforge-audit", "scafforge-repair", "handoff-brief"]
     },
     "spec-pack-normalizer": {
       "owner": "intake",
@@ -63,7 +70,7 @@
       "inputs": ["canonical brief", "provider/model choices", "project identifiers"],
       "outputs": ["repo skeleton", "template docs", ".opencode layer", "bootstrap provenance"],
       "upstreams": ["spec-pack-normalizer", "scaffold-kickoff"],
-      "downstreams": ["opencode-team-bootstrap", "ticket-pack-builder", "project-skill-bootstrap", "repo-process-doctor"]
+      "downstreams": ["opencode-team-bootstrap", "ticket-pack-builder", "project-skill-bootstrap", "scafforge-audit"]
     },
     "opencode-team-bootstrap": {
       "owner": "agent-team-design",
@@ -71,14 +78,14 @@
       "inputs": ["canonical brief", "base scaffold agents", "project type"],
       "outputs": ["project-specific agents", "customized tools/plugins", "team structure"],
       "upstreams": ["repo-scaffold-factory", "scaffold-kickoff"],
-      "downstreams": ["ticket-pack-builder", "project-skill-bootstrap", "repo-process-doctor"]
+      "downstreams": ["ticket-pack-builder", "project-skill-bootstrap", "scafforge-audit", "scafforge-repair"]
     },
     "ticket-pack-builder": {
       "owner": "queue",
-      "modes": ["bootstrap", "refine"],
-      "inputs": ["canonical brief", "decision packet", "backlog readiness"],
-      "outputs": ["tickets", "manifest", "board", "decision/blocker tickets"],
-      "upstreams": ["spec-pack-normalizer", "repo-scaffold-factory", "opencode-team-bootstrap"],
+      "modes": ["bootstrap", "refine", "remediation-follow-up"],
+      "inputs": ["canonical brief", "decision packet", "backlog readiness", "audit/repair ticket recommendations"],
+      "outputs": ["tickets", "manifest", "board", "decision/blocker tickets", "remediation/verification tickets"],
+      "upstreams": ["spec-pack-normalizer", "repo-scaffold-factory", "opencode-team-bootstrap", "scafforge-audit", "scafforge-repair"],
       "downstreams": ["project-skill-bootstrap", "handoff-brief"]
     },
     "project-skill-bootstrap": {
@@ -87,7 +94,7 @@
       "inputs": ["repo structure", "stack evidence", "workflow contract"],
       "outputs": ["foundation skill pack", "synthesized local skills"],
       "upstreams": ["repo-scaffold-factory", "opencode-team-bootstrap", "ticket-pack-builder"],
-      "downstreams": ["agent-prompt-engineering", "repo-process-doctor"]
+      "downstreams": ["agent-prompt-engineering", "scafforge-audit"]
     },
     "agent-prompt-engineering": {
       "owner": "prompts",
@@ -95,32 +102,30 @@
       "inputs": ["workflow contract", "weak-model constraints", "repo context"],
       "outputs": ["hardened prompts", "blocker rules", "anti-summary rails"],
       "upstreams": ["project-skill-bootstrap", "repo-scaffold-factory"],
-      "downstreams": ["repo-process-doctor"]
+      "downstreams": ["scafforge-audit"]
     },
-    "repo-process-doctor": {
-      "owner": "audit-repair",
-      "modes": ["audit", "propose-repair", "apply-repair"],
-      "inputs": ["repo workflow surfaces", "contract docs", "template outputs"],
-      "outputs": ["diagnosis", "repair plan", "safe repairs", "reports"],
-      "upstreams": ["repo-scaffold-factory", "opencode-team-bootstrap", "agent-prompt-engineering", "project-skill-bootstrap"],
-      "downstreams": ["handoff-brief"]
+    "scafforge-audit": {
+      "owner": "audit-review",
+      "modes": ["audit", "review", "diagnosis-pack"],
+      "inputs": ["repo workflow surfaces", "contract docs", "template outputs", "optional PR/review evidence"],
+      "outputs": ["diagnosis", "validated review findings", "four-report pack", "ticket recommendations"],
+      "upstreams": ["repo-scaffold-factory", "opencode-team-bootstrap", "agent-prompt-engineering", "project-skill-bootstrap", "scaffold-kickoff"],
+      "downstreams": ["scafforge-repair", "ticket-pack-builder", "handoff-brief"]
+    },
+    "scafforge-repair": {
+      "owner": "managed-repair",
+      "modes": ["apply-safe-repair"],
+      "inputs": ["audit outputs", "repair plan", "validated workflow drift"],
+      "outputs": ["safe repairs", "provenance updates", "verification results", "ticket follow-up routing"],
+      "upstreams": ["scafforge-audit", "scaffold-kickoff", "opencode-team-bootstrap"],
+      "downstreams": ["ticket-pack-builder", "handoff-brief"]
     },
     "handoff-brief": {
       "owner": "restart-surface",
       "modes": ["publish"],
       "inputs": ["tickets", "workflow state", "artifacts", "diagnosis"],
       "outputs": ["START-HERE refresh", "closeout summary", "restart surface"],
-      "upstreams": ["repo-process-doctor", "ticket-pack-builder"],
-      "downstreams": []
-    },
-    "pr-review-ticket-bridge": {
-      "owner": "host-review",
-      "extension": true,
-      "exclude_from_default": true,
-      "modes": ["review-pr"],
-      "inputs": ["pull request diff", "commit history", "review comments", "repo ticket format"],
-      "outputs": ["validated review findings", "follow-up ticket proposals", "ticket generation rationale"],
-      "upstreams": [],
+      "upstreams": ["scafforge-audit", "scafforge-repair", "ticket-pack-builder"],
       "downstreams": []
     }
   }

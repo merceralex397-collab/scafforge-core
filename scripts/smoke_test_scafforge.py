@@ -11,7 +11,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 BOOTSTRAP = ROOT / "skills" / "repo-scaffold-factory" / "scripts" / "bootstrap_repo_scaffold.py"
 CHECKLIST = ROOT / "skills" / "repo-scaffold-factory" / "references" / "opencode-conformance-checklist.json"
-REPAIR = ROOT / "skills" / "repo-process-doctor" / "scripts" / "apply_repo_process_repair.py"
+AUDIT = ROOT / "skills" / "scafforge-audit" / "scripts" / "audit_repo_process.py"
+REPAIR = ROOT / "skills" / "scafforge-repair" / "scripts" / "apply_repo_process_repair.py"
 
 
 def run(command: list[str], cwd: Path) -> None:
@@ -113,6 +114,29 @@ def main() -> int:
 
         verify_render(full_dest, expect_full_repo=True)
         verify_render(opencode_dest, expect_full_repo=False)
+
+        run([sys.executable, str(AUDIT), str(full_dest), "--format", "json", "--emit-diagnosis-pack"], ROOT)
+        diagnosis_root = full_dest / "diagnosis"
+        diagnosis_dirs = sorted(path for path in diagnosis_root.iterdir() if path.is_dir()) if diagnosis_root.exists() else []
+        if not diagnosis_dirs:
+            raise RuntimeError("Audit should create a diagnosis/<timestamp> folder when diagnosis-pack emission is enabled")
+        diagnosis_pack = diagnosis_dirs[-1]
+        required_reports = [
+            "01-initial-codebase-review.md",
+            "02-scafforge-process-failures.md",
+            "03-scafforge-prevention-actions.md",
+            "04-live-repo-repair-plan.md",
+            "manifest.json",
+        ]
+        for relative in required_reports:
+            if not (diagnosis_pack / relative).exists():
+                raise RuntimeError(f"Diagnosis pack is missing expected file: {diagnosis_pack / relative}")
+
+        diagnosis_manifest = json.loads((diagnosis_pack / "manifest.json").read_text(encoding="utf-8"))
+        if "ticket_recommendations" not in diagnosis_manifest:
+            raise RuntimeError("Diagnosis pack manifest should include ticket_recommendations")
+        if diagnosis_manifest.get("report_files", {}).get("report_4") != "04-live-repo-repair-plan.md":
+            raise RuntimeError("Diagnosis pack manifest should map report_4 to 04-live-repo-repair-plan.md")
 
         (full_dest / "docs" / "process" / "workflow.md").write_text("# drifted workflow\n", encoding="utf-8")
         run([sys.executable, str(REPAIR), str(full_dest), "--fail-on", "error"], ROOT)
