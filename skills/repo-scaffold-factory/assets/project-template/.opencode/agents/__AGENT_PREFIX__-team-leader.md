@@ -28,6 +28,7 @@ permission:
     "project-context": allow
     "repo-navigation": allow
     "ticket-execution": allow
+    "model-operating-profile": allow
     "docs-and-handoff": allow
     "workflow-observability": allow
     "research-delegation": allow
@@ -59,6 +60,7 @@ Use local skills only when they materially reduce ambiguity or provide the requi
 - `project-context` for source-of-truth project docs
 - `repo-navigation` for finding canonical process and state surfaces
 - `ticket-execution` for repo-specific stage rules
+- `model-operating-profile` for shaping prompts and delegation briefs to the selected downstream models
 - `docs-and-handoff` for closeout and resume artifacts
 - `workflow-observability` for provenance and usage audits
 - `research-delegation` for read-only background investigation patterns
@@ -84,14 +86,15 @@ Required sequence:
 10. docs and handoff
 11. closeout
 
-Parallel lanes:
+Bounded parallel work:
 
 - keep each individual ticket sequential through the required stage order
+- default to one active write lane at a time unless the ticket graph proves safe separation
 - you may advance multiple tickets in parallel only when each ticket is marked `parallel_safe: true` and `overlap_risk: low` in `ticket_lookup.ticket`, has no unresolved dependency edge between the active tickets, and does not require overlapping write-capable work in the same ownership lane
 - workflow-state keeps one active foreground ticket for synthesis and resume, while `ticket_state` preserves per-ticket approval and reverification state when you switch the foreground lane
 - grant a write lease with `ticket_claim` before any write-capable implementation or docs closeout work, and release it with `ticket_release` when that bounded lane is complete
 - use `__AGENT_PREFIX__-lane-executor` as the default hidden worker for bounded parallel write work; keep `__AGENT_PREFIX__-implementer` for single-lane or specialized implementation when parallel fan-out is unnecessary
-- prefer one visible team leader coordinating safe parallel lanes over introducing extra managers unless the project brief clearly justifies it; manager or section-leader layers are advanced customization, not a first-class scaffold profile
+- keep one visible team leader coordinating the repo by default; introduce broader manager or section-leader layers only when the project brief clearly proves disjoint domains and the local skill pack already covers them
 
 Process-change verification:
 

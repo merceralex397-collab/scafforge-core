@@ -1,6 +1,6 @@
 # Scafforge v1
 
-Scafforge is a host-side skill bundle for coding agents. Install the skills into a compatible host, point the host at a repo with specs, plans, or design docs, and let the skill chain generate or repair a complete OpenCode-oriented project workspace.
+Scafforge is a strong-host skill bundle for coding agents. Install the skills into a compatible host, point the host at a repo with specs, plans, or design docs, and let the skill chain generate or repair a complete OpenCode-shaped project workspace for downstream execution.
 
 The generated output is intentionally shaped for OpenCode-style repos with agents, tools, plugins, commands, local skills, ticketing, provenance, and a structured truth hierarchy.
 
@@ -10,52 +10,31 @@ Weak-model first remains the product bias. The package is designed to make weake
 
 Copy or symlink each folder under `skills/` into the host's skill directory. Keep each skill directory intact so its `SKILL.md`, `scripts/`, `assets/`, and `references/` remain together.
 
-Example for GitHub Copilot user skills:
-
-```sh
-cp -r skills/*/ ~/.copilot/skills/
-```
-
-Or symlink each skill:
-
-```sh
-for skill in skills/*/; do
-  ln -s "$(pwd)/$skill" ~/.copilot/skills/$(basename "$skill")
-done
-```
-
-Per-project installation works the same way:
-
-```sh
-cp -r skills/*/ <your-project>/.github/skills/
-```
-
 Scafforge should be treated as a skill bundle, not as a CLI product.
 
 ## Usage
 
 1. Open a repo that contains specs, plans, notes, or design docs.
 2. Tell the agent to scaffold, retrofit, repair, or diagnose the project, or invoke `scaffold-kickoff`.
-3. The agent reads the inputs, asks for blocking decisions, and routes through the correct skill path.
+3. The agent reads the inputs, asks one batched round of blocking decisions when needed, and routes through the correct skill path.
 4. Output: a complete project repo or an evidence-backed diagnosis and repair path.
 
 ## Default scaffold chain
 
-The default greenfield chain is:
+Greenfield generation is one kickoff run. The default chain is:
 
 ```text
 scaffold-kickoff
   -> spec-pack-normalizer
   -> repo-scaffold-factory
-  -> opencode-team-bootstrap
-  -> ticket-pack-builder
   -> project-skill-bootstrap
+  -> opencode-team-bootstrap
   -> agent-prompt-engineering
-  -> scafforge-audit
+  -> ticket-pack-builder
   -> handoff-brief
 ```
 
-If the audit identifies safe managed-surface drift that can be repaired with the current package, kickoff routes next into `scafforge-repair` before closeout. If the diagnosis identifies a Scafforge package defect first, the diagnosis pack is the handoff: the user manually carries it into the Scafforge dev repo, the package is updated there, and only then does repair return to the subject repo.
+This pass allows one batched blocking-decision round and then completes in one uninterrupted same-session generation run. No second Scafforge generation pass is required before development begins.
 
 `scaffold-kickoff` remains the single public entrypoint for:
 - greenfield scaffold
@@ -70,7 +49,7 @@ The package splits work between deterministic scripts and host reasoning:
 - scripts handle mechanical scaffold generation, workflow audits, and deterministic managed-surface repair
 - the host agent handles spec reading, decision packets, agent-team design, prompt hardening, ticket creation, and synthesized local skills
 
-In the standard greenfield path, `agent-prompt-engineering` always runs before `scafforge-audit`. The pass may be light or heavy depending on the chosen models and project-specific coordination risk, but it is not skipped.
+In the standard greenfield path, `agent-prompt-engineering` always runs before `ticket-pack-builder`. The pass may be light or heavy depending on the chosen models and project-specific coordination risk, but it is not skipped.
 
 ## What the generated repo contains
 
@@ -119,7 +98,11 @@ Generated repos use a structured truth hierarchy so state does not drift:
 
 ## Diagnosis and repair
 
-Diagnosis and repair are now separate host-side skills.
+Generation, audit, and repair are separate lifecycle stages.
+
+- `scaffold-kickoff` is the only public generation entrypoint.
+- Initial generation ends at `handoff-brief`.
+- `scafforge-audit` and `scafforge-repair` are later lifecycle tools, not part of the initial generation cycle.
 
 - `scafforge-audit` is read-only and can validate review evidence, run the audit script, and emit the four-report diagnosis pack in the subject repo's `diagnosis/` folder.
 - `scafforge-repair` consumes the audit outputs, applies safe managed-surface repairs, records provenance, and routes ticket follow-up when needed.
@@ -136,6 +119,7 @@ Baseline generated local skills include:
 - `project-context`
 - `repo-navigation`
 - `stack-standards`
+- `model-operating-profile`
 - `ticket-execution`
 - `review-audit-bridge`
 - `docs-and-handoff`
@@ -154,8 +138,8 @@ For repos that already have code, start at `scaffold-kickoff` and let it classif
 retrofit
   -> spec-pack-normalizer (if needed)
   -> opencode-team-bootstrap
-  -> ticket-pack-builder
   -> project-skill-bootstrap
+  -> ticket-pack-builder
   -> scafforge-audit
   -> handoff-brief
 
@@ -180,4 +164,5 @@ diagnosis or review
 - Structured truth hierarchy with exact ownership boundaries
 - Weak-model first workflow contracts
 - Discovery as research, not deployment
+- One kickoff run for full-depth generation
 - No standalone package-level refinement route

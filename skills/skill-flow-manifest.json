@@ -9,12 +9,10 @@
       "sequence": [
         "spec-pack-normalizer",
         "repo-scaffold-factory",
+        "project-skill-bootstrap:full-greenfield-pass",
         "opencode-team-bootstrap",
-        "ticket-pack-builder:bootstrap",
-        "project-skill-bootstrap:foundation",
-        "project-skill-bootstrap:synthesis_if_evidence",
         "agent-prompt-engineering",
-        "scafforge-audit:audit_then_route_repair_if_needed",
+        "ticket-pack-builder:bootstrap",
         "handoff-brief"
       ]
     },
@@ -23,8 +21,8 @@
       "sequence": [
         "spec-pack-normalizer:if_needed",
         "opencode-team-bootstrap",
+        "project-skill-bootstrap:repair-or-regeneration",
         "ticket-pack-builder:refine_if_needed",
-        "project-skill-bootstrap:foundation_or_repair",
         "scafforge-audit:audit_then_route_repair_if_needed",
         "handoff-brief"
       ]
@@ -35,7 +33,7 @@
         "scafforge-repair:apply-safe-repair",
         "opencode-team-bootstrap:follow_up_if_project_specific_drift",
         "ticket-pack-builder:refine_if_needed",
-        "project-skill-bootstrap:repair_if_needed",
+        "project-skill-bootstrap:repair-or-regeneration_if_needed",
         "handoff-brief"
       ]
     },
@@ -54,7 +52,7 @@
       "inputs": ["messy project inputs", "normalized decisions"],
       "outputs": ["orchestrated run", "required downstream sequence"],
       "upstreams": [],
-      "downstreams": ["spec-pack-normalizer", "repo-scaffold-factory", "opencode-team-bootstrap", "ticket-pack-builder", "project-skill-bootstrap", "agent-prompt-engineering", "scafforge-audit", "scafforge-repair", "handoff-brief"]
+      "downstreams": ["spec-pack-normalizer", "repo-scaffold-factory", "project-skill-bootstrap", "opencode-team-bootstrap", "agent-prompt-engineering", "ticket-pack-builder", "scafforge-audit", "scafforge-repair", "handoff-brief"]
     },
     "spec-pack-normalizer": {
       "owner": "intake",
@@ -62,7 +60,7 @@
       "inputs": ["docs", "notes", "spec packs", "fragmented plans"],
       "outputs": ["canonical brief", "decision packet", "backlog readiness"],
       "upstreams": ["scaffold-kickoff"],
-      "downstreams": ["repo-scaffold-factory", "ticket-pack-builder"]
+      "downstreams": ["repo-scaffold-factory"]
     },
     "repo-scaffold-factory": {
       "owner": "scaffold",
@@ -70,39 +68,39 @@
       "inputs": ["canonical brief", "provider/model choices", "project identifiers"],
       "outputs": ["repo skeleton", "template docs", ".opencode layer", "bootstrap provenance"],
       "upstreams": ["spec-pack-normalizer", "scaffold-kickoff"],
-      "downstreams": ["opencode-team-bootstrap", "ticket-pack-builder", "project-skill-bootstrap", "scafforge-audit"]
+      "downstreams": ["project-skill-bootstrap", "scafforge-audit"]
     },
     "opencode-team-bootstrap": {
       "owner": "agent-team-design",
       "modes": ["design", "retrofit"],
-      "inputs": ["canonical brief", "base scaffold agents", "project type"],
+      "inputs": ["canonical brief", "base scaffold agents or existing repo", "repo-local skill pack when present", "project type"],
       "outputs": ["project-specific agents", "customized tools/plugins", "team structure"],
-      "upstreams": ["repo-scaffold-factory", "scaffold-kickoff"],
-      "downstreams": ["ticket-pack-builder", "project-skill-bootstrap", "scafforge-audit", "scafforge-repair"]
+      "upstreams": ["project-skill-bootstrap", "spec-pack-normalizer", "scaffold-kickoff", "scafforge-repair"],
+      "downstreams": ["project-skill-bootstrap", "agent-prompt-engineering", "ticket-pack-builder", "scafforge-audit"]
     },
     "ticket-pack-builder": {
       "owner": "queue",
       "modes": ["bootstrap", "refine", "remediation-follow-up"],
-      "inputs": ["canonical brief", "decision packet", "backlog readiness", "audit/repair ticket recommendations"],
+      "inputs": ["canonical brief", "decision packet", "backlog readiness", "finalized local workflow surfaces", "audit/repair ticket recommendations"],
       "outputs": ["tickets", "manifest", "board", "decision/blocker tickets", "remediation/verification tickets"],
-      "upstreams": ["spec-pack-normalizer", "repo-scaffold-factory", "opencode-team-bootstrap", "scafforge-audit", "scafforge-repair"],
-      "downstreams": ["project-skill-bootstrap", "handoff-brief"]
+      "upstreams": ["agent-prompt-engineering", "opencode-team-bootstrap", "scafforge-audit", "scafforge-repair"],
+      "downstreams": ["handoff-brief"]
     },
     "project-skill-bootstrap": {
       "owner": "local-skills",
-      "modes": ["foundation", "synthesis"],
-      "inputs": ["repo structure", "stack evidence", "workflow contract"],
-      "outputs": ["foundation skill pack", "synthesized local skills"],
-      "upstreams": ["repo-scaffold-factory", "opencode-team-bootstrap", "ticket-pack-builder"],
-      "downstreams": ["agent-prompt-engineering", "scafforge-audit"]
+      "modes": ["full-greenfield-pass", "repair-or-regeneration"],
+      "inputs": ["repo structure", "stack evidence", "workflow contract", "selected downstream model profile"],
+      "outputs": ["repo-local skill pack", "synthesized local skills", "model operating profile"],
+      "upstreams": ["repo-scaffold-factory", "opencode-team-bootstrap", "scaffold-kickoff", "scafforge-repair"],
+      "downstreams": ["opencode-team-bootstrap", "agent-prompt-engineering", "scafforge-audit"]
     },
     "agent-prompt-engineering": {
       "owner": "prompts",
       "modes": ["required-pass"],
       "inputs": ["workflow contract", "weak-model constraints", "repo context"],
       "outputs": ["hardened prompts", "blocker rules", "anti-summary rails"],
-      "upstreams": ["project-skill-bootstrap", "repo-scaffold-factory"],
-      "downstreams": ["scafforge-audit"]
+      "upstreams": ["project-skill-bootstrap", "opencode-team-bootstrap", "repo-scaffold-factory"],
+      "downstreams": ["ticket-pack-builder", "scafforge-audit"]
     },
     "scafforge-audit": {
       "owner": "audit-review",

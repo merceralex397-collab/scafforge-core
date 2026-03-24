@@ -12,7 +12,7 @@ This is the default public entrypoint. When a user asks you to scaffold, retrofi
 Before starting, classify the run type:
 
 1. **Greenfield** — No repo exists yet, or the repo contains only specs, plans, or notes. Follow the full workflow below.
-2. **Retrofit** — A repo with code already exists but is missing the current OpenCode operating layer. Run `spec-pack-normalizer` first if the project lacks a canonical brief, then route to `opencode-team-bootstrap`, continue through ticket and local-skill repair as needed, and finish with `scafforge-audit`.
+2. **Retrofit** — A repo with code already exists but is missing the current OpenCode operating layer. Run `spec-pack-normalizer` first if the project lacks a canonical brief, route to `opencode-team-bootstrap` to add or repair `.opencode/`, then run `project-skill-bootstrap`, continue through ticket repair as needed, and finish with `scafforge-audit`.
 3. **Managed repair / update** — A Scafforge-managed or OpenCode-oriented repo already exists but needs workflow-contract repair, upgrade, or managed-surface replacement. Route directly to `scafforge-repair`, then run any targeted follow-up skills it reveals and finish with `handoff-brief`.
 4. **Diagnosis / review** — An in-progress or claimed-complete repo needs read-only diagnosis, codebase review, report generation, or evidence validation. Route to `scafforge-audit`.
 
@@ -21,6 +21,8 @@ If the repo state and the user's request do not make the run type clear, ask the
 ## Full greenfield workflow
 
 Follow these steps in order. Each step references a sibling skill. Read it at the relative path shown.
+
+Greenfield generation has no further user-selectable submodes. After the blocking-decision round is resolved, you must complete every downstream generation skill in the same session. Do not route the initial generation pass into `scafforge-audit` or `scafforge-repair`.
 
 ### Step 1: Normalize the spec pack
 
@@ -52,50 +54,47 @@ This has two phases:
 - Phase A: run the Python script to generate the template file tree with placeholder substitution
 - Phase B: customize the generated files with project-specific content from the canonical brief
 
-### Step 4: Design and customize the agent team
+### Step 4: Bootstrap project-local skills
+
+Read `../project-skill-bootstrap/SKILL.md` and follow its greenfield procedure.
+
+Populate the repo-local skill pack in one pass:
+- rewrite the baseline skills with actual project content
+- create any required synthesized skills from project evidence
+- write the downstream model operating profile skill for the selected model profile
+
+### Step 5: Design and customize the agent team
 
 Read `../opencode-team-bootstrap/SKILL.md` and follow its procedure.
 
 The scaffold creates generic agent templates. You must now customize them:
 - rewrite agent prompts to be project-specific
 - add or remove agents based on project type
-- create multiple implementer-type agents if the project spans different domains
+- keep the topology conservative unless the brief proves disjoint domains
+- reference only repo-local skills that already exist
 
-### Step 5: Build the ticket backlog
+### Step 6: Harden agent prompts
+
+Read `../agent-prompt-engineering/SKILL.md` and follow its procedure.
+
+This is a required same-session hardening pass in the standard greenfield scaffold flow.
+
+### Step 7: Build the ticket backlog
 
 Read `../ticket-pack-builder/SKILL.md` and follow its procedure in bootstrap mode.
 
-Create implementation-ready tickets from the canonical brief:
+Create implementation-ready tickets only after local skills, team topology, and prompt hardening are finalized:
 - break work into implementation waves
 - keep each ticket small enough for one agent session
 - convert unresolved major decisions into blocked or decision tickets instead of guesses
 
-### Step 6: Bootstrap project-local skills
-
-Read `../project-skill-bootstrap/SKILL.md` and follow its procedure.
-
-- foundation mode: populate baseline skills with actual project data
-- synthesis mode: create stack- or domain-specific skills from project evidence and external research
-
-### Step 7: Harden agent prompts
-
-Read `../agent-prompt-engineering/SKILL.md` and follow its procedure.
-
-This pass is required in the standard greenfield scaffold flow.
-
-### Step 8: Audit the generated repo
-
-Read `../scafforge-audit/SKILL.md` and follow its procedure.
-
-Run the audit against the freshly generated repo. If the audit identifies Scafforge package defects, stop after the diagnosis pack, have the user manually carry that pack into the Scafforge dev repo, implement the package changes there, then return to the generated repo before routing to `../scafforge-repair/SKILL.md`. Escalate intent-changing issues to the user.
-
-### Step 9: Write the handoff surface
+### Step 8: Write the handoff surface
 
 Read `../handoff-brief/SKILL.md` and follow its procedure.
 
 Generate `START-HERE.md` with actual project state so the repo can be resumed by another agent or session.
 
-### Step 10: Done
+### Step 9: Done
 
 The scaffold is complete when all of these exist:
 - `docs/spec/CANONICAL-BRIEF.md` with real project content
@@ -105,7 +104,7 @@ The scaffold is complete when all of these exist:
 - `.opencode/tools/`, `.opencode/plugins/`, `.opencode/commands/`
 - `.opencode/skills/` with project-specific local skills
 - `START-HERE.md` with current project state
-- a clean audit from `scafforge-audit`
+- a first-development handoff that is valid without any later audit or repair pass
 
 ## Diagnosis / review flow
 
@@ -125,7 +124,6 @@ When the task is diagnosis or review of an existing project:
 - a scaffolded repo with README.md, AGENTS.md, START-HERE.md, docs, and tickets
 - a structured truth hierarchy with clear ownership for facts, queue state, transient workflow state, artifacts, provenance, and handoff
 - the OpenCode agent, command, tool, plugin, and local-skill layer customized for the specific project
-- a process audit confirming the generated repo is clean or clearly routed to repair
 - a diagnosis pack when the run type is diagnosis/review
 - a handoff surface that another machine or session can resume from
 
@@ -139,7 +137,9 @@ When the task is diagnosis or review of an existing project:
 - Do not let `ticket-pack-builder` fabricate implementation detail for unresolved major decisions.
 - Preserve exact model/provider strings and project names when the source material specifies them.
 - Do not skip `agent-prompt-engineering` during the standard greenfield flow.
-- Do not ship a repo-local workflow until an audit pass confirms it is clean or explicitly routes to repair.
+- Do not introduce extra greenfield generation branches or user-selectable submodes after kickoff classifies the run as greenfield.
+- Do not leave the initial generation pass before `handoff-brief` completes.
+- Do not route the initial greenfield generation pass into `scafforge-audit` or `scafforge-repair`.
 - Do not reintroduce a standalone package-level refinement route.
 
 ## Review and QA

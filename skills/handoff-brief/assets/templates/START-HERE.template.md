@@ -14,7 +14,9 @@
 
 ## Current Or Next Ticket
 
-## Validation Status
+## Generation Status
+
+## Post-Generation Audit Status
 
 ## Known Risks
 

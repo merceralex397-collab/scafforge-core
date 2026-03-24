@@ -50,10 +50,10 @@ If this file conflicts with any global AI instruction file, this file wins for t
 - Keep historical completion separate from current trust. Use `resolution_state` and `verification_state` instead of mutating ticket history.
 - Treat `tickets/BOARD.md` as a derived human view, not a second state machine.
 - Use ticket tools and workflow-state instead of raw file edits for stage transitions.
-- Use lane leases for write-capable parallel work instead of overlapping unmanaged edits.
+- Default to one active write lane at a time. Use lane leases only for bounded parallel work instead of overlapping unmanaged edits.
 - Keep `START-HERE.md`, `tickets/BOARD.md`, and `tickets/manifest.json` aligned with the canonical sources that feed them.
 - Use Ubuntu-safe commands and paths in generated project docs unless the project explicitly says otherwise.
-- Keep the default orchestration shape as one visible team leader with explicit safe parallel lanes rather than many overlapping leaders.
+- Keep the default orchestration shape as one visible team leader with a single-lane-first posture. Only fan out into bounded parallel lanes when the brief and ticket graph prove the work is safely disjoint.
 - Treat manager or section-leader hierarchies as advanced project-specific customization, not a first-class scaffold profile.
 - Treat `.opencode/meta/bootstrap-provenance.json` as the canonical source for the repo's process-contract version; workflow state mirrors that contract for active execution and verification routing.
 - Only create migration follow-up tickets from backlog-verifier findings during an active process-verification window.

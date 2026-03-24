@@ -50,6 +50,8 @@ Present ALL blocking ambiguities to the user at once. Do not ask one at a time. 
 
 Wait for user decisions before proceeding.
 
+The batched decision packet is a required generation artifact. Record it in `docs/spec/CANONICAL-BRIEF.md` or in a companion markdown file that the canonical brief points to directly.
+
 ### 5. Write the canonical brief
 
 Write to `docs/spec/CANONICAL-BRIEF.md` using the schema in `references/brief-schema.md`.
@@ -74,18 +76,20 @@ Required sections (all 12 must be present):
 Verify the brief:
 - All 12 sections are present and non-empty
 - Facts and assumptions are separated
-- Blocking decisions are all resolved (or explicitly recorded as blocked)
+- The batched blocking-decision packet is written down in the canonical brief or an explicitly referenced companion file
+- Blocking decisions are all resolved before greenfield generation continues
 - Backlog readiness clearly states whether the first execution wave can be detailed
 - Exact product names, provider strings, and model identifiers are preserved
 
 ## After this step
 
-Return to `../scaffold-kickoff/SKILL.md` step 2 to resolve ambiguities, then proceed to step 3.
+Return to `../scaffold-kickoff/SKILL.md` step 2 to resolve ambiguities, then proceed to step 3 only after all blocking decisions are resolved.
 
 ## Rules
 
 - Prefer opportunistic intake over rigid required input structure
 - Do not invent implementation detail for work that depends on unresolved choices
+- Do not let the greenfield path proceed with unresolved blocking decisions
 - Keep the brief concise enough for weaker models to load
 - Preserve exact names, providers, and model strings when specified
 

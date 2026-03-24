@@ -136,7 +136,7 @@ export const LEGACY_REVIEW_STAGES = new Set(["code_review", "security_review"])
 export const START_HERE_MANAGED_START = "<!-- SCAFFORGE:START_HERE_BLOCK START -->"
 export const START_HERE_MANAGED_END = "<!-- SCAFFORGE:START_HERE_BLOCK END -->"
 export const DEFAULT_OVERLAP_RISK: OverlapRisk = "high"
-export const DEFAULT_PARALLEL_MODE: ParallelMode = "parallel-lanes"
+export const DEFAULT_PARALLEL_MODE: ParallelMode = "sequential"
 export const MIN_EXECUTION_ARTIFACT_BYTES = 200
 
 const EXECUTION_EVIDENCE_PATTERNS = [
@@ -499,6 +499,9 @@ export function allowsPreBootstrapWriteClaim(workflow: WorkflowState, ticket: Ti
 }
 export function claimLaneLease(workflow: WorkflowState, ticket: Ticket, ownerAgent: string, allowedPaths: string[], writeLock = true): LaneLease {
   const otherLeases = workflow.lane_leases.filter((lease) => lease.ticket_id !== ticket.id)
+  if (workflow.parallel_mode === "sequential" && otherLeases.length > 0) {
+    throw new Error(`Workflow is in sequential mode. Release the active lease before claiming another lane for ${ticket.id}.`)
+  }
   if (!ticket.parallel_safe && workflow.parallel_mode === "parallel-lanes" && otherLeases.length > 0) {
     throw new Error(`Ticket ${ticket.id} is not marked parallel_safe and cannot hold a parallel lease while other leases are active.`)
   }
@@ -763,8 +766,13 @@ export function renderStartHere(manifest: Manifest, workflow: WorkflowState, opt
   const reverification = manifest.tickets.filter((item) => getTicketWorkflowState(workflow, item.id).needs_reverification)
   const verifierLabel = options.backlogVerifierAgent ? `\`${options.backlogVerifierAgent}\`` : "the backlog verifier"
   const recommendedAction = options.nextAction || (workflow.pending_process_verification ? `Use the team leader to route ${verifierLabel} across done tickets whose trust predates the current process contract.` : workflow.bootstrap.status !== "ready" ? "Run environment_bootstrap, register its proof artifact, then continue ticket execution." : "Continue the required internal lifecycle from the current ticket stage.")
-  const lines = (items: Ticket[]) => items.length > 0 ? items.map((item) => `- ${item.id}: ${item.title}`).join("\n") : "- None"
-  return `# START HERE\n\n${START_HERE_MANAGED_START}\n## Project\n\n${manifest.project}\n\n## Workflow State\n\n- process_version: ${workflow.process_version}\n- parallel_mode: ${workflow.parallel_mode}\n- pending_process_verification: ${workflow.pending_process_verification ? "true" : "false"}\n- bootstrap_status: ${workflow.bootstrap.status}\n- bootstrap_proof: ${workflow.bootstrap.proof_artifact || "None"}\n\n## Current Ticket\n\n- ID: ${ticket.id}\n- Title: ${ticket.title}\n- Wave: ${ticket.wave}\n- Lane: ${ticket.lane}\n- Stage: ${ticket.stage}\n- Status: ${ticket.status}\n- Resolution: ${ticket.resolution_state}\n- Verification: ${ticket.verification_state}\n\n## Reopened Tickets\n\n${lines(reopened)}\n\n## Done But Not Fully Trusted\n\n${lines(suspectDone)}\n\n## Pending Reverification\n\n${lines(reverification)}\n\n## Read In This Order\n\n1. README.md\n2. AGENTS.md\n3. docs/spec/CANONICAL-BRIEF.md\n4. docs/process/workflow.md\n5. tickets/BOARD.md\n6. tickets/manifest.json\n\n## Next Action\n\n${recommendedAction}\n${START_HERE_MANAGED_END}\n`
+  const summarizeTickets = (items: Ticket[]) => items.length > 0 ? items.map((item) => item.id).join(", ") : "none"
+  const riskLines = [
+    workflow.bootstrap.status !== "ready" ? "- Environment validation can fail for setup reasons until bootstrap proof exists." : null,
+    workflow.pending_process_verification ? "- Historical completion should not be treated as fully trusted until pending process verification is cleared." : null,
+    suspectDone.length > 0 ? "- Some done tickets are not fully trusted yet; use the backlog verifier before relying on earlier closeout." : null,
+  ].filter((line): line is string => Boolean(line)).join("\n") || "- None recorded."
+  return `# START HERE\n\n${START_HERE_MANAGED_START}\n## What This Repo Is\n\n${manifest.project}\n\n## Current State\n\nThe repo is operating under the managed OpenCode workflow. Use the canonical state files below instead of memory or raw ticket prose.\n\n## Read In This Order\n\n1. README.md\n2. AGENTS.md\n3. docs/spec/CANONICAL-BRIEF.md\n4. docs/process/workflow.md\n5. tickets/BOARD.md\n6. tickets/manifest.json\n\n## Current Or Next Ticket\n\n- ID: ${ticket.id}\n- Title: ${ticket.title}\n- Wave: ${ticket.wave}\n- Lane: ${ticket.lane}\n- Stage: ${ticket.stage}\n- Status: ${ticket.status}\n- Resolution: ${ticket.resolution_state}\n- Verification: ${ticket.verification_state}\n\n## Generation Status\n\n- handoff_status: ready for continued development\n- process_version: ${workflow.process_version}\n- parallel_mode: ${workflow.parallel_mode}\n- pending_process_verification: ${workflow.pending_process_verification ? "true" : "false"}\n- bootstrap_status: ${workflow.bootstrap.status}\n- bootstrap_proof: ${workflow.bootstrap.proof_artifact || "None"}\n\n## Post-Generation Audit Status\n\n- audit_or_repair_follow_up: ${reopened.length > 0 || suspectDone.length > 0 || reverification.length > 0 ? "follow-up required" : "none recorded"}\n- reopened_tickets: ${summarizeTickets(reopened)}\n- done_but_not_fully_trusted: ${summarizeTickets(suspectDone)}\n- pending_reverification: ${summarizeTickets(reverification)}\n\n## Known Risks\n\n${riskLines}\n\n## Next Action\n\n${recommendedAction}\n${START_HERE_MANAGED_END}\n`
 }
 function escapeRegExp(value: string): string { return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") }
 export function mergeStartHere(existing: string, rendered: string): string {

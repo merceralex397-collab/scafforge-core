@@ -19,10 +19,9 @@ There are two different things in play.
 How a CLI host uses this package.
 
 Examples:
-- Codex as host
 - OpenCode as host
-- Claude Code as host
-- other compatible agent hosts later
+- another compatible host agent
+- later adapter-specific hosts
 
 ### Output layer
 What the generated repo looks like.
@@ -57,13 +56,13 @@ These skills are the current backbone and should remain coherent as a chain:
 - `scaffold-kickoff`
 - `spec-pack-normalizer`
 - `repo-scaffold-factory`
-- `opencode-team-bootstrap`
-- `ticket-pack-builder`
 - `project-skill-bootstrap`
+- `opencode-team-bootstrap`
 - `agent-prompt-engineering`
-- `scafforge-audit`
+- `ticket-pack-builder`
 - `handoff-brief`
 
+`scafforge-audit` and `scafforge-repair` remain separate post-generation lifecycle skills.
 Optional extension skills may exist outside this default scaffold spine when they solve later host-side workflow needs without polluting the scaffold chain. These should stay clearly marked as optional.
 
 ## Canonical workflow contract
@@ -75,15 +74,13 @@ The default route should be:
 1. `scaffold-kickoff` decides this is a greenfield build
 2. `spec-pack-normalizer` produces a canonical brief
 3. `repo-scaffold-factory` renders the base scaffold
-4. `opencode-team-bootstrap` designs the project-specific agent team
-5. `ticket-pack-builder` runs in bootstrap mode
-6. `project-skill-bootstrap` runs in foundation mode
-7. `project-skill-bootstrap` may then run in synthesis mode if enough project evidence exists
-8. `agent-prompt-engineering` runs the required prompt-hardening pass
-9. `scafforge-audit` audits the result and decides whether the next step is closeout, manual diagnosis-pack handoff into the Scafforge dev repo, or later repair
-10. `handoff-brief` refreshes the restart surface
+4. `project-skill-bootstrap` completes the full greenfield local-skill pass
+5. `opencode-team-bootstrap` designs the project-specific agent team
+6. `agent-prompt-engineering` runs the required same-session prompt-hardening pass
+7. `ticket-pack-builder` runs in bootstrap mode
+8. `handoff-brief` refreshes the restart surface
 
-A greenfield scaffold should not be considered complete until this cycle finishes.
+A greenfield scaffold allows one batched blocking-decision round and then completes in one uninterrupted same-session pass. No second Scafforge generation pass is required before development begins.
 
 ## Product contract refinements
 
@@ -93,6 +90,7 @@ These refinements now govern implementation of the package contract:
 - meaningful ambiguity must be converted into a **batched decision packet** and asked, not silently assumed
 - the default output remains **one full orchestration OpenCode scaffold**
 - `scaffold-kickoff` remains the **single public entrypoint** for greenfield, retrofit, managed-repair/update, and diagnosis/review flows; downstream skills are routing targets, not user-facing starting points
+- the greenfield path is **one-shot**: one batched blocking-decision round, one uninterrupted same-session generation pass, then direct handoff into development
 - the generated repo must have a **structured truth hierarchy** with exact canonical owners for facts, queue state, transient workflow state, artifacts, provenance, and restart surfaces
 - the initial backlog should be **implementation-ready where decisions are resolved**, while unresolved major choices become explicit blocked or decision tickets instead of fabricated detail
 - `scafforge-audit` should own read-only diagnosis, review validation, and report generation
@@ -182,6 +180,7 @@ It should remain the single source of truth for scaffold assets.
 Owns agent team design for the generated project.
 
 In a greenfield flow, this runs after `repo-scaffold-factory` generates generic agent templates. It analyzes the project type and stack from the canonical brief, then customizes all agents to be project-specific. This includes adding domain-specific implementers, rewriting generic prompts, and reviewing tools/plugins for project-specific additions.
+In a greenfield flow, this runs after the repo-local skill pack already exists, so agent skill allowlists can reference only generated local skills that are already present.
 
 In a retrofit flow, this adds or repairs the `.opencode/` operating layer when the repo already exists.
 
@@ -199,8 +198,8 @@ It should convert unresolved major choices into explicit blocked or decision tic
 Owns project-local skill generation.
 
 It must support:
-- foundation mode for the immediate workflow pack
-- synthesis mode for project- and stack-specific local skills
+- one full greenfield pass that populates the baseline workflow pack and any required synthesized local skills
+- targeted repair or regeneration later when an existing repo needs local-skill fixes
 
 It should not blindly copy generic internet skills into the repo.
 It should keep heavier orchestration packs thin or lazy-activated unless project evidence justifies more depth.
@@ -210,6 +209,7 @@ It owns output-repo review and QA local skills such as `review-audit-bridge` whe
 Owns prompt hardening, not overall flow control.
 
 It remains a required step in the standard greenfield scaffold chain even when the resulting hardening pass is light.
+In greenfield generation, it runs in the same session and finishes before ticket bootstrap and handoff.
 
 ### `scafforge-audit`
 Owns workflow diagnosis, review validation, and diagnosis-pack generation.

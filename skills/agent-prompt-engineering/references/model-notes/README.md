@@ -1,7 +1,7 @@
 # Model Notes
 
-This directory contains model-specific prompting documentation discovered during scaffolding.
+This directory contains package-side model-specific prompting references used during scaffolding.
 
-When the `agent-prompt-engineering` skill is used and the chosen model doesn't have notes here, the agent should web-search for that model's prompting best practices and write the findings to a new file in this directory (e.g., `minimax-m2.7.md`, `claude-sonnet-4.md`).
+Treat these notes as read-only package guidance during project generation.
 
-This allows future scaffold runs to reuse model-specific knowledge without repeating the research.
+If a scaffold run needs project-specific adaptation notes that do not belong in the package, write them into the generated repo instead of mutating this directory.

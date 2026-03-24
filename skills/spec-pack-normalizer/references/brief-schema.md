@@ -48,7 +48,8 @@ Use this structure when normalizing a spec pack or opportunistically scanned inp
 ## 8. Blocking Decisions
 
 - unresolved choices that materially change implementation
-- grouped into a batched decision packet
+- grouped into one batched decision packet that is written down as a required generation artifact
+- resolved before the greenfield generation pass continues
 
 ## 9. Non-Blocking Open Questions
 
@@ -56,8 +57,8 @@ Use this structure when normalizing a spec pack or opportunistically scanned inp
 
 ## 10. Backlog Readiness
 
-- whether the first execution wave can be detailed now
-- which areas are still blocked on decisions
+- whether the first execution wave can be detailed now after blocking decisions are resolved
+- which areas remain non-blocking open questions instead of generation blockers
 
 ## 11. Acceptance Signals
 

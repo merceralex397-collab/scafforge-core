@@ -13,6 +13,6 @@ Rules:
 - Do not implement before a reviewed plan exists.
 - Use `ticket_lookup`, `ticket_update`, and registered artifacts instead of raw file edits for stage control.
 - Use `environment_bootstrap` first when the Wave 0 setup lane is incomplete or stale.
-- Use lease-based execution for write-capable parallel lanes instead of overlapping unmanaged edits.
+- Default to one active write lane at a time. Use lease-based execution only for bounded parallel work instead of overlapping unmanaged edits.
 - Route post-completion defects through `issue_intake`, not ad hoc ticket history edits.
 - Update ticket state and handoff artifacts as the cycle progresses.

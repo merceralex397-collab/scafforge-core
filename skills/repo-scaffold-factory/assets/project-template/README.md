@@ -40,5 +40,6 @@ This repository was scaffolded for a deterministic, ticketed, agent-friendly wor
 - Ticket `status` stays coarse and queue-oriented.
 - Historical completion and current trust are separate. `status` stays queue-oriented, while `resolution_state` and `verification_state` tell you whether completed work is still trusted.
 - Plan approval, bootstrap readiness, and lease ownership live in workflow state plus registered stage artifacts, not in ticket status.
-- Write-capable parallel work must run through lane leases rather than overlapping unmanaged edits.
+- Default to one active write lane at a time. Use lane leases only for bounded parallel work that is explicitly safe and disjoint.
 - Use `.opencode/meta/bootstrap-provenance.json` as the canonical process-contract record, and use the process-version fields in workflow state to decide whether completed tickets need post-migration verification before they are trusted.
+- Use `.opencode/skills/model-operating-profile/SKILL.md` when shaping prompts or delegation for the selected downstream model profile.

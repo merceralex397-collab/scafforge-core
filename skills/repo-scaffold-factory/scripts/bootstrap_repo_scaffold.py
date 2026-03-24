@@ -38,7 +38,7 @@ OPENCODE_SCOPE_FILES = {
 
 PROCESS_CONTRACT_VERSION = 5
 TICKET_CONTRACT_VERSION = 3
-DEFAULT_PARALLEL_MODE = "parallel-lanes"
+DEFAULT_PARALLEL_MODE = "sequential"
 
 
 def slugify(value: str) -> str:
@@ -57,6 +57,51 @@ def render_text(content: str, replacements: dict[str, str]) -> str:
 def render_relative_path(path: Path, replacements: dict[str, str]) -> Path:
     rendered_parts = [render_text(part, replacements) for part in path.parts]
     return Path(*rendered_parts)
+
+
+def build_model_operating_profile(
+    *,
+    model_provider: str,
+    planner_model: str,
+    implementer_model: str,
+    utility_model: str,
+) -> dict[str, str]:
+    combined = " ".join((model_provider, planner_model, implementer_model, utility_model)).lower()
+    if "minimax" in combined:
+        return {
+            "name": "Specific-instruction evidence-first profile",
+            "description": (
+                "Apply explicit, example-shaped, bounded instructions for the selected downstream "
+                "models. Prefer direct evidence and concrete task framing over broad summaries."
+            ),
+            "rules": "\n".join(
+                (
+                    "- prefer clear and specific instructions",
+                    "- state the purpose or why when it reduces ambiguity",
+                    "- use example-shaped outputs when they make the expected shape concrete",
+                    "- focus on one bounded goal at a time instead of broad parallel asks",
+                    "- prefer direct evidence, command output, and cited repo surfaces over summaries",
+                    "- stop on blockers instead of guessing or silently filling gaps",
+                )
+            ),
+        }
+    return {
+        "name": "Evidence-first bounded-execution profile",
+        "description": (
+            "Apply explicit, scoped instructions for the selected downstream models. Keep tasks "
+            "bounded, tie asks to canonical repo surfaces, and prefer evidence over narrative recap."
+        ),
+        "rules": "\n".join(
+            (
+                "- keep instructions explicit, scoped, and selection-specific",
+                "- point back to canonical repo surfaces before acting on assumptions",
+                "- use short example-shaped outputs when they remove ambiguity",
+                "- keep each task focused on one bounded goal unless the brief proves safe separation",
+                "- prefer concrete evidence and command output over narrative summaries",
+                "- stop and surface blockers instead of guessing",
+            )
+        ),
+    }
 
 
 def should_copy(root_name: str, scope: str) -> bool:
@@ -278,6 +323,12 @@ def main() -> int:
     planner_model = args.planner_model
     implementer_model = args.implementer_model
     utility_model = args.utility_model or planner_model
+    model_profile = build_model_operating_profile(
+        model_provider=args.model_provider,
+        planner_model=planner_model,
+        implementer_model=implementer_model,
+        utility_model=utility_model,
+    )
 
     replacements = {
         "__PROJECT_NAME__": args.project_name,
@@ -287,6 +338,9 @@ def main() -> int:
         "__PLANNER_MODEL__": planner_model,
         "__IMPLEMENTER_MODEL__": implementer_model,
         "__UTILITY_MODEL__": utility_model,
+        "__MODEL_OPERATING_PROFILE_NAME__": model_profile["name"],
+        "__MODEL_OPERATING_PROFILE_DESCRIPTION__": model_profile["description"],
+        "__MODEL_OPERATING_PROFILE_RULES__": model_profile["rules"],
         "__STACK_LABEL__": args.stack_label,
     }
 
