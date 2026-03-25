@@ -47,6 +47,10 @@ ARTIFACT_PATH_DRIFT_PATTERNS = (
     r"\.opencode/state/artifacts/<ticket-id>/(planning|implementation|review|qa|handoff)\.md",
 )
 DEPRECATED_WORKFLOW_TERMS = ("ready_for_planning", "code_review", "security_review")
+PLACEHOLDER_SKILL_PATTERNS = (
+    r"Replace this file with stack-specific rules once the real project stack is known\.",
+    r"__STACK_LABEL__",
+)
 
 
 @dataclass
@@ -146,6 +150,10 @@ def matching_lines(text: str, patterns: tuple[str, ...]) -> list[str]:
         if line and any(re.search(pattern, line, re.IGNORECASE) for pattern in patterns):
             hits.append(line)
     return hits[:3]
+
+
+def combine_outputs(*parts: str) -> str:
+    return "\n".join(part for part in parts if part).strip()
 
 
 def normalized_path(path: Path, root: Path) -> str:
@@ -867,6 +875,102 @@ def _run(cmd: list[str], cwd: Path, timeout: int = 30) -> tuple[int, str]:
         return -1, f"[error: {exc}]"
 
 
+def audit_placeholder_local_skills(root: Path, findings: list[Finding]) -> None:
+    skills_dir = root / ".opencode" / "skills"
+    if not skills_dir.exists():
+        return
+
+    offenders: list[str] = []
+    evidence: list[str] = []
+    for path in sorted(skills_dir.rglob("SKILL.md")):
+        text = read_text(path)
+        hits = matching_lines(text, PLACEHOLDER_SKILL_PATTERNS)
+        if not hits:
+            continue
+        offenders.append(normalize_path(path, root))
+        evidence.extend(f"{normalize_path(path, root)} -> {hit}" for hit in hits)
+
+    if offenders:
+        add_finding(
+            findings,
+            Finding(
+                code="SKILL001",
+                severity="warning",
+                problem="One or more repo-local skills still contain generic placeholder text instead of project-specific guidance.",
+                root_cause="project-skill-bootstrap or later managed-surface repair left baseline local skills in a scaffold placeholder state, so agents lose concrete stack and validation guidance.",
+                files=offenders,
+                safer_pattern="Populate every baseline local skill with concrete repo-specific rules and validation commands; generated `.opencode/skills/` files must not retain template filler.",
+                evidence=evidence,
+            ),
+        )
+
+
+def audit_bootstrap_deadlock(root: Path, findings: list[Finding]) -> None:
+    tool_path = root / ".opencode" / "tools" / "environment_bootstrap.ts"
+    if not tool_path.exists():
+        return
+
+    tool_text = read_text(tool_path)
+    workflow_path = root / ".opencode" / "state" / "workflow-state.json"
+    workflow = read_json(workflow_path)
+    workflow_bootstrap = workflow.get("bootstrap") if isinstance(workflow, dict) and isinstance(workflow.get("bootstrap"), dict) else {}
+    proof_artifact_value = workflow_bootstrap.get("proof_artifact") if isinstance(workflow_bootstrap, dict) else None
+    proof_artifact = root / str(proof_artifact_value) if isinstance(proof_artifact_value, str) and proof_artifact_value else None
+    proof_text = read_text(proof_artifact) if proof_artifact else ""
+
+    pyvenv_text = read_text(root / ".venv" / "pyvenv.cfg")
+    has_uv_lock = (root / "uv.lock").exists()
+    uv_managed_venv = bool(re.search(r"^uv\s*=", pyvenv_text, re.MULTILINE))
+    hardcoded_system_pip = 'argv: ["python3", "-m", "pip"' in tool_text
+    pip_deadlock = "No module named pip" in proof_text
+    bootstrap_failed = isinstance(workflow_bootstrap, dict) and workflow_bootstrap.get("status") == "failed"
+
+    current_python3_pip_missing = False
+    rc, output = _run(["python3", "-m", "pip", "--version"], root, timeout=10)
+    if rc != 0 and "No module named pip" in output:
+        current_python3_pip_missing = True
+
+    signals = has_uv_lock or uv_managed_venv
+    bootstrap_contract_mismatch = hardcoded_system_pip and (signals or current_python3_pip_missing)
+    if not bootstrap_contract_mismatch and not pip_deadlock:
+        return
+
+    affected_files = [normalize_path(tool_path, root)]
+    evidence: list[str] = []
+    if has_uv_lock:
+        evidence.append("Repo contains uv.lock, so Python bootstrap should prefer uv-managed sync.")
+    if uv_managed_venv:
+        evidence.append("Repo-local .venv/pyvenv.cfg records a uv-managed virtual environment.")
+    if hardcoded_system_pip:
+        evidence.append(f"{normalize_path(tool_path, root)} still hardcodes bare `python3 -m pip` bootstrap commands.")
+    if current_python3_pip_missing:
+        evidence.append("Current machine reports `python3 -m pip --version` -> No module named pip.")
+    if bootstrap_failed:
+        evidence.append(f"{normalize_path(workflow_path, root)} records bootstrap.status = failed.")
+        affected_files.append(normalize_path(workflow_path, root))
+    if pip_deadlock and proof_artifact:
+        affected_files.append(normalize_path(proof_artifact, root))
+        evidence.extend(
+            [
+                f"{normalize_path(proof_artifact, root)} shows bootstrap failed while reporting `No module named pip`.",
+                *matching_lines(proof_text, (r"python3 -m pip install", r"No module named pip", r"Missing Prerequisites", r"- None")),
+            ]
+        )
+
+    add_finding(
+        findings,
+        Finding(
+            code="BOOT001",
+            severity="error",
+            problem="The generated bootstrap contract cannot ready this repo on the current machine, so write-capable workflow stages can deadlock before source fixes start.",
+            root_cause="The managed `environment_bootstrap` surface still relies on bare `python3 -m pip` or otherwise ignores repo-local uv/.venv signals. When global pip is absent, bootstrap fails even if the repo has a usable project virtual environment or uv lockfile.",
+            files=list(dict.fromkeys(affected_files)),
+            safer_pattern="Prefer repo-native bootstrap (`uv sync --locked` for uv repos; otherwise repo-local `.venv` plus `.venv/bin/python -m pip`), record missing prerequisites accurately, and keep bootstrap readiness separate from source import/test failures.",
+            evidence=evidence[:8],
+        ),
+    )
+
+
 def _detect_python(root: Path) -> str | None:
     """Return the Python executable to use for this repo (uv run python > python3 > python)."""
     uv = root / ".venv" / "bin" / "python"
@@ -1050,6 +1154,8 @@ def audit_repo(root: Path) -> list[Finding]:
     audit_read_only_write_language(root, findings)
     audit_over_scoped_commands(root, findings)
     audit_eager_skill_loading(root, findings)
+    audit_placeholder_local_skills(root, findings)
+    audit_bootstrap_deadlock(root, findings)
     audit_python_execution(root, findings)
     return findings
 

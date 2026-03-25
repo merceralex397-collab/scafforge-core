@@ -54,6 +54,9 @@ For each baseline skill in `.opencode/skills/`, rewrite the SKILL.md with actual
 - Actual testing commands (e.g., "Run tests with `pnpm test`")
 - Actual linting/formatting rules
 - Code style preferences from the brief
+- Do not leave placeholder text behind; a baseline skill that still says "Replace this file..." is invalid
+- Pull framework-specific rules from the canonical brief, repo instructions, and current code evidence
+- For FastAPI repos, include concrete dependency-injection guidance when the repo evidence shows specific patterns or prior failures
 
 **model-operating-profile** — Write model-profile-specific operating guidance:
 - instruction style that matches the selected downstream model profile
@@ -112,6 +115,7 @@ Examples:
 - Every synthesized skill must have proper YAML frontmatter
 - Every synthesized skill description must be concrete and selection-specific
 - Do not use vague descriptions such as "help with this stack" or "general project guidance"
+- No generated local skill may retain scaffold placeholder text after greenfield generation or repair/regeneration
 
 ### 7. Write updated skills
 

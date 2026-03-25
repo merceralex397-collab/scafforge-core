@@ -65,6 +65,18 @@
 - the repo can replace its process layer but has no explicit backlog verifier or gated follow-up path
 - result: migration issues are either missed or turned into ad hoc tickets with no proof trail
 
+## Bootstrap deadlock (BOOT001 — bootstrap tool incompatible with local Python manager)
+
+- the generated `environment_bootstrap` surface still hardcodes global `python3 -m pip` or ignores repo-local `uv.lock` / `.venv` signals
+- result: bootstrap can fail before any write-capable ticket work starts, even when the repo already has a usable uv-managed environment; resume deadlocks on workflow gates instead of reaching source remediation
+- why agents miss it: diagnosis imports modules and collects tests directly from `.venv`, but does not inspect the bootstrap tool or the failed bootstrap artifact that blocked the foreground workflow
+
+## Placeholder local skills (SKILL001 — repo-local skill still generic)
+
+- one or more generated `.opencode/skills/*.md` files still contain scaffold filler such as `Replace this file...`
+- result: the repo loses concrete stack and validation guidance, making framework-specific mistakes more likely during implementation
+- why agents miss it: current audits validate workflow tooling and execution proof, but do not check whether project-skill-bootstrap actually replaced baseline placeholder skill text
+
 ## Execution blindness (EXEC001 — module import failure)
 
 - one or more Python packages fail to import at runtime due to errors invisible to static analysis

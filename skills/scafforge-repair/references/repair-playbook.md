@@ -91,6 +91,23 @@ Escalate instead of auto-applying when a repair would:
 - narrow preflight commands so they stop at the intended stage
 - record the process version change and leave a verification trail when managed surfaces were replaced
 
+## BOOT repair actions (BOOT001)
+
+BOOT findings mean the managed bootstrap layer is broken on the current machine. Treat this as a workflow-surface repair first, not as a source ticket.
+
+- refresh the managed bootstrap surfaces, especially `.opencode/tools/environment_bootstrap.ts` and any related bootstrap command docs, through `scafforge-repair`
+- replace bare global-pip assumptions with repo-native bootstrap logic (`uv` for uv-managed repos, otherwise repo-local `.venv` plus `.venv/bin/python -m pip`)
+- surface missing prerequisites accurately; a failed bootstrap artifact must not report `Missing Prerequisites: None` when `pip` or `uv` is actually missing
+- rerun `audit_repo_process.py` after the managed-surface refresh; source-layer EXEC tickets should proceed only after `BOOT001` is gone
+
+## SKILL repair actions (SKILL001)
+
+SKILL findings mean the repo-local skill layer is still carrying scaffold placeholder text.
+
+- refresh scaffold-managed foundation skills under `.opencode/skills/` and rerun the project-specific local-skill regeneration pass where needed
+- `stack-standards` must contain concrete framework rules and actual validation commands from the repo, not placeholder filler
+- rerun audit and confirm no generated `.opencode/skills/*.md` files still contain template text such as `Replace this file...`
+
 ## EXEC repair actions (EXEC001 / EXEC002 / EXEC003)
 
 EXEC findings mean source-layer bugs exist that the Scafforge process failed to catch before tickets were closed. The repair is two-part: **sync the agent process layer** so agents enforce execution proof going forward, and **create remediation tickets** so OpenCode agents fix the source bugs.

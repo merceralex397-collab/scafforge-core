@@ -36,6 +36,11 @@ type CommandResult = CommandSpec & {
   missing_executable?: string
 }
 
+type DetectionResult = {
+  commands: CommandSpec[]
+  missingPrerequisites: string[]
+}
+
 async function exists(path: string): Promise<boolean> {
   try {
     await access(path)
@@ -53,6 +58,151 @@ async function readJson<T>(path: string): Promise<T | undefined> {
   }
 }
 
+async function readText(path: string): Promise<string> {
+  try {
+    return await readFile(path, "utf-8")
+  } catch {
+    return ""
+  }
+}
+
+function isMissingModulePip(output: string): boolean {
+  return /No module named pip/i.test(output)
+}
+
+function hasSectionValue(text: string, section: string, key: string): boolean {
+  const blockMatch = text.match(new RegExp(`\\[${section.replace(".", "\\.")}\\]([\\s\\S]*?)(?:\\n\\[|$)`, "m"))
+  if (!blockMatch) return false
+  return new RegExp(`^\\s*${key.replace("-", "\\-")}\\s*=\\s*(?:\\[|\\{)`, "m").test(blockMatch[1] || "")
+}
+
+function hasPyprojectDevExtra(pyprojectText: string): boolean {
+  return hasSectionValue(pyprojectText, "project.optional-dependencies", "dev")
+}
+
+function hasPyprojectPytestConfig(pyprojectText: string): boolean {
+  return /\[tool\.pytest\.ini_options\]/m.test(pyprojectText)
+}
+
+async function detectPythonCommand(root: string): Promise<string | undefined> {
+  for (const candidate of ["python3", "python"]) {
+    const result = await runCommand(root, {
+      label: `${candidate} availability`,
+      argv: [candidate, "--version"],
+      reason: `Check whether ${candidate} is available for Python environment setup.`,
+    })
+    if (result.exit_code === 0) return candidate
+  }
+  return undefined
+}
+
+async function isUvManagedVenv(root: string): Promise<boolean> {
+  const pyvenv = await readText(join(root, ".venv", "pyvenv.cfg"))
+  return /^uv\s*=/m.test(pyvenv)
+}
+
+async function detectUvPythonBootstrap(root: string, pyprojectText: string): Promise<DetectionResult> {
+  const commands: CommandSpec[] = [
+    {
+      label: "uv availability",
+      argv: ["uv", "--version"],
+      reason: "Check whether uv is available for lockfile-based Python bootstrap.",
+    },
+  ]
+  const syncArgs = ["uv", "sync", "--locked"]
+  if (hasPyprojectDevExtra(pyprojectText)) {
+    syncArgs.push("--extra", "dev")
+  }
+  commands.push({
+    label: "uv sync",
+    argv: syncArgs,
+    reason: "Sync the Python environment from uv.lock without relying on global pip.",
+  })
+  commands.push({
+    label: "project python ready",
+    argv: [join(root, ".venv", "bin", "python"), "--version"],
+    reason: "Verify the repo-local Python interpreter is available after bootstrap.",
+  })
+  const hasTests = existsSync(join(root, "tests")) || existsSync(join(root, "pytest.ini")) || hasPyprojectPytestConfig(pyprojectText)
+  if (hasTests) {
+    commands.push({
+      label: "project pytest ready",
+      argv: [join(root, ".venv", "bin", "pytest"), "--version"],
+      reason: "Verify the repo-local pytest executable is available for validation work.",
+    })
+  }
+  return { commands, missingPrerequisites: [] }
+}
+
+async function detectPipPythonBootstrap(root: string, pyprojectText: string): Promise<DetectionResult> {
+  const commands: CommandSpec[] = []
+  const missingPrerequisites: string[] = []
+  const systemPython = await detectPythonCommand(root)
+  if (!systemPython) {
+    return { commands: [], missingPrerequisites: ["python"] }
+  }
+
+  const venvPython = join(root, ".venv", "bin", "python")
+  if (!(await exists(venvPython))) {
+    commands.push({
+      label: "create repo virtualenv",
+      argv: [systemPython, "-m", "venv", ".venv"],
+      reason: "Create a repo-local Python virtual environment before installing dependencies.",
+    })
+  }
+
+  commands.push({
+    label: "repo pip availability",
+    argv: [venvPython, "-m", "pip", "--version"],
+    reason: "Verify pip is available inside the repo-local virtual environment.",
+  })
+
+  if (await exists(join(root, "requirements.txt"))) {
+    commands.push({
+      label: "pip install requirements",
+      argv: [venvPython, "-m", "pip", "install", "-r", "requirements.txt"],
+      reason: "Install Python runtime dependencies into the repo-local virtual environment.",
+    })
+  }
+  if (await exists(join(root, "requirements-dev.txt"))) {
+    commands.push({
+      label: "pip install requirements-dev",
+      argv: [venvPython, "-m", "pip", "install", "-r", "requirements-dev.txt"],
+      reason: "Install Python development and test dependencies into the repo-local virtual environment.",
+    })
+  }
+
+  const hasEditableProject =
+    (await exists(join(root, "pyproject.toml"))) ||
+    (await exists(join(root, "setup.py"))) ||
+    (await exists(join(root, "setup.cfg")))
+  if (hasEditableProject && !commands.some((command) => command.label.startsWith("pip install requirements"))) {
+    const editableTarget = hasPyprojectDevExtra(pyprojectText) ? ".[dev]" : "."
+    commands.push({
+      label: "pip install editable project",
+      argv: [venvPython, "-m", "pip", "install", "-e", editableTarget],
+      reason: "Install the project package into the repo-local virtual environment.",
+    })
+  }
+
+  commands.push({
+    label: "project python ready",
+    argv: [venvPython, "--version"],
+    reason: "Verify the repo-local Python interpreter is available after bootstrap.",
+  })
+
+  const hasTests = existsSync(join(root, "tests")) || existsSync(join(root, "pytest.ini")) || hasPyprojectPytestConfig(pyprojectText)
+  if (hasTests) {
+    commands.push({
+      label: "project pytest ready",
+      argv: [join(root, ".venv", "bin", "pytest"), "--version"],
+      reason: "Verify the repo-local pytest executable is available for validation work.",
+    })
+  }
+
+  return { commands, missingPrerequisites }
+}
+
 function choosePackageManager(root: string, packageJson: PackageJson | undefined): "npm" | "pnpm" | "yarn" | "bun" {
   const declared = packageJson?.packageManager?.toLowerCase() || ""
   if (declared.startsWith("pnpm")) return "pnpm"
@@ -65,65 +215,56 @@ function choosePackageManager(root: string, packageJson: PackageJson | undefined
   return "npm"
 }
 
-async function detectNodeBootstrap(root: string): Promise<CommandSpec[]> {
+async function detectNodeBootstrap(root: string): Promise<DetectionResult> {
   const packagePath = join(root, "package.json")
-  if (!(await exists(packagePath))) return []
+  if (!(await exists(packagePath))) return { commands: [], missingPrerequisites: [] }
   const packageJson = await readJson<PackageJson>(packagePath)
   const manager = choosePackageManager(root, packageJson)
-  if (manager === "pnpm") return [{ label: "pnpm install", argv: ["pnpm", "install", "--frozen-lockfile"], reason: "Install Node dependencies from lockfile." }]
-  if (manager === "yarn") return [{ label: "yarn install", argv: ["yarn", "install", "--immutable"], reason: "Install Node dependencies from lockfile." }]
-  if (manager === "bun") return [{ label: "bun install", argv: ["bun", "install", "--frozen-lockfile"], reason: "Install Node dependencies from lockfile." }]
-  if (existsSync(join(root, "package-lock.json"))) return [{ label: "npm ci", argv: ["npm", "ci"], reason: "Install Node dependencies from package-lock.json." }]
-  return [{ label: "npm install", argv: ["npm", "install"], reason: "Install Node dependencies from package.json." }]
+  if (manager === "pnpm") return { commands: [{ label: "pnpm install", argv: ["pnpm", "install", "--frozen-lockfile"], reason: "Install Node dependencies from lockfile." }], missingPrerequisites: [] }
+  if (manager === "yarn") return { commands: [{ label: "yarn install", argv: ["yarn", "install", "--immutable"], reason: "Install Node dependencies from lockfile." }], missingPrerequisites: [] }
+  if (manager === "bun") return { commands: [{ label: "bun install", argv: ["bun", "install", "--frozen-lockfile"], reason: "Install Node dependencies from lockfile." }], missingPrerequisites: [] }
+  if (existsSync(join(root, "package-lock.json"))) return { commands: [{ label: "npm ci", argv: ["npm", "ci"], reason: "Install Node dependencies from package-lock.json." }], missingPrerequisites: [] }
+  return { commands: [{ label: "npm install", argv: ["npm", "install"], reason: "Install Node dependencies from package.json." }], missingPrerequisites: [] }
 }
 
-async function detectPythonBootstrap(root: string): Promise<CommandSpec[]> {
-  const commands: CommandSpec[] = []
-  if (await exists(join(root, "requirements.txt"))) {
-    commands.push({
-      label: "pip install requirements",
-      argv: ["python3", "-m", "pip", "install", "-r", "requirements.txt"],
-      reason: "Install Python runtime dependencies.",
-    })
-  }
-  if (await exists(join(root, "requirements-dev.txt"))) {
-    commands.push({
-      label: "pip install requirements-dev",
-      argv: ["python3", "-m", "pip", "install", "-r", "requirements-dev.txt"],
-      reason: "Install Python test and development dependencies.",
-    })
-  }
-  const hasEditableProject =
+async function detectPythonBootstrap(root: string): Promise<DetectionResult> {
+  const hasPythonSurface =
     (await exists(join(root, "pyproject.toml"))) ||
     (await exists(join(root, "setup.py"))) ||
-    (await exists(join(root, "setup.cfg")))
-  if (hasEditableProject && commands.length === 0) {
-    commands.push({
-      label: "pip install editable project",
-      argv: ["python3", "-m", "pip", "install", "-e", "."],
-      reason: "Install project package and declared extras.",
-    })
+    (await exists(join(root, "setup.cfg"))) ||
+    (await exists(join(root, "requirements.txt"))) ||
+    (await exists(join(root, "requirements-dev.txt")))
+  if (!hasPythonSurface) return { commands: [], missingPrerequisites: [] }
+
+  const pyprojectText = await readText(join(root, "pyproject.toml"))
+  const useUv = (await exists(join(root, "uv.lock"))) || (await isUvManagedVenv(root))
+  if (useUv) {
+    return detectUvPythonBootstrap(root, pyprojectText)
   }
-  return commands
+  return detectPipPythonBootstrap(root, pyprojectText)
 }
 
-async function detectRustBootstrap(root: string): Promise<CommandSpec[]> {
-  if (!(await exists(join(root, "Cargo.toml")))) return []
-  return [{ label: "cargo fetch", argv: ["cargo", "fetch"], reason: "Fetch Rust dependencies." }]
+async function detectRustBootstrap(root: string): Promise<DetectionResult> {
+  if (!(await exists(join(root, "Cargo.toml")))) return { commands: [], missingPrerequisites: [] }
+  return { commands: [{ label: "cargo fetch", argv: ["cargo", "fetch"], reason: "Fetch Rust dependencies." }], missingPrerequisites: [] }
 }
 
-async function detectGoBootstrap(root: string): Promise<CommandSpec[]> {
-  if (!(await exists(join(root, "go.mod")))) return []
-  return [{ label: "go mod download", argv: ["go", "mod", "download"], reason: "Download Go module dependencies." }]
+async function detectGoBootstrap(root: string): Promise<DetectionResult> {
+  if (!(await exists(join(root, "go.mod")))) return { commands: [], missingPrerequisites: [] }
+  return { commands: [{ label: "go mod download", argv: ["go", "mod", "download"], reason: "Download Go module dependencies." }], missingPrerequisites: [] }
 }
 
-async function detectCommands(root: string): Promise<CommandSpec[]> {
-  return [
-    ...(await detectNodeBootstrap(root)),
-    ...(await detectPythonBootstrap(root)),
-    ...(await detectRustBootstrap(root)),
-    ...(await detectGoBootstrap(root)),
-  ]
+async function detectCommands(root: string): Promise<DetectionResult> {
+  const detections = await Promise.all([
+    detectNodeBootstrap(root),
+    detectPythonBootstrap(root),
+    detectRustBootstrap(root),
+    detectGoBootstrap(root),
+  ])
+  return {
+    commands: detections.flatMap((detection) => detection.commands),
+    missingPrerequisites: [...new Set(detections.flatMap((detection) => detection.missingPrerequisites))],
+  }
 }
 
 async function runCommand(root: string, command: CommandSpec): Promise<CommandResult> {
@@ -191,6 +332,15 @@ function fence(body: string): string {
   return `~~~~text\n${cleaned}\n~~~~`
 }
 
+function classifyMissingPrerequisites(command: CommandSpec, result: CommandResult): string[] {
+  if (result.missing_executable) return [result.missing_executable]
+  const output = `${result.stdout}\n${result.stderr}`
+  if (command.argv[1] === "-m" && command.argv[2] === "pip" && isMissingModulePip(output)) {
+    return ["pip"]
+  }
+  return []
+}
+
 function renderArtifact(
   ticketId: string,
   fingerprint: string,
@@ -221,16 +371,17 @@ export default tool({
     const workflow = await loadWorkflowState()
     const ticket = getTicket(manifest, args.ticket_id)
     const root = rootPath()
-    const commands = await detectCommands(root)
+    const detection = await detectCommands(root)
+    const commands = detection.commands
     const results: CommandResult[] = []
-    const missingPrerequisites = new Set<string>()
-    let passed = true
+    const missingPrerequisites = new Set(detection.missingPrerequisites)
+    let passed = detection.missingPrerequisites.length === 0
 
     for (const command of commands) {
       const result = await runCommand(root, command)
       results.push(result)
-      if (result.missing_executable) {
-        missingPrerequisites.add(result.missing_executable)
+      for (const missing of classifyMissingPrerequisites(command, result)) {
+        missingPrerequisites.add(missing)
       }
       if (result.exit_code !== 0) {
         passed = false
@@ -240,10 +391,10 @@ export default tool({
 
     const fingerprint = await computeBootstrapFingerprint(root)
     const note = missingPrerequisites.size > 0
-      ? `Bootstrap failed because required executables are missing: ${[...missingPrerequisites].join(", ")}. Install the missing toolchain packages, then rerun environment_bootstrap.`
+      ? `Bootstrap failed because required bootstrap prerequisites are missing: ${[...missingPrerequisites].join(", ")}. Install or seed the missing toolchain pieces, then rerun environment_bootstrap.`
       : passed
         ? "Dependency installation and bootstrap verification completed successfully."
-        : "Bootstrap stopped on the first failing installation command. Inspect the captured output and fix the prerequisite or dependency error before smoke tests."
+        : "Bootstrap stopped on the first failing installation or readiness command. Inspect the captured output and fix the prerequisite or dependency error before smoke tests."
     const body = renderArtifact(ticket.id, fingerprint, results, [...missingPrerequisites], passed, note)
     const canonicalPath = normalizeRepoPath(defaultBootstrapProofPath(ticket.id))
     await writeText(canonicalPath, body)
