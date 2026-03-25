@@ -131,6 +131,34 @@ const DEFAULT_BOOTSTRAP_STATE: BootstrapState = { status: "missing", last_verifi
 const DEFAULT_TICKET_WORKFLOW_STATE: TicketWorkflowState = { approved_plan: false, reopen_count: 0, needs_reverification: false }
 
 export const COARSE_STATUSES = new Set(["todo", "ready", "plan_review", "in_progress", "blocked", "review", "qa", "smoke_test", "done"])
+export const LIFECYCLE_STAGES = new Set(["planning", "plan_review", "implementation", "review", "qa", "smoke-test", "closeout"])
+export const STAGE_DEFAULT_STATUS: Record<string, string> = {
+  planning: "ready",
+  plan_review: "plan_review",
+  implementation: "in_progress",
+  review: "review",
+  qa: "qa",
+  "smoke-test": "smoke_test",
+  closeout: "done",
+}
+export const STATUS_STAGE_EQUIVALENTS: Record<string, string> = {
+  todo: "planning",
+  plan_review: "plan_review",
+  in_progress: "implementation",
+  review: "review",
+  qa: "qa",
+  smoke_test: "smoke-test",
+  done: "closeout",
+}
+export const STAGE_ALLOWED_STATUSES: Record<string, Set<string>> = {
+  planning: new Set(["todo", "ready", "blocked"]),
+  plan_review: new Set(["plan_review", "blocked"]),
+  implementation: new Set(["in_progress", "blocked"]),
+  review: new Set(["review", "blocked"]),
+  qa: new Set(["qa", "blocked"]),
+  "smoke-test": new Set(["smoke_test", "blocked"]),
+  closeout: new Set(["done"]),
+}
 export const ARTIFACT_REGISTRY_ROOT = ".opencode/state/artifacts"
 export const LEGACY_REVIEW_STAGES = new Set(["code_review", "security_review"])
 export const START_HERE_MANAGED_START = "<!-- SCAFFORGE:START_HERE_BLOCK START -->"
@@ -175,6 +203,43 @@ export function artifactStageDirectory(stage: string): string {
   return ".opencode/state/artifacts"
 }
 export function slugForPath(value: string): string { return value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") }
+export function isValidLifecycleStage(stage: string): boolean { return LIFECYCLE_STAGES.has(stage) }
+export function stageAllowsStatus(stage: string, status: string): boolean {
+  const allowed = STAGE_ALLOWED_STATUSES[stage]
+  return Boolean(allowed && allowed.has(status))
+}
+export function describeAllowedStatusesForStage(stage: string): string {
+  const allowed = STAGE_ALLOWED_STATUSES[stage]
+  return allowed ? [...allowed].join(", ") : ""
+}
+export function stageForStatus(status: string, currentStage?: string): string {
+  return STATUS_STAGE_EQUIVALENTS[status] || currentStage || "planning"
+}
+export function defaultStatusForStage(stage: string, currentStatus?: string): string {
+  if (stage === "planning" && currentStatus && stageAllowsStatus(stage, currentStatus)) {
+    return currentStatus
+  }
+  return STAGE_DEFAULT_STATUS[stage] || currentStatus || "ready"
+}
+export function resolveRequestedTicketProgress(ticket: Ticket, args: { stage?: string; status?: string }): { stage: string; status: string } {
+  const requestedStage = typeof args.stage === "string" && args.stage.trim() ? args.stage.trim() : undefined
+  const requestedStatus = typeof args.status === "string" && args.status.trim() ? args.status.trim() : undefined
+  const stage = requestedStage || (requestedStatus ? stageForStatus(requestedStatus, ticket.stage) : ticket.stage)
+  const status = requestedStatus || defaultStatusForStage(stage, ticket.status)
+  return { stage, status }
+}
+export function validateLifecycleStageStatus(stage: string, status: string): string | null {
+  if (!isValidLifecycleStage(stage)) {
+    return `Unsupported ticket stage: ${stage}. Use planning, plan_review, implementation, review, qa, smoke-test, or closeout.`
+  }
+  if (!COARSE_STATUSES.has(status)) {
+    return `Unsupported ticket status: ${status}`
+  }
+  if (!stageAllowsStatus(stage, status)) {
+    return `Status ${status} is not valid for stage ${stage}. Allowed statuses: ${describeAllowedStatusesForStage(stage)}.`
+  }
+  return null
+}
 export function defaultArtifactPath(ticketId: string, stage: string, kind: string): string { return `${artifactStageDirectory(stage)}/${slugForPath(ticketId)}-${slugForPath(stage)}-${slugForPath(kind)}.md` }
 export function defaultBootstrapProofPath(ticketId: string): string { return defaultArtifactPath(ticketId, "bootstrap", "environment-bootstrap") }
 
@@ -569,6 +634,7 @@ export function markArtifactsHistorical(ticket: Ticket, stage: string | undefine
   }
 }
 export function markTicketDone(ticket: Ticket, workflow: WorkflowState): void {
+  ticket.stage = "closeout"
   ticket.status = "done"
   ticket.resolution_state = "done"
   const state = ensureTicketWorkflowState(workflow, ticket.id)

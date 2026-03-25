@@ -20,10 +20,14 @@ Rules:
 - do not close a ticket until artifacts and state files are updated
 - keep the autonomous flow internal to agents, tools, and plugins
 - keep ticket `status` coarse and queue-oriented: `todo`, `ready`, `plan_review`, `in_progress`, `blocked`, `review`, `qa`, `smoke_test`, `done`
+- keep ticket `stage` lifecycle-oriented: `planning`, `plan_review`, `implementation`, `review`, `qa`, `smoke-test`, `closeout`
 - keep plan approval in `.opencode/state/workflow-state.json`, not in ticket status
 - treat `tickets/BOARD.md` as a derived human view, not an authoritative workflow surface
-- write stage artifact bodies with `artifact_write` and then register them with `artifact_register`
+- write planning, implementation, review, QA, and optional handoff artifact bodies with `artifact_write` and then register them with `artifact_register`
+- reserve `smoke-test` proof to the deterministic `smoke_test` tool
 - require a registered stage artifact before advancing to the next stage
+- let `ticket_update` derive the matching queue status from the lifecycle stage unless a compatible status is explicitly required
+- stop on repeated lifecycle-tool contradictions; re-run `ticket_lookup`, inspect `transition_guidance`, and return a blocker instead of probing alternate stage/status values
 
 ## Bounded parallel work
 
@@ -43,6 +47,7 @@ Rules:
 - if `.opencode/state/workflow-state.json` shows `pending_process_verification: true`, completed tickets are not treated as fully trusted yet
 - the affected done-ticket set is: done tickets whose latest smoke-test proof (or QA proof from an older contract) predates the current recorded process change, plus any done ticket without a registered `review` / `backlog-verification` artifact for the current process window
 - use `ticket_lookup` to inspect the affected done-ticket set before routing work to the backlog verifier
+- use `ticket_reverify` to restore trust on a closed done ticket after current backlog-verification or follow-up evidence exists; this trust-restoration path is allowed on closed tickets and does not require reopening them
 - create migration, remediation, or reverification follow-up tickets only through the guarded `ticket_create` tool and only from current registered evidence
 - treat post-audit and post-repair follow-up as a first-class workflow path when diagnosis or repair work identifies concrete next tickets
 
@@ -58,11 +63,28 @@ Rules:
 ## Stage Proof
 
 - before plan review: a `planning` artifact must exist
-- before implementation: the assigned ticket must already be in `plan_review` and `approved_plan` must be `true` in workflow-state
+- before implementation: the assigned ticket must already be in `plan_review`, and `approved_plan` must already be `true` in workflow-state from a prior approval step
 - before code review: an `implementation` artifact must exist
 - before QA: a review artifact must exist
 - before deterministic smoke test: a `qa` artifact must exist and include executable evidence
-- before closeout: a passing `smoke-test` artifact must exist
+- before closeout: a passing `smoke-test` artifact produced by `smoke_test` must exist
+
+## Transition Examples
+
+- planning -> plan_review:
+  - `ticket_update { "ticket_id": "<id>", "stage": "plan_review", "activate": true }`
+- plan_review approval:
+  - `ticket_update { "ticket_id": "<id>", "stage": "plan_review", "approved_plan": true, "activate": true }`
+- approved plan_review -> implementation:
+  - `ticket_update { "ticket_id": "<id>", "stage": "implementation", "activate": true }`
+- implementation -> review:
+  - `ticket_update { "ticket_id": "<id>", "stage": "review", "activate": true }`
+- review -> qa:
+  - `ticket_update { "ticket_id": "<id>", "stage": "qa", "activate": true }`
+- qa -> smoke-test:
+  - `ticket_update { "ticket_id": "<id>", "stage": "smoke-test", "activate": true }`
+- smoke-test -> closeout:
+  - `ticket_update { "ticket_id": "<id>", "stage": "closeout", "activate": true }`
 
 ## Diagnosis outputs
 

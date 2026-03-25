@@ -43,7 +43,6 @@ Rules:
 - do not mark the ticket done before the required passing smoke-test artifact exists
 - claim the assigned ticket with `ticket_claim` before write-capable closeout work and release it with `ticket_release` after handoff artifacts are synchronized
 - keep the board and manifest as derived state, not manual editing targets
-- when a canonical handoff artifact path is provided, write the full handoff body with `artifact_write` and then register it with `artifact_register`
+- when a canonical handoff artifact path is provided, write the full handoff body with `artifact_write` and then register it with `artifact_register`; `handoff_publish` still owns `START-HERE.md` and `.opencode/state/latest-handoff.md`
 - if a required artifact is missing, return a blocker instead of improvising closeout
 - if canonical sources disagree, return a blocker instead of inventing a merged story
-

@@ -15,4 +15,6 @@ Rules:
 - Regenerate a short context snapshot if the state looks stale.
 - Reconfirm the required artifact proof for the next stage before continuing.
 - Reconfirm whether the next write-capable step needs a lane lease before continuing.
+- Read `ticket_lookup.transition_guidance` before changing ticket stage or status.
+- If a lifecycle-tool error repeats, stop and return a blocker instead of probing alternate stage or status values.
 - Continue the required internal stage sequence instead of skipping ahead.

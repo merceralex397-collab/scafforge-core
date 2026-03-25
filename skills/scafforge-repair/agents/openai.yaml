@@ -1,4 +1,4 @@
 interface:
   display_name: "Scafforge Repair"
-  short_description: "Apply safe workflow-contract repairs and managed-surface refreshes"
-  default_prompt: "Use $scafforge-repair to apply validated Scafforge workflow repairs, record provenance, and verify the managed surface after changes."
+  short_description: "Apply safe workflow-contract repairs, managed-surface refreshes, and explicit post-repair verification"
+  default_prompt: "Use $scafforge-repair to apply validated Scafforge workflow repairs, record provenance, and verify the managed surface after changes without calling the repo clean while environment, runtime, or pending process-verification blockers remain."

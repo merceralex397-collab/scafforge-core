@@ -27,11 +27,19 @@ Recommended statuses:
 
 - `todo`
 - `ready`
+- `plan_review`
 - `in_progress`
 - `blocked`
 - `review`
 - `qa`
+- `smoke_test`
 - `done`
+
+Lifecycle notes:
+
+- `stage` is the lifecycle driver; `status` is the queue label derived and enforced by the workflow tools
+- new tickets normally start at `stage: planning` with `status: todo` or `blocked`
+- agents should not guess alternate stage/status pairs; `ticket_lookup` and `ticket_update` own that contract
 
 Rules:
 

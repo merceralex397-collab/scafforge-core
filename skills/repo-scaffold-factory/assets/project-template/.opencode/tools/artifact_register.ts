@@ -12,7 +12,7 @@ import {
 } from "./_workflow"
 
 export default tool({
-  description: "Register an existing canonical planning, implementation, review, QA, smoke-test, or handoff artifact.",
+  description: "Register an existing canonical planning, implementation, review, or QA artifact.",
   args: {
     ticket_id: tool.schema.string().describe("Ticket id that owns the artifact."),
     path: tool.schema.string().describe("Repo-relative path to the artifact."),

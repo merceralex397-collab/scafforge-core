@@ -10,11 +10,11 @@ Use the project-local surfaces this way:
 
 Important workflow tools:
 
-- `ticket_lookup` resolves the active ticket and current workflow state, and when process verification is pending it also reports which done tickets still require backlog verification; it can also return the latest artifact bodies for the resolved ticket when a verifier needs to inspect them
-- `ticket_update` changes coarse queue state and workflow approval state
+- `ticket_lookup` resolves the active ticket and current workflow state, reports the current artifact proof, and returns `transition_guidance` with the next legal stage move, required proof, and recommended `ticket_update` call shape
+- `ticket_update` changes lifecycle stage, derives the matching coarse queue status when needed, and rejects unsupported or contradictory stage/status pairs
 - `artifact_write` writes the full body for a canonical stage artifact in the stage-specific directory for that stage
 - `artifact_register` records metadata for an artifact that was already written at the canonical path
-- `smoke_test` runs deterministic smoke-test commands, writes the canonical smoke-test artifact, and reports pass/fail without delegating the stage to another agent
+- `smoke_test` runs deterministic smoke-test commands, writes the canonical smoke-test artifact itself, and reports pass/fail without delegating the stage to another agent
 - `context_snapshot` refreshes the compact restart surface
 - `handoff_publish` refreshes the top-level handoff
 - `skill_ping` records explicit local or global skill use in `.opencode/state/invocation-log.jsonl`
@@ -35,3 +35,5 @@ Review and diagnosis support:
 - use the generated repo-local `review-audit-bridge` skill for evidence-first review output and remediation-ticket recommendations
 - keep any diagnosis pack or process-log output under the repo-local `diagnosis/` path when the project uses that convention
 - treat diagnosis output as an evidence surface only; canonical queue and artifact state still move through ticket and artifact tools
+- do not use `.opencode/commands/` as the autonomous workflow; commands are human entrypoints only
+- do not create smoke-test artifacts through `artifact_write` or `artifact_register`; use `smoke_test`

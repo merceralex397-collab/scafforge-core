@@ -23,7 +23,7 @@ Read the existing prompt, command, or process doc and identify:
 ### 2. Apply prompt contracts
 
 Read `references/prompt-contracts.md` for the target prompt type:
-- Team leader: resolve state from tools first, verify artifacts before routing
+- Team leader: resolve state from tools first, treat `ticket_lookup.transition_guidance` as the canonical next-step summary, verify artifacts before routing, and stop on repeated lifecycle contradictions instead of probing alternate stage or status values
 - Planner: decision-complete plans for one ticket only
 - Implementer: follow the approved plan, stop on missing requirements
 - Reviewers/QA: stay read-only, return findings first
@@ -37,6 +37,10 @@ Read `references/anti-patterns.md` and eliminate:
 - Impossible read-only delegation (telling read-only agents to write files)
 - Broad command follow-on (commands that silently continue the whole workflow)
 - Eager skill loading (loading skills before resolving state)
+- Workflow thrash loops (repeating the same rejected lifecycle transition instead of reading the contract)
+- Unsupported stage probing (trying values like `todo` to see what passes)
+- Evidence-free PASS claims (writing implementation, QA, or smoke-test success without executed command output)
+- Slash-command self-use (agents treating human `/commands` as autonomous workflow tools)
 
 ### 4. Apply model-specific techniques
 
@@ -76,6 +80,8 @@ Read `references/weak-model-profile.md` and ensure:
 - Next specialist or action is named explicitly
 - Stable procedure lives in tools/skills, not long prose
 - Goals are bounded one at a time unless the workflow explicitly supports safe parallel work
+- Contradiction handling is explicit: if a lifecycle tool returns the same blocker twice, stop and explain it instead of searching for a workaround
+- Missing environment prerequisites are explicit: if `uv`, `pytest`, `rg`, git identity, or another required executable is unavailable, classify it as a blocker instead of inventing a workflow workaround
 
 ### 6. Final verification
 
@@ -91,6 +97,8 @@ Re-read the final prompt and ask:
 - Keep ticket status coarse and queue-oriented
 - Put transient approval state in workflow state or explicit artifacts
 - Require verification before stage changes
+- Require the team leader to route specialist artifact authorship to the owning lane instead of synthesizing those bodies itself
+- Keep slash commands human-facing; never rely on them for internal autonomous routing
 - Require explicit blocker return paths when material ambiguity remains
 - Do not let prompts terminate with a summary when the workflow still has another stage
 - Never instruct read-only agents to mutate repo-tracked files

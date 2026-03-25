@@ -15,7 +15,7 @@ AUDIT_SCRIPT_DIR = Path(__file__).resolve().parents[2] / "scafforge-audit" / "sc
 if str(AUDIT_SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(AUDIT_SCRIPT_DIR))
 
-from audit_repo_process import audit_repo
+from audit_repo_process import audit_repo, load_latest_previous_diagnosis, supporting_log_paths
 
 
 START_HERE_MANAGED_START = "<!-- SCAFFORGE:START_HERE_BLOCK START -->"
@@ -45,6 +45,7 @@ def parse_args() -> argparse.Namespace:
         help="Summary stored in workflow-state and repair history.",
     )
     parser.add_argument("--skip-verify", action="store_true", help="Skip the post-repair audit.")
+    parser.add_argument("--supporting-log", action="append", default=[], help="Optional supporting session log or transcript path for post-repair verification. May be provided multiple times.")
     parser.add_argument("--fail-on", choices=("never", "warning", "error"), default="never")
     return parser.parse_args()
 
@@ -208,6 +209,27 @@ def current_iso_timestamp() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
 
+def verification_logs(repo_root: Path, explicit_logs: list[str] | None) -> list[Path]:
+    logs = supporting_log_paths(repo_root, explicit_logs)
+    latest_previous = load_latest_previous_diagnosis(repo_root)
+    if latest_previous is None:
+        return logs
+
+    _, manifest = latest_previous
+    inherited = manifest.get("supporting_logs")
+    if isinstance(inherited, list):
+        inherited_paths = [str(item) for item in inherited if isinstance(item, str)]
+        for path in supporting_log_paths(repo_root, inherited_paths):
+            if path not in logs:
+                logs.append(path)
+    return logs
+
+
+def load_pending_process_verification(repo_root: Path) -> bool:
+    workflow = read_json(repo_root / ".opencode" / "state" / "workflow-state.json")
+    return isinstance(workflow, dict) and workflow.get("pending_process_verification") is True
+
+
 def update_workflow_state(repo_root: Path, rendered_provenance: dict[str, Any], change_summary: str) -> None:
     workflow_path = repo_root / ".opencode" / "state" / "workflow-state.json"
     manifest = read_json(repo_root / "tickets" / "manifest.json")
@@ -347,7 +369,13 @@ def main() -> int:
         run_bootstrap_render(rendered_root, metadata, args.stack_label)
         replaced_surfaces = apply_repair(repo_root, rendered_root, args.change_summary)
 
-    findings = [] if args.skip_verify else audit_repo(repo_root)
+    logs = verification_logs(repo_root, args.supporting_log)
+    findings = [] if args.skip_verify else audit_repo(repo_root, logs=logs)
+    pending_process_verification = load_pending_process_verification(repo_root)
+    managed_surface_findings = [finding for finding in findings if finding.code.startswith(("WFLOW", "BOOT", "MODEL", "SKILL", "CYCLE"))]
+    environment_findings = [finding for finding in findings if finding.code.startswith("ENV")]
+    source_findings = [finding for finding in findings if finding.code.startswith("EXEC")]
+    process_follow_up_findings = [finding for finding in findings if finding.code in {"WFLOW008", "WFLOW009"}]
     payload = {
         "repo_root": str(repo_root),
         "replaced_surfaces": replaced_surfaces,
@@ -356,8 +384,17 @@ def main() -> int:
             "finding_count": len(findings),
             "error_count": sum(1 for finding in findings if finding.severity == "error"),
             "warning_count": sum(1 for finding in findings if finding.severity == "warning"),
+            "managed_surface_finding_count": len(managed_surface_findings),
+            "environment_finding_count": len(environment_findings),
+            "source_follow_up_count": len(source_findings),
+            "process_follow_up_count": len(process_follow_up_findings),
+            "supporting_log_count": len(logs),
+            "pending_process_verification": pending_process_verification,
+            "clean": not findings and not pending_process_verification,
         },
     }
+    if logs:
+        payload["verification"]["supporting_logs"] = [str(path) for path in logs]
     print(json.dumps(payload, indent=2))
 
     if args.skip_verify:

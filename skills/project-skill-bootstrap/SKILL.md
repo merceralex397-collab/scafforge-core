@@ -65,13 +65,21 @@ For each baseline skill in `.opencode/skills/`, rewrite the SKILL.md with actual
 - example-shaped output expectations where helpful
 
 **ticket-execution** — Keep the standard lifecycle but add project-specific notes:
-- Any project-specific stage requirements
-- Project-specific validation expectations
+- Make it the canonical state-machine explainer for the generated repo
+- State the exact stage order: `planning -> plan_review -> implementation -> review -> qa -> smoke-test -> closeout`
+- Tell agents to read `ticket_lookup.transition_guidance` before calling `ticket_update`
+- Tell agents to stop on repeated lifecycle errors instead of probing alternate stage or status values
+- Define stage-artifact ownership by specialist
+- State that `smoke_test` is the only legal producer of smoke-test artifacts
+- State that if execution or validation cannot run, the agent must return a blocker instead of manufacturing PASS evidence
+- State that missing host prerequisites such as `uv`, `pytest`, `rg`, git identity, or service binaries are blockers that must be classified explicitly instead of worked around
+- Clarify that slash commands are human entrypoints, not internal autonomous workflow tools
 
 **review-audit-bridge** — Keep this generated skill repo-local and advisory-only, then add project-specific review and QA expectations:
 - Repo-specific review commands, validation commands, and artifact paths
 - Security-sensitive areas that need explicit attention
 - Approval vs blocker rules for code review, security review, and QA
+- Explicit blocker behavior when required validation commands cannot run
 - Guidance for writing a repo-local process log under `diagnosis/` or the generated repo's chosen review-log path when workflow misuse or weak implementation quality needs to be explained
 - Guidance for recommending remediation or reverification tickets without becoming the canonical ticket owner itself
 
@@ -136,6 +144,7 @@ Continue to `../opencode-team-bootstrap/SKILL.md` as directed by scaffold-kickof
 - Never auto-install external skills — synthesis from reference only
 - In greenfield generation, complete baseline population and required synthesis in one invocation
 - Keep generated review and diagnosis guidance repo-local; do not promote it into a Scafforge core skill
+- Generated workflow skills must agree with the ticket tools and prompts on stage order, artifact ownership, and blocker behavior before generation is complete
 
 ## References
 

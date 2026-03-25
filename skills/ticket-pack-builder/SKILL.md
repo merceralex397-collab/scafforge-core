@@ -60,7 +60,7 @@ For each piece of work, create a ticket with these fields:
 - `parallel_safe` — whether this ticket can be advanced in parallel with other tickets when dependencies are satisfied
 - `overlap_risk` — `low`, `medium`, or `high` expected overlap with other tickets
 - `stage` — `planning` (all new tickets start here)
-- `status` — `todo` or `blocked`
+- `status` — `todo` or `blocked` for new tickets; later lifecycle-aligned queue values are derived by `ticket_update`
 - `resolution_state` — `open` for new tickets, later `done`, `reopened`, or `superseded`
 - `verification_state` — `trusted` only after current proof exists; initialize new tickets as `suspect`
 - `depends_on` — list of ticket IDs this depends on
@@ -214,14 +214,17 @@ Continue to `../handoff-brief/SKILL.md` as directed by scaffold-kickoff.
 
 - Keep manifest machine-readable
 - Keep board human-readable (derived from manifest)
-- Keep queue status coarse: `todo`, `ready`, `in_progress`, `blocked`, `review`, `qa`, `done`
+- Keep queue status coarse and aligned with the workflow tools: `todo`, `ready`, `plan_review`, `in_progress`, `blocked`, `review`, `qa`, `smoke_test`, `done`
 - Do NOT use ticket status for transient approval state (that's in workflow-state.json)
+- Treat `plan_review` and `smoke_test` as workflow-tool-owned queue values, not as free-form authoring choices
+- Keep closeout acceptance criteria aligned with the deterministic `smoke_test` tool rather than generic PASS prose
 - Keep `wave`, `lane`, `parallel_safe`, and `overlap_risk` aligned with real execution boundaries
 - Record dependencies explicitly
 - Put acceptance criteria on every ticket
 - Prefer executable acceptance criteria where possible so downstream agents have concrete repo-local commands or observable pass/fail checks to run
 - Keep historical completion separate from current trust: `status` stays queue-oriented, while `resolution_state` and `verification_state` represent historical closure and present trust
 - Treat post-audit and post-repair ticket creation as a first-class workflow path, not an ad hoc backlog note
+- Keep ticket docs, workflow docs, and ticket tools aligned on the same lifecycle semantics before handoff
 
 ## References
 

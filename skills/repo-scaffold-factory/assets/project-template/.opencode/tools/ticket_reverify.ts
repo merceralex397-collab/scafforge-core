@@ -41,7 +41,7 @@ Overall Result: PASS
 }
 
 export default tool({
-  description: "Restore trust for a completed historical ticket after follow-up remediation or backlog reverification completes.",
+  description: "Restore trust for a completed historical ticket after follow-up remediation or backlog reverification completes. This is the legal mutation path for closed done tickets that still need process verification.",
   args: {
     ticket_id: tool.schema.string().describe("Historical source ticket whose trust should be restored."),
     evidence_artifact_path: tool.schema.string().describe("Current artifact path proving the reverification outcome."),

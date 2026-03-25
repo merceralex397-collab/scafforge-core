@@ -5,9 +5,9 @@ description: Run Scafforge's host-side diagnosis flow for an existing repository
 
 # Scafforge Audit
 
-Use this skill to inspect an existing repository without mutating it.
+Use this skill to inspect an existing repository in full diagnostic mode without mutating it.
 
-This is the host-side diagnosis surface. It replaces the old mixed doctor-plus-bridge behavior by keeping diagnosis, review evidence intake, and report generation together in one read-only skill.
+This is the host-side diagnosis surface. It replaces the old mixed doctor-plus-bridge behavior by keeping diagnosis, review evidence intake, and report generation together in one non-mutating skill.
 Every audit run produces the full four-report diagnosis pack.
 
 ## When to use this skill
@@ -29,6 +29,13 @@ Read the repo state first.
 - Inspect workflow surfaces, docs, ticketing, and managed state
 - Inspect `diagnosis/` and `.opencode/meta/bootstrap-provenance.json` to determine whether this is a repeat audit after a prior repair attempt
 - If session logs or transcript exports were supplied, inspect them before current-state reconciliation and treat them as first-class temporal evidence
+- Reconstruct transcript chronology explicitly when logs are supplied:
+  - repeated lifecycle errors
+  - workaround or bypass attempts
+  - verification failures
+  - later executable recovery evidence
+  - later PASS claims or artifact publication
+  - coordinator-authored specialist artifacts
 - If review comments, PR notes, or external findings were provided, treat them as candidate evidence only
 - Apply the evidence and non-taint rules from `references/review-contract.md`
 
@@ -45,11 +52,12 @@ python3 scripts/audit_repo_process.py <repo-root> --format both --emit-diagnosis
 
 The script is at `scripts/audit_repo_process.py` relative to this skill.
 Pass `--supporting-log <path>` for each supplied session log or transcript export.
+If the audited repo is outside the current host's writable roots, pass `--diagnosis-output-dir <writable-path>` so the diagnosis pack is still emitted in a host-writable location.
 
 It produces:
 - a markdown audit report
 - a JSON audit report
-- the timestamped diagnosis pack in `<repo-root>/diagnosis/<YYYYMMDD-HHMMSS>/`
+- the timestamped diagnosis pack in `<repo-root>/diagnosis/<YYYYMMDD-HHMMSS>/` or another writable host-selected output directory
 
 The script diagnoses only. It does not modify files.
 
@@ -65,7 +73,9 @@ For each finding, identify:
 - the root cause
 - the safer target pattern
 - whether the issue is workflow-layer drift, source-layer implementation drift, or review noise
+- whether the issue is a host prerequisite blocker such as missing `uv`, `pytest`, `rg`, git identity, or diagnosis-pack output permissions
 - when logs were supplied, whether the issue is a historical chronology failure, a current-state repo failure, or both
+- whether the repo-local workflow explainer, coordinator prompt, and tool contract agree on the same lifecycle semantics
 
 ### 4. Validate review findings when present
 
@@ -98,6 +108,8 @@ At minimum, the pack must capture:
 - validated findings, severity, evidence grade, and file references
 - supporting session logs or transcript exports when supplied
 - whether a previous diagnosis and repair cycle already failed, and which workflow-layer findings persisted
+- whether the transcript shows workflow thrash, bypass-seeking, or evidence-free PASS claims
+- whether the transcript shows coordinator-authored specialist artifacts or a recovery run that clears an earlier verification failure
 - ownership classification for each issue: package defect, managed-surface drift, repo customization drift, or source bug
 - rejected or outdated external claims when review evidence was supplied
 - Scafforge prevention actions needed in the package repo
@@ -113,7 +125,7 @@ Report 4 must:
 
 ### 6. Decide the next workspace, then stop
 
-This skill is read-only.
+This skill is non-mutating.
 
 - If no repair is needed, record a clean diagnosis result
 - If the diagnosis identifies a Scafforge package defect or prevention gap, stop after writing the diagnosis pack
@@ -152,11 +164,13 @@ Keep those responsibilities separate.
 
 ## Rules
 
-- Keep diagnosis read-only
+- Keep diagnosis non-mutating
+- Treat missing host prerequisites as first-class findings instead of silent verification skips
 - Do not preserve contradictory workflow semantics because they already exist
 - Do not accept review claims without repo evidence
 - Do not let PR comments taint canonical state
 - Do not answer a supplied causal transcript question with current-state findings alone
+- Do not treat repeated lifecycle retries, unsupported-stage probing, or PASS artifacts without executable proof as harmless transcript noise
 - Keep workflow-layer findings separate from source-layer implementation findings
 - Fold review validation into this skill instead of reviving a separate bridge
 

@@ -10,6 +10,7 @@ This repo uses:
 Rules:
 
 - keep ticket `status` coarse: `todo`, `ready`, `plan_review`, `in_progress`, `blocked`, `review`, `qa`, `smoke_test`, `done`
+- keep ticket `stage` lifecycle-oriented: `planning`, `plan_review`, `implementation`, `review`, `qa`, `smoke-test`, `closeout`
 - keep `wave`, `lane`, `parallel_safe`, and `overlap_risk` aligned with the real ownership and concurrency boundaries
 - keep plan approval in `.opencode/state/workflow-state.json`
 - treat `tickets/BOARD.md` as a derived human board, not a second state machine
@@ -19,3 +20,4 @@ Rules:
 - mirror artifact metadata into `.opencode/state/artifacts/registry.json`
 - create migration, remediation, or reverification follow-up tickets through the guarded `ticket_create` tool instead of raw manifest edits
 - treat post-audit and post-repair follow-up as a first-class ticket flow when current evidence identifies concrete next work
+- use `ticket_lookup.transition_guidance` before changing a ticket stage

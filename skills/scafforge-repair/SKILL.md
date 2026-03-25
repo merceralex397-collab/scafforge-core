@@ -7,7 +7,7 @@ description: Apply Scafforge's host-side managed repair flow for an existing rep
 
 Use this skill to apply safe workflow-contract repairs to an existing repository.
 
-This is the host-side repair surface. It consumes diagnosis outputs, especially Report 4 from `scafforge-audit`, applies deterministic managed-surface repairs, continues into any required project-specific regeneration passes, records provenance, and routes follow-up ticketing when workflow repair reveals additional work.
+This is the host-side repair surface. It consumes diagnosis outputs, especially Report 4 from `scafforge-audit`, applies deterministic managed-surface repairs, continues into any required project-specific regeneration passes, records provenance, and routes follow-up ticketing when workflow repair reveals additional work or current-machine prerequisites still block trusted verification.
 
 ## When to use this skill
 
@@ -73,6 +73,17 @@ After the deterministic refresh:
 2. run `../opencode-team-bootstrap/SKILL.md` when `.opencode/agents/` or `docs/process/agent-catalog.md` still drift from the current contract
 3. run `../agent-prompt-engineering/SKILL.md` whenever regenerated skills or agents changed prompt behavior, model defaults, or delegation rules
 
+Treat the following as one contract family and refresh them together when the audit shows lifecycle confusion or bypass-seeking:
+- `.opencode/tools/_workflow.ts`
+- `.opencode/tools/ticket_update.ts`
+- `.opencode/tools/ticket_lookup.ts`
+- `.opencode/tools/artifact_write.ts`
+- `.opencode/tools/artifact_register.ts`
+- `.opencode/tools/smoke_test.ts`
+- `.opencode/plugins/stage-gate-enforcer.ts`
+- `.opencode/skills/ticket-execution/SKILL.md`
+- the team-leader prompt and any related workflow prompts
+
 Do not stop after tool replacement if the repo would still resume with placeholder local skills, stale model defaults, or older agent prompts.
 
 ### 5. Apply remaining safe follow-up edits
@@ -92,6 +103,8 @@ Safe repair examples:
 - syncing execution-enforcement rules into prompts
 - removing deprecated package-managed model defaults such as `MiniMax-M2.5` when the package guidance has already moved to a newer default
 - regenerating model-profile, local-skill, and agent-team surfaces after a deterministic refresh replaced their scaffold-managed foundations
+- repairing repos where the coordinator authored QA or smoke-test proof outside the owning specialist or tool boundary
+- repairing repos where the docs-handoff lane was blocked by a plugin/prompt ownership conflict on optional `handoff` artifacts
 - creating remediation tickets for source bugs discovered by audit rules
 
 Intent-changing repair examples that must be escalated:
@@ -126,12 +139,15 @@ After repairs, run:
 python3 scripts/audit_repo_process.py <repo-root> --format both --emit-diagnosis-pack --fail-on warning
 ```
 
+Pass `--supporting-log <path>` when the repair basis depended on transcript evidence, and pass `--diagnosis-output-dir <writable-path>` when the subject repo is outside the current host's writable roots.
+
 If the repair changed the managed workflow layer materially, note that verification was re-run and whether ticket re-verification remains pending.
 If `BOOT001` was part of the repair basis, rerun the subject repo's `environment_bootstrap` flow before the final audit so bootstrap deadlock evidence is refreshed against the repaired tool surface.
+If verification still reports `ENV*`, `EXEC*`, or `WFLOW008` findings, do not call the repo clean. Report that managed-surface repair completed but host prerequisites, runtime failures, or backlog process verification still remain.
 
 ## How this differs from scafforge-audit
 
-- `scafforge-audit` is read-only diagnosis and review validation
+- `scafforge-audit` is non-mutating diagnosis and review validation
 - `scafforge-repair` performs safe managed workflow repairs and any required same-run regeneration after the diagnosis-to-package-to-subject-repo handoff is complete
 
 Keep the diagnosis decision and the repair action separated.
@@ -161,6 +177,9 @@ Keep the diagnosis decision and the repair action separated.
 - Do not stop at deterministic managed-surface replacement when the repaired repo still carries placeholder local skills, missing model-profile surfaces, or stale agent prompts
 - Preserve durable project facts while replacing managed surfaces
 - Leave explicit provenance and verification state after repair
+- If the prior repo history contains coordinator-authored PASS artifacts or bypass transitions, leave `pending_process_verification: true` and require backlog reverification before treating those historical closeouts as trusted
+- If the prior repo history shows verification failed and then later recovered with real command evidence, do not treat the recovered run as fabricated PASS proof
+- Treat missing host prerequisites and blocked verification commands as first-class post-repair outputs, not as clean verification
 
 ## References
 

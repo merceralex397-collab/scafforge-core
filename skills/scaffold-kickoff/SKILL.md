@@ -14,7 +14,7 @@ Before starting, classify the run type:
 1. **Greenfield** — No repo exists yet, or the repo contains only specs, plans, or notes. Follow the full workflow below.
 2. **Retrofit** — A repo with code already exists but is missing the current OpenCode operating layer. Run `spec-pack-normalizer` first if the project lacks a canonical brief, route to `opencode-team-bootstrap` to add or repair `.opencode/`, then run `project-skill-bootstrap`, continue through ticket repair as needed, and finish with `scafforge-audit`.
 3. **Managed repair / update** — A Scafforge-managed or OpenCode-oriented repo already exists but needs workflow-contract repair, upgrade, or managed-surface replacement. Route directly to `scafforge-repair`, let it continue through any required project-specific regeneration or ticket follow-up, and finish with `handoff-brief`.
-4. **Diagnosis / review** — An in-progress or claimed-complete repo needs read-only diagnosis, codebase review, report generation, or evidence validation. Route to `scafforge-audit`.
+4. **Diagnosis / review** — An in-progress or claimed-complete repo needs full non-mutating diagnosis, codebase review, report generation, or evidence validation. Route to `scafforge-audit`.
 
 If the repo state and the user's request do not make the run type clear, ask the user before proceeding. Do not silently choose between greenfield, retrofit, managed repair, and diagnosis/review when that choice would materially change scope.
 
@@ -94,6 +94,25 @@ Read `../handoff-brief/SKILL.md` and follow its procedure.
 
 Generate `START-HERE.md` with actual project state so the repo can be resumed by another agent or session.
 
+Before you finish the handoff, run one same-session contract-conformance check across the generated workflow surfaces:
+- `docs/process/workflow.md`
+- `docs/process/tooling.md`
+- `tickets/README.md`
+- `.opencode/tools/ticket_lookup.ts`
+- `.opencode/tools/ticket_update.ts`
+- `.opencode/tools/smoke_test.ts`
+- `.opencode/tools/handoff_publish.ts`
+- `.opencode/skills/ticket-execution/SKILL.md`
+- the generated team-leader prompt
+
+Confirm that they agree on:
+- lifecycle stage order, especially `plan_review` before implementation and `smoke-test` before closeout
+- `ticket_lookup.transition_guidance` as the canonical next-step explainer
+- `smoke_test` as the only producer of smoke-test artifacts
+- commands as human entrypoints only, with autonomous work staying inside agents, tools, plugins, and local skills
+
+If these surfaces disagree, fix the contract before handing off the repo.
+
 ### Step 9: Done
 
 The scaffold is complete when all of these exist:
@@ -112,7 +131,7 @@ When the task is diagnosis or review of an existing project:
 
 1. read `../scafforge-audit/SKILL.md`
 2. run the audit and any requested evidence-validation review work
-3. produce the four-report diagnosis pack when requested
+3. produce the four-report diagnosis pack on every audit run, redirecting the output directory when the subject repo is outside the current host's writable roots
 4. if the audit identifies Scafforge package work, have the user manually copy the diagnosis pack into the Scafforge dev repo and complete those package changes first
 5. route to `../scafforge-repair/SKILL.md` only after the required package changes exist and the audit still recommends repair
 6. finish with `../handoff-brief/SKILL.md` when a restart surface or closeout is needed
@@ -126,6 +145,7 @@ When the task is diagnosis or review of an existing project:
 - the OpenCode agent, command, tool, plugin, and local-skill layer customized for the specific project
 - a diagnosis pack when the run type is diagnosis/review
 - a handoff surface that another machine or session can resume from
+- a same-session workflow-contract conformance check showing docs, tools, prompts, and local workflow skills agree
 
 ## Rules
 

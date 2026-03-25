@@ -100,14 +100,22 @@ BOOT findings mean the managed bootstrap layer is broken on the current machine.
 - surface missing prerequisites accurately; a failed bootstrap artifact must not report `Missing Prerequisites: None` when `pip` or `uv` is actually missing
 - rerun the subject repo's `environment_bootstrap` flow after the managed-surface refresh, then rerun `audit_repo_process.py`; source-layer EXEC tickets should proceed only after `BOOT001` is gone
 
-## Workflow repair actions (WFLOW001 / WFLOW002 / WFLOW003 / SESSION001)
+## Workflow repair actions (WFLOW001 / WFLOW002 / WFLOW003 / WFLOW004 / WFLOW005 / WFLOW006 / WFLOW007 / SESSION001 / SESSION002 / SESSION003 / SESSION004 / SESSION005)
 
 Workflow findings mean the generated repo contract itself is causing or misreporting the deadlock.
 
 - `WFLOW001`: refresh `.opencode/tools/smoke_test.ts` so Python repos prefer explicit project overrides, then `uv run`, then repo-local `.venv`, and only lastly system python
 - `WFLOW002`: refresh handoff publication so free-form next-action text cannot claim dependency unblocking or `not a code defect` while the manifest, workflow state, or stage artifacts disagree
 - `WFLOW003`: refresh the workflow contract so `plan_review` is distinct from post-implementation `review` across docs, tools, and prompts
+- `WFLOW004`: refresh `.opencode/tools/_workflow.ts`, `.opencode/tools/ticket_update.ts`, and `.opencode/plugins/stage-gate-enforcer.ts` together so lifecycle validation rejects unsupported stages and implementation is gated on lifecycle `stage`, not stale queue-label checks
+- `WFLOW005`: refresh `.opencode/tools/artifact_write.ts`, `.opencode/tools/artifact_register.ts`, `.opencode/tools/ticket_lookup.ts`, and the stage-gate plugin together so smoke-test proof cannot be fabricated through generic artifact tools
+- `WFLOW006`: refresh the generated team-leader prompt so it routes from `ticket_lookup.transition_guidance`, stops on repeated lifecycle contradictions, leaves specialist artifacts to the owning lane, and treats slash commands as human entrypoints only
+- `WFLOW007`: refresh docs-handoff, workflow docs, and the stage-gate plugin together so optional canonical `handoff` artifacts remain writable by the docs lane while `handoff_publish` still owns restart surfaces
 - `SESSION001`: when a supplied transcript proves the causal failure, carry that transcript into package-side audit fixes first; do not treat the resulting report as ordinary current-state repo drift
+- `SESSION002`: repeated lifecycle retries are not just noisy transcript details; treat them as evidence that the prompt, local workflow skill, or tool contract is underspecified
+- `SESSION003`: unsupported-stage or explicit workaround attempts mean the tool contract and prompt hardening must be refreshed together; do not rely on the next session to "just use it correctly"
+- `SESSION004`: if the transcript shows validation could not run and later artifacts still claim PASS without later executable recovery evidence, treat that as a workflow-surface defect first: tighten artifact ownership, QA proof rules, and smoke-test ownership before trusting any closeout generated under the older contract
+- `SESSION005`: if the coordinator wrote specialist stage artifacts directly, regenerate the repo-local workflow skill and team-leader prompt together so routing ownership and artifact authorship boundaries are explicit
 
 ## SKILL repair actions (SKILL001)
 
@@ -116,6 +124,14 @@ SKILL findings mean the repo-local skill layer is still carrying scaffold placeh
 - refresh scaffold-managed foundation skills under `.opencode/skills/`, rerun the project-specific local-skill regeneration pass, and continue into agent-team/prompt follow-up when the regenerated skills change allowlists or model guidance
 - `stack-standards` must contain concrete framework rules and actual validation commands from the repo, not placeholder filler
 - rerun audit and confirm no generated `.opencode/skills/*.md` files still contain template text such as `Replace this file...`
+
+## Workflow-skill repair actions (SKILL002)
+
+SKILL findings of this type mean the repo-local lifecycle explainer exists but does not actually tell weaker models how to operate the state machine.
+
+- refresh scaffold-managed foundation skills under `.opencode/skills/`, especially `ticket-execution`
+- make `ticket-execution` the canonical explainer for stage order, `ticket_lookup.transition_guidance`, contradiction-stop behavior, specialist-owned artifacts, and `smoke_test`-owned smoke proof
+- rerun `../agent-prompt-engineering/SKILL.md` afterward so the prompts and the local workflow skill describe the same contract
 
 ## MODEL repair actions (MODEL001)
 

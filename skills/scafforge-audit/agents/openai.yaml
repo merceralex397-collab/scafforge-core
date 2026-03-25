@@ -1,4 +1,4 @@
 interface:
   display_name: "Scafforge Audit"
-  short_description: "Run read-only diagnosis, workflow audit, and review evidence validation"
-  default_prompt: "Use $scafforge-audit to inspect this repo, validate evidence-backed findings, and produce a diagnosis pack without making edits."
+  short_description: "Run full non-mutating diagnosis, workflow audit, and review evidence validation"
+  default_prompt: "Use $scafforge-audit to inspect this repo in full diagnostic mode, validate evidence-backed findings, classify environment and workflow blockers, and produce a diagnosis pack without making edits."

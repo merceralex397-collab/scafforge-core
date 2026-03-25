@@ -97,7 +97,7 @@ For EVERY agent, rewrite the generic prompt to be project-specific:
 **What NOT to change:**
 - Model assignments (`__PLANNER_MODEL__`, etc. are already substituted by the script)
 - Hidden/visible settings (only team-leader should be visible)
-- The fundamental stage-gate workflow (planning → review → implement → review → QA → handoff)
+- The fundamental stage-gate workflow (`planning -> plan_review -> implementation -> review -> qa -> smoke-test -> closeout`)
 
 **Example customization for a React web app:**
 
@@ -116,6 +116,10 @@ Verify:
 - Task allowlists reference only agents that exist in `.opencode/agents/`
 - Read-only agents (planner, reviewers, QA) have `write: false, edit: false`
 - Only implementer and docs-handoff have `write: true, edit: true`
+- The team leader resolves `ticket_lookup.transition_guidance` before changing lifecycle state
+- The team leader stops on repeated lifecycle-tool contradictions instead of probing alternate stage or status values
+- The team leader does not author planning, implementation, review, QA, or smoke-test artifact bodies on behalf of specialists
+- Agents do not instruct themselves to use slash commands as internal workflow steps
 
 ### 5. Review project-specific tools
 
@@ -176,6 +180,7 @@ Customize these to reference project-specific agents and skills.
 - No `ask` permissions — agents don't prompt the user
 - Explicit `permission.task` allowlists — agents can only delegate to named agents
 - Commands are for humans only
+- Agents must not use `/kickoff`, `/resume`, or other `.opencode/commands/` files as internal workflow workarounds
 - Tools/plugins handle autonomous internal flow
 - Workflow state and ticket tools for stage control, not raw file edits
 - Lease-based write execution should be operational, not just described in prompt prose

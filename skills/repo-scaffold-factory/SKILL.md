@@ -94,6 +94,7 @@ After the script generates the base files, you MUST customize them with actual p
 - Keep Phase A deterministic and script-driven.
 - Complete Phase B in the same session as the scaffold render.
 - No generic placeholder text or template filler may remain in any handoff surface by the time generation reaches `handoff-brief`.
+- Generated process docs and workflow tools must name repo-local versus host-global prerequisites clearly enough that later audit and repair can classify environment blockers instead of silently skipping verification.
 
 ## After this step
 

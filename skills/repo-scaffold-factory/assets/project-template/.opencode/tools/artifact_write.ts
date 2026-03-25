@@ -2,7 +2,7 @@ import { tool } from "@opencode-ai/plugin"
 import { defaultArtifactPath, getTicket, loadManifest, normalizeRepoPath, writeText } from "./_workflow"
 
 export default tool({
-  description: "Write the full body for a canonical planning, implementation, review, QA, smoke-test, or handoff artifact.",
+  description: "Write the full body for a canonical planning, implementation, review, or QA artifact.",
   args: {
     ticket_id: tool.schema.string().describe("Ticket id that owns the artifact."),
     path: tool.schema.string().describe("Repo-relative canonical artifact path."),

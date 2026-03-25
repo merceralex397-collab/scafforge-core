@@ -50,6 +50,8 @@ If this file conflicts with any global AI instruction file, this file wins for t
 - Keep historical completion separate from current trust. Use `resolution_state` and `verification_state` instead of mutating ticket history.
 - Treat `tickets/BOARD.md` as a derived human view, not a second state machine.
 - Use ticket tools and workflow-state instead of raw file edits for stage transitions.
+- Treat `ticket_lookup.transition_guidance` as the canonical description of the next legal stage move.
+- If the same lifecycle-tool error repeats, stop and return a blocker instead of probing alternate stage or status values.
 - Default to one active write lane at a time. Use lane leases only for bounded parallel work instead of overlapping unmanaged edits.
 - Keep `START-HERE.md`, `tickets/BOARD.md`, and `tickets/manifest.json` aligned with the canonical sources that feed them.
 - Use Ubuntu-safe commands and paths in generated project docs unless the project explicitly says otherwise.
@@ -57,3 +59,4 @@ If this file conflicts with any global AI instruction file, this file wins for t
 - Treat manager or section-leader hierarchies as advanced project-specific customization, not a first-class scaffold profile.
 - Treat `.opencode/meta/bootstrap-provenance.json` as the canonical source for the repo's process-contract version; workflow state mirrors that contract for active execution and verification routing.
 - Only create migration follow-up tickets from backlog-verifier findings during an active process-verification window.
+- Use `smoke_test` to generate smoke-test proof. Do not fabricate smoke-test PASS artifacts through generic artifact tools.

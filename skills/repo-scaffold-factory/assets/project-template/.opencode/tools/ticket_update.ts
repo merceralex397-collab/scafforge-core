@@ -1,6 +1,6 @@
 import { tool } from "@opencode-ai/plugin"
 import {
-  COARSE_STATUSES,
+  describeAllowedStatusesForStage,
   getTicket,
   hasArtifact,
   hasReviewArtifact,
@@ -8,10 +8,12 @@ import {
   loadManifest,
   loadWorkflowState,
   markTicketDone,
+  resolveRequestedTicketProgress,
   saveWorkflowBundle,
   setPlanApprovedForTicket,
   syncWorkflowSelection,
   ticketsNeedingProcessVerification,
+  validateLifecycleStageStatus,
   validateImplementationArtifactEvidence,
   validateQaArtifactEvidence,
   validateSmokeTestArtifactEvidence,
@@ -33,12 +35,16 @@ export default tool({
     const workflow = await loadWorkflowState()
     const ticket = getTicket(manifest, args.ticket_id)
     const wasDone = ticket.status === "done"
+    const requested = resolveRequestedTicketProgress(ticket, { stage: args.stage, status: args.status })
+    const targetStage = requested.stage
+    const targetStatus = requested.status
 
-    if (args.status && !COARSE_STATUSES.has(args.status)) {
-      throw new Error(`Unsupported ticket status: ${args.status}`)
+    const lifecycleBlocker = validateLifecycleStageStatus(targetStage, targetStatus)
+    if (lifecycleBlocker) {
+      throw new Error(lifecycleBlocker)
     }
 
-    if (wasDone && args.status && args.status !== "done") {
+    if (wasDone && targetStatus !== "done") {
       throw new Error(`Ticket ${ticket.id} is already done. Use ticket_reopen to resume ownership instead of mutating status directly.`)
     }
 
@@ -46,50 +52,54 @@ export default tool({
       throw new Error("Cannot approve a plan before a planning artifact exists.")
     }
 
-    if (args.status === "plan_review" || args.stage === "plan_review") {
+    if (targetStage === "plan_review") {
       if (!hasArtifact(ticket, { stage: "planning" })) {
         throw new Error("Cannot move to plan_review before a planning artifact exists.")
       }
     }
 
-    if ((args.status === "in_progress" || args.stage === "implementation") && !isPlanApprovedForTicket(workflow, ticket.id) && args.approved_plan !== true) {
+    if (targetStage === "implementation" && args.approved_plan === true && !isPlanApprovedForTicket(workflow, ticket.id)) {
+      throw new Error(`Approve ${ticket.id} while it remains in plan_review first, then move it to implementation in a separate ticket_update call.`)
+    }
+
+    if (targetStage === "implementation" && !isPlanApprovedForTicket(workflow, ticket.id)) {
       throw new Error(`Cannot move ${ticket.id} to implementation before its plan is approved in workflow-state.`)
     }
 
-    if ((args.status === "in_progress" || args.stage === "implementation") && ticket.status !== "plan_review" && args.status !== "plan_review") {
+    if (targetStage === "implementation" && ticket.stage !== "plan_review") {
       throw new Error(`Cannot move ${ticket.id} to implementation before it passes through plan_review.`)
     }
 
-    if (args.status === "review" || args.stage === "review") {
+    if (targetStage === "review") {
       const implementationBlocker = await validateImplementationArtifactEvidence(ticket)
       if (implementationBlocker) {
         throw new Error(implementationBlocker)
       }
     }
 
-    if (args.status === "qa" && !hasReviewArtifact(ticket)) {
+    if (targetStage === "qa" && !hasReviewArtifact(ticket)) {
       throw new Error("Cannot move to qa before at least one review artifact exists.")
     }
 
-    if (args.status === "smoke_test") {
+    if (targetStage === "smoke-test") {
       const qaBlocker = await validateQaArtifactEvidence(ticket)
       if (qaBlocker) {
         throw new Error(qaBlocker)
       }
     }
 
-    if (args.status === "done") {
+    if (targetStage === "closeout") {
       const smokeTestBlocker = await validateSmokeTestArtifactEvidence(ticket)
       if (smokeTestBlocker) {
         throw new Error(smokeTestBlocker)
       }
     }
 
-    if (args.stage) ticket.stage = args.stage
-    if (args.status === "done") {
+    ticket.stage = targetStage
+    if (targetStatus === "done") {
       markTicketDone(ticket, workflow)
-    } else if (args.status) {
-      ticket.status = args.status
+    } else {
+      ticket.status = targetStatus
     }
     if (args.summary) ticket.summary = args.summary
     if (args.activate) manifest.active_ticket = ticket.id
@@ -116,6 +126,11 @@ export default tool({
     return JSON.stringify(
       {
         updated_ticket: ticket,
+        transition: {
+          stage: targetStage,
+          status: targetStatus,
+          allowed_statuses_for_stage: describeAllowedStatusesForStage(targetStage),
+        },
         active_ticket: manifest.active_ticket,
         workflow,
       },
