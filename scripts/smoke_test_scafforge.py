@@ -21,6 +21,91 @@ def run(command: list[str], cwd: Path) -> None:
         raise RuntimeError(f"Command failed: {' '.join(command)}\nSTDOUT:\n{result.stdout}\nSTDERR:\n{result.stderr}")
 
 
+def run_json(command: list[str], cwd: Path) -> dict:
+    result = subprocess.run(command, cwd=cwd, check=False, capture_output=True, text=True)
+    if result.returncode != 0:
+        raise RuntimeError(f"Command failed: {' '.join(command)}\nSTDOUT:\n{result.stdout}\nSTDERR:\n{result.stderr}")
+    try:
+        return json.loads(result.stdout)
+    except json.JSONDecodeError as exc:
+        raise RuntimeError(f"Command did not return valid JSON: {' '.join(command)}\nSTDOUT:\n{result.stdout}") from exc
+
+
+def seed_uv_python_fixture(dest: Path) -> None:
+    (dest / "pyproject.toml").write_text(
+        "\n".join(
+            [
+                "[project]",
+                'name = "smoke-python"',
+                'version = "0.1.0"',
+                'requires-python = ">=3.11"',
+                "",
+                "[project.optional-dependencies]",
+                'dev = ["pytest>=8.0.0"]',
+                "",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    (dest / "uv.lock").write_text("version = 1\n", encoding="utf-8")
+    venv_dir = dest / ".venv"
+    venv_dir.mkdir(parents=True, exist_ok=True)
+    (venv_dir / "pyvenv.cfg").write_text(
+        "\n".join(
+            [
+                "home = /usr/bin",
+                "implementation = CPython",
+                "uv = 0.10.12",
+                "version_info = 3.12.3",
+                "include-system-site-packages = false",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+
+def seed_bootstrap_deadlock(dest: Path) -> None:
+    workflow_path = dest / ".opencode" / "state" / "workflow-state.json"
+    workflow = json.loads(workflow_path.read_text(encoding="utf-8"))
+    artifact_rel = ".opencode/state/bootstrap/synthetic-bootstrap-deadlock.md"
+    artifact_path = dest / artifact_rel
+    artifact_path.parent.mkdir(parents=True, exist_ok=True)
+    artifact_path.write_text(
+        "\n".join(
+            [
+                "# Environment Bootstrap",
+                "",
+                "## Missing Prerequisites",
+                "",
+                "- None",
+                "",
+                "## Commands",
+                "",
+                "### 1. pip install editable project",
+                "",
+                "- command: `python3 -m pip install -e .`",
+                "",
+                "#### stderr",
+                "",
+                "~~~~text",
+                "/usr/bin/python3: No module named pip",
+                "~~~~",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    workflow["bootstrap"] = {
+        "status": "failed",
+        "last_verified_at": "2026-03-25T00:23:01Z",
+        "environment_fingerprint": "synthetic-bootstrap-deadlock",
+        "proof_artifact": artifact_rel,
+    }
+    workflow_path.write_text(json.dumps(workflow, indent=2) + "\n", encoding="utf-8")
+
+
 def verify_render(dest: Path, *, expect_full_repo: bool) -> None:
     checklist = json.loads(CHECKLIST.read_text(encoding="utf-8"))
     for relative in checklist["required_files"]:
@@ -123,7 +208,10 @@ def main() -> int:
         verify_render(full_dest, expect_full_repo=True)
         verify_render(opencode_dest, expect_full_repo=False)
 
-        run([sys.executable, str(AUDIT), str(full_dest), "--format", "json", "--emit-diagnosis-pack"], ROOT)
+        initial_audit = run_json([sys.executable, str(AUDIT), str(full_dest), "--format", "json", "--emit-diagnosis-pack"], ROOT)
+        initial_codes = {finding["code"] for finding in initial_audit.get("findings", [])}
+        if "SKILL001" not in initial_codes:
+            raise RuntimeError("Audit should flag placeholder repo-local skills with SKILL001 on the base scaffold output")
         diagnosis_root = full_dest / "diagnosis"
         diagnosis_dirs = sorted(path for path in diagnosis_root.iterdir() if path.is_dir()) if diagnosis_root.exists() else []
         if not diagnosis_dirs:
@@ -145,6 +233,29 @@ def main() -> int:
             raise RuntimeError("Diagnosis pack manifest should include ticket_recommendations")
         if diagnosis_manifest.get("report_files", {}).get("report_4") != "04-live-repo-repair-plan.md":
             raise RuntimeError("Diagnosis pack manifest should map report_4 to 04-live-repo-repair-plan.md")
+
+        python_dest = workspace / "python-uv"
+        shutil.copytree(full_dest, python_dest)
+        seed_uv_python_fixture(python_dest)
+        python_audit = run_json([sys.executable, str(AUDIT), str(python_dest), "--format", "json"], ROOT)
+        python_codes = {finding["code"] for finding in python_audit.get("findings", [])}
+        if "BOOT001" in python_codes:
+            raise RuntimeError("A uv-shaped repo with the current bootstrap template should not emit BOOT001")
+
+        deadlock_dest = workspace / "python-deadlock"
+        shutil.copytree(python_dest, deadlock_dest)
+        seed_bootstrap_deadlock(deadlock_dest)
+        deadlock_audit = run_json([sys.executable, str(AUDIT), str(deadlock_dest), "--format", "json", "--emit-diagnosis-pack"], ROOT)
+        deadlock_codes = {finding["code"] for finding in deadlock_audit.get("findings", [])}
+        if "BOOT001" not in deadlock_codes:
+            raise RuntimeError("A failed bootstrap artifact with missing pip should emit BOOT001")
+        recommendations = (
+            deadlock_audit.get("diagnosis_pack", {})
+            .get("manifest", {})
+            .get("ticket_recommendations", [])
+        )
+        if not any(item.get("source_finding_code") == "BOOT001" and item.get("route") == "scafforge-repair" for item in recommendations):
+            raise RuntimeError("BOOT001 should route to scafforge-repair in the diagnosis pack")
 
         (full_dest / "docs" / "process" / "workflow.md").write_text("# drifted workflow\n", encoding="utf-8")
         run([sys.executable, str(REPAIR), str(full_dest), "--fail-on", "error"], ROOT)
