@@ -46,11 +46,21 @@ export default tool({
       throw new Error("Cannot approve a plan before a planning artifact exists.")
     }
 
-    if (args.status === "in_progress" && !isPlanApprovedForTicket(workflow, ticket.id) && args.approved_plan !== true) {
-      throw new Error(`Cannot move ${ticket.id} to in_progress before its plan is approved in workflow-state.`)
+    if (args.status === "plan_review" || args.stage === "plan_review") {
+      if (!hasArtifact(ticket, { stage: "planning" })) {
+        throw new Error("Cannot move to plan_review before a planning artifact exists.")
+      }
     }
 
-    if (args.status === "review") {
+    if ((args.status === "in_progress" || args.stage === "implementation") && !isPlanApprovedForTicket(workflow, ticket.id) && args.approved_plan !== true) {
+      throw new Error(`Cannot move ${ticket.id} to implementation before its plan is approved in workflow-state.`)
+    }
+
+    if ((args.status === "in_progress" || args.stage === "implementation") && ticket.status !== "plan_review" && args.status !== "plan_review") {
+      throw new Error(`Cannot move ${ticket.id} to implementation before it passes through plan_review.`)
+    }
+
+    if (args.status === "review" || args.stage === "review") {
       const implementationBlocker = await validateImplementationArtifactEvidence(ticket)
       if (implementationBlocker) {
         throw new Error(implementationBlocker)

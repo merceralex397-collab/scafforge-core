@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Any
 
 
-COARSE_STATUSES = {"todo", "ready", "in_progress", "blocked", "review", "qa", "done"}
+COARSE_STATUSES = {"todo", "ready", "plan_review", "in_progress", "blocked", "review", "qa", "smoke_test", "done"}
 STAGE_LIKE_STATUSES = {"planned", "approved", "archived"}
 MUTATING_SHELL_TOKENS = (
     '"sed *": allow',
@@ -51,6 +51,29 @@ DEPRECATED_WORKFLOW_TERMS = ("ready_for_planning", "code_review", "security_revi
 PLACEHOLDER_SKILL_PATTERNS = (
     r"Replace this file with stack-specific rules once the real project stack is known\.",
     r"__STACK_LABEL__",
+)
+HANDOFF_OVERCLAIM_PATTERNS = (
+    r"\bunblocked\b",
+    r"not a code defect",
+    r"only blocker",
+    r"tool/env mismatch",
+    r"tooling issue",
+)
+TRANSCRIPT_STALE_STATE_PATTERNS = (
+    r"stage `planning`, status `ready`",
+    r"approved_plan: false",
+)
+TRANSCRIPT_PROGRESS_PATTERNS = (
+    r"126 tests collected",
+    r"import succeeds",
+    r"imports cleanly",
+    r"collection passes",
+    r"approved_plan` is now `true`",
+)
+TRANSCRIPT_FULL_SUITE_RESULT_PATTERNS = (
+    r"\d+ failed, \d+ passed",
+    r"pytest tests/ -q --tb=no` exits `1`",
+    r"pytest tests/ -q --tb=no",
 )
 DEPRECATED_MODEL_PATTERNS = (
     r"MiniMax-M2\.5",
@@ -168,6 +191,56 @@ def frontmatter_value(text: str, key: str) -> str | None:
     if not match:
         return None
     return match.group(1).strip().strip('"').strip("'")
+
+
+def parse_iso_timestamp(value: str | None) -> datetime | None:
+    if not value or not isinstance(value, str):
+        return None
+    try:
+        return datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+
+
+def load_latest_previous_diagnosis(root: Path) -> tuple[Path, dict[str, Any]] | None:
+    diagnosis_root = root / "diagnosis"
+    if not diagnosis_root.exists():
+        return None
+
+    candidates: list[tuple[datetime, Path, dict[str, Any]]] = []
+    for path in sorted(diagnosis_root.iterdir()):
+        if not path.is_dir():
+            continue
+        manifest_path = path / "manifest.json"
+        manifest = read_json(manifest_path)
+        if not isinstance(manifest, dict):
+            continue
+        generated_at = parse_iso_timestamp(manifest.get("generated_at"))
+        if generated_at is None:
+            continue
+        candidates.append((generated_at, path, manifest))
+
+    if not candidates:
+        return None
+    _, latest_path, latest_manifest = sorted(candidates, key=lambda item: item[0])[-1]
+    return latest_path, latest_manifest
+
+
+def supporting_log_paths(root: Path, explicit_logs: list[str] | None) -> list[Path]:
+    paths: list[Path] = []
+    for raw_path in explicit_logs or []:
+        candidate = Path(raw_path).expanduser()
+        candidate = candidate if candidate.is_absolute() else (root / candidate)
+        if candidate.exists() and candidate.is_file():
+            paths.append(candidate.resolve())
+    deduped: list[Path] = []
+    seen: set[Path] = set()
+    for path in paths:
+        if path in seen:
+            continue
+        seen.add(path)
+        deduped.append(path)
+    return deduped
 
 
 def combine_outputs(*parts: str) -> str:
@@ -937,15 +1010,18 @@ def audit_model_profile_drift(root: Path, findings: list[Finding]) -> None:
 
     evidence: list[str] = []
     files: list[str] = []
+    package_managed_drift = False
 
     if not profile_path.exists():
         files.append(normalize_path(profile_path, root))
         evidence.append(f"Missing repo-local model profile skill: {normalize_path(profile_path, root)}.")
+        package_managed_drift = True
     else:
         profile_text = read_text(profile_path)
         if "__MODEL_PROVIDER__" in profile_text or "__MODEL_OPERATING_PROFILE_NAME__" in profile_text:
             files.append(normalize_path(profile_path, root))
             evidence.append(f"{normalize_path(profile_path, root)} still contains unresolved model-profile template placeholders.")
+            package_managed_drift = True
 
     candidate_paths = [provenance_path, model_matrix_path, canonical_brief_path, start_here_path]
     if agents_dir.exists():
@@ -960,6 +1036,7 @@ def audit_model_profile_drift(root: Path, findings: list[Finding]) -> None:
         if not hits:
             continue
         deprecated_hits = True
+        package_managed_drift = True
         files.append(normalize_path(path, root))
         evidence.extend(f"{normalize_path(path, root)} -> {hit}" for hit in hits)
 
@@ -973,6 +1050,7 @@ def audit_model_profile_drift(root: Path, findings: list[Finding]) -> None:
             top_p = frontmatter_value(text, "top_p")
             top_k = frontmatter_value(text, "top_k")
             if temperature == "0.2" or top_p == "0.7" or top_k is None:
+                package_managed_drift = True
                 files.append(normalize_path(path, root))
                 evidence.append(
                     f"{normalize_path(path, root)} retains older MiniMax sampling defaults "
@@ -987,12 +1065,71 @@ def audit_model_profile_drift(root: Path, findings: list[Finding]) -> None:
         findings,
         Finding(
             code="MODEL001",
-            severity="warning",
+            severity="error" if package_managed_drift else "warning",
             problem="Repo-local model operating surfaces are missing or still pinned to deprecated MiniMax defaults.",
-            root_cause="Managed repair or retrofit preserved older model/profile surfaces instead of regenerating the repo-local model profile, agent prompts, and model matrix together.",
+            root_cause="Managed repair or retrofit preserved older model/profile surfaces instead of regenerating the repo-local model profile, agent prompts, and model matrix together. Deprecated package-managed defaults such as `MiniMax-M2.5` are drift, not protected user intent, unless newer explicit accepted-decision evidence says otherwise.",
             files=list(dict.fromkeys(files)),
-            safer_pattern="Regenerate `.opencode/skills/model-operating-profile/SKILL.md`, align provenance/model-matrix/agent frontmatter on the current runtime model choices, and remove deprecated `MiniMax-M2.5` surfaces before implementation continues.",
+            safer_pattern="Treat deprecated package-managed model defaults as safe repair: regenerate `.opencode/skills/model-operating-profile/SKILL.md`, align provenance/model-matrix/agent frontmatter on the current runtime model choices, and remove deprecated `MiniMax-M2.5` surfaces before implementation continues unless newer explicit accepted-decision evidence says to keep them.",
             evidence=evidence[:10],
+        ),
+    )
+
+
+def audit_failed_repair_cycle(root: Path, findings: list[Finding]) -> None:
+    latest_previous = load_latest_previous_diagnosis(root)
+    if latest_previous is None:
+        return
+
+    diagnosis_path, manifest = latest_previous
+    provenance_path = root / ".opencode" / "meta" / "bootstrap-provenance.json"
+    provenance = read_json(provenance_path)
+    repair_history = provenance.get("repair_history") if isinstance(provenance, dict) and isinstance(provenance.get("repair_history"), list) else []
+    diagnosis_generated_at = parse_iso_timestamp(manifest.get("generated_at"))
+    if diagnosis_generated_at is None:
+        return
+
+    repairs_after_diagnosis: list[str] = []
+    for item in repair_history:
+        if not isinstance(item, dict):
+            continue
+        repaired_at = parse_iso_timestamp(item.get("repaired_at") or item.get("timestamp"))
+        if repaired_at and repaired_at > diagnosis_generated_at:
+            repairs_after_diagnosis.append(str(item.get("summary", "repair run after diagnosis")).strip() or "repair run after diagnosis")
+
+    if not repairs_after_diagnosis:
+        return
+
+    previous_codes = {
+        str(item.get("source_finding_code", "")).strip()
+        for item in manifest.get("ticket_recommendations", [])
+        if isinstance(item, dict) and str(item.get("route", "")).strip() == "scafforge-repair"
+    }
+    if not previous_codes:
+        return
+
+    current_codes = {finding.code for finding in findings}
+    repeated_codes = sorted(previous_codes & current_codes)
+    if not repeated_codes:
+        return
+
+    add_finding(
+        findings,
+        Finding(
+            code="CYCLE001",
+            severity="error",
+            problem="A previous audit-to-repair cycle did not clear one or more workflow-layer findings before work resumed.",
+            root_cause="The repo contains a prior diagnosis pack and a later repair history entry, but the current audit still reproduces workflow-layer findings. That means the previous repair either skipped a required regeneration step, used stale package logic, or misclassified drift as protected intent.",
+            files=[
+                normalize_path(diagnosis_path / "manifest.json", root),
+                normalize_path(provenance_path, root),
+            ],
+            safer_pattern="Before another repair run, compare the latest diagnosis pack against repair_history, identify which findings persisted, and treat repeated deprecated package-managed drift as a repair failure to fix rather than as preserved intent.",
+            evidence=[
+                f"Latest prior diagnosis pack: {normalize_path(diagnosis_path, root)}",
+                f"Repairs recorded after that diagnosis: {len(repairs_after_diagnosis)}",
+                f"Repeated workflow-layer findings: {', '.join(repeated_codes)}",
+                *[f"Repair after diagnosis -> {summary}" for summary in repairs_after_diagnosis[:3]],
+            ],
         ),
     )
 
@@ -1061,6 +1198,185 @@ def audit_bootstrap_deadlock(root: Path, findings: list[Finding]) -> None:
             evidence=evidence[:8],
         ),
     )
+
+
+def audit_smoke_test_contract(root: Path, findings: list[Finding]) -> None:
+    tool_path = root / ".opencode" / "tools" / "smoke_test.ts"
+    if not tool_path.exists():
+        return
+
+    text = read_text(tool_path)
+    has_repo_python = (root / "uv.lock").exists() or (root / ".venv" / "bin" / "python").exists()
+    hardcoded_system_pytest = 'argv: ["python3", "-m", "pytest"]' in text
+    if not (has_repo_python and hardcoded_system_pytest):
+        return
+
+    evidence = []
+    if (root / "uv.lock").exists():
+        evidence.append("Repo contains uv.lock, so smoke tests should prefer `uv run python -m pytest`.")
+    if (root / ".venv" / "bin" / "python").exists():
+        evidence.append("Repo contains .venv/bin/python, so smoke tests can use the repo-local virtualenv directly.")
+    evidence.append(f"{normalize_path(tool_path, root)} still hardcodes `python3 -m pytest` for detected Python test surfaces.")
+
+    add_finding(
+        findings,
+        Finding(
+            code="WFLOW001",
+            severity="error",
+            problem="The managed smoke-test tool ignores repo-managed Python execution and can deadlock closeout on uv or .venv repos.",
+            root_cause="The generated smoke-test contract still hardcodes system `python3 -m pytest` instead of selecting repo-native Python execution when `uv.lock` or `.venv` is present.",
+            files=[normalize_path(tool_path, root)],
+            safer_pattern="Prefer explicit project smoke-test overrides first, then `uv run python -m pytest` for uv-managed repos, then `.venv/bin/python -m pytest` for repo-local virtualenvs before falling back to system python.",
+            evidence=evidence,
+        ),
+    )
+
+
+def audit_review_stage_ambiguity(root: Path, findings: list[Finding]) -> None:
+    workflow_doc = root / "docs" / "process" / "workflow.md"
+    ticket_update = root / ".opencode" / "tools" / "ticket_update.ts"
+    workflow_tool = root / ".opencode" / "tools" / "_workflow.ts"
+    if not workflow_doc.exists() or not ticket_update.exists() or not workflow_tool.exists():
+        return
+
+    workflow_text = read_text(workflow_doc)
+    ticket_text = read_text(ticket_update)
+    workflow_tool_text = read_text(workflow_tool)
+    docs_require_plan_review = "plan review" in workflow_text.lower()
+    tool_blocks_review_before_impl = "Cannot move to review before an implementation artifact exists." in workflow_tool_text
+    status_missing_plan_review = '"plan_review"' not in workflow_tool_text and "`plan_review`" not in workflow_text
+    if not (docs_require_plan_review and tool_blocks_review_before_impl and status_missing_plan_review):
+        return
+
+    add_finding(
+        findings,
+        Finding(
+            code="WFLOW003",
+            severity="error",
+            problem="The generated workflow contract overloads `review`, so plan review and implementation review are operationally ambiguous.",
+            root_cause="Workflow docs describe a pre-implementation plan review, but the generated tool contract only allows `review` after an implementation artifact exists and does not expose a distinct `plan_review` status.",
+            files=[
+                normalize_path(workflow_doc, root),
+                normalize_path(ticket_update, root),
+                normalize_path(workflow_tool, root),
+            ],
+            safer_pattern="Add an explicit `plan_review` stage/status, require a planning artifact before entering it, keep `approved_plan` in workflow-state, and reserve `review` for post-implementation review only.",
+            evidence=[
+                f"{normalize_path(workflow_doc, root)} still documents `plan review` before implementation.",
+                f"{normalize_path(workflow_tool, root)} still returns `Cannot move to review before an implementation artifact exists.`",
+                f"{normalize_path(workflow_tool, root)} still omits `plan_review` from coarse status definitions.",
+            ],
+        ),
+    )
+
+
+def _active_ticket(manifest: dict[str, Any], workflow: dict[str, Any]) -> dict[str, Any] | None:
+    active_ticket_id = workflow.get("active_ticket") if isinstance(workflow, dict) else None
+    tickets = manifest.get("tickets") if isinstance(manifest, dict) else None
+    if not isinstance(active_ticket_id, str) or not isinstance(tickets, list):
+        return None
+    for ticket in tickets:
+        if isinstance(ticket, dict) and ticket.get("id") == active_ticket_id:
+            return ticket
+    return None
+
+
+def _blocked_dependents(manifest: dict[str, Any], ticket_id: str) -> list[str]:
+    tickets = manifest.get("tickets") if isinstance(manifest, dict) else None
+    if not isinstance(tickets, list):
+        return []
+    blocked: list[str] = []
+    for ticket in tickets:
+        if not isinstance(ticket, dict):
+            continue
+        depends_on = ticket.get("depends_on")
+        if isinstance(depends_on, list) and ticket_id in depends_on and ticket.get("status") != "done":
+            blocked.append(str(ticket.get("id", "")))
+    return [item for item in blocked if item]
+
+
+def audit_handoff_evidence_gap(root: Path, findings: list[Finding]) -> None:
+    manifest_path = root / "tickets" / "manifest.json"
+    workflow_path = root / ".opencode" / "state" / "workflow-state.json"
+    start_here = root / "START-HERE.md"
+    latest_handoff = root / ".opencode" / "state" / "latest-handoff.md"
+    manifest = read_json(manifest_path)
+    workflow = read_json(workflow_path)
+    if not isinstance(manifest, dict) or not isinstance(workflow, dict):
+        return
+
+    active_ticket = _active_ticket(manifest, workflow)
+    if not isinstance(active_ticket, dict):
+        return
+
+    start_here_text = read_text(start_here)
+    latest_handoff_text = read_text(latest_handoff)
+    combined = combine_outputs(start_here_text, latest_handoff_text)
+    if not any(re.search(pattern, combined, re.IGNORECASE) for pattern in HANDOFF_OVERCLAIM_PATTERNS):
+        return
+
+    blocked_dependents = _blocked_dependents(manifest, str(active_ticket.get("id", "")))
+    active_status = str(active_ticket.get("status", "")).strip()
+    if active_status == "done" and not blocked_dependents:
+        return
+
+    evidence = []
+    if active_status and active_status != "done":
+        evidence.append(f"Active ticket {active_ticket.get('id')} is still `{active_status}`, not `done`.")
+    if blocked_dependents:
+        evidence.append(f"Dependent tickets still waiting on the active ticket: {', '.join(blocked_dependents)}.")
+    evidence.extend(matching_lines(combined, HANDOFF_OVERCLAIM_PATTERNS))
+
+    add_finding(
+        findings,
+        Finding(
+            code="WFLOW002",
+            severity="error",
+            problem="Published handoff text overstates repo readiness or root cause beyond the executed evidence and current dependency state.",
+            root_cause="The handoff contract allows free-form next-action text to claim dependency unblocking or single-cause explanations even when the active ticket is not done and downstream tickets remain blocked.",
+            files=[
+                normalize_path(start_here, root),
+                normalize_path(latest_handoff, root),
+                normalize_path(manifest_path, root),
+                normalize_path(workflow_path, root),
+            ],
+            safer_pattern="Block handoff publication when custom next-action text claims dependency readiness, `only blocker`, or `not a code defect` without matching executed evidence and current manifest/workflow state.",
+            evidence=evidence[:6],
+        ),
+    )
+
+
+def audit_session_chronology(root: Path, findings: list[Finding], logs: list[Path]) -> None:
+    for path in logs:
+        text = read_text(path)
+        if not text:
+            continue
+
+        stale_state = any(re.search(pattern, text, re.IGNORECASE) for pattern in TRANSCRIPT_STALE_STATE_PATTERNS)
+        later_progress = any(re.search(pattern, text, re.IGNORECASE) for pattern in TRANSCRIPT_PROGRESS_PATTERNS)
+        overclaim = any(re.search(pattern, text, re.IGNORECASE) for pattern in HANDOFF_OVERCLAIM_PATTERNS)
+        full_suite_result = any(re.search(pattern, text, re.IGNORECASE) for pattern in TRANSCRIPT_FULL_SUITE_RESULT_PATTERNS)
+        if not (stale_state and later_progress and overclaim and not full_suite_result):
+            continue
+
+        evidence = []
+        evidence.extend(matching_lines(text, TRANSCRIPT_STALE_STATE_PATTERNS))
+        evidence.extend(matching_lines(text, TRANSCRIPT_PROGRESS_PATTERNS))
+        evidence.extend(matching_lines(text, HANDOFF_OVERCLAIM_PATTERNS))
+        evidence.append("No later full-suite execution result was found in the supplied session log.")
+
+        add_finding(
+            findings,
+            Finding(
+                code="SESSION001",
+                severity="error",
+                problem="The supplied session transcript shows a later reasoning failure that current-state-only diagnosis would miss.",
+                root_cause="The session began from stale resume state, later gathered new implementation or QA evidence, then still published an over-broad blocker summary without a later full-suite execution result.",
+                files=[normalize_path(path, root)],
+                safer_pattern="When session logs are supplied, audit chronology first: separate stale resume state from later evidence, then explain any final summary that outruns the executed commands before reconciling current repo state.",
+                evidence=evidence[:8],
+            ),
+        )
 
 
 def _detect_python(root: Path) -> str | None:
@@ -1222,7 +1538,7 @@ def audit_python_execution(root: Path, findings: list[Finding]) -> None:
         )
 
 
-def audit_repo(root: Path) -> list[Finding]:
+def audit_repo(root: Path, logs: list[Path] | None = None) -> list[Finding]:
     findings: list[Finding] = []
     audit_status_model(root, findings)
     audit_status_semantics_docs(root, findings)
@@ -1248,8 +1564,13 @@ def audit_repo(root: Path) -> list[Finding]:
     audit_eager_skill_loading(root, findings)
     audit_placeholder_local_skills(root, findings)
     audit_model_profile_drift(root, findings)
+    audit_failed_repair_cycle(root, findings)
     audit_bootstrap_deadlock(root, findings)
+    audit_smoke_test_contract(root, findings)
+    audit_review_stage_ambiguity(root, findings)
     audit_python_execution(root, findings)
+    audit_handoff_evidence_gap(root, findings)
+    audit_session_chronology(root, findings, logs or [])
     return findings
 
 
@@ -1298,6 +1619,10 @@ def findings_by_severity(findings: list[Finding]) -> dict[str, list[Finding]]:
 
 def infer_surface(finding: Finding) -> str:
     joined = " ".join(finding.files)
+    if finding.code.startswith("SESSION"):
+        return "scafforge-audit transcript chronology and causal diagnosis surfaces"
+    if finding.code.startswith("WFLOW"):
+        return "repo-scaffold-factory generated workflow, handoff, and tool contract surfaces"
     if any(token in joined for token in (".opencode/tools/", ".opencode/commands/", "docs/process/", ".opencode/state/")):
         return "repo-scaffold-factory managed template surfaces"
     if any(token in joined for token in (".opencode/agents/", ".opencode/skills/")):
@@ -1310,12 +1635,22 @@ def infer_surface(finding: Finding) -> str:
 
 
 def prevention_action(finding: Finding) -> str:
+    if finding.code == "WFLOW001":
+        return "Make generated smoke-test tools repo-manager-aware so uv and .venv Python repos do not deadlock on system-python pytest."
+    if finding.code == "WFLOW002":
+        return "Make generated handoff publication reject readiness or causal claims that outrun executed evidence or current dependency state."
+    if finding.code == "WFLOW003":
+        return "Split plan review from implementation review in generated workflow contracts so docs, tools, and prompts use the same stage semantics."
+    if finding.code == "SESSION001":
+        return "Teach scafforge-audit to treat supplied session logs as first-class temporal evidence and explain final reasoning failures before reconciling current repo state."
     if finding.code == "BOOT001":
         return "Make generated Python bootstrap manager-aware (`uv` or repo-local `.venv`), classify missing prerequisites accurately, and audit bootstrap deadlocks before routing source remediation."
     if finding.code == "SKILL001":
         return "Detect and repair leftover placeholder local skills so generated stack guidance is concrete before implementation continues."
     if finding.code == "MODEL001":
-        return "Detect deprecated or missing model-profile surfaces, regenerate the repo-local model operating profile, and align model metadata plus agent defaults before development resumes."
+        return "Detect deprecated or missing model-profile surfaces, treat stale package-managed defaults as safe repair instead of preserved intent, regenerate the repo-local model operating profile, and align model metadata plus agent defaults before development resumes."
+    if finding.code == "CYCLE001":
+        return "Teach audit to inspect the previous diagnosis and repair history, then force repair to explain why the prior cycle failed before another managed-repair run proceeds."
     if finding.code.startswith("EXEC"):
         return "Tighten generated review and QA guidance so runtime validation and test collection proof exist before closure."
     if "ticket" in finding.code or "status" in finding.code:
@@ -1344,7 +1679,7 @@ def build_ticket_recommendations(findings: list[Finding]) -> list[dict[str, Any]
     return recommendations
 
 
-def render_report_one(root: Path, findings: list[Finding], generated_at: str) -> str:
+def render_report_one(root: Path, findings: list[Finding], generated_at: str, logs: list[Path]) -> str:
     grouped = findings_by_severity(findings)
     lines = [
         "# Report 1: Initial Codebase Review",
@@ -1370,6 +1705,16 @@ def render_report_one(root: Path, findings: list[Finding], generated_at: str) ->
             ]
         )
         return "\n".join(lines)
+
+    if logs:
+        lines.extend(
+            [
+                "## Supporting session evidence",
+                "",
+                *[f"- {normalize_path(path, root)}" for path in logs],
+                "",
+            ]
+        )
 
     for finding in sorted(findings, key=lambda item: (severity_rank(item.severity), item.code)):
         lines.extend(
@@ -1439,21 +1784,50 @@ def render_report_four(root: Path, findings: list[Finding], recommendations: lis
         finding.code in {"SKILL001", "MODEL001"} or any(token in " ".join(finding.files) for token in (".opencode/agents/", ".opencode/skills/"))
         for finding in findings
     )
+    repeated_cycle = next((finding for finding in findings if finding.code == "CYCLE001"), None)
     lines = [
         "# Report 4: Live Repo Repair Plan",
         "",
         f"- Repo: {root}",
         "- Diagnosis remains read-only. No repo edits were made by this audit run.",
         "",
+    ]
+    if repeated_cycle:
+        lines.extend(
+            [
+                "## Repeated Failure Note",
+                "",
+                "- This repo has already gone through at least one audit-to-repair cycle and still reproduces workflow-layer findings.",
+                "- Before another repair run, compare the latest previous diagnosis pack against repair history and explain why those findings survived.",
+                "",
+            ]
+        )
+    lines.extend(
+        [
         "## Safe repair boundary",
         "",
-    ]
+        ]
+    )
     if safe_repairs:
         lines.extend([f"- Route {len(safe_repairs)} workflow-layer findings into `scafforge-repair` for deterministic managed-surface repair.", ""])
         if requires_regeneration:
             lines.extend(
                 [
                     "- Do not stop at tool replacement: rerun project-local skill regeneration, agent-team follow-up, and prompt hardening before handoff.",
+                    "",
+                ]
+            )
+        if any(finding.code in {"WFLOW001", "WFLOW002", "WFLOW003"} for finding in findings):
+            lines.extend(
+                [
+                    "- Refresh generated smoke-test, ticket-update, handoff, and workflow-doc surfaces together; these findings indicate a managed workflow-contract defect, not just repo-local operator error.",
+                    "",
+                ]
+            )
+        if any(finding.code == "MODEL001" for finding in findings):
+            lines.extend(
+                [
+                    "- Deprecated package-managed model defaults such as `MiniMax-M2.5` must be repaired; do not preserve them as protected intent unless newer explicit accepted-decision evidence exists.",
                     "",
                 ]
             )
@@ -1492,12 +1866,12 @@ def render_report_four(root: Path, findings: list[Finding], recommendations: lis
     return "\n".join(lines)
 
 
-def emit_diagnosis_pack(root: Path, findings: list[Finding], destination: Path) -> dict[str, Any]:
+def emit_diagnosis_pack(root: Path, findings: list[Finding], destination: Path, logs: list[Path]) -> dict[str, Any]:
     generated_at = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     destination.mkdir(parents=True, exist_ok=True)
     recommendations = build_ticket_recommendations(findings)
     reports = {
-        DIAGNOSIS_REPORTS["report_1"]: render_report_one(root, findings, generated_at),
+        DIAGNOSIS_REPORTS["report_1"]: render_report_one(root, findings, generated_at, logs),
         DIAGNOSIS_REPORTS["report_2"]: render_report_two(findings),
         DIAGNOSIS_REPORTS["report_3"]: render_report_three(findings),
         DIAGNOSIS_REPORTS["report_4"]: render_report_four(root, findings, recommendations),
@@ -1512,6 +1886,8 @@ def emit_diagnosis_pack(root: Path, findings: list[Finding], destination: Path) 
         "report_files": {key: value for key, value in DIAGNOSIS_REPORTS.items()},
         "ticket_recommendations": recommendations,
     }
+    if logs:
+        manifest["supporting_logs"] = [normalize_path(path, root) for path in logs]
     if recommendations:
         payload_name = "recommended-ticket-payload.json"
         manifest["recommended_ticket_payload"] = payload_name
@@ -1528,6 +1904,7 @@ def emit_diagnosis_pack(root: Path, findings: list[Finding], destination: Path) 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Audit a repo for Scafforge workflow, review, and prompt-process drift.")
     parser.add_argument("repo_root", help="Repository root to audit.")
+    parser.add_argument("--supporting-log", action="append", default=[], help="Optional supporting session log or transcript path. May be provided multiple times.")
     parser.add_argument("--format", choices=("markdown", "json", "both"), default="both")
     parser.add_argument("--markdown-output", help="Optional path for markdown output.")
     parser.add_argument("--json-output", help="Optional path for JSON output.")
@@ -1542,13 +1919,16 @@ def parse_args() -> argparse.Namespace:
 def main() -> int:
     args = parse_args()
     root = Path(args.repo_root).expanduser().resolve()
-    findings = audit_repo(root)
+    logs = supporting_log_paths(root, args.supporting_log)
+    findings = audit_repo(root, logs=logs)
 
     payload = {
         "repo_root": str(root),
         "finding_count": len(findings),
         "findings": [asdict(finding) for finding in findings],
     }
+    if logs:
+        payload["supporting_logs"] = [str(path) for path in logs]
     markdown = render_markdown(root, findings)
 
     if args.emit_diagnosis_pack or args.diagnosis_output_dir:
@@ -1557,7 +1937,7 @@ def main() -> int:
             if args.diagnosis_output_dir
             else root / "diagnosis" / datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
         )
-        payload["diagnosis_pack"] = emit_diagnosis_pack(root, findings, diagnosis_dir)
+        payload["diagnosis_pack"] = emit_diagnosis_pack(root, findings, diagnosis_dir, logs)
 
     if args.markdown_output:
         Path(args.markdown_output).write_text(markdown + "\n", encoding="utf-8")

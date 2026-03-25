@@ -73,7 +73,7 @@ Escalate instead of auto-applying when a repair would:
 
 - change project scope or product intent
 - choose between unresolved stack or runtime options
-- change provider or model choices
+- change provider or model choices that reflect a newer human decision for this repo rather than removal of deprecated package-managed defaults
 - delete or rewrite curated human project decisions rather than derived views
 - replace ambiguous or mixed-ownership surfaces without clear evidence that they are still Scafforge-managed
 - collapse a repo-specific pattern that is not clearly broken
@@ -100,6 +100,15 @@ BOOT findings mean the managed bootstrap layer is broken on the current machine.
 - surface missing prerequisites accurately; a failed bootstrap artifact must not report `Missing Prerequisites: None` when `pip` or `uv` is actually missing
 - rerun the subject repo's `environment_bootstrap` flow after the managed-surface refresh, then rerun `audit_repo_process.py`; source-layer EXEC tickets should proceed only after `BOOT001` is gone
 
+## Workflow repair actions (WFLOW001 / WFLOW002 / WFLOW003 / SESSION001)
+
+Workflow findings mean the generated repo contract itself is causing or misreporting the deadlock.
+
+- `WFLOW001`: refresh `.opencode/tools/smoke_test.ts` so Python repos prefer explicit project overrides, then `uv run`, then repo-local `.venv`, and only lastly system python
+- `WFLOW002`: refresh handoff publication so free-form next-action text cannot claim dependency unblocking or `not a code defect` while the manifest, workflow state, or stage artifacts disagree
+- `WFLOW003`: refresh the workflow contract so `plan_review` is distinct from post-implementation `review` across docs, tools, and prompts
+- `SESSION001`: when a supplied transcript proves the causal failure, carry that transcript into package-side audit fixes first; do not treat the resulting report as ordinary current-state repo drift
+
 ## SKILL repair actions (SKILL001)
 
 SKILL findings mean the repo-local skill layer is still carrying scaffold placeholder text.
@@ -114,9 +123,17 @@ MODEL findings mean the repo-local model/profile layer drifted from the current 
 
 - regenerate `.opencode/skills/model-operating-profile/SKILL.md`
 - align `docs/process/model-matrix.md`, `.opencode/meta/bootstrap-provenance.json`, and agent frontmatter on the active runtime model choices
-- if the repo is still on a package-managed MiniMax default, remove deprecated `MiniMax-M2.5` surfaces and refresh to the current package default
-- if the repo is explicitly human-pinned to a different model choice, flag the drift and escalate instead of silently overwriting intent
+- if the repo is still on a deprecated package-managed MiniMax default, remove `MiniMax-M2.5` surfaces and refresh to the current package default as safe repair
+- only treat model drift as protected intent when newer explicit accepted-decision evidence shows the repo was deliberately re-pinned after the package changed
 - rerun `../agent-prompt-engineering/SKILL.md` after model-profile changes so delegation and evidence rules match the new model defaults
+
+## Repeated-cycle repair actions (CYCLE001)
+
+CYCLE findings mean a previous diagnosis pack and a later repair history entry exist, but the same workflow-layer findings survived into the next audit.
+
+- compare the latest diagnosis pack against `repair_history` before starting another repair pass
+- explain which findings persisted and whether the previous repair skipped regeneration, used stale Scafforge package logic, or misclassified deprecated package-managed drift as protected intent
+- treat repeated `BOOT001`, `SKILL001`, or `MODEL001` findings as a repair failure to close, not as a reason to preserve the same surfaces again
 
 ## EXEC repair actions (EXEC001 / EXEC002 / EXEC003)
 

@@ -19,7 +19,7 @@ Rules:
 - do not start implementation without an approved plan
 - do not close a ticket until artifacts and state files are updated
 - keep the autonomous flow internal to agents, tools, and plugins
-- keep ticket `status` coarse and queue-oriented: `todo`, `ready`, `in_progress`, `blocked`, `review`, `qa`, `smoke_test`, `done`
+- keep ticket `status` coarse and queue-oriented: `todo`, `ready`, `plan_review`, `in_progress`, `blocked`, `review`, `qa`, `smoke_test`, `done`
 - keep plan approval in `.opencode/state/workflow-state.json`, not in ticket status
 - treat `tickets/BOARD.md` as a derived human view, not an authoritative workflow surface
 - write stage artifact bodies with `artifact_write` and then register them with `artifact_register`
@@ -58,7 +58,7 @@ Rules:
 ## Stage Proof
 
 - before plan review: a `planning` artifact must exist
-- before implementation: the assigned ticket's `approved_plan` must be `true` in workflow-state
+- before implementation: the assigned ticket must already be in `plan_review` and `approved_plan` must be `true` in workflow-state
 - before code review: an `implementation` artifact must exist
 - before QA: a review artifact must exist
 - before deterministic smoke test: a `qa` artifact must exist and include executable evidence

@@ -36,12 +36,14 @@ Before editing, gather the current repair basis.
 
 - Read the validated audit findings
 - Read Report 4 and any machine-readable ticket recommendations
+- Inspect `diagnosis/` and `.opencode/meta/bootstrap-provenance.json` to determine whether this is a repeat repair after a prior audit->repair attempt already failed
 - Confirm which repairs are safe and which need escalation
 - Confirm whether Report 4 depends on Scafforge package changes that have already landed
 - Do not run repair from a stale package version against a repo whose diagnosis identified package defects first
 
 Do not improvise intent-changing fixes under the label of repair.
 If the required package changes are not available yet, stop and route back to Scafforge package work instead of repairing prematurely.
+If the repo already went through audit->repair->resume->failure, explain why the previous cycle failed before starting another repair pass.
 
 ### 2. Choose the repair path
 
@@ -88,13 +90,14 @@ Safe repair examples:
 - removing raw-file stage control where tool-backed state exists
 - fixing read-only agents that still mutate state
 - syncing execution-enforcement rules into prompts
+- removing deprecated package-managed model defaults such as `MiniMax-M2.5` when the package guidance has already moved to a newer default
 - regenerating model-profile, local-skill, and agent-team surfaces after a deterministic refresh replaced their scaffold-managed foundations
 - creating remediation tickets for source bugs discovered by audit rules
 
 Intent-changing repair examples that must be escalated:
 - project-scope changes
 - runtime or stack changes
-- provider/model changes
+- provider/model changes when they reflect a newer human decision for this repo rather than removal of deprecated package-managed defaults
 - rewriting curated human decisions
 
 ### 6. Record provenance and process-version state
@@ -140,6 +143,7 @@ Keep the diagnosis decision and the repair action separated.
 ## Required outputs
 
 - Validated repair basis
+- Prior diagnosis/repair-cycle analysis when this is a repeat repair attempt
 - Exact files changed
 - Safe-versus-escalated repair boundary
 - Whether deterministic managed-surface replacement occurred
@@ -153,6 +157,7 @@ Keep the diagnosis decision and the repair action separated.
 - Do not repair without evidence
 - Do not silently fold intent-changing decisions into safe repair
 - Prefer deterministic managed-surface refresh over mixed old/new workflow layers
+- Treat deprecated package-managed defaults as repair drift, not protected intent, unless newer explicit accepted-decision evidence says otherwise
 - Do not stop at deterministic managed-surface replacement when the repaired repo still carries placeholder local skills, missing model-profile surfaces, or stale agent prompts
 - Preserve durable project facts while replacing managed surfaces
 - Leave explicit provenance and verification state after repair

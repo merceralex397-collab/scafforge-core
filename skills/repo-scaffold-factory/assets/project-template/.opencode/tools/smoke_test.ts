@@ -38,6 +38,12 @@ type CommandResult = CommandSpec & {
   stderr: string
 }
 
+type PythonRunner = {
+  label: string
+  argv: string[]
+  reason: string
+}
+
 const SMOKE_STAGE = "smoke-test"
 const SMOKE_KIND = "smoke-test"
 
@@ -118,11 +124,38 @@ async function detectPythonCommands(root: string): Promise<CommandSpec[]> {
     return []
   }
 
+  const detectPythonRunner = async (): Promise<PythonRunner> => {
+    if (await exists(join(root, "uv.lock"))) {
+      return {
+        label: "uv-managed python",
+        argv: ["uv", "run", "python"],
+        reason: "Detected uv.lock; using repo-managed uv runtime",
+      }
+    }
+
+    const repoVenvPython = join(root, ".venv", "bin", "python")
+    if (await exists(repoVenvPython)) {
+      return {
+        label: "repo-local python",
+        argv: [repoVenvPython],
+        reason: "Detected repo-local .venv; using project virtualenv interpreter",
+      }
+    }
+
+    return {
+      label: "system python",
+      argv: ["python3"],
+      reason: "No repo-managed Python runtime detected; falling back to system python",
+    }
+  }
+
+  const pythonRunner = await detectPythonRunner()
+
   const commands: CommandSpec[] = [
     {
       label: "python compileall",
       argv: [
-        "python3",
+        ...pythonRunner.argv,
         "-m",
         "compileall",
         "-q",
@@ -130,15 +163,15 @@ async function detectPythonCommands(root: string): Promise<CommandSpec[]> {
         "(^|/)(\\.git|\\.opencode|node_modules|dist|build|out|venv|\\.venv|__pycache__)(/|$)",
         ".",
       ],
-      reason: "Generic Python syntax smoke check",
+      reason: `${pythonRunner.reason}; generic Python syntax smoke check`,
     },
   ]
 
   if ((await exists(join(root, "tests"))) || (await exists(join(root, "pytest.ini")))) {
     commands.push({
       label: "pytest",
-      argv: ["python3", "-m", "pytest"],
-      reason: "Detected Python test surface",
+      argv: [...pythonRunner.argv, "-m", "pytest"],
+      reason: `${pythonRunner.reason}; detected Python test surface`,
     })
   }
 

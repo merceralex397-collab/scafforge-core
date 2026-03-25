@@ -3,11 +3,13 @@
 Use this playbook when `scafforge-audit` receives PR comments, review threads, check failures, or external bug claims.
 
 The goal is to turn noisy review input into evidence-backed diagnosis output without letting review chatter become canonical state.
+When the input is a session transcript, use the same validation discipline but treat chronology as part of the evidence surface, not as optional background.
 
 ## Inputs
 
 - pull request diff, commits, and changed files when available
 - review comments, summary notes, or issue claims
+- session logs or transcript exports when the user asks why an agent got stuck or wrote a specific summary
 - current repo files and workflow surfaces
 - audit outputs and diagnosis-pack scope when the review is part of a broader diagnosis
 
@@ -32,6 +34,12 @@ For each candidate finding:
 - compare the claim against the current repo contract
 - check whether the comment is outdated relative to later commits or regenerated surfaces
 - reproduce the behavior when practical
+
+When a session transcript exists:
+
+- parse the transcript into ordered events before reconciling current repo state
+- separate stale early-session context from later implementation or QA evidence
+- explain whether the final summary was reasonable at the time it was written or already contradicted by later session evidence
 
 ### 3. Assign a review disposition
 

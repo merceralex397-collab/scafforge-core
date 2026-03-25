@@ -176,6 +176,117 @@ def seed_legacy_model_drift(dest: Path) -> None:
     team_leader.write_text(team_text, encoding="utf-8")
 
 
+def seed_failed_repair_cycle(dest: Path, diagnosis_pack: Path) -> None:
+    manifest_path = diagnosis_pack / "manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["ticket_recommendations"] = [
+        {
+            "source_finding_code": "SKILL001",
+            "route": "scafforge-repair",
+            "title": "Regenerate placeholder repo-local skills",
+        }
+    ]
+    manifest_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+
+    provenance_path = dest / ".opencode" / "meta" / "bootstrap-provenance.json"
+    provenance = json.loads(provenance_path.read_text(encoding="utf-8"))
+    repair_history = provenance.setdefault("repair_history", [])
+    repair_history.append(
+        {
+            "repaired_at": "2099-01-01T00:00:00Z",
+            "summary": "Synthetic repair pass after diagnosis that left placeholder skills in place",
+        }
+    )
+    provenance_path.write_text(json.dumps(provenance, indent=2) + "\n", encoding="utf-8")
+
+
+def seed_workflow_overclaim(dest: Path) -> Path:
+    manifest_path = dest / "tickets" / "manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    active_ticket = manifest["active_ticket"]
+    manifest["tickets"].append(
+        {
+            "id": "WFLOW-DEP",
+            "title": "Synthetic dependent ticket",
+            "wave": 99,
+            "lane": "workflow",
+            "parallel_safe": True,
+            "overlap_risk": "low",
+            "stage": "planning",
+            "status": "ready",
+            "depends_on": [active_ticket],
+            "summary": "Synthetic dependent ticket for handoff overclaim coverage.",
+            "acceptance": ["Dependency claim remains blocked until the active ticket is done."],
+            "decision_blockers": [],
+            "artifacts": [],
+            "resolution_state": "open",
+            "verification_state": "suspect",
+            "follow_up_ticket_ids": [],
+        }
+    )
+    manifest_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+
+    overclaim = (
+        "Active work is only blocked by a tool/env mismatch, not a code defect. "
+        "The downstream dependency is now unblocked and ready to proceed."
+    )
+    for relative in ("START-HERE.md", ".opencode/state/latest-handoff.md"):
+        path = dest / relative
+        original = path.read_text(encoding="utf-8") if path.exists() else (dest / "START-HERE.md").read_text(encoding="utf-8")
+        path.parent.mkdir(parents=True, exist_ok=True)
+        if "## Next Action" in original:
+            updated = original.replace("## Next Action", f"## Next Action\n\n{overclaim}\n")
+        else:
+            updated = original.rstrip() + f"\n\n## Next Action\n\n{overclaim}\n"
+        path.write_text(updated, encoding="utf-8")
+
+    log_path = dest / "session-log.md"
+    log_path.write_text(
+        "\n".join(
+            [
+                "Active ticket: `EXEC-001` — stage `planning`, status `ready`.",
+                "`approved_plan: false`",
+                "Later evidence: 126 tests collected and the service imports cleanly.",
+                "Final summary: tool/env mismatch, not a code defect. EXEC-002 is now unblocked.",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    return log_path
+
+
+def seed_legacy_smoke_test_tool(dest: Path) -> None:
+    tool_path = dest / ".opencode" / "tools" / "smoke_test.ts"
+    tool_path.write_text(
+        "\n".join(
+            [
+                'import { tool } from "@opencode-ai/plugin"',
+                "",
+                "export default tool({",
+                '  description: "legacy smoke-test fixture",',
+                "  args: {},",
+                "  async execute() {",
+                '    return JSON.stringify({ argv: [\"python3\", \"-m\", \"pytest\"] })',
+                "  },",
+                "})",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+
+def seed_legacy_review_contract(dest: Path) -> None:
+    workflow_doc = dest / "docs" / "process" / "workflow.md"
+    workflow_text = workflow_doc.read_text(encoding="utf-8")
+    workflow_text = workflow_text.replace("`todo`, `ready`, `plan_review`, `in_progress`, `blocked`, `review`, `qa`, `smoke_test`, `done`", "`todo`, `ready`, `in_progress`, `blocked`, `review`, `qa`, `smoke_test`, `done`")
+    workflow_text = workflow_text.replace("the assigned ticket must already be in `plan_review` and ", "")
+    workflow_doc.write_text(workflow_text, encoding="utf-8")
+    workflow_tool = dest / ".opencode" / "tools" / "_workflow.ts"
+    workflow_tool.write_text(workflow_tool.read_text(encoding="utf-8").replace('"plan_review", ', ""), encoding="utf-8")
+
+
 def verify_render(dest: Path, *, expect_full_repo: bool) -> None:
     checklist = json.loads(CHECKLIST.read_text(encoding="utf-8"))
     for relative in checklist["required_files"]:
@@ -278,6 +389,18 @@ def main() -> int:
         verify_render(full_dest, expect_full_repo=True)
         verify_render(opencode_dest, expect_full_repo=False)
 
+        generated_ticket_update = (full_dest / ".opencode" / "tools" / "ticket_update.ts").read_text(encoding="utf-8")
+        if '"plan_review"' not in generated_ticket_update:
+            raise RuntimeError("Generated ticket_update.ts should expose the explicit plan_review status")
+        generated_smoke_test = (full_dest / ".opencode" / "tools" / "smoke_test.ts").read_text(encoding="utf-8")
+        if '["uv", "run", "python"]' not in generated_smoke_test:
+            raise RuntimeError("Generated smoke_test.ts should prefer uv-managed Python execution when uv.lock exists")
+        if 'join(root, ".venv", "bin", "python")' not in generated_smoke_test:
+            raise RuntimeError("Generated smoke_test.ts should support repo-local .venv Python execution")
+        generated_handoff_publish = (full_dest / ".opencode" / "tools" / "handoff_publish.ts").read_text(encoding="utf-8")
+        if "validateHandoffNextAction" not in generated_handoff_publish:
+            raise RuntimeError("Generated handoff_publish.ts should validate custom next_action claims before publishing")
+
         initial_audit = run_json([sys.executable, str(AUDIT), str(full_dest), "--format", "json", "--emit-diagnosis-pack"], ROOT)
         initial_codes = {finding["code"] for finding in initial_audit.get("findings", [])}
         if "SKILL001" not in initial_codes:
@@ -304,6 +427,28 @@ def main() -> int:
         if diagnosis_manifest.get("report_files", {}).get("report_4") != "04-live-repo-repair-plan.md":
             raise RuntimeError("Diagnosis pack manifest should map report_4 to 04-live-repo-repair-plan.md")
 
+        repeat_dest = workspace / "repeat-cycle"
+        shutil.copytree(full_dest, repeat_dest)
+        repeat_diagnosis_root = repeat_dest / "diagnosis"
+        repeat_diagnosis_dirs = sorted(path for path in repeat_diagnosis_root.iterdir() if path.is_dir())
+        seed_failed_repair_cycle(repeat_dest, repeat_diagnosis_dirs[-1])
+        repeated_cycle_audit = run_json([sys.executable, str(AUDIT), str(repeat_dest), "--format", "json"], ROOT)
+        repeated_cycle_codes = {finding["code"] for finding in repeated_cycle_audit.get("findings", [])}
+        if "CYCLE001" not in repeated_cycle_codes:
+            raise RuntimeError("A repo with a prior diagnosis pack, later repair history, and repeated workflow drift should emit CYCLE001")
+
+        chronology_dest = workspace / "chronology"
+        shutil.copytree(full_dest, chronology_dest)
+        transcript_log = seed_workflow_overclaim(chronology_dest)
+        chronology_audit = run_json(
+            [sys.executable, str(AUDIT), str(chronology_dest), "--format", "json", "--supporting-log", str(transcript_log)],
+            ROOT,
+        )
+        chronology_codes = {finding["code"] for finding in chronology_audit.get("findings", [])}
+        for expected in ("WFLOW002", "SESSION001"):
+            if expected not in chronology_codes:
+                raise RuntimeError(f"Audit should emit {expected} when handoff overclaims and transcript chronology proves a later reasoning failure")
+
         python_dest = workspace / "python-uv"
         shutil.copytree(full_dest, python_dest)
         seed_uv_python_fixture(python_dest)
@@ -311,6 +456,22 @@ def main() -> int:
         python_codes = {finding["code"] for finding in python_audit.get("findings", [])}
         if "BOOT001" in python_codes:
             raise RuntimeError("A uv-shaped repo with the current bootstrap template should not emit BOOT001")
+
+        legacy_smoke_dest = workspace / "legacy-smoke"
+        shutil.copytree(python_dest, legacy_smoke_dest)
+        seed_legacy_smoke_test_tool(legacy_smoke_dest)
+        legacy_smoke_audit = run_json([sys.executable, str(AUDIT), str(legacy_smoke_dest), "--format", "json"], ROOT)
+        legacy_smoke_codes = {finding["code"] for finding in legacy_smoke_audit.get("findings", [])}
+        if "WFLOW001" not in legacy_smoke_codes:
+            raise RuntimeError("A uv-shaped repo with a legacy system-python smoke_test tool should emit WFLOW001")
+
+        legacy_review_dest = workspace / "legacy-review"
+        shutil.copytree(full_dest, legacy_review_dest)
+        seed_legacy_review_contract(legacy_review_dest)
+        legacy_review_audit = run_json([sys.executable, str(AUDIT), str(legacy_review_dest), "--format", "json"], ROOT)
+        legacy_review_codes = {finding["code"] for finding in legacy_review_audit.get("findings", [])}
+        if "WFLOW003" not in legacy_review_codes:
+            raise RuntimeError("A repo with plan-review docs but no explicit plan_review workflow contract should emit WFLOW003")
 
         deadlock_dest = workspace / "python-deadlock"
         shutil.copytree(python_dest, deadlock_dest)
@@ -331,15 +492,21 @@ def main() -> int:
         shutil.copytree(full_dest, model_dest)
         seed_legacy_model_drift(model_dest)
         model_audit = run_json([sys.executable, str(AUDIT), str(model_dest), "--format", "json"], ROOT)
-        model_codes = {finding["code"] for finding in model_audit.get("findings", [])}
+        model_findings = {finding["code"]: finding for finding in model_audit.get("findings", [])}
+        model_codes = set(model_findings)
         if "MODEL001" not in model_codes:
             raise RuntimeError("A repo with deprecated MiniMax surfaces and no model-operating-profile should emit MODEL001")
+        if model_findings["MODEL001"].get("severity") != "error":
+            raise RuntimeError("Deprecated package-managed MiniMax drift should emit MODEL001 as an error, not a warning")
 
-        (full_dest / "docs" / "process" / "workflow.md").write_text("# drifted workflow\n", encoding="utf-8")
-        seed_legacy_bootstrap_tool(full_dest)
-        run([sys.executable, str(REPAIR), str(full_dest), "--fail-on", "error"], ROOT)
+        repair_dest = workspace / "repair"
+        shutil.copytree(full_dest, repair_dest)
+        shutil.rmtree(repair_dest / "diagnosis", ignore_errors=True)
+        (repair_dest / "docs" / "process" / "workflow.md").write_text("# drifted workflow\n", encoding="utf-8")
+        seed_legacy_bootstrap_tool(repair_dest)
+        run([sys.executable, str(REPAIR), str(repair_dest), "--fail-on", "error"], ROOT)
 
-        repaired_workflow = json.loads((full_dest / ".opencode" / "state" / "workflow-state.json").read_text(encoding="utf-8"))
+        repaired_workflow = json.loads((repair_dest / ".opencode" / "state" / "workflow-state.json").read_text(encoding="utf-8"))
         if repaired_workflow.get("process_version") != 5:
             raise RuntimeError("Repair should update workflow-state to process version 5")
         if repaired_workflow.get("pending_process_verification") is not True:
@@ -350,7 +517,7 @@ def main() -> int:
             if key not in repaired_workflow:
                 raise RuntimeError(f"Repair should preserve workflow key `{key}`")
 
-        repaired_provenance = json.loads((full_dest / ".opencode" / "meta" / "bootstrap-provenance.json").read_text(encoding="utf-8"))
+        repaired_provenance = json.loads((repair_dest / ".opencode" / "meta" / "bootstrap-provenance.json").read_text(encoding="utf-8"))
         if not repaired_provenance.get("repair_history"):
             raise RuntimeError("Repair should append repair_history")
         managed_surfaces = repaired_provenance.get("managed_surfaces", {})
@@ -361,10 +528,10 @@ def main() -> int:
         if ".opencode/skills" not in project_specific_follow_up:
             raise RuntimeError("Repair provenance should mark .opencode/skills as a project-specific follow-up surface")
 
-        repaired_workflow_doc = (full_dest / "docs" / "process" / "workflow.md").read_text(encoding="utf-8")
+        repaired_workflow_doc = (repair_dest / "docs" / "process" / "workflow.md").read_text(encoding="utf-8")
         if "# Workflow" not in repaired_workflow_doc:
             raise RuntimeError("Repair should restore docs/process/workflow.md from the scaffold")
-        repaired_bootstrap_tool = (full_dest / ".opencode" / "tools" / "environment_bootstrap.ts").read_text(encoding="utf-8")
+        repaired_bootstrap_tool = (repair_dest / ".opencode" / "tools" / "environment_bootstrap.ts").read_text(encoding="utf-8")
         if 'const syncArgs = ["uv", "sync", "--locked"]' not in repaired_bootstrap_tool:
             raise RuntimeError("Repair should restore the manager-aware environment_bootstrap surface")
 

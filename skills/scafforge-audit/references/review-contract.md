@@ -5,6 +5,7 @@
 - current repo workflow and source-of-truth docs
 - current repo ticket contract
 - pull request diff, commits, and review comments when review evidence exists
+- supplied session logs or transcript exports when the user is asking a causal question
 - diagnosis-pack scope when the audit needs to emit four reports into `diagnosis/`
 
 ## Output contract
@@ -22,6 +23,7 @@
 - include a rejection rationale for every non-accepted finding
 - list any human blockers with a clear owner and reason
 - keep diagnosis output read-only apart from the intentional `diagnosis/` report folder
+- preserve the distinction between historical session truth and current repo truth when both are relevant
 
 When review evidence is present, follow `pr-review-workflow.md` before the finding enters the diagnosis pack.
 

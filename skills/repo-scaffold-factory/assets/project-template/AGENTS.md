@@ -45,7 +45,7 @@ If this file conflicts with any global AI instruction file, this file wins for t
 - Do not implement before an approved plan exists.
 - Do not treat slash commands as the autonomous workflow.
 - Prefer local tools, plugins, and project skills over prompt-only improvisation.
-- Keep queue status coarse: `todo`, `ready`, `in_progress`, `blocked`, `review`, `qa`, `smoke_test`, `done`.
+- Keep queue status coarse: `todo`, `ready`, `plan_review`, `in_progress`, `blocked`, `review`, `qa`, `smoke_test`, `done`.
 - Keep plan approval in workflow state and artifacts, not in ticket status.
 - Keep historical completion separate from current trust. Use `resolution_state` and `verification_state` instead of mutating ticket history.
 - Treat `tickets/BOARD.md` as a derived human view, not a second state machine.

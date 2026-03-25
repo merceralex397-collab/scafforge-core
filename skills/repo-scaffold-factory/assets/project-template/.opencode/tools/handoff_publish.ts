@@ -8,6 +8,7 @@ import {
   readJson,
   renderStartHere,
   startHerePath,
+  validateHandoffNextAction,
   writeText,
 } from "./_workflow"
 import { readFile } from "node:fs/promises"
@@ -28,6 +29,12 @@ export default tool({
       }
     }>(bootstrapProvenancePath(), {})
     const backlogVerifierAgent = provenance.workflow_contract?.post_migration_verification?.backlog_verifier_agent
+    if (typeof args.next_action === "string") {
+      const handoffBlocker = await validateHandoffNextAction(manifest, workflow, args.next_action)
+      if (handoffBlocker) {
+        throw new Error(handoffBlocker)
+      }
+    }
     const content = renderStartHere(manifest, workflow, {
       nextAction: args.next_action,
       backlogVerifierAgent: typeof backlogVerifierAgent === "string" ? backlogVerifierAgent : undefined,

@@ -81,7 +81,37 @@
 
 - the repo is missing `.opencode/skills/model-operating-profile/SKILL.md`, still references deprecated MiniMax M2.5 surfaces, or carries older model defaults across provenance, model matrix, and agent prompts
 - result: the team leader and specialists keep stale delegation and evidence-shaping defaults even after the package moved to newer model guidance
-- why agents miss it: current repairs can refresh deterministic workflow surfaces without regenerating project-specific model-profile or agent prompt layers
+- why agents miss it: current repairs can refresh deterministic workflow surfaces without regenerating project-specific model-profile or agent prompt layers, and weaker repair prompts may wrongly treat deprecated package-managed defaults as protected intent
+
+## Repeated failed repair cycle (CYCLE001 — prior audit and repair did not clear workflow drift)
+
+- the repo already contains a prior diagnosis pack plus a later repair-history entry, but the same workflow-layer findings are still present on the next audit
+- result: the team can loop through audit -> repair -> resume -> fail without understanding which package defect, skipped regeneration step, or stale repair assumption caused the first repair to miss
+- why agents miss it: current audits often describe only the current findings and not the failure of the previous diagnosis-to-repair cycle
+
+## Smoke-test contract drift (WFLOW001 — generated smoke test ignores repo-managed Python)
+
+- the generated `smoke_test` tool still uses system `python3 -m pytest` even when the repo exposes `uv.lock` or `.venv`
+- result: ticket closeout can deadlock on a tooling mismatch even when repo-managed validation commands already work
+- why agents miss it: the workflow looks deterministic on paper, but the generated tool is not actually aligned with the repo's runtime contract
+
+## Handoff overclaim (WFLOW002 — published restart summary outruns evidence)
+
+- `START-HERE.md` or `.opencode/state/latest-handoff.md` claims a dependency is unblocked, the issue is only tooling, or the problem is not a code defect even though the active ticket is not done or downstream verification has not run
+- result: the next session starts from a false causal model and can waste time on the wrong repair surface
+- why agents miss it: current handoff publication accepts free-form next-action text without validating it against manifest/workflow state or executed artifacts
+
+## Review-stage ambiguity (WFLOW003 — plan review and implementation review are overloaded)
+
+- docs describe plan review before implementation, but tools or prompts only allow `review` after an implementation artifact exists
+- result: weaker models invent bypasses, set approval flags ad hoc, or move directly into implementation
+- why agents miss it: the workflow reads coherently to a human while the operational tool contract enforces a different state machine
+
+## Session chronology miss (SESSION001 — current-state-only audit misses later reasoning failure)
+
+- a supplied transcript shows stale early-session context, later corrective evidence, and a final summary that still overstates readiness or root cause
+- result: the audit answers the wrong question unless it treats chronology as first-class evidence
+- why agents miss it: current audits prioritize present repo state and only secondarily inspect historical session order
 
 ## Execution blindness (EXEC001 — module import failure)
 

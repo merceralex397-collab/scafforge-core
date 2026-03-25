@@ -27,10 +27,13 @@ If the user explicitly asks to repair or refresh the managed workflow layer, rou
 Read the repo state first.
 
 - Inspect workflow surfaces, docs, ticketing, and managed state
+- Inspect `diagnosis/` and `.opencode/meta/bootstrap-provenance.json` to determine whether this is a repeat audit after a prior repair attempt
+- If session logs or transcript exports were supplied, inspect them before current-state reconciliation and treat them as first-class temporal evidence
 - If review comments, PR notes, or external findings were provided, treat them as candidate evidence only
 - Apply the evidence and non-taint rules from `references/review-contract.md`
 
 Do not convert an unverified claim into a canonical finding.
+If this is a repeat audit, explain why the previous audit-to-repair cycle failed before recommending another repair run.
 
 ### 2. Run the audit script
 
@@ -41,6 +44,7 @@ python3 scripts/audit_repo_process.py <repo-root> --format both --emit-diagnosis
 ```
 
 The script is at `scripts/audit_repo_process.py` relative to this skill.
+Pass `--supporting-log <path>` for each supplied session log or transcript export.
 
 It produces:
 - a markdown audit report
@@ -61,6 +65,7 @@ For each finding, identify:
 - the root cause
 - the safer target pattern
 - whether the issue is workflow-layer drift, source-layer implementation drift, or review noise
+- when logs were supplied, whether the issue is a historical chronology failure, a current-state repo failure, or both
 
 ### 4. Validate review findings when present
 
@@ -70,6 +75,7 @@ If the request includes PR comments, review notes, or claimed bugs:
 2. compare the claim against the current repo contract and actual code
 3. reject unsupported, outdated, or tainted findings
 4. keep validated findings with tight file evidence
+5. when the input is a session transcript, explain stale early-state evidence separately from later reasoning failures
 
 This skill owns professional review validation and ticket recommendation generation at the host layer. Do not route to a separate PR-bridge skill.
 
@@ -90,10 +96,13 @@ Required outputs:
 
 At minimum, the pack must capture:
 - validated findings, severity, evidence grade, and file references
+- supporting session logs or transcript exports when supplied
+- whether a previous diagnosis and repair cycle already failed, and which workflow-layer findings persisted
 - ownership classification for each issue: package defect, managed-surface drift, repo customization drift, or source bug
 - rejected or outdated external claims when review evidence was supplied
 - Scafforge prevention actions needed in the package repo
 - live-repo repair actions that can happen only after the package changes are available
+- a clear split between historical session truth and current repo truth whenever the repo changed after the logged session
 
 Report 4 must:
 - distinguish safe repairs from intent-changing repairs
@@ -135,6 +144,7 @@ Keep those responsibilities separate.
 - Full diagnosis scope
 - Evidence-backed findings only
 - Root cause for each validated finding
+- Prior diagnosis/repair-cycle analysis when this is a repeat audit
 - Four-report diagnosis pack
 - Clear repair recommendation boundary
 - Ticket recommendations for post-audit follow-up where needed
@@ -146,6 +156,7 @@ Keep those responsibilities separate.
 - Do not preserve contradictory workflow semantics because they already exist
 - Do not accept review claims without repo evidence
 - Do not let PR comments taint canonical state
+- Do not answer a supplied causal transcript question with current-state findings alone
 - Keep workflow-layer findings separate from source-layer implementation findings
 - Fold review validation into this skill instead of reviving a separate bridge
 
