@@ -117,6 +117,7 @@ Verify:
 - Read-only agents (planner, reviewers, QA) have `write: false, edit: false`
 - Only implementer and docs-handoff have `write: true, edit: true`
 - The team leader resolves `ticket_lookup.transition_guidance` before changing lifecycle state
+- The team leader treats bootstrap-not-ready state as a hard gate and routes `environment_bootstrap` before normal lifecycle work
 - The team leader stops on repeated lifecycle-tool contradictions instead of probing alternate stage or status values
 - The team leader does not author planning, implementation, review, QA, or smoke-test artifact bodies on behalf of specialists
 - Agents do not instruct themselves to use slash commands as internal workflow steps

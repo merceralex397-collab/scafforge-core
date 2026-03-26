@@ -54,9 +54,18 @@ def read_json(path: Path) -> Any:
     return json.loads(path.read_text(encoding="utf-8")) if path.exists() else None
 
 
+def read_text(path: Path) -> str:
+    return path.read_text(encoding="utf-8") if path.exists() else ""
+
+
 def write_json(path: Path, value: Any) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(value, indent=2) + "\n", encoding="utf-8")
+
+
+def write_text(path: Path, value: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(value, encoding="utf-8")
 
 
 def normalize_path(path: Path, root: Path) -> str:
@@ -230,6 +239,208 @@ def load_pending_process_verification(repo_root: Path) -> bool:
     return isinstance(workflow, dict) and workflow.get("pending_process_verification") is True
 
 
+def get_active_ticket(manifest: dict[str, Any], workflow: dict[str, Any]) -> dict[str, Any] | None:
+    active_ticket_id = workflow.get("active_ticket") if isinstance(workflow, dict) else None
+    tickets = manifest.get("tickets") if isinstance(manifest, dict) else None
+    if not isinstance(active_ticket_id, str) or not isinstance(tickets, list):
+        return None
+    for ticket in tickets:
+        if isinstance(ticket, dict) and ticket.get("id") == active_ticket_id:
+            return ticket
+    return None
+
+
+def get_ticket_state(workflow: dict[str, Any], ticket_id: str) -> dict[str, Any]:
+    ticket_state = workflow.get("ticket_state") if isinstance(workflow.get("ticket_state"), dict) else {}
+    value = ticket_state.get(ticket_id) if isinstance(ticket_state, dict) else None
+    return value if isinstance(value, dict) else {}
+
+
+def blocked_dependents(manifest: dict[str, Any], ticket_id: str) -> list[dict[str, Any]]:
+    tickets = manifest.get("tickets") if isinstance(manifest.get("tickets"), list) else []
+    blocked: list[dict[str, Any]] = []
+    for ticket in tickets:
+        if not isinstance(ticket, dict):
+            continue
+        depends_on = ticket.get("depends_on")
+        if isinstance(depends_on, list) and ticket_id in depends_on and ticket.get("status") != "done":
+            blocked.append(ticket)
+    return blocked
+
+
+def render_start_here(manifest: dict[str, Any], workflow: dict[str, Any], backlog_verifier_agent: str | None = None) -> str:
+    ticket = get_active_ticket(manifest, workflow)
+    if not isinstance(ticket, dict):
+        return "# START HERE\n"
+
+    tickets = manifest.get("tickets") if isinstance(manifest.get("tickets"), list) else []
+    reopened = [item for item in tickets if isinstance(item, dict) and item.get("resolution_state") == "reopened"]
+    suspect_done = [
+        item
+        for item in tickets
+        if isinstance(item, dict)
+        and item.get("status") == "done"
+        and item.get("verification_state") not in {"trusted", "reverified"}
+    ]
+    reverification = [
+        item
+        for item in tickets
+        if isinstance(item, dict) and get_ticket_state(workflow, str(item.get("id", ""))).get("needs_reverification") is True
+    ]
+    blocked = blocked_dependents(manifest, str(ticket.get("id", "")))
+    verifier_label = f"`{backlog_verifier_agent}`" if backlog_verifier_agent else "the backlog verifier"
+    bootstrap = workflow.get("bootstrap") if isinstance(workflow.get("bootstrap"), dict) else {}
+    bootstrap_status = str(bootstrap.get("status", "")).strip() or "missing"
+    bootstrap_proof = bootstrap.get("proof_artifact") if isinstance(bootstrap.get("proof_artifact"), str) and bootstrap.get("proof_artifact") else "None"
+    if bootstrap_status != "ready":
+        recommended_action = "Run environment_bootstrap, register its proof artifact, then continue ticket execution."
+    elif workflow.get("pending_process_verification") is True:
+        recommended_action = f"Use the team leader to route {verifier_label} across done tickets whose trust predates the current process contract."
+    elif blocked and ticket.get("status") != "done":
+        blocked_ids = ", ".join(str(item.get("id", "")).strip() for item in blocked if str(item.get("id", "")).strip())
+        recommended_action = f"Finish {ticket.get('id')} and its closeout proof before resuming dependent tickets: {blocked_ids}."
+    else:
+        recommended_action = "Continue the required internal lifecycle from the current ticket stage."
+
+    risk_lines = []
+    if bootstrap_status != "ready":
+        risk_lines.append("- Environment validation can fail for setup reasons until bootstrap proof exists.")
+    if workflow.get("pending_process_verification") is True:
+        risk_lines.append("- Historical completion should not be treated as fully trusted until pending process verification is cleared.")
+    if suspect_done:
+        risk_lines.append("- Some done tickets are not fully trusted yet; use the backlog verifier before relying on earlier closeout.")
+    if blocked and ticket.get("status") != "done":
+        blocked_ids = ", ".join(str(item.get("id", "")).strip() for item in blocked if str(item.get("id", "")).strip())
+        risk_lines.append(f"- Downstream tickets {blocked_ids} remain formally blocked until {ticket.get('id')} reaches done.")
+    if not risk_lines:
+        risk_lines.append("- None recorded.")
+
+    def summarize(items: list[dict[str, Any]]) -> str:
+        values = [str(item.get("id", "")).strip() for item in items if isinstance(item, dict) and str(item.get("id", "")).strip()]
+        return ", ".join(values) if values else "none"
+
+    return (
+        "# START HERE\n\n"
+        f"{START_HERE_MANAGED_START}\n"
+        "## What This Repo Is\n\n"
+        f"{manifest.get('project', 'Project')}\n\n"
+        "## Current State\n\n"
+        "The repo is operating under the managed OpenCode workflow. Use the canonical state files below instead of memory or raw ticket prose.\n\n"
+        "## Read In This Order\n\n"
+        "1. README.md\n"
+        "2. AGENTS.md\n"
+        "3. docs/spec/CANONICAL-BRIEF.md\n"
+        "4. docs/process/workflow.md\n"
+        "5. tickets/BOARD.md\n"
+        "6. tickets/manifest.json\n\n"
+        "## Current Or Next Ticket\n\n"
+        f"- ID: {ticket.get('id')}\n"
+        f"- Title: {ticket.get('title')}\n"
+        f"- Wave: {ticket.get('wave')}\n"
+        f"- Lane: {ticket.get('lane')}\n"
+        f"- Stage: {ticket.get('stage')}\n"
+        f"- Status: {ticket.get('status')}\n"
+        f"- Resolution: {ticket.get('resolution_state')}\n"
+        f"- Verification: {ticket.get('verification_state')}\n\n"
+        "## Dependency Status\n\n"
+        f"- current_ticket_done: {'yes' if ticket.get('status') == 'done' else 'no'}\n"
+        f"- dependent_tickets_waiting_on_current: {summarize(blocked)}\n\n"
+        "## Generation Status\n\n"
+        "- handoff_status: ready for continued development\n"
+        f"- process_version: {workflow.get('process_version', 5)}\n"
+        f"- parallel_mode: {workflow.get('parallel_mode', 'sequential')}\n"
+        f"- pending_process_verification: {'true' if workflow.get('pending_process_verification') is True else 'false'}\n"
+        f"- bootstrap_status: {bootstrap_status}\n"
+        f"- bootstrap_proof: {bootstrap_proof}\n\n"
+        "## Post-Generation Audit Status\n\n"
+        f"- audit_or_repair_follow_up: {'follow-up required' if reopened or suspect_done or reverification else 'none recorded'}\n"
+        f"- reopened_tickets: {summarize(reopened)}\n"
+        f"- done_but_not_fully_trusted: {summarize(suspect_done)}\n"
+        f"- pending_reverification: {summarize(reverification)}\n\n"
+        "## Known Risks\n\n"
+        f"{chr(10).join(risk_lines)}\n\n"
+        "## Next Action\n\n"
+        f"{recommended_action}\n"
+        f"{START_HERE_MANAGED_END}\n"
+    )
+
+
+def render_context_snapshot(manifest: dict[str, Any], workflow: dict[str, Any]) -> str:
+    ticket = get_active_ticket(manifest, workflow)
+    if not isinstance(ticket, dict):
+        return "# Context Snapshot\n"
+
+    bootstrap = workflow.get("bootstrap") if isinstance(workflow.get("bootstrap"), dict) else {}
+    ticket_state = get_ticket_state(workflow, str(ticket.get("id", "")))
+    lane_leases = workflow.get("lane_leases") if isinstance(workflow.get("lane_leases"), list) else []
+    if lane_leases:
+        lease_lines = "\n".join(
+            f"- {lease.get('ticket_id')}: {lease.get('owner_agent')} ({lease.get('lane')})"
+            for lease in lane_leases
+            if isinstance(lease, dict)
+        )
+    else:
+        lease_lines = "- No active lane leases"
+    artifacts = ticket.get("artifacts") if isinstance(ticket.get("artifacts"), list) else []
+    if artifacts:
+        recent_artifacts = []
+        for artifact in artifacts[-5:]:
+            if not isinstance(artifact, dict):
+                continue
+            summary = f" - {artifact.get('summary')}" if artifact.get("summary") else ""
+            trust = f" [{artifact.get('trust_state')}]" if artifact.get("trust_state") not in {None, "current"} else ""
+            recent_artifacts.append(f"- {artifact.get('kind')}: {artifact.get('path')} ({artifact.get('stage')}){trust}{summary}")
+        artifact_lines = "\n".join(recent_artifacts) if recent_artifacts else "- No artifacts recorded yet"
+    else:
+        artifact_lines = "- No artifacts recorded yet"
+
+    return (
+        "# Context Snapshot\n\n"
+        "## Project\n\n"
+        f"{manifest.get('project', 'Project')}\n\n"
+        "## Active Ticket\n\n"
+        f"- ID: {ticket.get('id')}\n"
+        f"- Title: {ticket.get('title')}\n"
+        f"- Stage: {ticket.get('stage')}\n"
+        f"- Status: {ticket.get('status')}\n"
+        f"- Resolution: {ticket.get('resolution_state')}\n"
+        f"- Verification: {ticket.get('verification_state')}\n"
+        f"- Approved plan: {'yes' if ticket_state.get('approved_plan') is True else 'no'}\n"
+        f"- Needs reverification: {'yes' if ticket_state.get('needs_reverification') is True else 'no'}\n\n"
+        "## Bootstrap\n\n"
+        f"- status: {bootstrap.get('status', 'missing')}\n"
+        f"- last_verified_at: {bootstrap.get('last_verified_at') or 'Not yet verified.'}\n"
+        f"- proof_artifact: {bootstrap.get('proof_artifact') or 'None'}\n\n"
+        "## Process State\n\n"
+        f"- process_version: {workflow.get('process_version', 5)}\n"
+        f"- pending_process_verification: {'true' if workflow.get('pending_process_verification') is True else 'false'}\n"
+        f"- parallel_mode: {workflow.get('parallel_mode', 'sequential')}\n"
+        f"- state_revision: {workflow.get('state_revision', 0)}\n\n"
+        "## Lane Leases\n\n"
+        f"{lease_lines}\n\n"
+        "## Recent Artifacts\n\n"
+        f"{artifact_lines}\n"
+    )
+
+
+def refresh_restart_surfaces(repo_root: Path) -> None:
+    manifest = read_json(repo_root / "tickets" / "manifest.json")
+    workflow = read_json(repo_root / ".opencode" / "state" / "workflow-state.json")
+    provenance = read_json(repo_root / ".opencode" / "meta" / "bootstrap-provenance.json")
+    if not isinstance(manifest, dict) or not isinstance(workflow, dict):
+        return
+
+    workflow_contract = provenance.get("workflow_contract") if isinstance(provenance, dict) and isinstance(provenance.get("workflow_contract"), dict) else {}
+    post_migration = workflow_contract.get("post_migration_verification") if isinstance(workflow_contract.get("post_migration_verification"), dict) else {}
+    backlog_verifier_agent = post_migration.get("backlog_verifier_agent") if isinstance(post_migration.get("backlog_verifier_agent"), str) else None
+
+    start_here_path = repo_root / "START-HERE.md"
+    existing_start_here = read_text(start_here_path)
+    rendered_start_here = render_start_here(manifest, workflow, backlog_verifier_agent)
+    write_text(start_here_path, merge_start_here(existing_start_here, rendered_start_here))
+    write_text(repo_root / ".opencode" / "state" / "context-snapshot.md", render_context_snapshot(manifest, workflow))
+
+
 def update_workflow_state(repo_root: Path, rendered_provenance: dict[str, Any], change_summary: str) -> None:
     workflow_path = repo_root / ".opencode" / "state" / "workflow-state.json"
     manifest = read_json(repo_root / "tickets" / "manifest.json")
@@ -356,6 +567,8 @@ def apply_repair(repo_root: Path, rendered_root: Path, change_summary: str) -> l
 
     update_provenance(repo_root, rendered_root, replaced_surfaces, change_summary)
     update_workflow_state(repo_root, read_json(rendered_root / ".opencode" / "meta" / "bootstrap-provenance.json"), change_summary)
+    refresh_restart_surfaces(repo_root)
+    replaced_surfaces.append(".opencode/state/context-snapshot.md")
     return replaced_surfaces
 
 

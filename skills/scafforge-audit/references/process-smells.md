@@ -125,11 +125,23 @@
 - result: the documented closeout path dead-ends even though the generated docs lane is following package instructions
 - why agents miss it: the handoff contract looks coherent when each surface is read alone, but the prompt and plugin disagree on who owns optional `handoff` artifacts
 
+## Restart-surface drift (WFLOW010 — derived restart files contradict canonical state)
+
+- `START-HERE.md` or `.opencode/state/context-snapshot.md` disagrees with `tickets/manifest.json` or `.opencode/state/workflow-state.json` about the active ticket, bootstrap status, proof artifact, pending process verification, state revision, or lane-lease presence
+- result: the next session starts from stale resume data and can route the wrong ticket, skip bootstrap recovery, or ignore an active lease
+- why agents miss it: the repo still has the canonical state files, so shallow audits can assume restart surfaces were regenerated even when repair or tool saves left them stale
+
 ## Coordinator workflow overreach (WFLOW006 — team leader prompt leaves room for artifact authorship or command misuse)
 
 - the team leader prompt does not route from `ticket_lookup.transition_guidance`, does not stop on repeated lifecycle contradictions, does not forbid writing specialist artifacts itself, or does not mark slash commands as human-only entrypoints
 - result: the coordinator starts guessing at the state machine, authoring artifacts, or searching for workflow loopholes
 - why agents miss it: the prompt looks authoritative, but it is missing the exact stop conditions and ownership boundaries that weaker models need
+
+## Bootstrap-first guidance drift (WFLOW011 — bootstrap recovery is left to inference)
+
+- bootstrap is `missing`, `failed`, or `stale`, but `ticket_lookup`, the team leader prompt, or the repo-local workflow skill do not make `environment_bootstrap` the first required action
+- result: weaker coordinators keep attempting normal lifecycle moves, probing alternate stages, or treating environment failures as product defects before the repo can even validate code
+- why agents miss it: each surface may contain a vague bootstrap hint, but none of them deterministically short-circuit the workflow when bootstrap is not ready
 
 ## Thin workflow explainer (SKILL002 — repo-local `ticket-execution` skill omits key lifecycle mechanics)
 

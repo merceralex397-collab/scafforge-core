@@ -1,7 +1,7 @@
 import { tool } from "@opencode-ai/plugin"
 import {
   bootstrapProvenancePath,
-  mergeStartHere,
+  refreshRestartSurfaces,
   latestHandoffPath,
   loadManifest,
   loadWorkflowState,
@@ -11,7 +11,6 @@ import {
   validateHandoffNextAction,
   writeText,
 } from "./_workflow"
-import { readFile } from "node:fs/promises"
 
 export default tool({
   description: "Publish the top-level START-HERE handoff and the latest handoff copy in .opencode/state.",
@@ -40,12 +39,10 @@ export default tool({
       backlogVerifierAgent: typeof backlogVerifierAgent === "string" ? backlogVerifierAgent : undefined,
     })
 
-    const startHere = startHerePath()
     const handoffCopy = latestHandoffPath()
-    const existingStartHere = await readFile(startHere, "utf-8").catch(() => "")
-    await writeText(startHere, mergeStartHere(existingStartHere, content))
     await writeText(handoffCopy, content)
+    await refreshRestartSurfaces({ manifest, workflow, nextAction: args.next_action })
 
-    return JSON.stringify({ start_here: startHere, latest_handoff: handoffCopy }, null, 2)
+    return JSON.stringify({ start_here: startHerePath(), latest_handoff: handoffCopy }, null, 2)
   },
 })

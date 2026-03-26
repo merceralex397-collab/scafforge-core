@@ -28,6 +28,7 @@ The default full-orchestration profile should expose these lanes, but heavier pa
 ## ticket-execution
 
 - required stage order
+- bootstrap-first routing when bootstrap is not `ready`
 - artifact expectations
 
 ## review-audit-bridge

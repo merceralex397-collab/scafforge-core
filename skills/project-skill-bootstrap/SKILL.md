@@ -68,6 +68,7 @@ For each baseline skill in `.opencode/skills/`, rewrite the SKILL.md with actual
 - Make it the canonical state-machine explainer for the generated repo
 - State the exact stage order: `planning -> plan_review -> implementation -> review -> qa -> smoke-test -> closeout`
 - Tell agents to read `ticket_lookup.transition_guidance` before calling `ticket_update`
+- Tell agents that bootstrap readiness is a pre-lifecycle gate: when `ticket_lookup.bootstrap.status` is not `ready`, the next required action is `environment_bootstrap`, then a fresh `ticket_lookup`
 - Tell agents to stop on repeated lifecycle errors instead of probing alternate stage or status values
 - Define stage-artifact ownership by specialist
 - State that `smoke_test` is the only legal producer of smoke-test artifacts

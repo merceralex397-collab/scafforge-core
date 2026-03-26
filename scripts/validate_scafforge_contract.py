@@ -246,6 +246,7 @@ def validate_skill_contracts(findings: list[Finding]) -> None:
     require_contains(findings, project_skill, "No generated local skill may retain scaffold placeholder text")
     require_contains(findings, project_skill, "slash commands are human entrypoints")
     require_contains(findings, project_skill, "missing host prerequisites such as `uv`, `pytest`, `rg`, git identity, or service binaries are blockers")
+    require_contains(findings, project_skill, "bootstrap readiness is a pre-lifecycle gate")
     require_absent(findings, project_skill, "/find-skill")
 
     require_contains(findings, team_bootstrap, "In retrofit mode, this skill restores `.opencode/` first")
@@ -254,6 +255,7 @@ def validate_skill_contracts(findings: list[Finding]) -> None:
     require_contains(findings, team_bootstrap, "keep the total agent count conservative unless the canonical brief proves genuinely disjoint domains")
     require_contains(findings, team_bootstrap, "Skill allowlists reference only skills that already exist in `.opencode/skills/`")
     require_contains(findings, team_bootstrap, "ticket_lookup.transition_guidance")
+    require_contains(findings, team_bootstrap, "bootstrap-not-ready state as a hard gate")
     require_contains(findings, team_bootstrap, "Agents must not use `/kickoff`, `/resume`")
 
     require_contains(findings, prompt_engineering, "Treat these notes as read-only package reference material.")
@@ -289,6 +291,7 @@ def validate_template_surfaces(findings: list[Finding]) -> None:
         TEMPLATE_ROOT / "docs" / "process" / "model-matrix.md",
         TEMPLATE_ROOT / "tickets" / "manifest.json",
         TEMPLATE_ROOT / ".opencode" / "state" / "workflow-state.json",
+        TEMPLATE_ROOT / ".opencode" / "state" / "context-snapshot.md",
         TEMPLATE_ROOT / ".opencode" / "tools" / "_workflow.ts",
         TEMPLATE_ROOT / ".opencode" / "commands" / "kickoff.md",
         TEMPLATE_ROOT / ".opencode" / "skills" / "model-operating-profile" / "SKILL.md",
@@ -310,12 +313,18 @@ def validate_template_surfaces(findings: list[Finding]) -> None:
     require_contains(findings, TEMPLATE_ROOT / "docs" / "process" / "workflow.md", "keep one visible team leader by default")
     require_contains(findings, TEMPLATE_ROOT / "docs" / "process" / "workflow.md", "`plan_review`")
     require_contains(findings, TEMPLATE_ROOT / "docs" / "process" / "workflow.md", "use `ticket_reverify` to restore trust on a closed done ticket")
+    require_contains(findings, TEMPLATE_ROOT / "docs" / "process" / "workflow.md", "run `environment_bootstrap` first, then rerun `ticket_lookup` before any stage change")
+    require_contains(findings, TEMPLATE_ROOT / "docs" / "process" / "workflow.md", "`START-HERE.md` and `.opencode/state/context-snapshot.md`")
     require_contains(findings, TEMPLATE_ROOT / ".opencode" / "state" / "workflow-state.json", '"parallel_mode": "sequential"')
+    require_contains(findings, TEMPLATE_ROOT / ".opencode" / "state" / "context-snapshot.md", "## Process State")
+    require_contains(findings, TEMPLATE_ROOT / ".opencode" / "state" / "context-snapshot.md", "- state_revision: 0")
     require_contains(findings, TEMPLATE_ROOT / ".opencode" / "tools" / "_workflow.ts", 'parallel_mode === "sequential"')
     require_contains(findings, TEMPLATE_ROOT / ".opencode" / "tools" / "_workflow.ts", "## Generation Status")
     require_contains(findings, TEMPLATE_ROOT / ".opencode" / "tools" / "_workflow.ts", "## Post-Generation Audit Status")
     require_contains(findings, TEMPLATE_ROOT / ".opencode" / "tools" / "_workflow.ts", "dependent_tickets_waiting_on_current")
     require_contains(findings, TEMPLATE_ROOT / ".opencode" / "tools" / "_workflow.ts", "validateHandoffNextAction")
+    require_contains(findings, TEMPLATE_ROOT / ".opencode" / "tools" / "_workflow.ts", "refreshRestartSurfaces")
+    require_contains(findings, TEMPLATE_ROOT / ".opencode" / "tools" / "_workflow.ts", "Run environment_bootstrap, register its proof artifact, then continue ticket execution.")
     require_contains(findings, TEMPLATE_ROOT / ".opencode" / "tools" / "_workflow.ts", '"plan_review"')
     require_absent(findings, TEMPLATE_ROOT / ".opencode" / "tools" / "_workflow.ts", "## Workflow State")
     require_contains(findings, TEMPLATE_ROOT / ".opencode" / "tools" / "environment_bootstrap.ts", 'const syncArgs = ["uv", "sync", "--locked"]')
@@ -329,6 +338,7 @@ def validate_template_surfaces(findings: list[Finding]) -> None:
     require_contains(findings, TEMPLATE_ROOT / ".opencode" / "tools" / "ticket_lookup.ts", "transition_guidance")
     require_contains(findings, TEMPLATE_ROOT / ".opencode" / "tools" / "ticket_lookup.ts", "Do not fabricate a PASS artifact through generic artifact tools.")
     require_contains(findings, TEMPLATE_ROOT / ".opencode" / "tools" / "ticket_lookup.ts", "historical trust still needs restoration")
+    require_contains(findings, TEMPLATE_ROOT / ".opencode" / "tools" / "ticket_lookup.ts", "Run environment_bootstrap first, then rerun ticket_lookup before attempting lifecycle transitions.")
     require_contains(findings, TEMPLATE_ROOT / ".opencode" / "tools" / "ticket_reverify.ts", "legal mutation path for closed done tickets")
     require_contains(findings, TEMPLATE_ROOT / ".opencode" / "plugins" / "stage-gate-enforcer.ts", 'const RESERVED_ARTIFACT_STAGES = new Set(["smoke-test"])')
     require_contains(findings, TEMPLATE_ROOT / ".opencode" / "plugins" / "stage-gate-enforcer.ts", "Generic artifact_write is not allowed for that stage.")
@@ -338,9 +348,11 @@ def validate_template_surfaces(findings: list[Finding]) -> None:
     require_contains(findings, TEMPLATE_ROOT / ".opencode" / "tools" / "handoff_publish.ts", "validateHandoffNextAction")
     require_contains(findings, TEMPLATE_ROOT / ".opencode" / "commands" / "kickoff.md", "one active write lane")
     require_contains(findings, TEMPLATE_ROOT / ".opencode" / "agents" / "__AGENT_PREFIX__-team-leader.md", "ticket_lookup.transition_guidance")
+    require_contains(findings, TEMPLATE_ROOT / ".opencode" / "agents" / "__AGENT_PREFIX__-team-leader.md", "If `ticket_lookup.bootstrap.status` is not `ready`, treat `environment_bootstrap` as the next required tool call")
     require_contains(findings, TEMPLATE_ROOT / ".opencode" / "agents" / "__AGENT_PREFIX__-team-leader.md", "do not create planning, implementation, review, QA, or smoke-test artifacts yourself")
     require_contains(findings, TEMPLATE_ROOT / ".opencode" / "agents" / "__AGENT_PREFIX__-team-leader.md", "use human slash commands only as entrypoints")
     require_contains(findings, TEMPLATE_ROOT / ".opencode" / "skills" / "ticket-execution" / "SKILL.md", "transition_guidance")
+    require_contains(findings, TEMPLATE_ROOT / ".opencode" / "skills" / "ticket-execution" / "SKILL.md", "if `ticket_lookup.bootstrap.status` is not `ready`, stop normal lifecycle routing, run `environment_bootstrap`, then rerun `ticket_lookup` before any `ticket_update`")
     require_contains(findings, TEMPLATE_ROOT / ".opencode" / "skills" / "ticket-execution" / "SKILL.md", "`smoke_test` is the only legal producer of `smoke-test`")
     require_contains(findings, TEMPLATE_ROOT / ".opencode" / "skills" / "ticket-execution" / "SKILL.md", "do not convert expected results into PASS evidence")
     require_contains(findings, TEMPLATE_ROOT / ".opencode" / "skills" / "ticket-execution" / "SKILL.md", "slash commands are human entrypoints")
@@ -353,7 +365,9 @@ def validate_template_surfaces(findings: list[Finding]) -> None:
     local_skill_catalog = ROOT / "skills" / "project-skill-bootstrap" / "references" / "local-skill-catalog.md"
     conformance = ROOT / "skills" / "repo-scaffold-factory" / "references" / "opencode-conformance-checklist.json"
     require_contains(findings, local_skill_catalog, "## model-operating-profile")
+    require_contains(findings, local_skill_catalog, "bootstrap-first routing when bootstrap is not `ready`")
     require_contains(findings, conformance, '".opencode/skills/model-operating-profile/SKILL.md"')
+    require_contains(findings, conformance, '".opencode/state/context-snapshot.md"')
     require_contains(findings, conformance, '"model-operating-profile"')
 
 
@@ -377,6 +391,8 @@ def validate_audit_repair_surfaces(findings: list[Finding]) -> None:
 
     require_contains(findings, repair_skill / "scripts" / "apply_repo_process_repair.py", "scafforge-repair")
     require_contains(findings, repair_skill / "scripts" / "apply_repo_process_repair.py", 'workflow_contract.get("parallel_mode", "sequential")')
+    require_contains(findings, repair_skill / "scripts" / "apply_repo_process_repair.py", "refresh_restart_surfaces(repo_root)")
+    require_contains(findings, repair_skill / "scripts" / "apply_repo_process_repair.py", ".opencode/state/context-snapshot.md")
     require_contains(findings, audit_skill / "scripts" / "audit_repo_process.py", 'code="BOOT001"')
     require_contains(findings, audit_skill / "scripts" / "audit_repo_process.py", 'code="SKILL001"')
     require_contains(findings, audit_skill / "scripts" / "audit_repo_process.py", 'code="MODEL001"')
@@ -390,6 +406,8 @@ def validate_audit_repair_surfaces(findings: list[Finding]) -> None:
     require_contains(findings, audit_skill / "scripts" / "audit_repo_process.py", 'code="WFLOW007"')
     require_contains(findings, audit_skill / "scripts" / "audit_repo_process.py", 'code="WFLOW008"')
     require_contains(findings, audit_skill / "scripts" / "audit_repo_process.py", 'code="WFLOW009"')
+    require_contains(findings, audit_skill / "scripts" / "audit_repo_process.py", 'code="WFLOW010"')
+    require_contains(findings, audit_skill / "scripts" / "audit_repo_process.py", 'code="WFLOW011"')
     require_contains(findings, audit_skill / "scripts" / "audit_repo_process.py", 'code="ENV001"')
     require_contains(findings, audit_skill / "scripts" / "audit_repo_process.py", 'code="ENV002"')
     require_contains(findings, audit_skill / "scripts" / "audit_repo_process.py", 'code="ENV003"')
@@ -414,6 +432,8 @@ def validate_audit_repair_surfaces(findings: list[Finding]) -> None:
     require_contains(findings, repair_skill / "scripts" / "audit_repo_process.py", 'code="WFLOW007"')
     require_contains(findings, repair_skill / "scripts" / "audit_repo_process.py", 'code="WFLOW008"')
     require_contains(findings, repair_skill / "scripts" / "audit_repo_process.py", 'code="WFLOW009"')
+    require_contains(findings, repair_skill / "scripts" / "audit_repo_process.py", 'code="WFLOW010"')
+    require_contains(findings, repair_skill / "scripts" / "audit_repo_process.py", 'code="WFLOW011"')
     require_contains(findings, repair_skill / "scripts" / "audit_repo_process.py", 'code="ENV001"')
     require_contains(findings, repair_skill / "scripts" / "audit_repo_process.py", 'code="ENV002"')
     require_contains(findings, repair_skill / "scripts" / "audit_repo_process.py", 'code="ENV003"')
@@ -435,6 +455,8 @@ def validate_audit_repair_surfaces(findings: list[Finding]) -> None:
     require_contains(findings, audit_skill / "references" / "process-smells.md", "Smoke-proof bypass (WFLOW005")
     require_contains(findings, audit_skill / "references" / "process-smells.md", "Coordinator workflow overreach (WFLOW006")
     require_contains(findings, audit_skill / "references" / "process-smells.md", "Handoff ownership conflict (WFLOW007")
+    require_contains(findings, audit_skill / "references" / "process-smells.md", "Restart-surface drift (WFLOW010")
+    require_contains(findings, audit_skill / "references" / "process-smells.md", "Bootstrap-first guidance drift (WFLOW011")
     require_contains(findings, audit_skill / "references" / "process-smells.md", "Thin workflow explainer (SKILL002")
     require_contains(findings, audit_skill / "references" / "process-smells.md", "Session chronology miss (SESSION001")
     require_contains(findings, audit_skill / "references" / "process-smells.md", "Workflow thrash loop (SESSION002")
@@ -446,7 +468,9 @@ def validate_audit_repair_surfaces(findings: list[Finding]) -> None:
     require_contains(findings, repair_skill / "references" / "repair-playbook.md", "## Workflow-skill repair actions (SKILL002)")
     require_contains(findings, repair_skill / "references" / "repair-playbook.md", "## MODEL repair actions (MODEL001)")
     require_contains(findings, repair_skill / "references" / "repair-playbook.md", "## Repeated-cycle repair actions (CYCLE001)")
-    require_contains(findings, audit_skill / "references" / "repair-playbook.md", "## Workflow repair actions (WFLOW001 / WFLOW002 / WFLOW003 / WFLOW004 / WFLOW005 / WFLOW006 / WFLOW007 / SESSION001 / SESSION002 / SESSION003 / SESSION004 / SESSION005)")
+    require_contains(findings, audit_skill / "references" / "repair-playbook.md", "## Workflow repair actions (WFLOW001 / WFLOW002 / WFLOW003 / WFLOW004 / WFLOW005 / WFLOW006 / WFLOW007 / WFLOW010 / WFLOW011 / SESSION001 / SESSION002 / SESSION003 / SESSION004 / SESSION005)")
+    require_contains(findings, audit_skill / "references" / "repair-playbook.md", "`WFLOW010`: regenerate `START-HERE.md` and `.opencode/state/context-snapshot.md`")
+    require_contains(findings, audit_skill / "references" / "repair-playbook.md", "`WFLOW011`: refresh `ticket_lookup`, the team-leader prompt, and `ticket-execution` together")
     require_contains(findings, audit_skill / "SKILL.md", "manually copy the diagnosis pack")
     require_contains(findings, audit_skill / "SKILL.md", "Do not tell the user to go straight from report generation to repair")
     require_contains(findings, audit_skill / "SKILL.md", "Every audit run produces the full four-report diagnosis pack.")

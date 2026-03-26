@@ -28,6 +28,8 @@ Rules:
 - require a registered stage artifact before advancing to the next stage
 - let `ticket_update` derive the matching queue status from the lifecycle stage unless a compatible status is explicitly required
 - stop on repeated lifecycle-tool contradictions; re-run `ticket_lookup`, inspect `transition_guidance`, and return a blocker instead of probing alternate stage/status values
+- treat bootstrap readiness as a pre-lifecycle execution gate; if `ticket_lookup.bootstrap.status` is not `ready`, run `environment_bootstrap` first, then rerun `ticket_lookup` before any stage change
+- do not substitute raw shell package-manager commands for `environment_bootstrap` when bootstrap is missing, stale, or failed
 
 ## Bounded parallel work
 
@@ -58,7 +60,7 @@ Rules:
 - transient foreground stage and per-ticket approval state live in `.opencode/state/workflow-state.json`
 - artifact bodies live in the stage-specific directories under `.opencode/state/`
 - cross-stage artifact metadata lives in `.opencode/state/artifacts/registry.json`
-- restart guidance lives in `START-HERE.md` and should be regenerated from canonical state
+- restart guidance lives in `START-HERE.md` and `.opencode/state/context-snapshot.md`; both are derived views that should be regenerated from canonical state after workflow mutations
 
 ## Stage Proof
 
