@@ -536,6 +536,173 @@ def seed_pending_process_verification(dest: Path) -> None:
     manifest_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
 
 
+def seed_restart_surface_drift(dest: Path) -> None:
+    manifest_path = dest / "tickets" / "manifest.json"
+    workflow_path = dest / ".opencode" / "state" / "workflow-state.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    workflow = json.loads(workflow_path.read_text(encoding="utf-8"))
+    ticket = manifest["tickets"][0]
+    proof_rel = ".opencode/state/bootstrap/synthetic-bootstrap-proof.md"
+    proof_path = dest / proof_rel
+    proof_path.parent.mkdir(parents=True, exist_ok=True)
+    proof_path.write_text("# Bootstrap Proof\n", encoding="utf-8")
+
+    workflow["bootstrap"] = {
+        "status": "failed",
+        "last_verified_at": "2026-03-25T23:02:26Z",
+        "environment_fingerprint": "synthetic-bootstrap",
+        "proof_artifact": proof_rel,
+    }
+    workflow["pending_process_verification"] = True
+    workflow["state_revision"] = 122
+    workflow["lane_leases"] = [
+        {
+            "ticket_id": ticket["id"],
+            "lane": ticket["lane"],
+            "owner_agent": "synthetic-team-leader",
+            "write_lock": True,
+            "claimed_at": "2026-03-25T23:00:24Z",
+            "allowed_paths": ["."],
+        }
+    ]
+    workflow_path.write_text(json.dumps(workflow, indent=2) + "\n", encoding="utf-8")
+
+    (dest / "START-HERE.md").write_text(
+        "\n".join(
+            [
+                "# START HERE",
+                "",
+                "<!-- SCAFFORGE:START_HERE_BLOCK START -->",
+                "## What This Repo Is",
+                "",
+                "Smoke Example",
+                "",
+                "## Current Or Next Ticket",
+                "",
+                f"- ID: {ticket['id']}",
+                f"- Title: {ticket['title']}",
+                f"- Wave: {ticket['wave']}",
+                f"- Lane: {ticket['lane']}",
+                f"- Stage: {ticket['stage']}",
+                "- Status: ready",
+                f"- Resolution: {ticket['resolution_state']}",
+                f"- Verification: {ticket['verification_state']}",
+                "",
+                "## Generation Status",
+                "",
+                "- handoff_status: ready for continued development",
+                f"- process_version: {workflow['process_version']}",
+                f"- parallel_mode: {workflow['parallel_mode']}",
+                "- pending_process_verification: false",
+                "- bootstrap_status: ready",
+                "- bootstrap_proof: None",
+                "",
+                "## Post-Generation Audit Status",
+                "",
+                "- audit_or_repair_follow_up: none recorded",
+                "- reopened_tickets: none",
+                "- done_but_not_fully_trusted: none",
+                "- pending_reverification: none",
+                "",
+                "## Known Risks",
+                "",
+                "- None recorded.",
+                "",
+                "## Next Action",
+                "",
+                "Continue the required internal lifecycle from the current ticket stage.",
+                "<!-- SCAFFORGE:START_HERE_BLOCK END -->",
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    (dest / ".opencode" / "state" / "context-snapshot.md").write_text(
+        "\n".join(
+            [
+                "# Context Snapshot",
+                "",
+                "## Project",
+                "",
+                "Smoke Example",
+                "",
+                "## Active Ticket",
+                "",
+                f"- ID: {ticket['id']}",
+                f"- Title: {ticket['title']}",
+                f"- Stage: {ticket['stage']}",
+                "- Status: ready",
+                f"- Resolution: {ticket['resolution_state']}",
+                f"- Verification: {ticket['verification_state']}",
+                "- Approved plan: no",
+                "- Needs reverification: no",
+                "",
+                "## Bootstrap",
+                "",
+                "- status: ready",
+                "- last_verified_at: 2026-03-25T22:00:00Z",
+                "- proof_artifact: None",
+                "",
+                "## Process State",
+                "",
+                f"- process_version: {workflow['process_version']}",
+                "- pending_process_verification: false",
+                f"- parallel_mode: {workflow['parallel_mode']}",
+                "- state_revision: 113",
+                "",
+                "## Lane Leases",
+                "",
+                "- No active lane leases",
+                "",
+                "## Recent Artifacts",
+                "",
+                "- No artifacts recorded yet",
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+
+def seed_bootstrap_guidance_drift(dest: Path) -> None:
+    workflow_path = dest / ".opencode" / "state" / "workflow-state.json"
+    workflow = json.loads(workflow_path.read_text(encoding="utf-8"))
+    workflow["bootstrap"] = {
+        "status": "failed",
+        "last_verified_at": "2026-03-25T23:02:26Z",
+        "environment_fingerprint": "synthetic-bootstrap",
+        "proof_artifact": ".opencode/state/bootstrap/synthetic-bootstrap-proof.md",
+    }
+    workflow_path.write_text(json.dumps(workflow, indent=2) + "\n", encoding="utf-8")
+
+    ticket_lookup = dest / ".opencode" / "tools" / "ticket_lookup.ts"
+    ticket_lookup.write_text(
+        ticket_lookup.read_text(encoding="utf-8").replace(
+            "Bootstrap is ${bootstrapStatus}. Run environment_bootstrap first, then rerun ticket_lookup before attempting lifecycle transitions.",
+            "Bootstrap is ${bootstrapStatus}. Continue normal lifecycle routing after checking the current stage.",
+        ),
+        encoding="utf-8",
+    )
+
+    team_leader = next((dest / ".opencode" / "agents").glob("*team-leader*.md"))
+    team_leader.write_text(
+        team_leader.read_text(encoding="utf-8").replace(
+            "If `ticket_lookup.bootstrap.status` is not `ready`, treat `environment_bootstrap` as the next required tool call, rerun `ticket_lookup` after it completes, and do not continue normal lifecycle routing until bootstrap succeeds.\n",
+            "",
+        ),
+        encoding="utf-8",
+    )
+
+    ticket_execution = dest / ".opencode" / "skills" / "ticket-execution" / "SKILL.md"
+    ticket_execution.write_text(
+        ticket_execution.read_text(encoding="utf-8").replace(
+            "- if `ticket_lookup.bootstrap.status` is not `ready`, stop normal lifecycle routing, run `environment_bootstrap`, then rerun `ticket_lookup` before any `ticket_update`\n",
+            "",
+        ),
+        encoding="utf-8",
+    )
+
+
 def seed_reverification_deadlock(dest: Path) -> None:
     stage_gate = dest / ".opencode" / "plugins" / "stage-gate-enforcer.ts"
     text = stage_gate.read_text(encoding="utf-8")
@@ -655,6 +822,11 @@ def verify_render(dest: Path, *, expect_full_repo: bool) -> None:
             if forbidden in start_here:
                 raise RuntimeError(f"START-HERE.md still contains deprecated section `{forbidden}`")
 
+        context_snapshot = (dest / ".opencode" / "state" / "context-snapshot.md").read_text(encoding="utf-8")
+        for heading in ("## Active Ticket", "## Bootstrap", "## Process State", "## Lane Leases"):
+            if heading not in context_snapshot:
+                raise RuntimeError(f"context-snapshot.md is missing required section `{heading}`")
+
 
 def main() -> int:
     workspace = Path(tempfile.mkdtemp(prefix="scafforge-smoke-"))
@@ -703,17 +875,26 @@ def main() -> int:
             raise RuntimeError("Generated stage-gate-enforcer.ts should reserve smoke-test artifacts to their owning tool")
         if "Generic artifact_write is not allowed for that stage." not in generated_stage_gate:
             raise RuntimeError("Generated stage-gate-enforcer.ts should block generic artifact_write for smoke-test")
+        generated_workflow = (full_dest / ".opencode" / "tools" / "_workflow.ts").read_text(encoding="utf-8")
+        if "refreshRestartSurfaces" not in generated_workflow:
+            raise RuntimeError("Generated _workflow.ts should refresh derived restart surfaces after workflow mutations")
         generated_ticket_lookup = (full_dest / ".opencode" / "tools" / "ticket_lookup.ts").read_text(encoding="utf-8")
         if "transition_guidance" not in generated_ticket_lookup:
             raise RuntimeError("Generated ticket_lookup.ts should expose transition_guidance")
         if "Do not fabricate a PASS artifact through generic artifact tools." not in generated_ticket_lookup:
             raise RuntimeError("Generated ticket_lookup.ts should warn against generic PASS artifact fabrication")
+        if "Run environment_bootstrap first, then rerun ticket_lookup before attempting lifecycle transitions." not in generated_ticket_lookup:
+            raise RuntimeError("Generated ticket_lookup.ts should short-circuit lifecycle guidance to environment_bootstrap when bootstrap is not ready")
         generated_team_leader = next((full_dest / ".opencode" / "agents").glob("*team-leader*.md")).read_text(encoding="utf-8")
         if "do not create planning, implementation, review, QA, or smoke-test artifacts yourself" not in generated_team_leader:
             raise RuntimeError("Generated team leader prompt should forbid coordinator-authored specialist artifacts")
+        if "If `ticket_lookup.bootstrap.status` is not `ready`, treat `environment_bootstrap` as the next required tool call" not in generated_team_leader:
+            raise RuntimeError("Generated team leader prompt should make bootstrap-first routing explicit")
         generated_ticket_execution = (full_dest / ".opencode" / "skills" / "ticket-execution" / "SKILL.md").read_text(encoding="utf-8")
         if "slash commands are human entrypoints" not in generated_ticket_execution:
             raise RuntimeError("Generated ticket-execution skill should mark slash commands as human entrypoints only")
+        if "if `ticket_lookup.bootstrap.status` is not `ready`, stop normal lifecycle routing, run `environment_bootstrap`, then rerun `ticket_lookup` before any `ticket_update`" not in generated_ticket_execution:
+            raise RuntimeError("Generated ticket-execution skill should treat bootstrap readiness as a pre-lifecycle gate")
         generated_handoff_publish = (full_dest / ".opencode" / "tools" / "handoff_publish.ts").read_text(encoding="utf-8")
         if "validateHandoffNextAction" not in generated_handoff_publish:
             raise RuntimeError("Generated handoff_publish.ts should validate custom next_action claims before publishing")
@@ -743,6 +924,37 @@ def main() -> int:
             raise RuntimeError("Diagnosis pack manifest should include ticket_recommendations")
         if diagnosis_manifest.get("report_files", {}).get("report_4") != "04-live-repo-repair-plan.md":
             raise RuntimeError("Diagnosis pack manifest should map report_4 to 04-live-repo-repair-plan.md")
+
+        restart_surface_dest = workspace / "restart-surface-drift"
+        shutil.copytree(full_dest, restart_surface_dest)
+        seed_restart_surface_drift(restart_surface_dest)
+        restart_surface_audit = run_json([sys.executable, str(AUDIT), str(restart_surface_dest), "--format", "json", "--no-diagnosis-pack"], ROOT)
+        restart_surface_codes = {finding["code"] for finding in restart_surface_audit.get("findings", [])}
+        if "WFLOW010" not in restart_surface_codes:
+            raise RuntimeError("A repo whose START-HERE or context snapshot drifts from canonical workflow state should emit WFLOW010")
+
+        bootstrap_guidance_dest = workspace / "bootstrap-guidance-drift"
+        shutil.copytree(full_dest, bootstrap_guidance_dest)
+        seed_bootstrap_guidance_drift(bootstrap_guidance_dest)
+        bootstrap_guidance_audit = run_json([sys.executable, str(AUDIT), str(bootstrap_guidance_dest), "--format", "json", "--no-diagnosis-pack"], ROOT)
+        bootstrap_guidance_codes = {finding["code"] for finding in bootstrap_guidance_audit.get("findings", [])}
+        if "WFLOW011" not in bootstrap_guidance_codes:
+            raise RuntimeError("A repo whose workflow surfaces do not route failed bootstrap to environment_bootstrap first should emit WFLOW011")
+
+        restart_repair_dest = workspace / "restart-surface-repair"
+        shutil.copytree(full_dest, restart_repair_dest)
+        seed_restart_surface_drift(restart_repair_dest)
+        run_json([sys.executable, str(REPAIR), str(restart_repair_dest)], ROOT)
+        repaired_start_here = (restart_repair_dest / "START-HERE.md").read_text(encoding="utf-8")
+        if "- bootstrap_status: failed" not in repaired_start_here or "- pending_process_verification: true" not in repaired_start_here:
+            raise RuntimeError("Repair should refresh START-HERE.md from canonical workflow state after managed surface replacement")
+        repaired_context_snapshot = (restart_repair_dest / ".opencode" / "state" / "context-snapshot.md").read_text(encoding="utf-8")
+        if "- state_revision: 122" not in repaired_context_snapshot or "synthetic-team-leader" not in repaired_context_snapshot:
+            raise RuntimeError("Repair should refresh context-snapshot.md with current revision and active lane-lease facts")
+        repaired_restart_audit = run_json([sys.executable, str(AUDIT), str(restart_repair_dest), "--format", "json", "--no-diagnosis-pack"], ROOT)
+        repaired_restart_codes = {finding["code"] for finding in repaired_restart_audit.get("findings", [])}
+        if "WFLOW010" in repaired_restart_codes:
+            raise RuntimeError("Repair should clear WFLOW010 by regenerating START-HERE.md and context-snapshot.md from canonical state")
 
         repeat_dest = workspace / "repeat-cycle"
         shutil.copytree(full_dest, repeat_dest)

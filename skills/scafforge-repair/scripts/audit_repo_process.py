@@ -14,6 +14,11 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+try:
+    import tomllib
+except ModuleNotFoundError:  # pragma: no cover - Python < 3.11 fallback
+    tomllib = None  # type: ignore[assignment]
+
 
 COARSE_STATUSES = {"todo", "ready", "plan_review", "in_progress", "blocked", "review", "qa", "smoke_test", "done"}
 STAGE_LIKE_STATUSES = {"planned", "approved", "archived"}
@@ -190,6 +195,54 @@ def extract_section_lines(text: str, heading: str) -> list[str]:
     next_heading = re.search(r"^##\s+", remainder, re.MULTILINE)
     block = remainder[: next_heading.start()] if next_heading else remainder
     return [line.strip() for line in block.splitlines() if line.strip()]
+
+
+def extract_bullet_map(text: str, heading: str) -> dict[str, str]:
+    values: dict[str, str] = {}
+    for line in extract_section_lines(text, heading):
+        match = re.match(r"^-\s+([^:]+):\s*(.+)$", line)
+        if not match:
+            continue
+        key = match.group(1).strip().lower().replace(" ", "_")
+        values[key] = match.group(2).strip()
+    return values
+
+
+def section_has_active_leases(text: str, heading: str) -> bool | None:
+    lines = extract_section_lines(text, heading)
+    if not lines:
+        return None
+    if any(line == "- No active lane leases" for line in lines):
+        return False
+    if any(line.startswith("- ") for line in lines):
+        return True
+    return None
+
+
+def repo_has_dev_extra(root: Path) -> bool:
+    pyproject = root / "pyproject.toml"
+    if not pyproject.exists():
+        return False
+    if tomllib is not None:
+        try:
+            payload = tomllib.loads(pyproject.read_text(encoding="utf-8"))
+        except (tomllib.TOMLDecodeError, OSError, ValueError):
+            payload = {}
+        project = payload.get("project")
+        optional = project.get("optional-dependencies") if isinstance(project, dict) else {}
+        dev = optional.get("dev") if isinstance(optional, dict) else None
+        return isinstance(dev, list) and bool(dev)
+
+    text = read_text(pyproject)
+    section = re.search(r"(?ms)^\[project\.optional-dependencies\]\s*(.*?)^(?:\[|\Z)", text)
+    if not section:
+        return False
+    return bool(re.search(r"(?m)^\s*dev\s*=", section.group(1)))
+
+
+def repo_uses_uv(root: Path, bootstrap_text: str) -> bool:
+    pyvenv_text = read_text(root / ".venv" / "pyvenv.cfg")
+    return (root / "uv.lock").exists() or '["uv"' in bootstrap_text or bool(re.search(r"^uv\s*=", pyvenv_text, re.MULTILINE))
 
 
 def read_only_shell_agent(path: Path) -> bool:
@@ -1669,6 +1722,135 @@ def audit_handoff_artifact_ownership_conflict(root: Path, findings: list[Finding
     )
 
 
+def audit_restart_surface_drift(root: Path, findings: list[Finding]) -> None:
+    manifest_path = root / "tickets" / "manifest.json"
+    workflow_path = root / ".opencode" / "state" / "workflow-state.json"
+    start_here_path = root / "START-HERE.md"
+    context_snapshot_path = root / ".opencode" / "state" / "context-snapshot.md"
+    manifest = read_json(manifest_path)
+    workflow = read_json(workflow_path)
+    if not isinstance(manifest, dict) or not isinstance(workflow, dict):
+        return
+
+    expected = expected_restart_surface_state(manifest, workflow)
+    if expected is None:
+        return
+
+    evidence: list[str] = []
+    files = [
+        normalize_path(manifest_path, root),
+        normalize_path(workflow_path, root),
+    ]
+
+    def compare_surface(surface_label: str, observed: dict[str, Any], expected_keys: tuple[str, ...]) -> None:
+        for key in expected_keys:
+            observed_value = normalize_restart_surface_value(observed.get(key))
+            expected_value = normalize_restart_surface_value(expected.get(key))
+            if observed_value == expected_value:
+                continue
+            evidence.append(
+                f"{surface_label} {key} drift: expected {expected_value!r} from canonical state, found {observed_value!r}."
+            )
+
+    if start_here_path.exists():
+        files.append(normalize_path(start_here_path, root))
+        compare_surface(
+            normalize_path(start_here_path, root),
+            parse_start_here_state(read_text(start_here_path)),
+            ("ticket_id", "stage", "status", "bootstrap_status", "bootstrap_proof", "pending_process_verification"),
+        )
+    else:
+        files.append(normalize_path(start_here_path, root))
+        evidence.append(f"Missing derived restart surface: {normalize_path(start_here_path, root)}.")
+
+    if context_snapshot_path.exists():
+        files.append(normalize_path(context_snapshot_path, root))
+        compare_surface(
+            normalize_path(context_snapshot_path, root),
+            parse_context_snapshot_state(read_text(context_snapshot_path)),
+            ("ticket_id", "stage", "status", "bootstrap_status", "bootstrap_proof", "pending_process_verification", "state_revision", "has_lane_leases"),
+        )
+    else:
+        files.append(normalize_path(context_snapshot_path, root))
+        evidence.append(f"Missing derived restart surface: {normalize_path(context_snapshot_path, root)}.")
+
+    if not evidence:
+        return
+
+    add_finding(
+        findings,
+        Finding(
+            code="WFLOW010",
+            severity="error",
+            problem="Derived restart surfaces disagree with canonical workflow state, so resume guidance can route work from stale or contradictory facts.",
+            root_cause="`START-HERE.md` and `.opencode/state/context-snapshot.md` are not being regenerated from `tickets/manifest.json` plus `.opencode/state/workflow-state.json` after workflow mutations or managed repair, leaving bootstrap, lane-lease, and active-ticket state stale.",
+            files=list(dict.fromkeys(files)),
+            safer_pattern="Regenerate the managed START-HERE block and `.opencode/state/context-snapshot.md` from canonical manifest/workflow state after every workflow save and fail repair verification if those derived restart surfaces drift.",
+            evidence=evidence[:10],
+        ),
+    )
+
+
+def audit_bootstrap_guidance_drift(root: Path, findings: list[Finding]) -> None:
+    workflow_path = root / ".opencode" / "state" / "workflow-state.json"
+    workflow = read_json(workflow_path)
+    if not isinstance(workflow, dict):
+        return
+
+    bootstrap = workflow.get("bootstrap") if isinstance(workflow.get("bootstrap"), dict) else {}
+    bootstrap_status = str(bootstrap.get("status", "")).strip()
+    if bootstrap_status == "ready" or not bootstrap_status:
+        return
+
+    ticket_lookup = root / ".opencode" / "tools" / "ticket_lookup.ts"
+    team_leader = next((path for path in (root / ".opencode" / "agents").glob("*team-leader*.md")), None)
+    ticket_execution = root / ".opencode" / "skills" / "ticket-execution" / "SKILL.md"
+    evidence: list[str] = []
+    files = [normalize_path(workflow_path, root)]
+
+    ticket_lookup_text = read_text(ticket_lookup)
+    if "Run environment_bootstrap first, then rerun ticket_lookup before attempting lifecycle transitions." not in ticket_lookup_text:
+        files.append(normalize_path(ticket_lookup, root))
+        evidence.append(f"{normalize_path(ticket_lookup, root)} does not short-circuit lifecycle guidance to `environment_bootstrap` when bootstrap is not ready.")
+
+    if team_leader is None:
+        files.append(".opencode/agents/*team-leader*.md")
+        evidence.append("Missing team leader prompt; no bootstrap-first routing guidance is available to the coordinator.")
+    else:
+        team_leader_text = read_text(team_leader)
+        if "If `ticket_lookup.bootstrap.status` is not `ready`, treat `environment_bootstrap` as the next required tool call" not in team_leader_text:
+            files.append(normalize_path(team_leader, root))
+            evidence.append(f"{normalize_path(team_leader, root)} does not make bootstrap-first routing explicit when bootstrap is not ready.")
+
+    if not ticket_execution.exists():
+        files.append(normalize_path(ticket_execution, root))
+        evidence.append(f"Missing repo-local workflow explainer: {normalize_path(ticket_execution, root)}.")
+    else:
+        ticket_execution_text = read_text(ticket_execution)
+        if "if `ticket_lookup.bootstrap.status` is not `ready`, stop normal lifecycle routing, run `environment_bootstrap`, then rerun `ticket_lookup` before any `ticket_update`" not in ticket_execution_text:
+            files.append(normalize_path(ticket_execution, root))
+            evidence.append(f"{normalize_path(ticket_execution, root)} does not tell agents to treat bootstrap repair as the next required action.")
+
+    if not evidence:
+        return
+
+    add_finding(
+        findings,
+        Finding(
+            code="WFLOW011",
+            severity="error",
+            problem="Bootstrap is not ready, but generated transition guidance and coordinator instructions do not make `environment_bootstrap` the first required action.",
+            root_cause="The generated repo still asks the coordinator to infer bootstrap recovery from scattered hints. When bootstrap is missing, failed, or stale, weaker models keep attempting lifecycle progress or alternate transitions instead of restoring the environment first.",
+            files=list(dict.fromkeys(files)),
+            safer_pattern="When bootstrap is not `ready`, make `ticket_lookup.transition_guidance`, the team leader prompt, and `ticket-execution` short-circuit to `environment_bootstrap`, rerun `ticket_lookup` afterward, and stop normal lifecycle routing until bootstrap succeeds.",
+            evidence=[
+                f"{normalize_path(workflow_path, root)} records bootstrap.status = {bootstrap_status}.",
+                *evidence[:7],
+            ],
+        ),
+    )
+
+
 def audit_team_leader_workflow_contract(root: Path, findings: list[Finding]) -> None:
     team_leader = next((path for path in (root / ".opencode" / "agents").glob("*team-leader*.md")), None)
     if not team_leader:
@@ -1760,6 +1942,66 @@ def _blocked_dependents(manifest: dict[str, Any], ticket_id: str) -> list[str]:
         if isinstance(depends_on, list) and ticket_id in depends_on and ticket.get("status") != "done":
             blocked.append(str(ticket.get("id", "")))
     return [item for item in blocked if item]
+
+
+def expected_restart_surface_state(manifest: dict[str, Any], workflow: dict[str, Any]) -> dict[str, Any] | None:
+    active_ticket = _active_ticket(manifest, workflow)
+    if not isinstance(active_ticket, dict):
+        return None
+    bootstrap = workflow.get("bootstrap") if isinstance(workflow.get("bootstrap"), dict) else {}
+    lane_leases = workflow.get("lane_leases") if isinstance(workflow.get("lane_leases"), list) else []
+    proof_artifact = bootstrap.get("proof_artifact") if isinstance(bootstrap, dict) else None
+    return {
+        "ticket_id": str(active_ticket.get("id", "")).strip(),
+        "stage": str(active_ticket.get("stage", workflow.get("stage", ""))).strip(),
+        "status": str(active_ticket.get("status", workflow.get("status", ""))).strip(),
+        "bootstrap_status": str(bootstrap.get("status", "")).strip(),
+        "bootstrap_proof": str(proof_artifact).strip() if isinstance(proof_artifact, str) and proof_artifact.strip() else "None",
+        "pending_process_verification": "true" if workflow.get("pending_process_verification") is True else "false",
+        "state_revision": str(workflow.get("state_revision")) if isinstance(workflow.get("state_revision"), int) else None,
+        "has_lane_leases": bool(lane_leases),
+    }
+
+
+def parse_start_here_state(text: str) -> dict[str, Any]:
+    current = extract_bullet_map(text, "Current Or Next Ticket")
+    generation = extract_bullet_map(text, "Generation Status")
+    return {
+        "ticket_id": current.get("id"),
+        "stage": current.get("stage"),
+        "status": current.get("status"),
+        "bootstrap_status": generation.get("bootstrap_status"),
+        "bootstrap_proof": generation.get("bootstrap_proof"),
+        "pending_process_verification": generation.get("pending_process_verification"),
+    }
+
+
+def parse_context_snapshot_state(text: str) -> dict[str, Any]:
+    active = extract_bullet_map(text, "Active Ticket")
+    bootstrap = extract_bullet_map(text, "Bootstrap")
+    process = extract_bullet_map(text, "Process State")
+    return {
+        "ticket_id": active.get("id"),
+        "stage": active.get("stage"),
+        "status": active.get("status"),
+        "bootstrap_status": bootstrap.get("status"),
+        "bootstrap_proof": bootstrap.get("proof_artifact"),
+        "pending_process_verification": process.get("pending_process_verification"),
+        "state_revision": process.get("state_revision"),
+        "has_lane_leases": section_has_active_leases(text, "Lane Leases"),
+    }
+
+
+def normalize_restart_surface_value(value: Any) -> Any:
+    if isinstance(value, bool) or value is None:
+        return value
+    text = str(value).strip()
+    if not text:
+        return None
+    lowered = text.lower()
+    if lowered in {"none", "not yet recorded", "not yet recorded.", "not yet verified.", "null"}:
+        return None
+    return text
 
 
 def audit_handoff_evidence_gap(root: Path, findings: list[Finding]) -> None:
@@ -2022,6 +2264,9 @@ def audit_environment_prerequisites(root: Path, findings: list[Finding]) -> None
     environment_bootstrap = root / ".opencode" / "tools" / "environment_bootstrap.ts"
     smoke_test = root / ".opencode" / "tools" / "smoke_test.ts"
     bootstrap_text = read_text(environment_bootstrap) + "\n" + read_text(smoke_test)
+    workflow_path = root / ".opencode" / "state" / "workflow-state.json"
+    workflow = read_json(workflow_path)
+    workflow_bootstrap = workflow.get("bootstrap") if isinstance(workflow, dict) and isinstance(workflow.get("bootstrap"), dict) else {}
 
     if has_python_project and _detect_python(root) is None:
         add_finding(
@@ -2041,6 +2286,44 @@ def audit_environment_prerequisites(root: Path, findings: list[Finding]) -> None
         )
 
     if has_python_project and tests_dir.exists() and _detect_pytest_command(root) is None:
+        uv_repo = repo_uses_uv(root, bootstrap_text)
+        uv_available = shutil.which("uv") is not None
+        bootstrap_status = str(workflow_bootstrap.get("status", "")).strip() if isinstance(workflow_bootstrap, dict) else ""
+        proof_artifact_value = workflow_bootstrap.get("proof_artifact") if isinstance(workflow_bootstrap, dict) else None
+        proof_artifact = root / str(proof_artifact_value) if isinstance(proof_artifact_value, str) and proof_artifact_value else None
+        pyproject_has_dev = repo_has_dev_extra(root)
+        if uv_repo and uv_available:
+            files = [
+                normalize_path(tests_dir, root),
+                normalize_path(environment_bootstrap, root),
+                normalize_path(workflow_path, root),
+            ]
+            evidence = [
+                f"{normalize_path(tests_dir, root)} exists and requires executable test verification.",
+                "The repo is uv-managed and `uv` is available on the current machine.",
+                f"{normalize_path(workflow_path, root)} records bootstrap.status = {bootstrap_status or 'missing'}.",
+                "No repo-local or global pytest command could be resolved for this repo.",
+            ]
+            if pyproject_has_dev:
+                evidence.append("pyproject.toml defines `[project.optional-dependencies].dev`, so bootstrap should restore pytest through the repo-local dev environment.")
+            if proof_artifact and proof_artifact.exists():
+                files.append(normalize_path(proof_artifact, root))
+                evidence.append(f"Latest bootstrap proof artifact: {normalize_path(proof_artifact, root)}.")
+
+            add_finding(
+                findings,
+                Finding(
+                    code="ENV002",
+                    severity="error",
+                    problem="The repo has Python tests, but repo-local pytest is still unavailable because bootstrap state is failed, missing, or stale.",
+                    root_cause="This repo is uv-managed and the host already provides `uv`, so the missing pytest command is not primarily a host-prerequisite absence. The repo-local test environment was never successfully bootstrapped, or the recorded bootstrap state is stale after workflow changes.",
+                    files=list(dict.fromkeys(files)),
+                    safer_pattern="Rerun `environment_bootstrap` to restore the repo-local test environment before audit or repair verification. For uv repos with dev extras, bootstrap should sync with `uv sync --locked --extra dev`, then verify pytest from the repo-local environment.",
+                    evidence=evidence,
+                ),
+            )
+            return
+
         add_finding(
             findings,
             Finding(
@@ -2286,8 +2569,10 @@ def audit_repo(root: Path, logs: list[Path] | None = None) -> list[Finding]:
     audit_reverification_deadlock(root, findings)
     audit_smoke_test_artifact_bypass(root, findings)
     audit_handoff_artifact_ownership_conflict(root, findings)
+    audit_restart_surface_drift(root, findings)
     audit_team_leader_workflow_contract(root, findings)
     audit_ticket_execution_skill_contract(root, findings)
+    audit_bootstrap_guidance_drift(root, findings)
     audit_environment_prerequisites(root, findings)
     audit_python_execution(root, findings)
     audit_handoff_evidence_gap(root, findings)
@@ -2365,7 +2650,7 @@ def prevention_action(finding: Finding) -> str:
     if finding.code == "ENV001":
         return "Add first-class environment prerequisite findings so missing host executables like `uv`, `rg`, or Python runtimes are surfaced explicitly instead of being treated as silent skips."
     if finding.code == "ENV002":
-        return "Treat missing repo-local test executables such as pytest as explicit verification blockers so audit never reports clean health after skipping runtime checks."
+        return "Treat missing repo-local test executables such as pytest as explicit verification blockers, and distinguish stale or failed repo bootstrap from missing host prerequisites when uv-managed repos already have `uv` available."
     if finding.code == "ENV003":
         return "Classify host misconfiguration such as missing git identity as environment blockers when repo validations depend on commit-producing checks."
     if finding.code == "ENV004":
@@ -2388,6 +2673,10 @@ def prevention_action(finding: Finding) -> str:
         return "Teach audit and repair to treat pending backlog process verification as a first-class verification state so repaired repos are not declared clean while historical done tickets remain untrusted."
     if finding.code == "WFLOW009":
         return "Make `ticket_reverify` the legal trust-restoration path for closed done tickets instead of binding it to the normal closed-ticket lease rules."
+    if finding.code == "WFLOW010":
+        return "Regenerate derived restart surfaces from canonical manifest and workflow state after every workflow mutation so resume guidance never contradicts active bootstrap, ticket, or lease facts."
+    if finding.code == "WFLOW011":
+        return "Make bootstrap-first routing explicit across ticket lookup, the team leader prompt, and the repo-local workflow skill so failed or stale bootstrap short-circuits normal lifecycle guidance."
     if finding.code == "SESSION001":
         return "Teach scafforge-audit to treat supplied session logs as first-class temporal evidence and explain final reasoning failures before reconciling current repo state."
     if finding.code == "SESSION002":

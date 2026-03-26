@@ -22,6 +22,8 @@ Required order:
 Core rules:
 
 - resolve the ticket through `ticket_lookup` first and read `transition_guidance` before calling `ticket_update`
+- if `ticket_lookup.bootstrap.status` is not `ready`, stop normal lifecycle routing, run `environment_bootstrap`, then rerun `ticket_lookup` before any `ticket_update`
+- if bootstrap still is not `ready` after that rerun, return a blocker; do not improvise raw shell installation or lifecycle workarounds
 - use `ticket_update` for stage movement; do not probe alternate stage or status values to see what passes
 - when `ticket_update` returns the same lifecycle error twice, stop and return a blocker instead of inventing a workaround
 - stage artifacts belong to the specialist for that stage:
@@ -70,3 +72,9 @@ Process-change rules:
 - if `pending_process_verification` is `true`, verify affected done tickets before trusting their completion
 - migration follow-up tickets must come from backlog-verifier proof through `ticket_create`, not raw manifest edits
 - previously completed tickets are not fully trusted again until backlog verification says so
+
+Bootstrap gate:
+
+- bootstrap readiness is a pre-lifecycle execution gate for every validation-heavy stage
+- when bootstrap is `missing`, `failed`, or `stale`, the next required action is `environment_bootstrap`, not a stage transition
+- after bootstrap succeeds, rerun `ticket_lookup` and follow its refreshed `transition_guidance`

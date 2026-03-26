@@ -37,7 +37,7 @@ The repo is operating with a ticketed OpenCode workflow that separates historica
 - parallel_mode: sequential
 - pending_process_verification: false
 - bootstrap_status: pending
-- bootstrap_proof: not yet recorded
+- bootstrap_proof: None
 - process_changed_at: Not yet recorded.
 - process_note: No recorded process change summary.
 - process_state: No pending process-change verification.

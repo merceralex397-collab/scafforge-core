@@ -100,7 +100,7 @@ BOOT findings mean the managed bootstrap layer is broken on the current machine.
 - surface missing prerequisites accurately; a failed bootstrap artifact must not report `Missing Prerequisites: None` when `pip` or `uv` is actually missing
 - rerun the subject repo's `environment_bootstrap` flow after the managed-surface refresh, then rerun `audit_repo_process.py`; source-layer EXEC tickets should proceed only after `BOOT001` is gone
 
-## Workflow repair actions (WFLOW001 / WFLOW002 / WFLOW003 / WFLOW004 / WFLOW005 / WFLOW006 / WFLOW007 / SESSION001 / SESSION002 / SESSION003 / SESSION004 / SESSION005)
+## Workflow repair actions (WFLOW001 / WFLOW002 / WFLOW003 / WFLOW004 / WFLOW005 / WFLOW006 / WFLOW007 / WFLOW010 / WFLOW011 / SESSION001 / SESSION002 / SESSION003 / SESSION004 / SESSION005)
 
 Workflow findings mean the generated repo contract itself is causing or misreporting the deadlock.
 
@@ -111,6 +111,8 @@ Workflow findings mean the generated repo contract itself is causing or misrepor
 - `WFLOW005`: refresh `.opencode/tools/artifact_write.ts`, `.opencode/tools/artifact_register.ts`, `.opencode/tools/ticket_lookup.ts`, and the stage-gate plugin together so smoke-test proof cannot be fabricated through generic artifact tools
 - `WFLOW006`: refresh the generated team-leader prompt so it routes from `ticket_lookup.transition_guidance`, stops on repeated lifecycle contradictions, leaves specialist artifacts to the owning lane, and treats slash commands as human entrypoints only
 - `WFLOW007`: refresh docs-handoff, workflow docs, and the stage-gate plugin together so optional canonical `handoff` artifacts remain writable by the docs lane while `handoff_publish` still owns restart surfaces
+- `WFLOW010`: regenerate `START-HERE.md` and `.opencode/state/context-snapshot.md` from canonical manifest/workflow state after every workflow mutation or repair; restart surfaces must report active bootstrap, pending verification, and lane-lease facts truthfully
+- `WFLOW011`: refresh `ticket_lookup`, the team-leader prompt, and `ticket-execution` together so bootstrap not-ready state short-circuits normal lifecycle routing to `environment_bootstrap`, then forces a fresh `ticket_lookup` before stage changes resume
 - `SESSION001`: when a supplied transcript proves the causal failure, carry that transcript into package-side audit fixes first; do not treat the resulting report as ordinary current-state repo drift
 - `SESSION002`: repeated lifecycle retries are not just noisy transcript details; treat them as evidence that the prompt, local workflow skill, or tool contract is underspecified
 - `SESSION003`: unsupported-stage or explicit workaround attempts mean the tool contract and prompt hardening must be refreshed together; do not rely on the next session to "just use it correctly"

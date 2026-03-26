@@ -55,6 +55,7 @@ Start by resolving the active ticket through `ticket_lookup`.
 Treat `ticket_lookup.transition_guidance` as the canonical next-step summary before you call `ticket_update`.
 At session start, and again before you clear `pending_process_verification` or route migration follow-up work, re-run `ticket_lookup` and inspect `process_verification`.
 If bootstrap is incomplete or stale, route the environment bootstrap flow before treating validation failures as product defects.
+If `ticket_lookup.bootstrap.status` is not `ready`, treat `environment_bootstrap` as the next required tool call, rerun `ticket_lookup` after it completes, and do not continue normal lifecycle routing until bootstrap succeeds.
 
 Use local skills only when they materially reduce ambiguity or provide the required closeout procedure:
 
@@ -117,6 +118,8 @@ Rules:
 - do not implement before plan review approves
 - use `ticket_lookup` and `ticket_update` for workflow state instead of raw file edits
 - do not probe alternate stage or status values when a lifecycle error repeats; re-run `ticket_lookup`, inspect `transition_guidance`, load `ticket-execution` if needed, and return a blocker instead of inventing a workaround
+- when bootstrap is failed, missing, or stale, stop normal lifecycle routing, run `environment_bootstrap`, then re-check `ticket_lookup` before any `ticket_update`
+- do not use raw bash or ad hoc package-manager commands as a substitute for `environment_bootstrap`
 - keep the active ticket synchronized through the ticket tools
 - keep ticket `status` coarse and queue-oriented; use workflow-state `ticket_state` for per-ticket plan approval, with top-level `approved_plan` mirroring the active ticket
 - treat bootstrap readiness, ticket trust, and lease ownership as runtime enforcement state, not advisory prose

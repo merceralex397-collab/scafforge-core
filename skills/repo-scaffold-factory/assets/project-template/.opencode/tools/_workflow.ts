@@ -109,6 +109,14 @@ export type InvocationEvent = {
 }
 
 type StartHereOptions = { nextAction?: string; backlogVerifierAgent?: string }
+type SaveDerivedSurfaceOptions = { refreshDerivedSurfaces?: boolean }
+type RestartSurfaceRenderInputs = {
+  manifest?: Manifest
+  workflow?: WorkflowState
+  root?: string
+  contextNote?: string
+  nextAction?: string
+}
 export type NewTicketSpec = {
   id: string
   title: string
@@ -403,13 +411,16 @@ export async function loadWorkflowState(root = rootPath()): Promise<WorkflowStat
   workflow.bootstrap = await evaluateBootstrapState(workflow.bootstrap, root)
   return workflow
 }
-export async function saveWorkflowState(state: WorkflowState, root = rootPath(), expectedRevision?: number): Promise<void> {
+export async function saveWorkflowState(state: WorkflowState, root = rootPath(), expectedRevision?: number, options: SaveDerivedSurfaceOptions = {}): Promise<void> {
   const current = await readJson<WorkflowState>(workflowStatePath(root), { ...state, state_revision: state.state_revision })
   const currentRevision = typeof current.state_revision === "number" ? current.state_revision : 0
   const expected = expectedRevision ?? state.state_revision
   if (expected !== currentRevision) throw new Error(`Workflow state changed concurrently. Expected revision ${expected}, found ${currentRevision}.`)
   state.state_revision = currentRevision + 1
   await writeJson(workflowStatePath(root), state)
+  if (options.refreshDerivedSurfaces !== false) {
+    await refreshRestartSurfaces({ workflow: state, root })
+  }
 }
 function ensureTicketWorkflowState(workflow: WorkflowState, ticketId: string): TicketWorkflowState {
   if (!workflow.ticket_state[ticketId]) workflow.ticket_state[ticketId] = { ...DEFAULT_TICKET_WORKFLOW_STATE }
@@ -734,11 +745,14 @@ export async function syncTicketFile(ticket: Ticket, root = rootPath()): Promise
   const path = ticketFilePath(ticket.id, root)
   await writeText(path, renderTicketDocument(ticket, extractTicketNotes(await readText(path))))
 }
-export async function saveManifest(manifest: Manifest, root = rootPath()): Promise<void> {
+export async function saveManifest(manifest: Manifest, root = rootPath(), options: SaveDerivedSurfaceOptions = {}): Promise<void> {
   manifest.version = Math.max(manifest.version || 0, DEFAULT_TICKET_CONTRACT_VERSION)
   await writeJson(ticketsManifestPath(root), manifest)
   await writeText(ticketsBoardPath(root), renderBoard(manifest))
   for (const ticket of manifest.tickets) await syncTicketFile(ticket, root)
+  if (options.refreshDerivedSurfaces !== false) {
+    await refreshRestartSurfaces({ manifest, root })
+  }
 }
 export async function saveArtifactRegistry(registry: ArtifactRegistry, root = rootPath()): Promise<void> {
   registry.version = Math.max(registry.version || 0, 2)
@@ -753,9 +767,10 @@ type SaveWorkflowBundle = {
 }
 export async function saveWorkflowBundle(bundle: SaveWorkflowBundle): Promise<void> {
   const root = bundle.root ?? rootPath()
-  await saveWorkflowState(bundle.workflow, root, bundle.expectedRevision)
-  if (bundle.manifest) await saveManifest(bundle.manifest, root)
+  await saveWorkflowState(bundle.workflow, root, bundle.expectedRevision, { refreshDerivedSurfaces: false })
+  if (bundle.manifest) await saveManifest(bundle.manifest, root, { refreshDerivedSurfaces: false })
   if (bundle.registry) await saveArtifactRegistry(bundle.registry, root)
+  await refreshRestartSurfaces({ manifest: bundle.manifest, workflow: bundle.workflow, root })
 }
 
 export function ticketNeedsProcessVerification(ticket: Ticket, workflow: WorkflowState): boolean {
@@ -864,7 +879,7 @@ export function renderStartHere(manifest: Manifest, workflow: WorkflowState, opt
   const reverification = manifest.tickets.filter((item) => getTicketWorkflowState(workflow, item.id).needs_reverification)
   const blockedDependents = blockedDependentTickets(manifest, ticket.id)
   const verifierLabel = options.backlogVerifierAgent ? `\`${options.backlogVerifierAgent}\`` : "the backlog verifier"
-  const recommendedAction = options.nextAction || (workflow.pending_process_verification ? `Use the team leader to route ${verifierLabel} across done tickets whose trust predates the current process contract.` : workflow.bootstrap.status !== "ready" ? "Run environment_bootstrap, register its proof artifact, then continue ticket execution." : blockedDependents.length > 0 && ticket.status !== "done" ? `Finish ${ticket.id} and its closeout proof before resuming dependent tickets: ${blockedDependents.map((item) => item.id).join(", ")}.` : "Continue the required internal lifecycle from the current ticket stage.")
+  const recommendedAction = options.nextAction || (workflow.bootstrap.status !== "ready" ? "Run environment_bootstrap, register its proof artifact, then continue ticket execution." : workflow.pending_process_verification ? `Use the team leader to route ${verifierLabel} across done tickets whose trust predates the current process contract.` : blockedDependents.length > 0 && ticket.status !== "done" ? `Finish ${ticket.id} and its closeout proof before resuming dependent tickets: ${blockedDependents.map((item) => item.id).join(", ")}.` : "Continue the required internal lifecycle from the current ticket stage.")
   const summarizeTickets = (items: Ticket[]) => items.length > 0 ? items.map((item) => item.id).join(", ") : "none"
   const riskLines = [
     workflow.bootstrap.status !== "ready" ? "- Environment validation can fail for setup reasons until bootstrap proof exists." : null,
@@ -882,4 +897,30 @@ export function mergeStartHere(existing: string, rendered: string): string {
   if (!existing.trim()) return rendered
   if (!existing.includes(START_HERE_MANAGED_START) || !existing.includes(START_HERE_MANAGED_END)) return existing
   return existing.replace(pattern, renderedBlock[0])
+}
+async function loadBacklogVerifierAgent(root = rootPath()): Promise<string | undefined> {
+  const provenance = await readJson<{
+    workflow_contract?: {
+      post_migration_verification?: {
+        backlog_verifier_agent?: string
+      }
+    }
+  } | null>(bootstrapProvenancePath(root), null)
+  const backlogVerifierAgent = provenance?.workflow_contract?.post_migration_verification?.backlog_verifier_agent
+  return typeof backlogVerifierAgent === "string" && backlogVerifierAgent.trim() ? backlogVerifierAgent.trim() : undefined
+}
+export async function refreshRestartSurfaces(inputs: RestartSurfaceRenderInputs = {}): Promise<void> {
+  const root = inputs.root ?? rootPath()
+  const manifest = inputs.manifest ?? await readJson<Manifest | null>(ticketsManifestPath(root), null)
+  const workflow = inputs.workflow ?? await readJson<WorkflowState | null>(workflowStatePath(root), null)
+  if (!manifest || !workflow) return
+
+  const backlogVerifierAgent = await loadBacklogVerifierAgent(root)
+  const renderedStartHere = renderStartHere(manifest, workflow, {
+    nextAction: inputs.nextAction,
+    backlogVerifierAgent,
+  })
+  const existingStartHere = await readText(startHerePath(root))
+  await writeText(startHerePath(root), mergeStartHere(existingStartHere, renderedStartHere))
+  await writeText(contextSnapshotPath(root), renderContextSnapshot(manifest, workflow, inputs.contextNote))
 }
