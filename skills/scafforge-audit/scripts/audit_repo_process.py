@@ -4303,15 +4303,36 @@ def prevention_action(finding: Finding) -> str:
     return "Refresh managed workflow docs, tools, and validators together so repair replaces drift instead of layering new semantics over old ones."
 
 
+def package_has_wflow024_fix() -> bool:
+    package = package_root()
+    ticket_reconcile = read_text(package / "skills" / "repo-scaffold-factory" / "assets" / "project-template" / ".opencode" / "tools" / "ticket_reconcile.ts")
+    ticket_create = read_text(package / "skills" / "repo-scaffold-factory" / "assets" / "project-template" / ".opencode" / "tools" / "ticket_create.ts")
+    issue_intake = read_text(package / "skills" / "repo-scaffold-factory" / "assets" / "project-template" / ".opencode" / "tools" / "issue_intake.ts")
+    workflow_lib = read_text(package / "skills" / "repo-scaffold-factory" / "assets" / "project-template" / ".opencode" / "lib" / "workflow.ts")
+    return (
+        "currentRegistryArtifact" in workflow_lib
+        and "currentRegistryArtifact" in ticket_reconcile
+        and 'verification_state = "reverified"' in ticket_reconcile
+        and "supersededTarget: supersedeTarget" in ticket_reconcile
+        and "currentRegistryArtifact" in ticket_create
+        and "currentRegistryArtifact" in issue_intake
+    )
+
+
 def build_ticket_recommendations(findings: list[Finding]) -> list[dict[str, Any]]:
     recommendations: list[dict[str, Any]] = []
+    wflow024_package_fix_available = package_has_wflow024_fix()
     for index, finding in enumerate(sorted(findings, key=lambda item: (severity_rank(item.severity), item.code)), start=1):
         if finding.code.startswith("EXEC"):
             route = "ticket-pack-builder"
             repair_class = "generated-repo remediation ticket"
         elif finding.code == "WFLOW024":
-            route = "manual-prerequisite"
-            repair_class = "Scafforge package work required before the next subject-repo repair run"
+            if wflow024_package_fix_available:
+                route = "scafforge-repair"
+                repair_class = "safe Scafforge package change"
+            else:
+                route = "manual-prerequisite"
+                repair_class = "Scafforge package work required before the next subject-repo repair run"
         elif finding.code.startswith("CYCLE"):
             route = "manual-prerequisite"
             repair_class = "Scafforge package work required before the next subject-repo run"

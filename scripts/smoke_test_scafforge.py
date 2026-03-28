@@ -2275,6 +2275,32 @@ def main() -> int:
         historical_reconciliation_deadlock_codes = {finding["code"] for finding in historical_reconciliation_deadlock_audit.get("findings", [])}
         if "WFLOW024" not in historical_reconciliation_deadlock_codes:
             raise RuntimeError("A repo with no legal reconciliation path for a superseded invalidated historical ticket should emit WFLOW024")
+        historical_reconciliation_revalidation = run_json(
+            [
+                sys.executable,
+                str(AUDIT),
+                str(historical_reconciliation_deadlock_dest),
+                "--format",
+                "json",
+                "--diagnosis-kind",
+                "post_package_revalidation",
+            ],
+            ROOT,
+        )
+        historical_reconciliation_manifest = json.loads(
+            Path(historical_reconciliation_revalidation["diagnosis_pack"]["path"]).joinpath("manifest.json").read_text(encoding="utf-8")
+        )
+        if historical_reconciliation_manifest.get("package_work_required_first"):
+            raise RuntimeError("A stale repo with WFLOW024 should route to subject-repo repair when the installed Scafforge template already contains the reconciliation fix")
+        if historical_reconciliation_manifest.get("recommended_next_step") != "subject_repo_repair":
+            raise RuntimeError("A post-package revalidation pack with only stale managed-surface WFLOW024 drift should recommend subject_repo_repair")
+        routed_recommendations = {
+            item.get("source_finding_code"): item.get("route")
+            for item in historical_reconciliation_manifest.get("ticket_recommendations", [])
+            if isinstance(item, dict)
+        }
+        if routed_recommendations.get("WFLOW024") != "scafforge-repair":
+            raise RuntimeError("WFLOW024 should route to scafforge-repair once the installed package template already contains the historical reconciliation fix")
 
         contradictory_graph_dest = workspace / "contradictory-ticket-graph"
         shutil.copytree(full_dest, contradictory_graph_dest)
