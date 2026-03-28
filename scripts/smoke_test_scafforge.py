@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -1138,6 +1139,50 @@ def seed_truthful_process_verification(dest: Path) -> None:
     workflow_path.write_text(json.dumps(workflow, indent=2) + "\n", encoding="utf-8")
 
 
+def seed_process_verification_clear_deadlock(dest: Path, *, stale_surfaces: bool) -> None:
+    seed_truthful_process_verification(dest)
+    manifest_path = dest / "tickets" / "manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    ticket = manifest["tickets"][0]
+    ticket["artifacts"].append(
+        {
+            "kind": "backlog-verification",
+            "stage": "review",
+            "path": ".opencode/state/artifacts/history/demo/review/backlog-verification.md",
+            "summary": "Historical trust restored under the current process contract.",
+            "created_at": "2026-03-27T03:30:00Z",
+            "trust_state": "current",
+        }
+    )
+    manifest_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+
+    if stale_surfaces:
+        start_here_path = dest / "START-HERE.md"
+        latest_handoff_path = dest / ".opencode" / "state" / "latest-handoff.md"
+        for surface_path in (start_here_path, latest_handoff_path):
+            text = surface_path.read_text(encoding="utf-8")
+            text = text.replace("- handoff_status: workflow verification pending", "- handoff_status: ready for continued development")
+            text = text.replace(f"- done_but_not_fully_trusted: {ticket['id']}", "- done_but_not_fully_trusted: none")
+            text = re.sub(
+                r"Use the team leader to route .*? across done tickets whose trust predates the current process contract\.",
+                "All tickets complete and verified. Continue normal development.",
+                text,
+            )
+            surface_path.write_text(text, encoding="utf-8")
+
+        stage_gate_path = dest / ".opencode" / "plugins" / "stage-gate-enforcer.ts"
+        stage_gate_text = stage_gate_path.read_text(encoding="utf-8")
+        stage_gate_text = stage_gate_text.replace(
+            '        const processVerificationClearOnly = isWorkflowProcessVerificationClearOnly(output.args)\n'
+            '        const processVerification = getProcessVerificationState(manifest, workflow, ticketId)\n'
+            '        if (!(processVerificationClearOnly && processVerification.clearable_now)) {\n'
+            '          await ensureTargetTicketWriteLease(ticketId)\n'
+            '        }\n',
+            '        await ensureTargetTicketWriteLease(ticketId)\n',
+        )
+        stage_gate_path.write_text(stage_gate_text, encoding="utf-8")
+
+
 def seed_closed_follow_up_deadlock(dest: Path) -> None:
     stage_gate = dest / ".opencode" / "plugins" / "stage-gate-enforcer.ts"
     text = stage_gate.read_text(encoding="utf-8")
@@ -2244,6 +2289,33 @@ def main() -> int:
         if "WFLOW010" in truthful_pending_verification_codes:
             raise RuntimeError("A repo whose restart surfaces match canonical repair-follow-on and verification state should not emit WFLOW010")
 
+        clearable_pending_verification_dest = workspace / "clearable-pending-process-verification"
+        shutil.copytree(full_dest, clearable_pending_verification_dest)
+        make_stack_skill_non_placeholder(clearable_pending_verification_dest)
+        seed_process_verification_clear_deadlock(clearable_pending_verification_dest, stale_surfaces=False)
+        run_json([sys.executable, str(REGENERATE), str(clearable_pending_verification_dest)], ROOT)
+        clearable_start_here = (clearable_pending_verification_dest / "START-HERE.md").read_text(encoding="utf-8")
+        if (
+            "- pending_process_verification: true" not in clearable_start_here
+            or "- done_but_not_fully_trusted: none" not in clearable_start_here
+            or "clear pending_process_verification now that no historical done tickets still require process verification" not in clearable_start_here
+        ):
+            raise RuntimeError("Restart regeneration should expose the direct clear path when pending_process_verification remains true but the affected done-ticket set is empty")
+        clearable_pending_verification_audit = run_json([sys.executable, str(AUDIT), str(clearable_pending_verification_dest), "--format", "json", "--no-diagnosis-pack"], ROOT)
+        clearable_pending_verification_codes = {finding["code"] for finding in clearable_pending_verification_audit.get("findings", [])}
+        if "WFLOW008" in clearable_pending_verification_codes:
+            raise RuntimeError("A repo that truthfully exposes a clearable pending_process_verification state should not emit WFLOW008")
+        if "WFLOW010" in clearable_pending_verification_codes:
+            raise RuntimeError("A repo whose restart surfaces correctly collapse done_but_not_fully_trusted to none when the affected set is empty should not emit WFLOW010")
+
+        hidden_clearable_pending_dest = workspace / "hidden-clearable-pending-process-verification"
+        shutil.copytree(full_dest, hidden_clearable_pending_dest)
+        seed_process_verification_clear_deadlock(hidden_clearable_pending_dest, stale_surfaces=True)
+        hidden_clearable_pending_audit = run_json([sys.executable, str(AUDIT), str(hidden_clearable_pending_dest), "--format", "json", "--no-diagnosis-pack"], ROOT)
+        hidden_clearable_pending_codes = {finding["code"] for finding in hidden_clearable_pending_audit.get("findings", [])}
+        if "WFLOW008" not in hidden_clearable_pending_codes:
+            raise RuntimeError("A repo that strands a clearable pending_process_verification flag behind stale restart surfaces or a closed-ticket lease should emit WFLOW008")
+
         active_priority_dest = workspace / "active-ticket-priority"
         shutil.copytree(full_dest, active_priority_dest)
         seed_open_active_ticket_with_pending_verification(active_priority_dest)
@@ -2369,6 +2441,7 @@ def main() -> int:
         package_work_first_repair_dest = workspace / "package-work-first-repair"
         shutil.copytree(full_dest, package_work_first_repair_dest)
         package_work_diagnosis_root = package_work_first_repair_dest / "diagnosis"
+        shutil.rmtree(package_work_diagnosis_root, ignore_errors=True)
         package_work_diagnosis_root.mkdir(parents=True, exist_ok=True)
         write_diagnosis_manifest(
             package_work_diagnosis_root / "20260328-120000",

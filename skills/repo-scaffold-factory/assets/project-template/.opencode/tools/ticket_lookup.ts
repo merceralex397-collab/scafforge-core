@@ -6,6 +6,7 @@ import {
   describeAllowedStatusesForStage,
   getTicket,
   getTicketWorkflowState,
+  getProcessVerificationState,
   hasArtifact,
   hasPendingRepairFollowOn,
   hasReviewArtifact,
@@ -19,7 +20,6 @@ import {
   openSplitScopeChildren,
   repairFollowOnBlockingReason,
   ticketNeedsProcessVerification,
-  ticketsNeedingProcessVerification,
   validateImplementationArtifactEvidence,
   validateLifecycleStageStatus,
   validateQaArtifactEvidence,
@@ -356,7 +356,8 @@ export default tool({
       latest_qa: latestQa,
       latest_smoke_test: latestSmokeTest,
     }
-    const affectedDoneTickets = ticketsNeedingProcessVerification(manifest, workflow).map((item) => ({
+    const processVerification = getProcessVerificationState(manifest, workflow, ticket.id)
+    const affectedDoneTickets = processVerification.affected_done_tickets.map((item) => ({
       id: item.id,
       title: item.title,
       latest_qa: latestArtifact(item, { stage: "qa" }) || null,
@@ -411,9 +412,10 @@ export default tool({
         },
         artifact_bodies: artifactBodies,
         process_verification: {
-          pending: workflow.pending_process_verification,
+          pending: processVerification.pending,
           process_changed_at: workflow.process_last_changed_at,
-          current_ticket_requires_verification: ticketNeedsProcessVerification(ticket, workflow),
+          current_ticket_requires_verification: processVerification.current_ticket_requires_verification,
+          clearable_now: processVerification.clearable_now,
           affected_done_tickets: affectedDoneTickets,
         },
       },

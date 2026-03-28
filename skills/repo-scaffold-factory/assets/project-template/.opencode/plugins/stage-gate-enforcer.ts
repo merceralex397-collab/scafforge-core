@@ -2,6 +2,7 @@ import { type Plugin } from "@opencode-ai/plugin"
 import {
   allowsPreBootstrapWriteClaim,
   getTicket,
+  getProcessVerificationState,
   getTicketWorkflowState,
   hasArtifact,
   hasReviewArtifact,
@@ -92,6 +93,17 @@ async function ensureTargetTicketWriteLease(ticketId: string) {
       next_action_args: ticketClaimBlockerArgs(ticketId),
     })
   }
+}
+
+function isWorkflowProcessVerificationClearOnly(args: Record<string, unknown>): boolean {
+  return (
+    args.pending_process_verification === false &&
+    typeof args.stage === "undefined" &&
+    typeof args.status === "undefined" &&
+    typeof args.summary === "undefined" &&
+    typeof args.activate === "undefined" &&
+    typeof args.approved_plan === "undefined"
+  )
 }
 
 export const StageGateEnforcer: Plugin = async () => {
@@ -305,7 +317,11 @@ export const StageGateEnforcer: Plugin = async () => {
       if (input.tool === "ticket_update") {
         const manifest = await loadManifest()
         const ticketId = typeof output.args.ticket_id === "string" ? output.args.ticket_id : manifest.active_ticket
-        await ensureTargetTicketWriteLease(ticketId)
+        const processVerificationClearOnly = isWorkflowProcessVerificationClearOnly(output.args)
+        const processVerification = getProcessVerificationState(manifest, workflow, ticketId)
+        if (!(processVerificationClearOnly && processVerification.clearable_now)) {
+          await ensureTargetTicketWriteLease(ticketId)
+        }
         const ticket = getTicket(manifest, ticketId)
         const requested = resolveRequestedTicketProgress(ticket, {
           stage: typeof output.args.stage === "string" ? output.args.stage : undefined,

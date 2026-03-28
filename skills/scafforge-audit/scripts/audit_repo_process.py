@@ -1286,6 +1286,8 @@ def audit_active_process_verification(root: Path, findings: list[Finding]) -> No
     start_here_path = root / "START-HERE.md"
     latest_handoff_path = root / ".opencode" / "state" / "latest-handoff.md"
     ticket_lookup_path = root / ".opencode" / "tools" / "ticket_lookup.ts"
+    ticket_update_path = root / ".opencode" / "tools" / "ticket_update.ts"
+    stage_gate_path = root / ".opencode" / "plugins" / "stage-gate-enforcer.ts"
     workflow = read_json(workflow_path)
     manifest = read_json(manifest_path)
     if not isinstance(workflow, dict) or not isinstance(manifest, dict):
@@ -1294,11 +1296,10 @@ def audit_active_process_verification(root: Path, findings: list[Finding]) -> No
         return
 
     affected = tickets_needing_process_verification(manifest, workflow)
-    if not affected:
-        return
 
     evidence: list[str] = []
     files = [normalize_path(workflow_path, root), normalize_path(manifest_path, root)]
+    clean_claim_pattern = re.compile(r"\bclean state\b|\brepo is clean\b|\ball (?:tickets )?complete(?: and verified)?\b|\bfully verified\b|\bno follow-up required\b", re.IGNORECASE)
 
     for surface_path in (start_here_path, latest_handoff_path):
         label = normalize_path(surface_path, root)
@@ -1306,20 +1307,40 @@ def audit_active_process_verification(root: Path, findings: list[Finding]) -> No
         if not surface_path.exists():
             evidence.append(f"Missing derived restart surface while process verification is pending: {label}.")
             continue
-        surface = parse_start_here_state(read_text(surface_path))
+        surface_text = read_text(surface_path)
+        surface = parse_start_here_state(surface_text)
         if normalize_restart_surface_value(surface.get("pending_process_verification")) != "true":
             evidence.append(f"{label} does not show pending_process_verification = true while canonical workflow state does.")
         if normalize_restart_surface_value(surface.get("handoff_status")) == "ready for continued development":
             evidence.append(f"{label} still claims ready-for-development handoff while process verification remains pending.")
+        if clean_claim_pattern.search(surface_text):
+            evidence.append(f"{label} includes clean-state prose even though pending_process_verification remains true.")
 
     if ticket_lookup_path.exists():
         files.append(normalize_path(ticket_lookup_path, root))
         lookup_text = read_text(ticket_lookup_path)
         if "ticket_reverify" not in lookup_text or "process_verification" not in lookup_text:
             evidence.append(f"{normalize_path(ticket_lookup_path, root)} does not expose the backlog-verifier or ticket_reverify path for pending process verification.")
+        if not affected and "clearable_now" not in lookup_text:
+            evidence.append(f"{normalize_path(ticket_lookup_path, root)} does not expose whether pending_process_verification is immediately clearable when the affected done-ticket set is empty.")
     else:
         files.append(normalize_path(ticket_lookup_path, root))
         evidence.append(f"Missing ticket lookup tool while process verification remains pending: {normalize_path(ticket_lookup_path, root)}.")
+
+    if not affected:
+        if ticket_update_path.exists():
+            files.append(normalize_path(ticket_update_path, root))
+        else:
+            files.append(normalize_path(ticket_update_path, root))
+            evidence.append(f"Missing ticket_update tool while pending_process_verification still needs a clear path: {normalize_path(ticket_update_path, root)}.")
+        if stage_gate_path.exists():
+            files.append(normalize_path(stage_gate_path, root))
+            stage_gate_text = read_text(stage_gate_path)
+            if "isWorkflowProcessVerificationClearOnly" not in stage_gate_text or "processVerification.clearable_now" not in stage_gate_text:
+                evidence.append(f"{normalize_path(stage_gate_path, root)} still appears to require a normal ticket write lease even when pending_process_verification is clearable now.")
+        else:
+            files.append(normalize_path(stage_gate_path, root))
+            evidence.append(f"Missing stage-gate enforcer while pending_process_verification still needs a legal clear path: {normalize_path(stage_gate_path, root)}.")
 
     if not evidence:
         return
@@ -1331,15 +1352,19 @@ def audit_active_process_verification(root: Path, findings: list[Finding]) -> No
         Finding(
             code="WFLOW008",
             severity="warning",
-            problem="Post-repair process verification is still pending for one or more historical done tickets.",
-            root_cause="The workflow contract changed, but the repo is still hiding or contradicting the pending backlog-verification state. That lets restart surfaces or routing imply readiness before historical trust is restored.",
+            problem="Post-repair process verification is still pending, but the restart surfaces or legal next move contradict the canonical workflow state.",
+            root_cause="The workflow contract changed, but the repo is still hiding, overstating, or deadlocking the pending backlog-verification state. That lets restart surfaces imply readiness before historical trust is restored, or leaves the workflow flag stranded after the affected done-ticket set is already empty.",
             files=list(dict.fromkeys(files)),
-            safer_pattern="Keep `pending_process_verification` visible, route the backlog verifier across the affected done-ticket set, and expose `ticket_reverify` as the legal trust-restoration path instead of implying the repo is already clean.",
+            safer_pattern="Keep `pending_process_verification` visible, route the backlog verifier across the affected done-ticket set, expose `ticket_reverify` as the legal trust-restoration path, and when that affected set is empty leave a direct legal clear path for `pending_process_verification = false` instead of implying the repo is already clean or leaving the flag stranded.",
             evidence=[
                 *evidence[:6],
                 f"{normalize_path(workflow_path, root)} records pending_process_verification = true.",
                 f"Current process window started at: {change_time}",
-                f"Affected done tickets: {', '.join(affected_ids[:12])}" + (" ..." if len(affected_ids) > 12 else ""),
+                (
+                    f"Affected done tickets: {', '.join(affected_ids[:12])}" + (" ..." if len(affected_ids) > 12 else "")
+                    if affected_ids
+                    else "Affected done tickets: none; the workflow flag should now be directly clearable."
+                ),
             ],
         ),
     )
@@ -2644,6 +2669,7 @@ def audit_restart_surface_drift(root: Path, findings: list[Finding]) -> None:
                 "repair_follow_on_next_stage",
                 "repair_follow_on_verification_passed",
                 "split_child_tickets",
+                "done_but_not_fully_trusted",
                 "repair_follow_on_updated_at",
             ),
         )
@@ -2695,6 +2721,7 @@ def audit_restart_surface_drift(root: Path, findings: list[Finding]) -> None:
                 "repair_follow_on_next_stage",
                 "repair_follow_on_verification_passed",
                 "split_child_tickets",
+                "done_but_not_fully_trusted",
                 "repair_follow_on_updated_at",
             ),
         )
@@ -3142,6 +3169,22 @@ def expected_handoff_status(workflow: dict[str, Any]) -> str:
     return "ready for continued development"
 
 
+def expected_done_but_not_fully_trusted(manifest: dict[str, Any], workflow: dict[str, Any]) -> str:
+    if workflow.get("pending_process_verification") is True:
+        affected = tickets_needing_process_verification(manifest, workflow)
+        values = [str(ticket.get("id", "")).strip() for ticket in affected if str(ticket.get("id", "")).strip()]
+        return ", ".join(values) if values else "none"
+    values = [
+        str(ticket.get("id", "")).strip()
+        for ticket in manifest.get("tickets", [])
+        if isinstance(ticket, dict)
+        and ticket.get("status") == "done"
+        and str(ticket.get("verification_state", "")).strip() not in {"trusted", "reverified"}
+        and str(ticket.get("id", "")).strip()
+    ]
+    return ", ".join(values) if values else "none"
+
+
 def expected_restart_surface_state(manifest: dict[str, Any], workflow: dict[str, Any]) -> dict[str, Any] | None:
     active_ticket = _active_ticket(manifest, workflow)
     if not isinstance(active_ticket, dict):
@@ -3175,6 +3218,7 @@ def expected_restart_surface_state(manifest: dict[str, Any], workflow: dict[str,
         "repair_follow_on_next_stage": next_repair_follow_on_stage_state(workflow) or "none",
         "repair_follow_on_verification_passed": "true" if repair_follow_on["verification_passed"] else "false",
         "split_child_tickets": ", ".join(split_children) if split_children else "none",
+        "done_but_not_fully_trusted": expected_done_but_not_fully_trusted(manifest, workflow),
         "repair_follow_on_updated_at": repair_follow_on["last_updated_at"],
         "state_revision": str(workflow.get("state_revision")) if isinstance(workflow.get("state_revision"), int) else None,
         "has_lane_leases": bool(lane_leases),
@@ -3185,6 +3229,7 @@ def parse_start_here_state(text: str) -> dict[str, Any]:
     current = extract_bullet_map(text, "Current Or Next Ticket")
     dependency = extract_bullet_map(text, "Dependency Status")
     generation = extract_bullet_map(text, "Generation Status")
+    post_generation = extract_bullet_map(text, "Post-Generation Audit Status")
     return {
         "ticket_id": current.get("id"),
         "stage": current.get("stage"),
@@ -3198,6 +3243,7 @@ def parse_start_here_state(text: str) -> dict[str, Any]:
         "repair_follow_on_next_stage": generation.get("repair_follow_on_next_stage"),
         "repair_follow_on_verification_passed": generation.get("repair_follow_on_verification_passed"),
         "split_child_tickets": dependency.get("split_child_tickets"),
+        "done_but_not_fully_trusted": post_generation.get("done_but_not_fully_trusted"),
         "repair_follow_on_updated_at": generation.get("repair_follow_on_updated_at"),
     }
 

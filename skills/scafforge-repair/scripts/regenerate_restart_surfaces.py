@@ -187,6 +187,87 @@ def load_backlog_verifier_agent(provenance: dict[str, Any]) -> str | None:
     return value.strip() if isinstance(value, str) and value.strip() else None
 
 
+def latest_current_artifact(ticket: dict[str, Any], *, stage: str | None = None, kind: str | None = None) -> dict[str, Any] | None:
+    artifacts = ticket.get("artifacts") if isinstance(ticket.get("artifacts"), list) else []
+    for artifact in reversed(artifacts):
+        if not isinstance(artifact, dict):
+            continue
+        if artifact.get("trust_state") not in {None, "current"}:
+            continue
+        if stage is not None and str(artifact.get("stage", "")).strip() != stage:
+            continue
+        if kind is not None and str(artifact.get("kind", "")).strip() != kind:
+            continue
+        return artifact
+    return None
+
+
+def ticket_needs_process_verification(ticket: dict[str, Any], workflow: dict[str, Any]) -> bool:
+    if workflow.get("pending_process_verification") is not True:
+        return False
+    if ticket.get("status") != "done":
+        return False
+    if ticket.get("verification_state") == "reverified":
+        return False
+    if latest_current_artifact(ticket, stage="review", kind="backlog-verification") is not None:
+        return False
+    changed_at = workflow.get("process_last_changed_at")
+    try:
+        changed_dt = datetime.fromisoformat(str(changed_at).replace("Z", "+00:00"))
+    except ValueError:
+        return True
+    completion_artifact = (
+        latest_current_artifact(ticket, stage="smoke-test")
+        or latest_current_artifact(ticket, stage="qa")
+        or latest_current_artifact(ticket)
+    )
+    if not isinstance(completion_artifact, dict):
+        return True
+    try:
+        completed_dt = datetime.fromisoformat(str(completion_artifact.get("created_at", "")).replace("Z", "+00:00"))
+    except ValueError:
+        return True
+    return completed_dt < changed_dt
+
+
+def process_verification_state(manifest: dict[str, Any], workflow: dict[str, Any], current_ticket_id: str | None = None) -> dict[str, Any]:
+    tickets = manifest.get("tickets") if isinstance(manifest.get("tickets"), list) else []
+    affected_done_tickets = [
+        ticket
+        for ticket in tickets
+        if isinstance(ticket, dict) and ticket_needs_process_verification(ticket, workflow)
+    ]
+    if current_ticket_id is None:
+        current_ticket_id = str(workflow.get("active_ticket", "")).strip() or None
+    current_ticket = next(
+        (
+            ticket
+            for ticket in tickets
+            if isinstance(ticket, dict) and current_ticket_id and str(ticket.get("id", "")).strip() == current_ticket_id
+        ),
+        None,
+    )
+    pending = workflow.get("pending_process_verification") is True
+    done_but_not_fully_trusted = (
+        affected_done_tickets
+        if pending
+        else [
+            ticket
+            for ticket in tickets
+            if isinstance(ticket, dict)
+            and ticket.get("status") == "done"
+            and ticket.get("verification_state") not in {"trusted", "reverified"}
+        ]
+    )
+    return {
+        "pending": pending,
+        "affected_done_tickets": affected_done_tickets,
+        "current_ticket_requires_verification": bool(current_ticket and ticket_needs_process_verification(current_ticket, workflow)),
+        "clearable_now": pending and not affected_done_tickets,
+        "done_but_not_fully_trusted": done_but_not_fully_trusted,
+    }
+
+
 def compute_handoff_status(workflow: dict[str, Any], verification_passed: bool | None = None) -> str:
     bootstrap = workflow.get("bootstrap") if isinstance(workflow.get("bootstrap"), dict) else {}
     bootstrap_status = str(bootstrap.get("status", "")).strip() or "missing"
@@ -206,6 +287,7 @@ def default_next_action(manifest: dict[str, Any], workflow: dict[str, Any], back
     if not isinstance(ticket, dict):
         return "Resolve the canonical manifest and workflow-state mismatch before resuming autonomous work."
 
+    verification_state = process_verification_state(manifest, workflow, str(ticket.get("id", "")))
     bootstrap = workflow.get("bootstrap") if isinstance(workflow.get("bootstrap"), dict) else {}
     bootstrap_status = str(bootstrap.get("status", "")).strip() or "missing"
     blocked = blocked_dependents(manifest, str(ticket.get("id", "")))
@@ -229,8 +311,13 @@ def default_next_action(manifest: dict[str, Any], workflow: dict[str, Any], back
         )
     if ticket.get("status") != "done":
         return f"Keep {ticket.get('id')} as the foreground ticket and continue its lifecycle from {ticket.get('stage')}. Historical done-ticket reverification stays secondary until the active open ticket is resolved."
-    if workflow.get("pending_process_verification") is True:
-        return f"Use the team leader to route {verifier_label} across done tickets whose trust predates the current process contract."
+    if verification_state["pending"]:
+        if verification_state["clearable_now"]:
+            return "Use ticket_update to clear pending_process_verification now that no historical done tickets still require process verification, then rerun ticket_lookup."
+        return (
+            f"Use the team leader to route {verifier_label} across done tickets whose trust predates the current "
+            f"process contract: {summarize_ticket_ids(verification_state['affected_done_tickets'])}."
+        )
     if blocked:
         return f"Resume dependent tickets waiting on {ticket.get('id')}: {summarize_ticket_ids(blocked)}."
     return "Continue the required internal lifecycle from the current ticket stage."
@@ -250,13 +337,8 @@ def render_start_here(
 
     tickets = manifest.get("tickets") if isinstance(manifest.get("tickets"), list) else []
     reopened = [item for item in tickets if isinstance(item, dict) and item.get("resolution_state") == "reopened"]
-    suspect_done = [
-        item
-        for item in tickets
-        if isinstance(item, dict)
-        and item.get("status") == "done"
-        and item.get("verification_state") not in {"trusted", "reverified"}
-    ]
+    verification_state = process_verification_state(manifest, workflow, str(ticket.get("id", "")))
+    suspect_done = verification_state["done_but_not_fully_trusted"]
     reverification = [
         item
         for item in tickets
@@ -282,10 +364,12 @@ def render_start_here(
         risk_lines.append(f"- Repair follow-on remains incomplete{': ' + repair_blocker if repair_blocker else '.'}")
     if source_follow_up_pending:
         risk_lines.append("- Managed repair converged, but source-layer follow-up still remains in the ticket graph.")
-    if workflow.get("pending_process_verification") is True:
+    if verification_state["pending"]:
         risk_lines.append("- Historical completion should not be treated as fully trusted until pending process verification is cleared.")
+    if verification_state["clearable_now"]:
+        risk_lines.append("- The workflow still records pending process verification even though no done tickets remain affected; clear the workflow flag before relying on a clean-state restart narrative.")
     if suspect_done:
-        risk_lines.append("- Some done tickets are not fully trusted yet; use the backlog verifier before relying on earlier closeout.")
+        risk_lines.append(f"- Some done tickets are not fully trusted yet: {summarize_ticket_ids(suspect_done)}.")
     if blocked and ticket.get("status") != "done":
         risk_lines.append(f"- Downstream tickets {summarize_ticket_ids(blocked)} remain formally blocked until {ticket.get('id')} reaches done.")
     if split_children and ticket.get("status") != "done":
@@ -326,7 +410,7 @@ def render_start_here(
         f"- handoff_status: {handoff_status}\n"
         f"- process_version: {workflow.get('process_version', 7)}\n"
         f"- parallel_mode: {workflow.get('parallel_mode', 'sequential')}\n"
-        f"- pending_process_verification: {'true' if workflow.get('pending_process_verification') is True else 'false'}\n"
+        f"- pending_process_verification: {'true' if verification_state['pending'] else 'false'}\n"
         f"- repair_follow_on_outcome: {repair_follow_on['outcome']}\n"
         f"- repair_follow_on_required: {'true' if repair_follow_on_pending else 'false'}\n"
         f"- repair_follow_on_next_stage: {repair_follow_on_next_stage}\n"
@@ -335,7 +419,7 @@ def render_start_here(
         f"- bootstrap_status: {bootstrap_status}\n"
         f"- bootstrap_proof: {bootstrap_proof}\n\n"
         "## Post-Generation Audit Status\n\n"
-        f"- audit_or_repair_follow_up: {'follow-up required' if repair_follow_on_pending or source_follow_up_pending or reopened or suspect_done or reverification or verification_passed is False else 'none recorded'}\n"
+        f"- audit_or_repair_follow_up: {'follow-up required' if repair_follow_on_pending or source_follow_up_pending or reopened or suspect_done or reverification or verification_passed is False or verification_state['clearable_now'] else 'none recorded'}\n"
         f"- reopened_tickets: {summarize_ticket_ids(reopened)}\n"
         f"- done_but_not_fully_trusted: {summarize_ticket_ids(suspect_done)}\n"
         f"- pending_reverification: {summarize_ticket_ids(reverification)}\n"

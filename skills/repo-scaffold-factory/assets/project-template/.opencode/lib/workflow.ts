@@ -133,6 +133,13 @@ type RestartSurfaceRenderInputs = {
   nextAction?: string
   handoffStatus?: string
 }
+export type ProcessVerificationState = {
+  pending: boolean
+  affected_done_tickets: Ticket[]
+  current_ticket_requires_verification: boolean
+  clearable_now: boolean
+  done_but_not_fully_trusted: Ticket[]
+}
 export type WorkflowBlocker = {
   type: "BLOCKER"
   reason_code: string
@@ -659,13 +666,22 @@ export async function validateHandoffNextAction(manifest: Manifest, workflow: Wo
   if (!trimmed) return "next_action cannot be empty."
 
   const ticket = getTicket(manifest, workflow.active_ticket)
+  const processVerification = getProcessVerificationState(manifest, workflow, ticket.id)
   const blockedDependents = blockedDependentTickets(manifest, ticket.id)
   const lower = trimmed.toLowerCase()
   const claimsDependencyReadiness = /\bunblocked\b|\bready to proceed\b|\bcan proceed\b/.test(lower)
   const claimsSingleCause = /not a code defect|only blocker|tool\/env mismatch|tooling issue/.test(lower)
+  const claimsCleanState = /\bclean state\b|\brepo is clean\b|\ball (?:tickets )?complete(?: and verified)?\b|\bfully verified\b|\bno follow-up required\b/.test(lower)
 
   if (claimsDependencyReadiness && blockedDependents.length > 0 && ticket.status !== "done") {
     return `Cannot publish dependency-readiness claims while ${ticket.id} is not done and dependent tickets still wait on it (${blockedDependents.map((item) => item.id).join(", ")}).`
+  }
+
+  if (processVerification.pending && (claimsDependencyReadiness || claimsCleanState)) {
+    const blocker = processVerification.clearable_now
+      ? "pending_process_verification is still true even though the affected done-ticket set is empty. Clear the workflow flag before publishing clean-state or readiness claims."
+      : `pending_process_verification is still true for done ticket(s) ${processVerification.affected_done_tickets.map((item) => item.id).join(", ")}.`
+    return `Cannot publish clean-state or readiness claims while ${blocker}`
   }
 
   if (claimsSingleCause) {
@@ -956,6 +972,22 @@ export function ticketNeedsProcessVerification(ticket: Ticket, workflow: Workflo
 export function ticketsNeedingProcessVerification(manifest: Manifest, workflow: WorkflowState): Ticket[] {
   return manifest.tickets.filter((ticket) => ticketNeedsProcessVerification(ticket, workflow))
 }
+export function getProcessVerificationState(manifest: Manifest, workflow: WorkflowState, currentTicketId = workflow.active_ticket): ProcessVerificationState {
+  const affectedDoneTickets = ticketsNeedingProcessVerification(manifest, workflow)
+  const currentTicket = manifest.tickets.find((ticket) => ticket.id === currentTicketId)
+  const currentTicketRequiresVerification = currentTicket ? ticketNeedsProcessVerification(currentTicket, workflow) : false
+  const pending = workflow.pending_process_verification
+  const doneButNotFullyTrusted = pending
+    ? affectedDoneTickets
+    : manifest.tickets.filter((ticket) => ticket.status === "done" && ticket.verification_state !== "trusted" && ticket.verification_state !== "reverified")
+  return {
+    pending,
+    affected_done_tickets: affectedDoneTickets,
+    current_ticket_requires_verification: currentTicketRequiresVerification,
+    clearable_now: pending && affectedDoneTickets.length === 0,
+    done_but_not_fully_trusted: doneButNotFullyTrusted,
+  }
+}
 export function hasPendingRepairFollowOn(workflow: WorkflowState): boolean {
   return workflow.repair_follow_on.outcome === "managed_blocked"
 }
@@ -1054,7 +1086,8 @@ export function renderContextSnapshot(manifest: Manifest, workflow: WorkflowStat
 export function renderStartHere(manifest: Manifest, workflow: WorkflowState, options: StartHereOptions = {}): string {
   const ticket = getTicket(manifest, workflow.active_ticket)
   const reopened = manifest.tickets.filter((item) => item.resolution_state === "reopened")
-  const suspectDone = manifest.tickets.filter((item) => item.status === "done" && item.verification_state !== "trusted" && item.verification_state !== "reverified")
+  const processVerification = getProcessVerificationState(manifest, workflow, ticket.id)
+  const suspectDone = processVerification.done_but_not_fully_trusted
   const reverification = manifest.tickets.filter((item) => getTicketWorkflowState(workflow, item.id).needs_reverification)
   const blockedDependents = blockedDependentTickets(manifest, ticket.id)
   const splitChildren = openSplitScopeChildren(manifest, ticket.id)
@@ -1068,36 +1101,39 @@ export function renderStartHere(manifest: Manifest, workflow: WorkflowState, opt
       ? "bootstrap recovery required"
       : repairFollowOnPending
         ? "repair follow-up required"
-      : workflow.pending_process_verification
-        ? "workflow verification pending"
-        : "ready for continued development"
+        : processVerification.pending
+          ? "workflow verification pending"
+          : "ready for continued development"
   )
   const recommendedAction = options.nextAction || (
     workflow.bootstrap.status !== "ready"
       ? "Run environment_bootstrap, register its proof artifact, rerun ticket_lookup, and do not continue lifecycle work until bootstrap is ready."
       : repairFollowOnPending
         ? (repairBlocker || (repairNextStage ? `Complete the required repair follow-on stage \`${repairNextStage}\` before resuming normal ticket lifecycle work.` : "Complete the required repair follow-on stages before resuming normal ticket lifecycle work."))
-      : splitChildren.length > 0
-        ? `Keep ${ticket.id} open as a split parent and continue the child ticket lane${splitChildren.length > 1 ? "s" : ""}: ${splitChildren.map((item) => item.id).join(", ")}.`
-      : ticket.status !== "done"
-        ? `Keep ${ticket.id} as the foreground ticket and continue its lifecycle from ${ticket.stage}. Historical done-ticket reverification stays secondary until the active open ticket is resolved.`
-        : workflow.pending_process_verification
-          ? `Use the team leader to route ${verifierLabel} across done tickets whose trust predates the current process contract.`
-          : blockedDependents.length > 0
-            ? `Resume dependent tickets waiting on ${ticket.id}: ${blockedDependents.map((item) => item.id).join(", ")}.`
-            : "Continue the required internal lifecycle from the current ticket stage."
+        : splitChildren.length > 0
+          ? `Keep ${ticket.id} open as a split parent and continue the child ticket lane${splitChildren.length > 1 ? "s" : ""}: ${splitChildren.map((item) => item.id).join(", ")}.`
+          : ticket.status !== "done"
+            ? `Keep ${ticket.id} as the foreground ticket and continue its lifecycle from ${ticket.stage}. Historical done-ticket reverification stays secondary until the active open ticket is resolved.`
+            : processVerification.pending
+              ? processVerification.clearable_now
+                ? "Use ticket_update to clear pending_process_verification now that no historical done tickets still require process verification, then rerun ticket_lookup."
+                : `Use the team leader to route ${verifierLabel} across done tickets whose trust predates the current process contract: ${processVerification.affected_done_tickets.map((item) => item.id).join(", ")}.`
+              : blockedDependents.length > 0
+                ? `Resume dependent tickets waiting on ${ticket.id}: ${blockedDependents.map((item) => item.id).join(", ")}.`
+                : "Continue the required internal lifecycle from the current ticket stage."
   )
   const summarizeTickets = (items: Ticket[]) => items.length > 0 ? items.map((item) => item.id).join(", ") : "none"
   const riskLines = [
     workflow.bootstrap.status !== "ready" ? "- Environment validation can fail for setup reasons until bootstrap proof exists." : null,
     repairFollowOnPending ? `- Repair follow-on remains incomplete${repairBlocker ? `: ${repairBlocker}` : "."}` : null,
     sourceFollowUpPending ? "- Managed repair converged, but source-layer follow-up still remains in the ticket graph." : null,
-    workflow.pending_process_verification ? "- Historical completion should not be treated as fully trusted until pending process verification is cleared." : null,
-    suspectDone.length > 0 ? "- Some done tickets are not fully trusted yet; use the backlog verifier before relying on earlier closeout." : null,
+    processVerification.pending ? "- Historical completion should not be treated as fully trusted until pending process verification is cleared." : null,
+    processVerification.clearable_now ? "- The workflow still records pending process verification even though no done tickets remain affected; clear the workflow flag before relying on a clean-state restart narrative." : null,
+    suspectDone.length > 0 ? `- Some done tickets are not fully trusted yet: ${suspectDone.map((item) => item.id).join(", ")}.` : null,
     splitChildren.length > 0 ? `- ${ticket.id} is an open split parent; child ticket${splitChildren.length > 1 ? "s" : ""} ${splitChildren.map((item) => item.id).join(", ")} remain the active foreground work.` : null,
     blockedDependents.length > 0 && ticket.status !== "done" ? `- Downstream tickets ${blockedDependents.map((item) => item.id).join(", ")} remain formally blocked until ${ticket.id} reaches done.` : null,
   ].filter((line): line is string => Boolean(line)).join("\n") || "- None recorded."
-  return `# START HERE\n\n${START_HERE_MANAGED_START}\n## What This Repo Is\n\n${manifest.project}\n\n## Current State\n\nThe repo is operating under the managed OpenCode workflow. Use the canonical state files below instead of memory or raw ticket prose.\n\n## Read In This Order\n\n1. README.md\n2. AGENTS.md\n3. docs/spec/CANONICAL-BRIEF.md\n4. docs/process/workflow.md\n5. tickets/manifest.json\n6. tickets/BOARD.md\n\n## Current Or Next Ticket\n\n- ID: ${ticket.id}\n- Title: ${ticket.title}\n- Wave: ${ticket.wave}\n- Lane: ${ticket.lane}\n- Stage: ${ticket.stage}\n- Status: ${ticket.status}\n- Resolution: ${ticket.resolution_state}\n- Verification: ${ticket.verification_state}\n\n## Dependency Status\n\n- current_ticket_done: ${ticket.status === "done" ? "yes" : "no"}\n- dependent_tickets_waiting_on_current: ${summarizeTickets(blockedDependents)}\n- split_child_tickets: ${summarizeTickets(splitChildren)}\n\n## Generation Status\n\n- handoff_status: ${handoffStatus}\n- process_version: ${workflow.process_version}\n- parallel_mode: ${workflow.parallel_mode}\n- pending_process_verification: ${workflow.pending_process_verification ? "true" : "false"}\n- repair_follow_on_outcome: ${workflow.repair_follow_on.outcome}\n- repair_follow_on_required: ${repairFollowOnPending ? "true" : "false"}\n- repair_follow_on_next_stage: ${repairNextStage || "none"}\n- repair_follow_on_verification_passed: ${workflow.repair_follow_on.verification_passed ? "true" : "false"}\n- repair_follow_on_updated_at: ${workflow.repair_follow_on.last_updated_at || "Not yet recorded."}\n- bootstrap_status: ${workflow.bootstrap.status}\n- bootstrap_proof: ${workflow.bootstrap.proof_artifact || "None"}\n\n## Post-Generation Audit Status\n\n- audit_or_repair_follow_up: ${repairFollowOnPending || sourceFollowUpPending || reopened.length > 0 || suspectDone.length > 0 || reverification.length > 0 ? "follow-up required" : "none recorded"}\n- reopened_tickets: ${summarizeTickets(reopened)}\n- done_but_not_fully_trusted: ${summarizeTickets(suspectDone)}\n- pending_reverification: ${summarizeTickets(reverification)}\n- repair_follow_on_blockers: ${workflow.repair_follow_on.blocking_reasons.length > 0 ? workflow.repair_follow_on.blocking_reasons.join(" | ") : "none"}\n\n## Known Risks\n\n${riskLines}\n\n## Next Action\n\n${recommendedAction}\n${START_HERE_MANAGED_END}\n`
+  return `# START HERE\n\n${START_HERE_MANAGED_START}\n## What This Repo Is\n\n${manifest.project}\n\n## Current State\n\nThe repo is operating under the managed OpenCode workflow. Use the canonical state files below instead of memory or raw ticket prose.\n\n## Read In This Order\n\n1. README.md\n2. AGENTS.md\n3. docs/spec/CANONICAL-BRIEF.md\n4. docs/process/workflow.md\n5. tickets/manifest.json\n6. tickets/BOARD.md\n\n## Current Or Next Ticket\n\n- ID: ${ticket.id}\n- Title: ${ticket.title}\n- Wave: ${ticket.wave}\n- Lane: ${ticket.lane}\n- Stage: ${ticket.stage}\n- Status: ${ticket.status}\n- Resolution: ${ticket.resolution_state}\n- Verification: ${ticket.verification_state}\n\n## Dependency Status\n\n- current_ticket_done: ${ticket.status === "done" ? "yes" : "no"}\n- dependent_tickets_waiting_on_current: ${summarizeTickets(blockedDependents)}\n- split_child_tickets: ${summarizeTickets(splitChildren)}\n\n## Generation Status\n\n- handoff_status: ${handoffStatus}\n- process_version: ${workflow.process_version}\n- parallel_mode: ${workflow.parallel_mode}\n- pending_process_verification: ${processVerification.pending ? "true" : "false"}\n- repair_follow_on_outcome: ${workflow.repair_follow_on.outcome}\n- repair_follow_on_required: ${repairFollowOnPending ? "true" : "false"}\n- repair_follow_on_next_stage: ${repairNextStage || "none"}\n- repair_follow_on_verification_passed: ${workflow.repair_follow_on.verification_passed ? "true" : "false"}\n- repair_follow_on_updated_at: ${workflow.repair_follow_on.last_updated_at || "Not yet recorded."}\n- bootstrap_status: ${workflow.bootstrap.status}\n- bootstrap_proof: ${workflow.bootstrap.proof_artifact || "None"}\n\n## Post-Generation Audit Status\n\n- audit_or_repair_follow_up: ${repairFollowOnPending || sourceFollowUpPending || reopened.length > 0 || suspectDone.length > 0 || reverification.length > 0 || processVerification.clearable_now ? "follow-up required" : "none recorded"}\n- reopened_tickets: ${summarizeTickets(reopened)}\n- done_but_not_fully_trusted: ${summarizeTickets(suspectDone)}\n- pending_reverification: ${summarizeTickets(reverification)}\n- repair_follow_on_blockers: ${workflow.repair_follow_on.blocking_reasons.length > 0 ? workflow.repair_follow_on.blocking_reasons.join(" | ") : "none"}\n\n## Known Risks\n\n${riskLines}\n\n## Next Action\n\n${recommendedAction}\n${START_HERE_MANAGED_END}\n`
 }
 function escapeRegExp(value: string): string { return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") }
 export function mergeStartHere(existing: string, rendered: string): string {

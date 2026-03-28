@@ -476,21 +476,12 @@ def render_context_snapshot(manifest: dict[str, Any], workflow: dict[str, Any]) 
 
 
 def refresh_restart_surfaces(repo_root: Path) -> None:
-    manifest = read_json(repo_root / "tickets" / "manifest.json")
-    workflow = read_json(repo_root / ".opencode" / "state" / "workflow-state.json")
-    provenance = read_json(repo_root / ".opencode" / "meta" / "bootstrap-provenance.json")
-    if not isinstance(manifest, dict) or not isinstance(workflow, dict):
-        return
-
-    workflow_contract = provenance.get("workflow_contract") if isinstance(provenance, dict) and isinstance(provenance.get("workflow_contract"), dict) else {}
-    post_migration = workflow_contract.get("post_migration_verification") if isinstance(workflow_contract.get("post_migration_verification"), dict) else {}
-    backlog_verifier_agent = post_migration.get("backlog_verifier_agent") if isinstance(post_migration.get("backlog_verifier_agent"), str) else None
-
-    start_here_path = repo_root / "START-HERE.md"
-    existing_start_here = read_text(start_here_path)
-    rendered_start_here = render_start_here(manifest, workflow, backlog_verifier_agent)
-    write_text(start_here_path, merge_start_here(existing_start_here, rendered_start_here))
-    write_text(repo_root / ".opencode" / "state" / "context-snapshot.md", render_context_snapshot(manifest, workflow))
+    regenerate_restart_surfaces(
+        repo_root,
+        reason="Deterministic Scafforge restart-surface refresh.",
+        source="scafforge-repair",
+        verification_passed=False,
+    )
 
 
 def update_workflow_state(repo_root: Path, rendered_provenance: dict[str, Any], change_summary: str) -> None:
