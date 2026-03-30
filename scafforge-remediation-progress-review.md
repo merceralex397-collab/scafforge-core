@@ -178,6 +178,9 @@ Implemented:
 - explicit historical reconciliation now surfaces as the next legal move for `done + superseded + invalidated` tickets
 - direct mutation-surface coverage for `ticket_reverify` and `ticket_reconcile` is stronger at the package-validation and smoke level, so trust-restoration and lineage-repair state changes are guarded more directly than before
 - package-local generated-tool execution coverage now exercises:
+  - `ticket_lookup` bootstrap gating and early-stage next-action routing
+  - `ticket_update` early-stage progression and separate plan-approval sequencing
+  - `ticket_claim` / `ticket_release` ordinary write-lease handling
   - `ticket_reverify`
   - `ticket_reconcile`
   - `ticket_create` split-scope follow-up creation
@@ -198,12 +201,13 @@ Important detail:
 - this phase was not only contract work
 - several of the key improvements were made in the generated repo runtime surfaces themselves, not only in docs or validators
 - the smoke harness now executes a larger slice of the generated TypeScript tools under a stubbed plugin runtime instead of only checking static contract presence
+- the branch now has direct runtime proof for both historical repair paths and the ordinary early-lifecycle path weaker agents hit first
 
 Not yet done:
 
 - generated-tool execution coverage is still selective rather than comprehensive
 - the stubbed plugin runtime harness has not yet been generalized across the full generated tool surface
-- more ordinary queue mutation paths such as intake and creation are now covered, but the wider generated workflow toolchain is still not fully execution-proven
+- more ordinary queue mutation paths such as intake, creation, lookup, update, and lease handling are now covered, but the wider generated workflow toolchain is still not fully execution-proven
 
 ### Phase 6: Add A First-Class Pivot Skill
 
@@ -294,10 +298,13 @@ Why it still matters:
 Still needed:
 
 - extend generated-tool execution coverage beyond the currently exercised mutation tools:
-  - `ticket_reverify`
-  - `ticket_reconcile`
-  - `ticket_create`
-  - `issue_intake`
+  - `ticket_reopen`
+  - `artifact_write`
+  - `artifact_register`
+  - `handoff_publish`
+  - `context_snapshot`
+  - `environment_bootstrap`
+  - `smoke_test`
 - add direct execution coverage for more of the ordinary generated workflow toolchain and stage-gate paths
 - keep checking that generated mutation tools and routing surfaces stay aligned, not just documented
 

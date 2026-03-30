@@ -20,6 +20,29 @@ AUDIT = ROOT / "skills" / "scafforge-audit" / "scripts" / "audit_repo_process.py
 REPAIR = ROOT / "skills" / "scafforge-repair" / "scripts" / "apply_repo_process_repair.py"
 PUBLIC_REPAIR = ROOT / "skills" / "scafforge-repair" / "scripts" / "run_managed_repair.py"
 REGENERATE = ROOT / "skills" / "scafforge-repair" / "scripts" / "regenerate_restart_surfaces.py"
+BOOTSTRAP_INPUT_FILES = (
+    "package.json",
+    "package-lock.json",
+    "pnpm-lock.yaml",
+    "yarn.lock",
+    "bun.lock",
+    "bun.lockb",
+    "pyproject.toml",
+    "requirements.txt",
+    "requirements-dev.txt",
+    "poetry.lock",
+    "Pipfile",
+    "Pipfile.lock",
+    "uv.lock",
+    "Cargo.toml",
+    "Cargo.lock",
+    "go.mod",
+    "go.sum",
+    "Makefile",
+    "pytest.ini",
+    "setup.py",
+    "setup.cfg",
+)
 
 
 def load_python_module(path: Path, module_name: str):
@@ -59,6 +82,18 @@ def write_executable(path: Path, content: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(content, encoding="utf-8")
     path.chmod(path.stat().st_mode | 0o111)
+
+
+def compute_bootstrap_fingerprint(dest: Path) -> str:
+    import hashlib
+
+    digest = hashlib.sha256()
+    for relative in sorted(path for path in BOOTSTRAP_INPUT_FILES if (dest / path).is_file()):
+        digest.update(relative.encode("utf-8"))
+        digest.update(b"\x00")
+        digest.update((dest / relative).read_bytes())
+        digest.update(b"\x00")
+    return digest.hexdigest()
 
 
 def prepare_generated_tool_runtime(dest: Path) -> None:
@@ -127,6 +162,41 @@ def run_generated_tool(dest: Path, relative_tool_path: str, args: dict[str, obje
     )
 
 
+def run_generated_tool_error(dest: Path, relative_tool_path: str, args: dict[str, object]) -> str:
+    prepare_generated_tool_runtime(dest)
+    runner = dest / ".opencode" / "state" / "tool-runner.mjs"
+    runner.parent.mkdir(parents=True, exist_ok=True)
+    runner.write_text(
+        "\n".join(
+            [
+                'import { pathToFileURL } from "node:url"',
+                "const toolPath = process.env.SCAFFORGE_TOOL_PATH",
+                "if (!toolPath) throw new Error('Missing SCAFFORGE_TOOL_PATH')",
+                "const mod = await import(pathToFileURL(toolPath).href)",
+                "const rawArgs = process.env.SCAFFORGE_TOOL_ARGS || '{}'",
+                "const payload = await mod.default.execute(JSON.parse(rawArgs))",
+                "console.log(payload)",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    env = os.environ.copy()
+    env["SCAFFORGE_TOOL_PATH"] = str((dest / relative_tool_path).resolve())
+    env["SCAFFORGE_TOOL_ARGS"] = json.dumps(args)
+    result = subprocess.run(
+        ["node", "--experimental-strip-types", str(runner)],
+        cwd=dest,
+        check=False,
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    if result.returncode == 0:
+        raise RuntimeError(f"Command unexpectedly succeeded: {relative_tool_path}")
+    return f"{result.stdout}\n{result.stderr}".strip()
+
+
 def register_current_ticket_artifact(
     dest: Path,
     *,
@@ -158,6 +228,22 @@ def register_current_ticket_artifact(
     registry.setdefault("artifacts", []).append({"ticket_id": ticket_id, **artifact})
     manifest_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
     registry_path.write_text(json.dumps(registry, indent=2) + "\n", encoding="utf-8")
+
+
+def seed_ready_bootstrap(dest: Path) -> None:
+    workflow_path = dest / ".opencode" / "state" / "workflow-state.json"
+    workflow = json.loads(workflow_path.read_text(encoding="utf-8"))
+    bootstrap_rel = ".opencode/state/bootstrap/synthetic-ready-bootstrap.md"
+    bootstrap_path = dest / bootstrap_rel
+    bootstrap_path.parent.mkdir(parents=True, exist_ok=True)
+    bootstrap_path.write_text("# Ready Bootstrap\n", encoding="utf-8")
+    workflow["bootstrap"] = {
+        "status": "ready",
+        "last_verified_at": "2026-03-30T00:00:00Z",
+        "environment_fingerprint": compute_bootstrap_fingerprint(dest),
+        "proof_artifact": bootstrap_rel,
+    }
+    workflow_path.write_text(json.dumps(workflow, indent=2) + "\n", encoding="utf-8")
 
 
 def seed_uv_python_fixture(
@@ -2993,6 +3079,134 @@ def main() -> int:
         issue_artifact = executed_issue_intake_dest / str(issue_intake_result["issue_artifact"])
         if not issue_artifact.exists():
             raise RuntimeError("issue_intake should write the canonical issue-discovery artifact")
+
+        executed_lookup_prebootstrap_dest = workspace / "executed-ticket-lookup-prebootstrap"
+        shutil.copytree(full_dest, executed_lookup_prebootstrap_dest)
+        lookup_prebootstrap = run_generated_tool(
+            executed_lookup_prebootstrap_dest,
+            ".opencode/tools/ticket_lookup.ts",
+            {},
+        )
+        if lookup_prebootstrap["bootstrap"]["status"] != "missing":
+            raise RuntimeError("ticket_lookup should expose the missing bootstrap state on a fresh scaffold")
+        prebootstrap_guidance = lookup_prebootstrap["transition_guidance"]
+        if prebootstrap_guidance["next_action_tool"] != "environment_bootstrap" or prebootstrap_guidance["next_action_kind"] != "run_tool":
+            raise RuntimeError("ticket_lookup should route fresh scaffolds through environment_bootstrap before lifecycle execution")
+
+        executed_lifecycle_dest = workspace / "executed-ordinary-lifecycle"
+        shutil.copytree(full_dest, executed_lifecycle_dest)
+        seed_ready_bootstrap(executed_lifecycle_dest)
+        lookup_without_plan = run_generated_tool(
+            executed_lifecycle_dest,
+            ".opencode/tools/ticket_lookup.ts",
+            {},
+        )
+        if lookup_without_plan["bootstrap"]["status"] != "ready":
+            raise RuntimeError("ticket_lookup should reflect a ready bootstrap state after bootstrap proof is seeded")
+        if lookup_without_plan["transition_guidance"]["next_action_tool"] != "artifact_write":
+            raise RuntimeError("ticket_lookup should require a planning artifact before plan_review on a ready planning ticket")
+        prebootstrap_claim_result = run_generated_tool(
+            executed_lookup_prebootstrap_dest,
+            ".opencode/tools/ticket_claim.ts",
+            {
+                "ticket_id": "SETUP-001",
+                "owner_agent": "smoke-bootstrap",
+                "allowed_paths": ["docs"],
+                "write_lock": True,
+            },
+        )
+        if prebootstrap_claim_result["claimed"] is not True or prebootstrap_claim_result["lease"]["owner_agent"] != "smoke-bootstrap":
+            raise RuntimeError("ticket_claim should allow the wave-0 bootstrap ticket to claim a pre-bootstrap write lease")
+        prebootstrap_release_result = run_generated_tool(
+            executed_lookup_prebootstrap_dest,
+            ".opencode/tools/ticket_release.ts",
+            {"ticket_id": "SETUP-001", "owner_agent": "smoke-bootstrap"},
+        )
+        if prebootstrap_release_result["released"]["ticket_id"] != "SETUP-001":
+            raise RuntimeError("ticket_release should release the bootstrap lease after the pre-bootstrap claim probe")
+        register_current_ticket_artifact(
+            executed_lifecycle_dest,
+            ticket_id="SETUP-001",
+            kind="plan",
+            stage="planning",
+            relative_path=".opencode/state/artifacts/history/setup-001/planning/setup-001-plan.md",
+            summary="Synthetic planning artifact for ordinary lifecycle execution coverage.",
+            content="# Plan\n\nCommand: rg --files\n\nPlanned bootstrap follow-through.\n",
+        )
+        lookup_with_plan = run_generated_tool(
+            executed_lifecycle_dest,
+            ".opencode/tools/ticket_lookup.ts",
+            {},
+        )
+        if lookup_with_plan["transition_guidance"]["next_action_tool"] != "ticket_update":
+            raise RuntimeError("ticket_lookup should recommend ticket_update once a planning artifact exists")
+        if lookup_with_plan["transition_guidance"]["recommended_ticket_update"]["stage"] != "plan_review":
+            raise RuntimeError("ticket_lookup should recommend moving a planned ticket into plan_review next")
+        direct_implementation_error = run_generated_tool_error(
+            executed_lifecycle_dest,
+            ".opencode/tools/ticket_update.ts",
+            {"ticket_id": "SETUP-001", "stage": "implementation", "activate": True},
+        )
+        if "plan is approved" not in direct_implementation_error and "passes through plan_review" not in direct_implementation_error:
+            raise RuntimeError("ticket_update should block direct jumps into implementation before plan_review approval")
+        plan_review_result = run_generated_tool(
+            executed_lifecycle_dest,
+            ".opencode/tools/ticket_update.ts",
+            {"ticket_id": "SETUP-001", "stage": "plan_review", "activate": True},
+        )
+        if plan_review_result["updated_ticket"]["stage"] != "plan_review":
+            raise RuntimeError("ticket_update should move the ticket into plan_review when planning proof exists")
+        combined_approval_error = run_generated_tool_error(
+            executed_lifecycle_dest,
+            ".opencode/tools/ticket_update.ts",
+            {"ticket_id": "SETUP-001", "stage": "implementation", "approved_plan": True, "activate": True},
+        )
+        if "Approve SETUP-001 while it remains in plan_review first" not in combined_approval_error:
+            raise RuntimeError("ticket_update should require plan approval and implementation transition as separate calls")
+        approval_result = run_generated_tool(
+            executed_lifecycle_dest,
+            ".opencode/tools/ticket_update.ts",
+            {"ticket_id": "SETUP-001", "approved_plan": True, "activate": True},
+        )
+        if approval_result["workflow"]["ticket_state"]["SETUP-001"]["approved_plan"] is not True:
+            raise RuntimeError("ticket_update should persist approved_plan in workflow-state")
+        lookup_plan_approved = run_generated_tool(
+            executed_lifecycle_dest,
+            ".opencode/tools/ticket_lookup.ts",
+            {},
+        )
+        if lookup_plan_approved["transition_guidance"]["recommended_ticket_update"]["stage"] != "implementation":
+            raise RuntimeError("ticket_lookup should recommend implementation once plan_review approval is recorded")
+        implementation_result = run_generated_tool(
+            executed_lifecycle_dest,
+            ".opencode/tools/ticket_update.ts",
+            {"ticket_id": "SETUP-001", "stage": "implementation", "activate": True},
+        )
+        if implementation_result["updated_ticket"]["stage"] != "implementation":
+            raise RuntimeError("ticket_update should move an approved ticket into implementation")
+        claim_result = run_generated_tool(
+            executed_lifecycle_dest,
+            ".opencode/tools/ticket_claim.ts",
+            {
+                "ticket_id": "SETUP-001",
+                "owner_agent": "smoke-implementer",
+                "allowed_paths": ["docs", "tickets", ".opencode/state"],
+                "write_lock": True,
+            },
+        )
+        if claim_result["claimed"] is not True or claim_result["lease"]["ticket_id"] != "SETUP-001":
+            raise RuntimeError("ticket_claim should create a write-capable lane lease for the active implementation ticket")
+        if claim_result["lease"]["owner_agent"] != "smoke-implementer":
+            raise RuntimeError("ticket_claim should persist the requesting owner_agent on the created lease")
+        release_result = run_generated_tool(
+            executed_lifecycle_dest,
+            ".opencode/tools/ticket_release.ts",
+            {"ticket_id": "SETUP-001", "owner_agent": "smoke-implementer"},
+        )
+        if release_result["released"]["ticket_id"] != "SETUP-001":
+            raise RuntimeError("ticket_release should release the matching active lease for the ticket")
+        if release_result["active_leases"]:
+            raise RuntimeError("ticket_release should leave no active leases after releasing the only lease")
 
         hidden_clearable_pending_dest = workspace / "hidden-clearable-pending-process-verification"
         shutil.copytree(full_dest, hidden_clearable_pending_dest)
