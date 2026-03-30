@@ -9,6 +9,8 @@ This document replaces the split remediation planning in:
 
 It also incorporates verified live-repo evidence from the current Scafforge package and from GPTTalker, where the recurring deadlocks have been reproduced in practice.
 
+For current branch implementation status and remaining work against this plan, see `scafforge-remediation-progress-review.md`.
+
 The goal is not to add more governance prose. The goal is to make generated repos continue cleanly after bugs, audits, repairs, and midstream design changes.
 
 ## Executive Verdict
