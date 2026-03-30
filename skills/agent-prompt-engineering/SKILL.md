@@ -101,6 +101,28 @@ Before leaving this skill, confirm all of these are true:
 - read-only prompts do not tell agents to mutate repo-tracked files
 - slash commands are described only as human entrypoints, not as autonomous workflow tools
 
+## Repair follow-on artifact
+
+When this skill runs as a `scafforge-repair` follow-on hardening pass, read `.opencode/meta/repair-follow-on-state.json` and, after the prompt hardening work is actually complete for the current repair cycle, write:
+
+- `.opencode/state/artifacts/history/repair/agent-prompt-engineering-completion.md`
+
+Use this minimal shape so the public repair runner can auto-recognize `agent-prompt-engineering` completion for the current repair cycle on the next run:
+
+```md
+# Repair Follow-On Completion
+
+- completed_stage: agent-prompt-engineering
+- cycle_id: <cycle_id from .opencode/meta/repair-follow-on-state.json>
+- completed_by: agent-prompt-engineering
+
+## Summary
+
+- Hardened the project-specific prompts and delegation rules for the current repair cycle.
+```
+
+Do not emit this artifact speculatively. Only write it once the prompt-hardening work is actually complete for the current repair cycle.
+
 ## Rules
 
 - Prefer tool-backed state over raw file choreography

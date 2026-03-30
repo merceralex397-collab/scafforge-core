@@ -198,6 +198,7 @@ Implemented:
 - explicit recorded completion now also rejects blank `completed_by` and blank summary values instead of allowing empty provenance into repair history
 - previously trusted canonical repair artifacts are now revalidated on later repair runs and invalidated if their stage/cycle markers drift
 - bounded auto-detection now covers `handoff-brief` as well as `ticket-pack-builder`, using a dedicated repair closeout artifact rather than restart-surface heuristics
+- all remaining repair follow-on stage owners now have explicit canonical completion-artifact contracts, so the bounded auto-detection model is defined across the whole stage catalog
 - polluted recorded-execution state with zero evidence is now invalidated on the next repair run instead of being trusted as completed work
 - repair verification now fails contract checks for:
   - non-clean zero-finding states
@@ -216,6 +217,7 @@ What this achieved:
 - explicit recorded execution provenance now has to name an owner and a summary instead of permitting blank ledger entries
 - canonical repair evidence is now revalidated on reuse, not only at initial record or bounded auto-detection time
 - the package now has a second legitimate canonical auto-capture path for repair follow-on completion without widening into heuristic orchestration
+- the remaining stage owners can now join the same evidence-backed completion model without inventing heuristic detector logic
 - current-cycle repair evidence now matters equally for manual recording and bounded auto-detection when a canonical completion artifact path is used
 - repair no longer requires a separate manual recording step for `ticket-pack-builder` when that stage emits the canonical current-cycle completion artifact
 

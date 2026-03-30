@@ -4785,6 +4785,98 @@ def main() -> int:
         else:
             print("Skipping uv-dependent source-follow-up public repair assertions because `uv` is not available on this host.")
 
+        follow_on_tracking_module = load_python_module(
+            ROOT / "skills" / "scafforge-repair" / "scripts" / "follow_on_tracking.py",
+            "scafforge_smoke_follow_on_tracking",
+        )
+        repair_module = load_python_module(REPAIR, "scafforge_smoke_apply_repo_process_repair_follow_on_artifacts")
+        artifacted_follow_on_dest = workspace / "artifacted-follow-on-auto-detect"
+        shutil.copytree(full_dest, artifacted_follow_on_dest)
+        repair_module.initialize_follow_on_tracking_state(
+            artifacted_follow_on_dest,
+            process_version=7,
+            change_summary="Synthetic repair follow-on artifact auto-detection coverage.",
+        )
+        artifacted_tracking_path = artifacted_follow_on_dest / ".opencode" / "meta" / "repair-follow-on-state.json"
+        artifacted_tracking_state = json.loads(artifacted_tracking_path.read_text(encoding="utf-8"))
+        required_regeneration_stages = [
+            "project-skill-bootstrap",
+            "opencode-team-bootstrap",
+            "agent-prompt-engineering",
+        ]
+        artifacted_tracking_state["required_stages"] = required_regeneration_stages
+        artifacted_tracking_path.write_text(json.dumps(artifacted_tracking_state, indent=2) + "\n", encoding="utf-8")
+        artifact_cycle_id = artifacted_tracking_state["cycle_id"]
+        artifact_stage_contracts = {
+            "project-skill-bootstrap": {
+                "relative_path": ".opencode/state/artifacts/history/repair/project-skill-bootstrap-completion.md",
+                "completed_by": "project-skill-bootstrap",
+                "summary": "- Regenerated the repo-local skill pack and removed scaffold placeholder or model drift for the current repair cycle.\n",
+            },
+            "opencode-team-bootstrap": {
+                "relative_path": ".opencode/state/artifacts/history/repair/opencode-team-bootstrap-completion.md",
+                "completed_by": "opencode-team-bootstrap",
+                "summary": "- Regenerated the project-specific OpenCode agent team and related command/tool routing for the current repair cycle.\n",
+            },
+            "agent-prompt-engineering": {
+                "relative_path": ".opencode/state/artifacts/history/repair/agent-prompt-engineering-completion.md",
+                "completed_by": "agent-prompt-engineering",
+                "summary": "- Hardened the project-specific prompts and delegation rules for the current repair cycle.\n",
+            },
+        }
+        for stage, contract in artifact_stage_contracts.items():
+            artifact_path = artifacted_follow_on_dest / contract["relative_path"]
+            artifact_path.parent.mkdir(parents=True, exist_ok=True)
+            artifact_path.write_text(
+                "# Repair Follow-On Completion\n\n"
+                f"- completed_stage: {stage}\n"
+                "- cycle_id: stale-cycle\n"
+                f"- completed_by: {contract['completed_by']}\n\n"
+                "## Summary\n\n"
+                f"{contract['summary']}",
+                encoding="utf-8",
+            )
+        artifacted_state = follow_on_tracking_module.load_follow_on_tracking_state(artifacted_follow_on_dest)
+        stale_artifact_state, stale_auto_recorded = follow_on_tracking_module.auto_record_stage_completion_from_canonical_evidence(
+            artifacted_follow_on_dest,
+            artifacted_state,
+            required_stage_names=required_regeneration_stages,
+            repair_package_commit=package_commit(),
+        )
+        if stale_auto_recorded:
+            raise RuntimeError("Auto-detection should not trust stale-cycle canonical artifacts for regeneration follow-on stages")
+        if follow_on_tracking_module.recorded_execution_stage_names(stale_artifact_state):
+            raise RuntimeError("Stale-cycle regeneration follow-on artifacts should not be counted as recorded execution")
+        for stage, contract in artifact_stage_contracts.items():
+            artifact_path = artifacted_follow_on_dest / contract["relative_path"]
+            artifact_path.write_text(
+                "# Repair Follow-On Completion\n\n"
+                f"- completed_stage: {stage}\n"
+                f"- cycle_id: {artifact_cycle_id}\n"
+                f"- completed_by: {contract['completed_by']}\n\n"
+                "## Summary\n\n"
+                f"{contract['summary']}",
+                encoding="utf-8",
+            )
+        refreshed_artifact_state = follow_on_tracking_module.load_follow_on_tracking_state(artifacted_follow_on_dest)
+        detected_artifact_state, detected_artifact_stages = follow_on_tracking_module.auto_record_stage_completion_from_canonical_evidence(
+            artifacted_follow_on_dest,
+            refreshed_artifact_state,
+            required_stage_names=required_regeneration_stages,
+            repair_package_commit=package_commit(),
+        )
+        if detected_artifact_stages != sorted(required_regeneration_stages):
+            raise RuntimeError("Auto-detection should record all regeneration follow-on stages when current-cycle canonical artifacts exist")
+        if follow_on_tracking_module.recorded_execution_stage_names(detected_artifact_state) != sorted(required_regeneration_stages):
+            raise RuntimeError("Recorded execution stage names should include all regeneration follow-on stages auto-detected from canonical artifacts")
+        persisted_artifact_tracking = json.loads(artifacted_tracking_path.read_text(encoding="utf-8"))
+        for stage, contract in artifact_stage_contracts.items():
+            record = persisted_artifact_tracking["stage_records"].get(stage, {})
+            if record.get("completed_by") != f"{stage}:auto-detected":
+                raise RuntimeError(f"Auto-detected {stage} evidence should persist the stage-specific auto-detected completed_by value")
+            if record.get("evidence_paths") != [contract["relative_path"]]:
+                raise RuntimeError(f"Auto-detected {stage} evidence should preserve its canonical repair artifact path")
+
         print("Scafforge smoke test passed.")
         return 0
     finally:

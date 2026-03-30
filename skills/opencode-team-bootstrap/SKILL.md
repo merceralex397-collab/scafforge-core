@@ -181,6 +181,28 @@ Before leaving this skill, confirm all of these are true:
 - the team leader owns routing and lease control, while specialists stay within their bounded write or read-only roles
 - commands reference current agents and current workflow surfaces without becoming autonomous internal workflow steps
 
+## Repair follow-on artifact
+
+When this skill runs as a `scafforge-repair` follow-on regeneration pass, read `.opencode/meta/repair-follow-on-state.json` and, after the agent team, commands, and related prompt surfaces are actually refreshed for the current repair cycle, write:
+
+- `.opencode/state/artifacts/history/repair/opencode-team-bootstrap-completion.md`
+
+Use this minimal shape so the public repair runner can auto-recognize `opencode-team-bootstrap` completion for the current repair cycle on the next run:
+
+```md
+# Repair Follow-On Completion
+
+- completed_stage: opencode-team-bootstrap
+- cycle_id: <cycle_id from .opencode/meta/repair-follow-on-state.json>
+- completed_by: opencode-team-bootstrap
+
+## Summary
+
+- Regenerated the project-specific OpenCode agent team and related command/tool routing for the current repair cycle.
+```
+
+Do not emit this artifact speculatively. Only write it once the agent-team regeneration work is actually complete for the current repair cycle.
+
 ## Team design principles
 
 - One visible team leader, all specialists hidden
