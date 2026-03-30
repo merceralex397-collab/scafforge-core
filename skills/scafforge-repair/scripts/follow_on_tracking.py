@@ -81,9 +81,27 @@ def normalize_follow_on_tracking_state(payload: Any, *, process_version: int) ->
         "process_version": process_version,
         "repair_package_commit": payload.get("repair_package_commit"),
         "repair_basis_path": payload.get("repair_basis_path"),
-        "required_stages": [item for item in payload.get("required_stages", []) if isinstance(item, str)],
-        "stage_records": {stage: value for stage, value in stage_records.items() if isinstance(stage, str) and isinstance(value, dict)},
-        "history": [item for item in history if isinstance(item, dict)],
+        "required_stages": sorted(
+            {
+                stage.strip()
+                for stage in (payload.get("required_stages", []) if isinstance(payload.get("required_stages"), list) else [])
+                if isinstance(stage, str) and stage.strip() in FOLLOW_ON_STAGE_CATALOG
+            }
+        ),
+        "stage_records": {
+            validate_follow_on_stage_name(stage): value
+            for stage, value in stage_records.items()
+            if isinstance(stage, str) and isinstance(value, dict) and stage.strip() in FOLLOW_ON_STAGE_CATALOG
+        },
+        "history": [
+            item
+            for item in history
+            if isinstance(item, dict)
+            and (
+                not isinstance(item.get("stage"), str)
+                or item.get("stage", "").strip() in FOLLOW_ON_STAGE_CATALOG
+            )
+        ],
     }
 
 

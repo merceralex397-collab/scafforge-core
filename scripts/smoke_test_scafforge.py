@@ -4125,6 +4125,69 @@ def main() -> int:
         make_stack_skill_non_placeholder(source_follow_up_repair_dest)
         seed_failing_pytest_suite(source_follow_up_repair_dest)
         if host_has_uv:
+            polluted_follow_on_state_dest = workspace / "polluted-follow-on-state"
+            shutil.copytree(full_dest, polluted_follow_on_state_dest)
+            make_stack_skill_non_placeholder(polluted_follow_on_state_dest)
+            seed_failing_pytest_suite(polluted_follow_on_state_dest)
+            polluted_initial_process = subprocess.run(
+                [
+                    sys.executable,
+                    str(PUBLIC_REPAIR),
+                    str(polluted_follow_on_state_dest),
+                    "--skip-deterministic-refresh",
+                ],
+                cwd=ROOT,
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            polluted_initial = json.loads(polluted_initial_process.stdout)
+            if not polluted_initial["execution_record"]["blocking_reasons"]:
+                raise RuntimeError("A repair run without any valid follow-on completion should remain blocked before polluted-state pruning is tested")
+            polluted_state_path = polluted_follow_on_state_dest / ".opencode" / "meta" / "repair-follow-on-state.json"
+            polluted_state = json.loads(polluted_state_path.read_text(encoding="utf-8"))
+            polluted_state["required_stages"].append("bogus-stage")
+            polluted_state["stage_records"]["bogus-stage"] = {
+                "stage": "bogus-stage",
+                "status": "completed",
+                "completion_mode": "recorded_execution",
+                "evidence_paths": [".opencode/state/artifacts/history/repair/bogus-stage.md"],
+                "completed_by": "bogus-stage",
+                "last_recorded_at": "2026-03-30T00:00:00Z",
+                "last_checked_at": "2026-03-30T00:00:00Z",
+                "last_updated_at": "2026-03-30T00:00:00Z",
+            }
+            polluted_state["history"].append(
+                {
+                    "recorded_at": "2026-03-30T00:00:00Z",
+                    "stage": "bogus-stage",
+                    "status": "completed",
+                    "completion_mode": "recorded_execution",
+                }
+            )
+            polluted_state_path.write_text(json.dumps(polluted_state, indent=2) + "\n", encoding="utf-8")
+            pruned_follow_on_state_process = subprocess.run(
+                [
+                    sys.executable,
+                    str(PUBLIC_REPAIR),
+                    str(polluted_follow_on_state_dest),
+                    "--skip-deterministic-refresh",
+                ],
+                cwd=ROOT,
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            if pruned_follow_on_state_process.returncode == 0:
+                raise RuntimeError("Pruning unknown legacy follow-on stage records should not make the repair runner succeed while real ticket follow-up remains")
+            pruned_follow_on_state = json.loads(pruned_follow_on_state_process.stdout)
+            if "bogus-stage" in pruned_follow_on_state["execution_record"]["recorded_completed_stages"]:
+                raise RuntimeError("Managed repair should prune unknown legacy follow-on stage records instead of trusting them as completed")
+            if "bogus-stage" in pruned_follow_on_state["execution_record"]["follow_on_tracking_state"]["stage_records"]:
+                raise RuntimeError("Managed repair should remove unknown legacy follow-on stage records from the persisted tracking state")
+            if not pruned_follow_on_state["execution_record"]["blocking_reasons"]:
+                raise RuntimeError("Pruning unknown legacy follow-on stage records should not clear the real ticket follow-up blocker")
+
             source_follow_up_repair = run_json(
                 [
                     sys.executable,
