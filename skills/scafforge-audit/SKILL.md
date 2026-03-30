@@ -52,6 +52,8 @@ If this is a repeat audit, explain why the previous audit-to-repair cycle failed
 ### 2. Run the audit script
 
 The script is evidence extraction, not the whole diagnosis.
+Its rule logic should stay grouped by invariant family in code modules, not keep growing only as prose in references.
+New smell codes should land with rule implementation plus regression coverage, not just another narrative note.
 For transcript-backed audits, the invoker must do all three steps in order:
 
 1. reconstruct chronology from the supplied logs before running the script

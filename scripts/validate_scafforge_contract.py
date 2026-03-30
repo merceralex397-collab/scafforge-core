@@ -438,6 +438,8 @@ def validate_skill_contracts(findings: list[Finding]) -> None:
     require_contains(findings, scaffold_kickoff, "Route midstream feature and design changes through `scafforge-pivot`")
     require_absent(findings, ROOT / "skills" / "scafforge-audit" / "SKILL.md", "greenfield or retrofit flow")
     require_contains(findings, ROOT / "skills" / "scafforge-audit" / "SKILL.md", "retrofit audit step or an explicit diagnosis/review flow")
+    require_contains(findings, ROOT / "skills" / "scafforge-audit" / "SKILL.md", "grouped by invariant family in code modules")
+    require_contains(findings, ROOT / "skills" / "scafforge-audit" / "SKILL.md", "rule implementation plus regression coverage")
 
     require_contains(findings, spec_pack, "The batched decision packet is a required generation artifact.")
     require_contains(findings, spec_pack, "Blocking decisions are all resolved before greenfield generation continues")
@@ -727,12 +729,14 @@ def validate_template_surfaces(findings: list[Finding]) -> None:
 def validate_audit_repair_surfaces(findings: list[Finding]) -> None:
     audit_skill = ROOT / "skills" / "scafforge-audit"
     repair_skill = ROOT / "skills" / "scafforge-repair"
+    audit_execution_surfaces = audit_skill / "scripts" / "audit_execution_surfaces.py"
     require_paths(
         findings,
         [
             audit_skill / "SKILL.md",
             audit_skill / "agents" / "openai.yaml",
             audit_skill / "scripts" / "audit_repo_process.py",
+            audit_execution_surfaces,
             audit_skill / "scripts" / "shared_verifier.py",
             audit_skill / "scripts" / "shared_verifier_types.py",
             audit_skill / "references" / "four-report-templates.md",
@@ -761,6 +765,13 @@ def validate_audit_repair_surfaces(findings: list[Finding]) -> None:
     require_contains(findings, audit_skill / "scripts" / "shared_verifier.py", "VERIFY008")
     require_contains(findings, audit_skill / "scripts" / "shared_verifier_types.py", "@dataclass")
     require_contains(findings, audit_skill / "scripts" / "shared_verifier_types.py", "class Finding")
+    require_contains(findings, audit_skill / "scripts" / "audit_repo_process.py", "from audit_execution_surfaces import ExecutionSurfaceAuditContext, run_execution_surface_audits")
+    require_contains(findings, audit_skill / "scripts" / "audit_repo_process.py", "execution_surface_audit_context")
+    require_contains(findings, audit_skill / "scripts" / "audit_repo_process.py", "run_execution_surface_audits(root, findings, execution_ctx)")
+    require_contains(findings, audit_execution_surfaces, "class ExecutionSurfaceAuditContext")
+    require_contains(findings, audit_execution_surfaces, "def run_execution_surface_audits(")
+    require_contains(findings, audit_execution_surfaces, "def audit_environment_prerequisites(")
+    require_contains(findings, audit_execution_surfaces, "def audit_python_execution(")
     require_contains(findings, repair_skill / "scripts" / "apply_repo_process_repair.py", "scafforge-repair")
     require_contains(findings, repair_skill / "scripts" / "apply_repo_process_repair.py", "from shared_verifier import audit_repo")
     require_contains(findings, repair_skill / "scripts" / "apply_repo_process_repair.py", 'workflow_contract.get("parallel_mode", "sequential")')
@@ -822,14 +833,14 @@ def validate_audit_repair_surfaces(findings: list[Finding]) -> None:
     require_contains(findings, repair_skill / "scripts" / "regenerate_restart_surfaces.py", "split_child_tickets")
     require_contains(findings, repair_skill / "scripts" / "regenerate_restart_surfaces.py", "Open split children")
     require_absent(findings, repair_skill / "scripts" / "regenerate_restart_surfaces.py", "repair_follow_on_handoff_allowed")
-    require_contains(findings, audit_skill / "scripts" / "audit_repo_process.py", 'code="BOOT001"')
-    require_contains(findings, audit_skill / "scripts" / "audit_repo_process.py", 'code="BOOT002"')
+    require_contains(findings, audit_execution_surfaces, 'code="BOOT001"')
+    require_contains(findings, audit_execution_surfaces, 'code="BOOT002"')
     require_contains(findings, audit_skill / "scripts" / "audit_repo_process.py", 'code="SKILL001"')
     require_contains(findings, audit_skill / "scripts" / "audit_repo_process.py", 'code="MODEL001"')
     require_contains(findings, audit_skill / "scripts" / "audit_repo_process.py", 'code="CYCLE001"')
     require_contains(findings, audit_skill / "scripts" / "audit_repo_process.py", 'code="CYCLE002"')
     require_contains(findings, audit_skill / "scripts" / "audit_repo_process.py", 'code="CYCLE003"')
-    require_contains(findings, audit_skill / "scripts" / "audit_repo_process.py", 'code="WFLOW001"')
+    require_contains(findings, audit_execution_surfaces, 'code="WFLOW001"')
     require_contains(findings, audit_skill / "scripts" / "audit_repo_process.py", 'code="WFLOW002"')
     require_contains(findings, audit_skill / "scripts" / "audit_repo_process.py", 'code="WFLOW003"')
     require_contains(findings, audit_skill / "scripts" / "audit_repo_process.py", 'code="WFLOW004"')
@@ -846,8 +857,8 @@ def validate_audit_repair_surfaces(findings: list[Finding]) -> None:
     require_contains(findings, audit_skill / "scripts" / "audit_repo_process.py", 'code="WFLOW013"')
     require_contains(findings, audit_skill / "scripts" / "audit_repo_process.py", 'code="WFLOW014"')
     require_contains(findings, audit_skill / "scripts" / "audit_repo_process.py", 'code="WFLOW015"')
-    require_contains(findings, audit_skill / "scripts" / "audit_repo_process.py", 'code="WFLOW016"')
-    require_contains(findings, audit_skill / "scripts" / "audit_repo_process.py", 'code="WFLOW017"')
+    require_contains(findings, audit_execution_surfaces, 'code="WFLOW016"')
+    require_contains(findings, audit_execution_surfaces, 'code="WFLOW017"')
     require_contains(findings, audit_skill / "scripts" / "audit_repo_process.py", 'code="WFLOW018"')
     require_contains(findings, audit_skill / "scripts" / "audit_repo_process.py", 'code="WFLOW019"')
     require_contains(findings, audit_skill / "scripts" / "audit_repo_process.py", 'code="WFLOW020"')
@@ -855,9 +866,9 @@ def validate_audit_repair_surfaces(findings: list[Finding]) -> None:
     require_contains(findings, audit_skill / "scripts" / "audit_repo_process.py", 'code="WFLOW022"')
     require_contains(findings, audit_skill / "scripts" / "audit_repo_process.py", 'code="WFLOW023"')
     require_contains(findings, audit_skill / "scripts" / "audit_repo_process.py", 'code="WFLOW024"')
-    require_contains(findings, audit_skill / "scripts" / "audit_repo_process.py", 'code="ENV001"')
-    require_contains(findings, audit_skill / "scripts" / "audit_repo_process.py", 'code="ENV002"')
-    require_contains(findings, audit_skill / "scripts" / "audit_repo_process.py", 'code="ENV003"')
+    require_contains(findings, audit_execution_surfaces, 'code="ENV001"')
+    require_contains(findings, audit_execution_surfaces, 'code="ENV002"')
+    require_contains(findings, audit_execution_surfaces, 'code="ENV003"')
     require_contains(findings, audit_skill / "scripts" / "audit_repo_process.py", 'code="ENV004"')
     require_contains(findings, audit_skill / "scripts" / "audit_repo_process.py", 'code="SESSION001"')
     require_contains(findings, audit_skill / "scripts" / "audit_repo_process.py", 'code="SESSION002"')
