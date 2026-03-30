@@ -1865,6 +1865,9 @@ def main() -> int:
             raise RuntimeError("Generated environment_bootstrap.ts should not keep the legacy multiline section regex that misses optional dependency bodies")
         if "defaultBootstrapProofPath" not in generated_bootstrap or "normalizeRepoPath" not in generated_bootstrap:
             raise RuntimeError("Generated environment_bootstrap.ts should persist bootstrap proof through canonical artifact-path helpers")
+        for expected in ("host_surface_classification", "failure_classification", "blocked_by_permissions", "permission_restriction"):
+            if expected not in generated_bootstrap:
+                raise RuntimeError("Generated environment_bootstrap.ts should classify missing-tool and permission-restriction host failures explicitly")
         generated_smoke_test = (full_dest / ".opencode" / "tools" / "smoke_test.ts").read_text(encoding="utf-8")
         if 'join(root, ".venv", "bin", "python")' not in generated_smoke_test:
             raise RuntimeError("Generated smoke_test.ts should support repo-local .venv Python execution")
@@ -1879,6 +1882,9 @@ def main() -> int:
             raise RuntimeError("Generated smoke_test.ts should reject malformed mixed command_override forms")
         if "defaultArtifactPath" not in generated_smoke_test or "normalizeRepoPath" not in generated_smoke_test:
             raise RuntimeError("Generated smoke_test.ts should persist smoke artifacts through canonical artifact-path helpers")
+        for expected in ("host_surface_classification", "failure_classification", "blocked_by_permissions", "permission_restriction"):
+            if expected not in generated_smoke_test:
+                raise RuntimeError("Generated smoke_test.ts should classify missing-tool and permission-restriction host failures explicitly")
         generated_stage_gate = (full_dest / ".opencode" / "plugins" / "stage-gate-enforcer.ts").read_text(encoding="utf-8")
         if 'const RESERVED_ARTIFACT_STAGES = new Set(["smoke-test"])' not in generated_stage_gate:
             raise RuntimeError("Generated stage-gate-enforcer.ts should reserve smoke-test artifacts to their owning tool")

@@ -37,6 +37,9 @@ type CommandResult = CommandSpec & {
   duration_ms: number
   stdout: string
   stderr: string
+  missing_executable?: string
+  failure_classification?: "missing_executable" | "permission_restriction" | "command_error"
+  blocked_by_permissions?: boolean
 }
 
 type PythonRunner = {
@@ -181,6 +184,10 @@ function renderCommand(command: Pick<CommandSpec, "argv" | "env_overrides">): st
         .join(" ")
     : ""
   return `${envPrefix ? `${envPrefix} ` : ""}${command.argv.join(" ")}`.trim()
+}
+
+function isPermissionRestrictionOutput(output: string): boolean {
+  return /permission denied|operation not permitted|EACCES|EPERM|blocked by permission rules/i.test(output)
 }
 
 function inferAcceptanceSmokeCommands(ticket: { acceptance?: unknown }): CommandSpec[] {
@@ -478,12 +485,19 @@ async function runCommand(root: string, command: CommandSpec): Promise<CommandRe
         stdio: ["ignore", "pipe", "pipe"],
       })
     } catch (error) {
+      const errorCode = typeof error === "object" && error && "code" in error ? String((error as { code?: string }).code || "") : ""
+      const stderr = String(error)
+      const missingExecutable = errorCode === "ENOENT" ? command.argv[0] : undefined
+      const blockedByPermissions = errorCode === "EACCES" || errorCode === "EPERM" || isPermissionRestrictionOutput(stderr)
       resolve({
         ...command,
         exit_code: -1,
         duration_ms: Date.now() - startedAt,
         stdout: "",
-        stderr: String(error),
+        stderr,
+        missing_executable: missingExecutable,
+        failure_classification: missingExecutable ? "missing_executable" : blockedByPermissions ? "permission_restriction" : "command_error",
+        blocked_by_permissions: blockedByPermissions || undefined,
       })
       return
     }
@@ -497,23 +511,36 @@ async function runCommand(root: string, command: CommandSpec): Promise<CommandRe
     child.on("error", (error) => {
       if (settled) return
       settled = true
+      const errorCode = typeof error === "object" && error && "code" in error ? String((error as { code?: string }).code || "") : ""
+      const renderedError = `${stderr}\n${String(error)}`.trim()
+      const missingExecutable = errorCode === "ENOENT" ? command.argv[0] : undefined
+      const blockedByPermissions = errorCode === "EACCES" || errorCode === "EPERM" || isPermissionRestrictionOutput(renderedError)
       resolve({
         ...command,
         exit_code: -1,
         duration_ms: Date.now() - startedAt,
         stdout,
-        stderr: `${stderr}\n${String(error)}`.trim(),
+        stderr: renderedError,
+        missing_executable: missingExecutable,
+        failure_classification: missingExecutable ? "missing_executable" : blockedByPermissions ? "permission_restriction" : "command_error",
+        blocked_by_permissions: blockedByPermissions || undefined,
       })
     })
     child.on("close", (code) => {
       if (settled) return
       settled = true
+      const renderedStderr = stderr.trim()
+      const missingExecutable = code === 127 || /command not found|ENOENT/i.test(renderedStderr) ? command.argv[0] : undefined
+      const blockedByPermissions = isPermissionRestrictionOutput(`${stdout}\n${stderr}`)
       resolve({
         ...command,
         exit_code: code ?? -1,
         duration_ms: Date.now() - startedAt,
         stdout,
         stderr,
+        missing_executable: missingExecutable,
+        failure_classification: code === 0 ? undefined : missingExecutable ? "missing_executable" : blockedByPermissions ? "permission_restriction" : "command_error",
+        blocked_by_permissions: blockedByPermissions || undefined,
       })
     })
   })
@@ -528,7 +555,7 @@ function renderArtifact(ticketId: string, commands: CommandResult[], passed: boo
   const commandSections = commands.length
     ? commands
         .map(
-          (command, index) => `### ${index + 1}. ${command.label}\n\n- reason: ${command.reason}\n- command: \`${renderCommand(command)}\`\n- exit_code: ${command.exit_code}\n- duration_ms: ${command.duration_ms}\n\n#### stdout\n\n${fence(command.stdout)}\n\n#### stderr\n\n${fence(command.stderr)}`,
+          (command, index) => `### ${index + 1}. ${command.label}\n\n- reason: ${command.reason}\n- command: \`${renderCommand(command)}\`\n- exit_code: ${command.exit_code}\n- duration_ms: ${command.duration_ms}\n- missing_executable: ${command.missing_executable || "none"}\n- failure_classification: ${command.failure_classification || "none"}\n- blocked_by_permissions: ${command.blocked_by_permissions ? "true" : "false"}\n\n#### stdout\n\n${fence(command.stdout)}\n\n#### stderr\n\n${fence(command.stderr)}`,
         )
         .join("\n\n")
     : "No deterministic smoke-test commands were detected."
@@ -546,6 +573,25 @@ function classifySmokeFailure(results: CommandResult[]): "environment" | "ticket
     return "configuration"
   }
   return "ticket"
+}
+
+function classifyHostSurfaceFailure(results: CommandResult[]): "missing_executable" | "permission_restriction" | "runtime_setup" | null {
+  const failed = results.find((command) => command.exit_code !== 0)
+  if (!failed) return null
+  if (failed.failure_classification === "missing_executable" || failed.missing_executable) {
+    return "missing_executable"
+  }
+  if (failed.failure_classification === "permission_restriction" || failed.blocked_by_permissions) {
+    return "permission_restriction"
+  }
+  if (classifySmokeFailure(results) !== "environment") {
+    return null
+  }
+  const output = `${failed.stdout}\n${failed.stderr}`
+  if (/No module named|not installed|missing/i.test(output)) {
+    return "runtime_setup"
+  }
+  return null
 }
 
 async function persistArtifact(ticketId: string, body: string, passed: boolean): Promise<string> {
@@ -649,9 +695,12 @@ export default tool({
       }
     }
     const failureClassification = classifySmokeFailure(results)
+    const hostSurfaceClassification = classifyHostSurfaceFailure(results)
 
     const note = passed
       ? "All detected deterministic smoke-test commands passed."
+      : hostSurfaceClassification === "permission_restriction"
+        ? "The smoke-test run failed because the host denied a required command or file access path. Fix the permission/tool policy or run the canonical smoke command in an allowed host context before treating this as a ticket regression."
       : failureClassification === "environment"
         ? "The smoke-test run failed because the environment or required toolchain is not ready. Fix bootstrap/runtime setup before treating this as a ticket regression."
         : failureClassification === "configuration"
@@ -669,10 +718,14 @@ export default tool({
         scope: args.scope || (args.test_paths && args.test_paths.length > 0 ? "ticket" : "full-suite"),
         test_paths: args.test_paths || [],
         failure_classification: failureClassification,
+        host_surface_classification: hostSurfaceClassification,
         commands: results.map((result) => ({
           label: result.label,
           command: renderCommand(result),
           exit_code: result.exit_code,
+          missing_executable: result.missing_executable || null,
+          failure_classification: result.failure_classification || null,
+          blocked_by_permissions: result.blocked_by_permissions === true,
           duration_ms: result.duration_ms,
         })),
       },
