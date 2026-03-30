@@ -208,19 +208,31 @@ def validate_recorded_execution_evidence(repo_root: Path, state: dict[str, Any])
             continue
         evidence_paths = record.get("evidence_paths") if isinstance(record.get("evidence_paths"), list) else []
         missing_recorded_evidence = not evidence_paths
+        cycle_id = state.get("cycle_id") if isinstance(state.get("cycle_id"), str) else ""
+        canonical_evidence_path = canonical_stage_evidence_path(stage)
+        canonical_cycle_mismatch = False
+        if canonical_evidence_path and canonical_evidence_path in evidence_paths and cycle_id:
+            canonical_cycle_mismatch = not artifact_matches_current_cycle(repo_root, stage=stage, cycle_id=cycle_id)[0]
         missing = [
             path
             for path in evidence_paths
             if not isinstance(path, str) or not (repo_root / path).exists()
         ]
-        if not missing and not missing_recorded_evidence:
+        if not missing and not missing_recorded_evidence and not canonical_cycle_mismatch:
             continue
         previous_missing = record.get("missing_evidence_paths") if isinstance(record.get("missing_evidence_paths"), list) else []
+        evidence_validation_error = (
+            "missing_recorded_evidence"
+            if missing_recorded_evidence
+            else "canonical_evidence_cycle_mismatch"
+            if canonical_cycle_mismatch
+            else None
+        )
         stage_records[stage] = {
             **record,
             "status": "evidence_missing",
             "missing_evidence_paths": sorted(set(path for path in missing if isinstance(path, str))),
-            "evidence_validation_error": "missing_recorded_evidence" if missing_recorded_evidence else None,
+            "evidence_validation_error": evidence_validation_error,
             "last_checked_at": now,
             "last_updated_at": now,
         }
@@ -228,7 +240,7 @@ def validate_recorded_execution_evidence(repo_root: Path, state: dict[str, Any])
         previous_error = record.get("evidence_validation_error")
         if (
             current_missing != sorted(set(path for path in previous_missing if isinstance(path, str)))
-            or ("missing_recorded_evidence" if missing_recorded_evidence else None) != previous_error
+            or evidence_validation_error != previous_error
         ):
             history.append(
                 {
@@ -236,7 +248,7 @@ def validate_recorded_execution_evidence(repo_root: Path, state: dict[str, Any])
                     **follow_on_stage_history_metadata(stage),
                     "status": "evidence_missing",
                     "missing_evidence_paths": current_missing,
-                    "evidence_validation_error": "missing_recorded_evidence" if missing_recorded_evidence else None,
+                    "evidence_validation_error": evidence_validation_error,
                     "cycle_id": state.get("cycle_id"),
                 }
             )

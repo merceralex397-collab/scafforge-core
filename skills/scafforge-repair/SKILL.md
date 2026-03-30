@@ -94,6 +94,7 @@ That artifact is only trusted for the current repair cycle when it includes both
 
 If a follow-on stage does not yet emit a canonical completion artifact, use `record_repair_stage_completion.py`.
 If recorded execution uses the canonical repair completion artifact path for a stage, that artifact must also match the current repair cycle before Scafforge accepts the recorded completion.
+If a previously recorded canonical repair completion artifact is later edited so its `completed_stage` or `cycle_id` no longer matches the current repair cycle, Scafforge must invalidate that recorded execution automatically instead of continuing to trust it.
 If recorded execution evidence is later deleted, moved, or was never recorded at all, Scafforge must stop trusting that recorded completion automatically instead of silently continuing to reuse stale completion state.
 The public runner must also fail explicit repair-contract consistency checks. At minimum, do not allow it to report verification success when restart surfaces still drift, placeholder local skills survive refresh, or it somehow reports zero findings while still not being current-state clean.
 

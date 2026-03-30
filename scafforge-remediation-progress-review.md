@@ -196,6 +196,7 @@ Implemented:
 - explicit recorded follow-on completion now fails closed unless it includes at least one repo-relative evidence path
 - explicit recorded completion now also rejects stale-cycle canonical repair artifacts instead of trusting them just because the file exists
 - explicit recorded completion now also rejects blank `completed_by` and blank summary values instead of allowing empty provenance into repair history
+- previously trusted canonical repair artifacts are now revalidated on later repair runs and invalidated if their stage/cycle markers drift
 - polluted recorded-execution state with zero evidence is now invalidated on the next repair run instead of being trusted as completed work
 - repair verification now fails contract checks for:
   - non-clean zero-finding states
@@ -212,6 +213,7 @@ What this achieved:
 - explicit recorded execution is now evidence-sensitive rather than being trusted indefinitely after first record
 - explicit recorded execution also no longer accepts zero-proof completion at record time
 - explicit recorded execution provenance now has to name an owner and a summary instead of permitting blank ledger entries
+- canonical repair evidence is now revalidated on reuse, not only at initial record or bounded auto-detection time
 - current-cycle repair evidence now matters equally for manual recording and bounded auto-detection when a canonical completion artifact path is used
 - repair no longer requires a separate manual recording step for `ticket-pack-builder` when that stage emits the canonical current-cycle completion artifact
 
