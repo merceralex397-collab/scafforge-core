@@ -3928,6 +3928,41 @@ def main() -> int:
                 raise RuntimeError("Managed repair should record source_follow_up when only source-layer remediation remains")
             if source_follow_up_workflow["repair_follow_on"]["current_state_clean"] is not False:
                 raise RuntimeError("Managed repair should not record current_state_clean when source-layer remediation remains")
+            if source_follow_up_workflow["repair_follow_on"]["tracking_mode"] != "persistent_recorded_state":
+                raise RuntimeError("Managed repair should record persistent follow-on tracking mode in workflow state")
+            follow_on_state_path = source_follow_up_repair_dest / ".opencode" / "meta" / "repair-follow-on-state.json"
+            if not follow_on_state_path.exists():
+                raise RuntimeError("Managed repair should persist follow-on stage state in repo metadata")
+            follow_on_state = json.loads(follow_on_state_path.read_text(encoding="utf-8"))
+            if follow_on_state["tracking_mode"] != "persistent_recorded_state":
+                raise RuntimeError("Persisted follow-on stage state should record persistent tracking mode")
+            if follow_on_state["stage_records"]["ticket-pack-builder"]["status"] != "asserted_completed":
+                raise RuntimeError("Persisted follow-on stage state should keep asserted follow-on stage completion")
+
+            source_follow_up_repair_reuse = run_json(
+                [
+                    sys.executable,
+                    str(PUBLIC_REPAIR),
+                    str(source_follow_up_repair_dest),
+                    "--skip-deterministic-refresh",
+                ],
+                ROOT,
+            )
+            if source_follow_up_repair_reuse["execution_record"]["blocking_reasons"]:
+                raise RuntimeError("Recorded follow-on stage state should let later repair runs reuse prior asserted completion without re-passing --stage-complete")
+            if source_follow_up_repair_reuse["execution_record"]["recorded_completed_stages"] != ["handoff-brief", "ticket-pack-builder"]:
+                raise RuntimeError("Public managed repair runner should expose persisted recorded follow-on completions")
+            if source_follow_up_repair_reuse["execution_record"]["repair_follow_on_outcome"] != "source_follow_up":
+                raise RuntimeError("Reused follow-on stage state should preserve the same source_follow_up outcome")
+            if not source_follow_up_repair_reuse["execution_record"]["handoff_allowed"]:
+                raise RuntimeError("Reused follow-on stage state should still allow handoff when only source follow-up remains")
+            recorded_stage_results = {
+                item["stage"]: item["status"]
+                for item in source_follow_up_repair_reuse["stage_results"]
+                if item.get("status") == "recorded_completed"
+            }
+            if recorded_stage_results != {"handoff-brief": "recorded_completed", "ticket-pack-builder": "recorded_completed"}:
+                raise RuntimeError("Managed repair should expose reused follow-on completions as recorded_completed stage results")
 
             run_managed_repair_module = load_python_module(PUBLIC_REPAIR, "scafforge_smoke_run_managed_repair")
             contract_failures = run_managed_repair_module.verification_contract_failures(

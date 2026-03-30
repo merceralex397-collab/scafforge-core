@@ -20,7 +20,7 @@ It is intentionally narrower than the plan. The plan describes the target state.
 - Branch: `codex/remediation-proof-repair-pivot`
 - PR: <https://github.com/merceralex397-collab/Scafforge/pull/8>
 
-Current remediation commits on this branch:
+Current remediation commits on this branch started with:
 
 1. `6b21ffb` `Implement lifecycle remediation groundwork`
 2. `3ffa63e` `Broaden greenfield verification contract`
@@ -31,6 +31,8 @@ Current remediation commits on this branch:
 7. `1f4b22f` `Unify dependent continuation restart routing`
 8. `7f2471b` `Surface explicit closed-ticket reverification`
 9. `ebad89e` `Surface historical reconciliation routing`
+
+The branch has continued substantially beyond that initial set. For the current full branch history, review `git log origin/main..HEAD --oneline`.
 
 ## Current Verification State
 
@@ -52,7 +54,7 @@ Important clarification:
 - Phase 0: partial
 - Phase 1: largely implemented
 - Phase 2: partially implemented
-- Phase 3: partially implemented
+- Phase 3: substantially implemented
 - Phase 4: partially implemented
 - Phase 5: complete for the primary generated tool surfaces in the plan
 - Phase 6: partially implemented at contract level
@@ -172,6 +174,9 @@ Implemented:
   - `ticket_follow_up`
 - stale-surface routing was corrected after review so it no longer contradicts the runner’s actual follow-on stages
 - `--stage-complete` is explicitly marked transitional in repair state and execution records
+- follow-on stage assertions are now persisted in `.opencode/meta/repair-follow-on-state.json` instead of living only in one runner invocation
+- deterministic refresh now resets that persistent follow-on tracker for a new repair cycle
+- later repair runs can reuse previously recorded follow-on stage completion without reasserting the same stage on every rerun
 - repair verification now fails contract checks for:
   - non-clean zero-finding states
   - restart-surface drift after repair
@@ -181,10 +186,11 @@ What this achieved:
 
 - the public repair runner is more honest about what it did, what is still blocked, and what still needs follow-on
 - repair no longer silently claims success in several contradictory post-repair states that were previously slipping through
+- follow-on stage progress is now machine-readable over time inside the subject repo instead of disappearing into CLI history
 
 Not yet done:
 
-- the transitional follow-on execution model still exists
+- stage completion still enters through transitional host assertion rather than a deeper automatic execution-state model
 - project-specific regeneration is still orchestrated rather than deterministic
 - the longer-term recorded execution-state architecture described in the plan is not complete
 
@@ -318,7 +324,7 @@ Why it still matters:
 
 Still needed:
 
-- replace the transitional host-asserted `--stage-complete` model with a stronger recorded execution-state architecture
+- move beyond transitional host-asserted stage completion as the only way follow-on execution enters the recorded state
 - keep convergent repair honest while repo-local regeneration remains partially orchestrated
 - expand direct fixture coverage around stale-surface map follow-on behavior
 

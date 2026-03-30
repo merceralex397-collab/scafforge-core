@@ -18,6 +18,7 @@ from shared_verifier import audit_repo
 
 START_HERE_MANAGED_START = "<!-- SCAFFORGE:START_HERE_BLOCK START -->"
 START_HERE_MANAGED_END = "<!-- SCAFFORGE:START_HERE_BLOCK END -->"
+FOLLOW_ON_TRACKING_PATH = Path(".opencode/meta/repair-follow-on-state.json")
 DETERMINISTIC_PROCESS_DOCS = (
     "workflow.md",
     "tooling.md",
@@ -241,6 +242,30 @@ def normalize_ticket_state_map(value: Any) -> dict[str, dict[str, Any]]:
 
 def current_iso_timestamp() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+
+
+def initialize_follow_on_tracking_state(
+    repo_root: Path,
+    *,
+    process_version: int,
+    change_summary: str,
+) -> dict[str, Any]:
+    timestamp = current_iso_timestamp()
+    payload = {
+        "tracking_mode": "persistent_recorded_state",
+        "assertion_input_mode": "transitional_manual_assertion",
+        "cycle_id": timestamp,
+        "created_at": timestamp,
+        "last_updated_at": timestamp,
+        "process_version": process_version,
+        "repair_package_commit": current_package_commit(),
+        "change_summary": change_summary,
+        "required_stages": [],
+        "stage_records": {},
+        "history": [],
+    }
+    write_json(repo_root / FOLLOW_ON_TRACKING_PATH, payload)
+    return payload
 
 
 def find_placeholder_skills(repo_root: Path) -> list[str]:
@@ -691,6 +716,8 @@ def update_workflow_state(repo_root: Path, rendered_provenance: dict[str, Any], 
             "completed_stages": [],
             "asserted_completed_stages": [],
             "stage_completion_mode": "transitional_manual_assertion",
+            "tracking_mode": "persistent_recorded_state",
+            "follow_on_state_path": str(FOLLOW_ON_TRACKING_PATH).replace("\\", "/"),
             "blocking_reasons": [
                 "Managed repair refreshed workflow surfaces. Run the full scafforge-repair follow-on flow before resuming normal ticket lifecycle execution."
             ],
@@ -709,6 +736,11 @@ def update_workflow_state(repo_root: Path, rendered_provenance: dict[str, Any], 
         "state_revision": existing_state_revision,
     }
     write_json(workflow_path, payload)
+    initialize_follow_on_tracking_state(
+        repo_root,
+        process_version=process_version,
+        change_summary=change_summary,
+    )
 
 
 def update_provenance(
