@@ -19,6 +19,7 @@ if str(SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_DIR))
 
 from audit_execution_surfaces import ExecutionSurfaceAuditContext, run_execution_surface_audits
+from audit_lifecycle_contracts import LifecycleContractAuditContext, run_lifecycle_contract_audits
 from audit_restart_surfaces import RestartSurfaceAuditContext, run_restart_surface_audits
 from audit_ticket_graph import TicketGraphAuditContext, run_ticket_graph_audits
 from shared_verifier_types import Finding
@@ -1276,96 +1277,6 @@ def audit_missing_post_migration_verification(root: Path, findings: list[Finding
         )
 
 
-def audit_active_process_verification(root: Path, findings: list[Finding]) -> None:
-    workflow_path = root / ".opencode" / "state" / "workflow-state.json"
-    manifest_path = root / "tickets" / "manifest.json"
-    start_here_path = root / "START-HERE.md"
-    latest_handoff_path = root / ".opencode" / "state" / "latest-handoff.md"
-    ticket_lookup_path = root / ".opencode" / "tools" / "ticket_lookup.ts"
-    ticket_update_path = root / ".opencode" / "tools" / "ticket_update.ts"
-    stage_gate_path = root / ".opencode" / "plugins" / "stage-gate-enforcer.ts"
-    workflow = read_json(workflow_path)
-    manifest = read_json(manifest_path)
-    if not isinstance(workflow, dict) or not isinstance(manifest, dict):
-        return
-    if workflow.get("pending_process_verification") is not True:
-        return
-
-    affected = tickets_needing_process_verification(manifest, workflow)
-
-    evidence: list[str] = []
-    files = [normalize_path(workflow_path, root), normalize_path(manifest_path, root)]
-    clean_claim_pattern = re.compile(r"\bclean state\b|\brepo is clean\b|\ball (?:tickets )?complete(?: and verified)?\b|\bfully verified\b|\bno follow-up required\b", re.IGNORECASE)
-
-    for surface_path in (start_here_path, latest_handoff_path):
-        label = normalize_path(surface_path, root)
-        files.append(label)
-        if not surface_path.exists():
-            evidence.append(f"Missing derived restart surface while process verification is pending: {label}.")
-            continue
-        surface_text = read_text(surface_path)
-        surface = parse_start_here_state(surface_text)
-        if normalize_restart_surface_value(surface.get("pending_process_verification")) != "true":
-            evidence.append(f"{label} does not show pending_process_verification = true while canonical workflow state does.")
-        if normalize_restart_surface_value(surface.get("handoff_status")) == "ready for continued development":
-            evidence.append(f"{label} still claims ready-for-development handoff while process verification remains pending.")
-        if clean_claim_pattern.search(surface_text):
-            evidence.append(f"{label} includes clean-state prose even though pending_process_verification remains true.")
-
-    if ticket_lookup_path.exists():
-        files.append(normalize_path(ticket_lookup_path, root))
-        lookup_text = read_text(ticket_lookup_path)
-        if "ticket_reverify" not in lookup_text or "process_verification" not in lookup_text:
-            evidence.append(f"{normalize_path(ticket_lookup_path, root)} does not expose the backlog-verifier or ticket_reverify path for pending process verification.")
-        if not affected and "clearable_now" not in lookup_text:
-            evidence.append(f"{normalize_path(ticket_lookup_path, root)} does not expose whether pending_process_verification is immediately clearable when the affected done-ticket set is empty.")
-    else:
-        files.append(normalize_path(ticket_lookup_path, root))
-        evidence.append(f"Missing ticket lookup tool while process verification remains pending: {normalize_path(ticket_lookup_path, root)}.")
-
-    if not affected:
-        if ticket_update_path.exists():
-            files.append(normalize_path(ticket_update_path, root))
-        else:
-            files.append(normalize_path(ticket_update_path, root))
-            evidence.append(f"Missing ticket_update tool while pending_process_verification still needs a clear path: {normalize_path(ticket_update_path, root)}.")
-        if stage_gate_path.exists():
-            files.append(normalize_path(stage_gate_path, root))
-            stage_gate_text = read_text(stage_gate_path)
-            if "isWorkflowProcessVerificationClearOnly" not in stage_gate_text or "processVerification.clearable_now" not in stage_gate_text:
-                evidence.append(f"{normalize_path(stage_gate_path, root)} still appears to require a normal ticket write lease even when pending_process_verification is clearable now.")
-        else:
-            files.append(normalize_path(stage_gate_path, root))
-            evidence.append(f"Missing stage-gate enforcer while pending_process_verification still needs a legal clear path: {normalize_path(stage_gate_path, root)}.")
-
-    if not evidence:
-        return
-
-    change_time = str(workflow.get("process_last_changed_at", "")).strip() or "unknown"
-    affected_ids = [str(ticket.get("id", "")).strip() for ticket in affected if str(ticket.get("id", "")).strip()]
-    add_finding(
-        findings,
-        Finding(
-            code="WFLOW008",
-            severity="warning",
-            problem="Post-repair process verification is still pending, but the restart surfaces or legal next move contradict the canonical workflow state.",
-            root_cause="The workflow contract changed, but the repo is still hiding, overstating, or deadlocking the pending backlog-verification state. That lets restart surfaces imply readiness before historical trust is restored, or leaves the workflow flag stranded after the affected done-ticket set is already empty.",
-            files=list(dict.fromkeys(files)),
-            safer_pattern="Keep `pending_process_verification` visible, route the backlog verifier across the affected done-ticket set, expose `ticket_reverify` as the legal trust-restoration path, and when that affected set is empty leave a direct legal clear path for `pending_process_verification = false` instead of implying the repo is already clean or leaving the flag stranded.",
-            evidence=[
-                *evidence[:6],
-                f"{normalize_path(workflow_path, root)} records pending_process_verification = true.",
-                f"Current process window started at: {change_time}",
-                (
-                    f"Affected done tickets: {', '.join(affected_ids[:12])}" + (" ..." if len(affected_ids) > 12 else "")
-                    if affected_ids
-                    else "Affected done tickets: none; the workflow flag should now be directly clearable."
-                ),
-            ],
-        ),
-    )
-
-
 def audit_partial_workflow_layer_drift(root: Path, findings: list[Finding]) -> None:
     has_core_layer = any(
         (root / path).exists()
@@ -1885,222 +1796,6 @@ def audit_verification_basis_regression(root: Path, findings: list[Finding]) -> 
                 f"Later zero-finding pack without supporting logs: {normalize_path(false_clean_path, root)}",
                 f"False-clean pack generated at {false_clean_generated_at.isoformat()} after transcript basis at {basis_generated_at.isoformat()}",
                 f"Repairs recorded after transcript basis: {len(repairs_after_basis)}",
-            ],
-        ),
-    )
-
-
-def audit_review_stage_ambiguity(root: Path, findings: list[Finding]) -> None:
-    workflow_doc = root / "docs" / "process" / "workflow.md"
-    ticket_update = root / ".opencode" / "tools" / "ticket_update.ts"
-    workflow_tool = root / ".opencode" / "lib" / "workflow.ts"
-    if not workflow_doc.exists() or not ticket_update.exists() or not workflow_tool.exists():
-        return
-
-    workflow_text = read_text(workflow_doc)
-    ticket_text = read_text(ticket_update)
-    workflow_tool_text = read_text(workflow_tool)
-    docs_require_plan_review = "plan review" in workflow_text.lower()
-    tool_blocks_review_before_impl = "Cannot move to review before an implementation artifact exists." in workflow_tool_text
-    status_missing_plan_review = '"plan_review"' not in workflow_tool_text and "`plan_review`" not in workflow_text
-    if not (docs_require_plan_review and tool_blocks_review_before_impl and status_missing_plan_review):
-        return
-
-    add_finding(
-        findings,
-        Finding(
-            code="WFLOW003",
-            severity="error",
-            problem="The generated workflow contract overloads `review`, so plan review and implementation review are operationally ambiguous.",
-            root_cause="Workflow docs describe a pre-implementation plan review, but the generated tool contract only allows `review` after an implementation artifact exists and does not expose a distinct `plan_review` status.",
-            files=[
-                normalize_path(workflow_doc, root),
-                normalize_path(ticket_update, root),
-                normalize_path(workflow_tool, root),
-            ],
-            safer_pattern="Add an explicit `plan_review` stage/status, require a planning artifact before entering it, keep `approved_plan` in workflow-state, and reserve `review` for post-implementation review only.",
-            evidence=[
-                f"{normalize_path(workflow_doc, root)} still documents `plan review` before implementation.",
-                f"{normalize_path(workflow_tool, root)} still returns `Cannot move to review before an implementation artifact exists.`",
-                f"{normalize_path(workflow_tool, root)} still omits `plan_review` from coarse status definitions.",
-            ],
-        ),
-    )
-
-
-def audit_ticket_transition_contract(root: Path, findings: list[Finding]) -> None:
-    ticket_update = root / ".opencode" / "tools" / "ticket_update.ts"
-    workflow_tool = root / ".opencode" / "lib" / "workflow.ts"
-    stage_gate = root / ".opencode" / "plugins" / "stage-gate-enforcer.ts"
-    if not ticket_update.exists() or not workflow_tool.exists() or not stage_gate.exists():
-        return
-
-    ticket_text = read_text(ticket_update)
-    workflow_text = read_text(workflow_tool)
-    stage_gate_text = read_text(stage_gate)
-    evidence: list[str] = []
-
-    if 'ticket.status !== "plan_review"' in ticket_text:
-        evidence.append(f"{normalize_path(ticket_update, root)} still gates implementation on `ticket.status` instead of lifecycle `ticket.stage`.")
-    if 'ticket.status !== "plan_review"' in stage_gate_text:
-        evidence.append(f"{normalize_path(stage_gate, root)} still preflights implementation against `ticket.status` instead of lifecycle `ticket.stage`.")
-    if "resolveRequestedTicketProgress" not in ticket_text or "validateLifecycleStageStatus" not in ticket_text:
-        evidence.append(f"{normalize_path(ticket_update, root)} does not resolve and validate the requested stage/status pair before mutation.")
-    if "LIFECYCLE_STAGES" not in workflow_text or "Unsupported ticket stage:" not in workflow_text:
-        evidence.append(f"{normalize_path(workflow_tool, root)} does not expose an explicit allowed-stage contract with an unsupported-stage error.")
-    if "resolveRequestedTicketProgress" not in stage_gate_text or "validateLifecycleStageStatus" not in stage_gate_text:
-        evidence.append(f"{normalize_path(stage_gate, root)} does not validate stage/status requests before tool execution.")
-
-    if not evidence:
-        return
-
-    add_finding(
-        findings,
-        Finding(
-            code="WFLOW004",
-            severity="error",
-            problem="The generated ticket transition contract still keys implementation on the wrong state surface or accepts unvalidated lifecycle requests.",
-            root_cause="When implementation gating depends on `status` instead of lifecycle `stage`, or unknown stages are not rejected up front, weaker models start probing the state machine instead of following it.",
-            files=[
-                normalize_path(ticket_update, root),
-                normalize_path(workflow_tool, root),
-                normalize_path(stage_gate, root),
-            ],
-            safer_pattern="Validate every requested stage/status pair through one explicit lifecycle contract, reject unsupported stages, and gate implementation on `ticket.stage == plan_review` plus workflow-state approval.",
-            evidence=evidence,
-        ),
-    )
-
-
-def audit_reverification_deadlock(root: Path, findings: list[Finding]) -> None:
-    stage_gate = root / ".opencode" / "plugins" / "stage-gate-enforcer.ts"
-    ticket_claim = root / ".opencode" / "tools" / "ticket_claim.ts"
-    ticket_lookup = root / ".opencode" / "tools" / "ticket_lookup.ts"
-    ticket_reverify = root / ".opencode" / "tools" / "ticket_reverify.ts"
-    if not stage_gate.exists() or not ticket_claim.exists() or not ticket_reverify.exists():
-        return
-
-    stage_gate_text = read_text(stage_gate)
-    ticket_claim_text = read_text(ticket_claim)
-    ticket_lookup_text = read_text(ticket_lookup) if ticket_lookup.exists() else ""
-    evidence: list[str] = []
-
-    ticket_reverify_block = ""
-    reverify_match = re.search(r'if \(input\.tool === "ticket_reverify"\) \{([\s\S]*?)\n\s{6}\}', stage_gate_text)
-    if reverify_match:
-        ticket_reverify_block = reverify_match.group(1)
-
-    if "ensureTargetTicketWriteLease(ticketId)" in ticket_reverify_block:
-        evidence.append(f"{normalize_path(stage_gate, root)} still requires a normal write lease before `ticket_reverify` can run.")
-    if "cannot be claimed because it is already closed" in ticket_claim_text:
-        evidence.append(f"{normalize_path(ticket_claim, root)} still forbids claiming closed tickets.")
-    if (
-        "Ticket is already closed." in ticket_lookup_text
-        and "historical trust still needs restoration" not in ticket_lookup_text
-        and 'next_action_tool: "ticket_reverify"' not in ticket_lookup_text
-    ):
-        evidence.append(f"{normalize_path(ticket_lookup, root)} still presents closed tickets as terminal even when process verification may still be pending.")
-
-    if len(evidence) < 2:
-        return
-
-    add_finding(
-        findings,
-        Finding(
-            code="WFLOW009",
-            severity="error",
-            problem="The generated backlog reverification path is structurally deadlocked for closed tickets.",
-            root_cause="Closed historical tickets need reverification after a process change, but the current contract treats `ticket_reverify` like ordinary lease-bound write work while `ticket_claim` forbids claiming closed tickets. That makes trust restoration impossible without bypassing the workflow.",
-            files=[
-                normalize_path(stage_gate, root),
-                normalize_path(ticket_claim, root),
-                normalize_path(ticket_reverify, root),
-                *([normalize_path(ticket_lookup, root)] if ticket_lookup.exists() else []),
-            ],
-            safer_pattern="Let `ticket_reverify` mutate closed done tickets through a narrow reverification guard instead of a normal lane write lease, and expose that path in `ticket_lookup.transition_guidance` so the coordinator sees a legal trust-restoration route.",
-            evidence=evidence,
-        ),
-    )
-
-
-def audit_smoke_test_artifact_bypass(root: Path, findings: list[Finding]) -> None:
-    artifact_write = root / ".opencode" / "tools" / "artifact_write.ts"
-    artifact_register = root / ".opencode" / "tools" / "artifact_register.ts"
-    stage_gate = root / ".opencode" / "plugins" / "stage-gate-enforcer.ts"
-    ticket_lookup = root / ".opencode" / "tools" / "ticket_lookup.ts"
-    if not artifact_write.exists() or not artifact_register.exists() or not stage_gate.exists() or not ticket_lookup.exists():
-        return
-
-    artifact_write_text = read_text(artifact_write)
-    artifact_register_text = read_text(artifact_register)
-    stage_gate_text = read_text(stage_gate)
-    ticket_lookup_text = read_text(ticket_lookup)
-    evidence: list[str] = []
-
-    if re.search(r'description:\s*"[^"]*smoke-test[^"]*artifact', artifact_write_text):
-        evidence.append(f"{normalize_path(artifact_write, root)} still advertises smoke-test stages as generic artifact_write targets.")
-    if re.search(r'description:\s*"[^"]*smoke-test[^"]*artifact', artifact_register_text):
-        evidence.append(f"{normalize_path(artifact_register, root)} still advertises smoke-test stages as generic artifact_register targets.")
-    if "RESERVED_ARTIFACT_STAGES" not in stage_gate_text:
-        evidence.append(f"{normalize_path(stage_gate, root)} does not reserve smoke-test artifacts for their owning tool.")
-    if "Generic artifact_write is not allowed for that stage." not in stage_gate_text:
-        evidence.append(f"{normalize_path(stage_gate, root)} does not block generic artifact_write for smoke-test stages.")
-    if "Generic artifact_register is not allowed for that stage." not in stage_gate_text:
-        evidence.append(f"{normalize_path(stage_gate, root)} does not block generic artifact_register for smoke-test stages.")
-    if "Do not fabricate a PASS artifact through generic artifact tools." not in ticket_lookup_text:
-        evidence.append(f"{normalize_path(ticket_lookup, root)} does not warn that smoke-test PASS proof must come from `smoke_test` rather than generic artifact tools.")
-
-    if not evidence:
-        return
-
-    add_finding(
-        findings,
-        Finding(
-            code="WFLOW005",
-            severity="error",
-            problem="Smoke-test proof can still be fabricated through generic artifact tools instead of the owning deterministic workflow tool.",
-            root_cause="If generic artifact surfaces can create smoke-test artifacts, a weaker model can bypass executed validation and publish closeout-ready proof that no deterministic tool produced.",
-            files=[
-                normalize_path(artifact_write, root),
-                normalize_path(artifact_register, root),
-                normalize_path(stage_gate, root),
-                normalize_path(ticket_lookup, root),
-            ],
-            safer_pattern="Reserve smoke-test artifacts to `smoke_test`, and make the plugin plus transition guidance reject generic PASS-proof fabrication while keeping optional handoff artifacts consistent with docs-lane ownership.",
-            evidence=evidence,
-        ),
-    )
-
-
-def audit_handoff_artifact_ownership_conflict(root: Path, findings: list[Finding]) -> None:
-    stage_gate = root / ".opencode" / "plugins" / "stage-gate-enforcer.ts"
-    docs_handoff = next((path for path in (root / ".opencode" / "agents").glob("*docs-handoff*.md")), None)
-    if not stage_gate.exists() or not docs_handoff:
-        return
-
-    stage_gate_text = read_text(stage_gate)
-    docs_handoff_text = read_text(docs_handoff)
-    generic_handoff_instructions = (
-        "canonical handoff artifact path" in docs_handoff_text
-        and "artifact_write" in docs_handoff_text
-        and "artifact_register" in docs_handoff_text
-    )
-    plugin_blocks_handoff = bool(re.search(r'RESERVED_ARTIFACT_STAGES\s*=\s*new Set\(\[[^\]]*"handoff"', stage_gate_text))
-    if not (generic_handoff_instructions and plugin_blocks_handoff):
-        return
-
-    add_finding(
-        findings,
-        Finding(
-            code="WFLOW007",
-            severity="error",
-            problem="The generated handoff ownership contract is self-contradictory: docs-handoff is told to write a canonical handoff artifact, but the stage gate blocks that documented path.",
-            root_cause="The package reserved `handoff` too broadly at the plugin layer while the generated docs-handoff lane still instructs agents to create optional canonical handoff artifacts through `artifact_write` and `artifact_register`.",
-            files=[normalize_path(stage_gate, root), normalize_path(docs_handoff, root)],
-            safer_pattern="Keep `handoff_publish` as the owner of `START-HERE.md` and `.opencode/state/latest-handoff.md`, but leave optional canonical `handoff` artifacts writable by the docs-handoff lane unless a dedicated end-to-end handoff artifact tool exists.",
-            evidence=[
-                f"{normalize_path(docs_handoff, root)} still instructs the docs lane to write and register a canonical handoff artifact.",
-                f"{normalize_path(stage_gate, root)} still blocks generic artifact_write or artifact_register for `handoff`.",
             ],
         ),
     )
@@ -2860,11 +2555,24 @@ def ticket_graph_audit_context() -> TicketGraphAuditContext:
     )
 
 
+def lifecycle_contract_audit_context() -> LifecycleContractAuditContext:
+    return LifecycleContractAuditContext(
+        read_text=read_text,
+        read_json=read_json,
+        normalize_path=normalize_path,
+        add_finding=add_finding,
+        tickets_needing_process_verification=tickets_needing_process_verification,
+        parse_start_here_state=parse_start_here_state,
+        normalize_restart_surface_value=normalize_restart_surface_value,
+    )
+
+
 def audit_repo(root: Path, logs: list[Path] | None = None) -> list[Finding]:
     findings: list[Finding] = []
     execution_ctx = execution_surface_audit_context()
     restart_ctx = restart_surface_audit_context()
     ticket_graph_ctx = ticket_graph_audit_context()
+    lifecycle_ctx = lifecycle_contract_audit_context()
     audit_status_model(root, findings)
     audit_status_semantics_docs(root, findings)
     audit_planned_tickets_without_artifacts(root, findings)
@@ -2880,7 +2588,6 @@ def audit_repo(root: Path, logs: list[Path] | None = None) -> list[Finding]:
     audit_missing_observability_layer(root, findings)
     audit_process_change_tracking(root, findings)
     audit_missing_post_migration_verification(root, findings)
-    audit_active_process_verification(root, findings)
     audit_partial_workflow_layer_drift(root, findings)
     audit_raw_file_state_ownership(root, findings)
     audit_missing_artifact_gates(root, findings)
@@ -2896,11 +2603,7 @@ def audit_repo(root: Path, logs: list[Path] | None = None) -> list[Finding]:
     run_execution_surface_audits(root, findings, execution_ctx)
     run_restart_surface_audits(root, findings, restart_ctx)
     run_ticket_graph_audits(root, findings, ticket_graph_ctx)
-    audit_review_stage_ambiguity(root, findings)
-    audit_ticket_transition_contract(root, findings)
-    audit_reverification_deadlock(root, findings)
-    audit_smoke_test_artifact_bypass(root, findings)
-    audit_handoff_artifact_ownership_conflict(root, findings)
+    run_lifecycle_contract_audits(root, findings, lifecycle_ctx)
     audit_session_chronology(root, findings, logs or [])
     audit_session_transition_thrash(root, findings, logs or [])
     audit_session_workaround_search(root, findings, logs or [])
