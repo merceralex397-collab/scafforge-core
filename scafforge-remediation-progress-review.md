@@ -132,6 +132,9 @@ Implemented:
 - a fourth audit family extraction landed
 - lifecycle-contract rules were split out into:
   - [audit_lifecycle_contracts.py](/home/rowan/Scafforge/skills/scafforge-audit/scripts/audit_lifecycle_contracts.py)
+- a fifth audit family extraction landed
+- repair-cycle diagnostics were split out into:
+  - [audit_repair_cycles.py](/home/rowan/Scafforge/skills/scafforge-audit/scripts/audit_repair_cycles.py)
 - validator expectations were updated to treat rule-family modularization as part of the package contract
 
 What this achieved:
@@ -140,12 +143,13 @@ What this achieved:
 - restart-surface and resume-truth logic is no longer buried only in the main monolith
 - ticket-graph and historical-routing logic is no longer buried only in the main monolith
 - lifecycle stage, proof-ownership, and pending-process-verification logic is no longer buried only in the main monolith
+- repair-cycle and false-clean regression logic is no longer buried only in the main monolith
 - the repo now has an actual pattern for continued audit modularization
 
 Not yet done:
 
 - `audit_repo_process.py` is still large and still owns most invariant families
-- canonical-truth drift, repair-cycle, and transcript/session-oriented contradiction families are not yet split into separate modules
+- canonical-truth drift and transcript/session-oriented contradiction families are not yet split into separate modules
 - audit documentation is smaller than before in effect, but the full Phase 3 modularization target is still incomplete
 
 ### Phase 4: Make Repair Convergent And Bounded
