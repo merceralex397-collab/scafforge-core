@@ -21,6 +21,7 @@ import {
   nextRepairFollowOnStage,
   openSplitScopeChildren,
   repairFollowOnBlockingReason,
+  ticketNeedsHistoricalReconciliation,
   ticketNeedsTrustRestoration,
   ticketNeedsProcessVerification,
   validateImplementationArtifactEvidence,
@@ -34,6 +35,7 @@ async function buildTransitionGuidance(ticket: ReturnType<typeof getTicket>, wor
   const blocker = validateLifecycleStageStatus(ticket.stage, ticket.status)
   const approvedPlan = isPlanApprovedForTicket(workflow, ticket.id)
   const needsProcessVerification = ticketNeedsProcessVerification(ticket, workflow)
+  const ticketNeedsReconciliation = ticketNeedsHistoricalReconciliation(ticket)
   const ticketTrustNeedsRestoration = ticketNeedsTrustRestoration(ticket, workflow)
   const bootstrapStatus = workflow.bootstrap.status
   const repairFollowOnPending = hasPendingRepairFollowOn(workflow)
@@ -280,6 +282,22 @@ async function buildTransitionGuidance(ticket: ReturnType<typeof getTicket>, wor
       }
     }
     case "closeout":
+      if (ticket.status === "done" && ticketNeedsReconciliation) {
+        return {
+          ...base,
+          next_allowed_stages: [],
+          required_artifacts: ["current reconciliation evidence artifact"],
+          next_action_kind: "reconcile",
+          next_action_tool: "ticket_reconcile",
+          delegate_to_agent: null,
+          required_owner: "team-leader",
+          canonical_artifact_path: defaultArtifactPath(ticket.id, "review", "ticket-reconciliation"),
+          artifact_stage: "review",
+          artifact_kind: "ticket-reconciliation",
+          recommended_action: "Ticket is already closed, but its historical lineage is still contradictory. Use ticket_reconcile with current registered evidence instead of trying to reopen or reclaim it.",
+          recommended_ticket_update: null,
+        }
+      }
       if (ticket.status === "done" && ticketTrustNeedsRestoration) {
         return {
           ...base,

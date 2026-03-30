@@ -995,8 +995,12 @@ export function getProcessVerificationState(manifest: Manifest, workflow: Workfl
     done_but_not_fully_trusted: doneButNotFullyTrusted,
   }
 }
+export function ticketNeedsHistoricalReconciliation(ticket: Ticket): boolean {
+  return ticket.status === "done" && ticket.resolution_state === "superseded" && ticket.verification_state === "invalidated"
+}
 export function ticketNeedsTrustRestoration(ticket: Ticket, workflow: WorkflowState): boolean {
   if (ticket.status !== "done") return false
+  if (ticketNeedsHistoricalReconciliation(ticket)) return false
   if (ticketNeedsProcessVerification(ticket, workflow)) return true
   return getTicketWorkflowState(workflow, ticket.id).needs_reverification === true
 }
@@ -1099,6 +1103,7 @@ export function renderStartHere(manifest: Manifest, workflow: WorkflowState, opt
   const ticket = getTicket(manifest, workflow.active_ticket)
   const reopened = manifest.tickets.filter((item) => item.resolution_state === "reopened")
   const processVerification = getProcessVerificationState(manifest, workflow, ticket.id)
+  const activeTicketNeedsHistoricalReconciliation = ticketNeedsHistoricalReconciliation(ticket)
   const activeTicketNeedsTrustRestoration = ticketNeedsTrustRestoration(ticket, workflow)
   const suspectDone = processVerification.done_but_not_fully_trusted
   const reverification = manifest.tickets.filter((item) => getTicketWorkflowState(workflow, item.id).needs_reverification)
@@ -1114,7 +1119,7 @@ export function renderStartHere(manifest: Manifest, workflow: WorkflowState, opt
       ? "bootstrap recovery required"
       : repairFollowOnPending
         ? "repair follow-up required"
-        : processVerification.pending || activeTicketNeedsTrustRestoration
+        : processVerification.pending || activeTicketNeedsTrustRestoration || activeTicketNeedsHistoricalReconciliation
           ? "workflow verification pending"
           : "ready for continued development"
   )
@@ -1127,6 +1132,8 @@ export function renderStartHere(manifest: Manifest, workflow: WorkflowState, opt
           ? `Keep ${ticket.id} open as a split parent and continue the child ticket lane${splitChildren.length > 1 ? "s" : ""}: ${splitChildren.map((item) => item.id).join(", ")}.`
           : ticket.status !== "done"
             ? `Keep ${ticket.id} as the foreground ticket and continue its lifecycle from ${ticket.stage}. Historical done-ticket reverification stays secondary until the active open ticket is resolved.`
+            : activeTicketNeedsHistoricalReconciliation
+              ? `Ticket is already closed, but its historical lineage is still contradictory. Use ticket_reconcile with current registered evidence to repair ${ticket.id} instead of trying to reopen or reclaim it.`
             : activeTicketNeedsTrustRestoration
               ? `Ticket is already closed, but historical trust still needs restoration. Use ${verifierLabel} to produce current evidence, then run ticket_reverify on ${ticket.id} instead of trying to reclaim it.`
               : processVerification.pending
@@ -1142,6 +1149,7 @@ export function renderStartHere(manifest: Manifest, workflow: WorkflowState, opt
     workflow.bootstrap.status !== "ready" ? "- Environment validation can fail for setup reasons until bootstrap proof exists." : null,
     repairFollowOnPending ? `- Repair follow-on remains incomplete${repairBlocker ? `: ${repairBlocker}` : "."}` : null,
     sourceFollowUpPending ? "- Managed repair converged, but source-layer follow-up still remains in the ticket graph." : null,
+    activeTicketNeedsHistoricalReconciliation ? "- Historical lineage remains contradictory until ticket_reconcile repairs the superseded invalidated ticket graph." : null,
     activeTicketNeedsTrustRestoration || processVerification.pending ? "- Historical completion should not be treated as fully trusted until pending process verification or explicit reverification is cleared." : null,
     processVerification.clearable_now ? "- The workflow still records pending process verification even though no done tickets remain affected; clear the workflow flag before relying on a clean-state restart narrative." : null,
     suspectDone.length > 0 ? `- Some done tickets are not fully trusted yet: ${suspectDone.map((item) => item.id).join(", ")}.` : null,

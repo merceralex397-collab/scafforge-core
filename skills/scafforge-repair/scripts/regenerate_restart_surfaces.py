@@ -282,9 +282,19 @@ def ticket_needs_trust_restoration(ticket: dict[str, Any], workflow: dict[str, A
     ticket_id = str(ticket.get("id", "")).strip()
     if ticket.get("status") != "done" or not ticket_id:
         return False
+    if ticket_needs_historical_reconciliation(ticket):
+        return False
     if ticket_needs_process_verification(ticket, workflow):
         return True
     return get_ticket_state(workflow, ticket_id).get("needs_reverification") is True
+
+
+def ticket_needs_historical_reconciliation(ticket: dict[str, Any]) -> bool:
+    return (
+        ticket.get("status") == "done"
+        and ticket.get("resolution_state") == "superseded"
+        and ticket.get("verification_state") == "invalidated"
+    )
 
 
 def compute_handoff_status(workflow: dict[str, Any], verification_passed: bool | None = None) -> str:
@@ -307,6 +317,7 @@ def default_next_action(manifest: dict[str, Any], workflow: dict[str, Any], back
         return "Resolve the canonical manifest and workflow-state mismatch before resuming autonomous work."
 
     verification_state = process_verification_state(manifest, workflow, str(ticket.get("id", "")))
+    ticket_needs_reconciliation = ticket_needs_historical_reconciliation(ticket)
     ticket_trust_needs_restoration = ticket_needs_trust_restoration(ticket, workflow)
     bootstrap = workflow.get("bootstrap") if isinstance(workflow.get("bootstrap"), dict) else {}
     bootstrap_status = str(bootstrap.get("status", "")).strip() or "missing"
@@ -324,6 +335,11 @@ def default_next_action(manifest: dict[str, Any], workflow: dict[str, Any], back
         )
     if verification_passed is False and workflow.get("pending_process_verification") is not True:
         return "Resolve the post-repair audit blockers and rerun scafforge-audit before treating the restart narrative as ready for continued development."
+    if ticket_needs_reconciliation:
+        return (
+            f"Ticket is already closed, but its historical lineage is still contradictory. Use ticket_reconcile with "
+            f"current registered evidence to repair {ticket.get('id')} instead of trying to reopen or reclaim it."
+        )
     if ticket_trust_needs_restoration:
         return (
             f"Ticket is already closed, but historical trust still needs restoration. Use {verifier_label} to produce "
@@ -378,8 +394,13 @@ def render_start_here(
     repair_follow_on_pending = has_pending_repair_follow_on(workflow, verification_passed)
     source_follow_up_pending = repair_follow_on["outcome"] == "source_follow_up"
     repair_follow_on_next_stage = next_repair_follow_on_stage(workflow) or "none"
+    active_ticket_needs_reconciliation = ticket_needs_historical_reconciliation(ticket)
     active_ticket_trust_needs_restoration = ticket_needs_trust_restoration(ticket, workflow)
-    handoff_status = "workflow verification pending" if active_ticket_trust_needs_restoration else compute_handoff_status(workflow, verification_passed)
+    handoff_status = (
+        "workflow verification pending"
+        if active_ticket_needs_reconciliation or active_ticket_trust_needs_restoration
+        else compute_handoff_status(workflow, verification_passed)
+    )
     recommended_action = next_action or default_next_action(manifest, workflow, backlog_verifier_agent, verification_passed)
 
     risk_lines: list[str] = []
@@ -390,6 +411,8 @@ def render_start_here(
         risk_lines.append(f"- Repair follow-on remains incomplete{': ' + repair_blocker if repair_blocker else '.'}")
     if source_follow_up_pending:
         risk_lines.append("- Managed repair converged, but source-layer follow-up still remains in the ticket graph.")
+    if active_ticket_needs_reconciliation:
+        risk_lines.append("- Historical lineage remains contradictory until ticket_reconcile repairs the superseded invalidated ticket graph.")
     if active_ticket_trust_needs_restoration or verification_state["pending"]:
         risk_lines.append("- Historical completion should not be treated as fully trusted until pending process verification or explicit reverification is cleared.")
     if verification_state["clearable_now"]:
