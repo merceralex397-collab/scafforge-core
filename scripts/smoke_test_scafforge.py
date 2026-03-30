@@ -198,6 +198,80 @@ def run_generated_tool_error(dest: Path, relative_tool_path: str, args: dict[str
     return f"{result.stdout}\n{result.stderr}".strip()
 
 
+def run_generated_plugin_before(dest: Path, relative_plugin_path: str, tool_name: str, args: dict[str, object]) -> None:
+    prepare_generated_tool_runtime(dest)
+    runner = dest / ".opencode" / "state" / "plugin-runner.mjs"
+    runner.parent.mkdir(parents=True, exist_ok=True)
+    runner.write_text(
+        "\n".join(
+            [
+                'import { pathToFileURL } from "node:url"',
+                "const pluginPath = process.env.SCAFFORGE_PLUGIN_PATH",
+                "if (!pluginPath) throw new Error('Missing SCAFFORGE_PLUGIN_PATH')",
+                "const mod = await import(pathToFileURL(pluginPath).href)",
+                "const factory = mod.StageGateEnforcer",
+                "if (typeof factory !== 'function') throw new Error('Missing StageGateEnforcer export')",
+                "const hooks = await factory()",
+                'const hook = hooks["tool.execute.before"]',
+                "if (typeof hook !== 'function') throw new Error('Missing tool.execute.before hook')",
+                "const toolName = process.env.SCAFFORGE_PLUGIN_TOOL",
+                "const rawArgs = process.env.SCAFFORGE_PLUGIN_ARGS || '{}'",
+                'await hook({ tool: toolName }, { args: JSON.parse(rawArgs) })',
+                'console.log(JSON.stringify({ ok: true }))',
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    env = os.environ.copy()
+    env["SCAFFORGE_PLUGIN_PATH"] = str((dest / relative_plugin_path).resolve())
+    env["SCAFFORGE_PLUGIN_TOOL"] = tool_name
+    env["SCAFFORGE_PLUGIN_ARGS"] = json.dumps(args)
+    run(["node", "--experimental-strip-types", str(runner)], dest, env=env)
+
+
+def run_generated_plugin_before_error(dest: Path, relative_plugin_path: str, tool_name: str, args: dict[str, object]) -> str:
+    prepare_generated_tool_runtime(dest)
+    runner = dest / ".opencode" / "state" / "plugin-runner.mjs"
+    runner.parent.mkdir(parents=True, exist_ok=True)
+    runner.write_text(
+        "\n".join(
+            [
+                'import { pathToFileURL } from "node:url"',
+                "const pluginPath = process.env.SCAFFORGE_PLUGIN_PATH",
+                "if (!pluginPath) throw new Error('Missing SCAFFORGE_PLUGIN_PATH')",
+                "const mod = await import(pathToFileURL(pluginPath).href)",
+                "const factory = mod.StageGateEnforcer",
+                "if (typeof factory !== 'function') throw new Error('Missing StageGateEnforcer export')",
+                "const hooks = await factory()",
+                'const hook = hooks["tool.execute.before"]',
+                "if (typeof hook !== 'function') throw new Error('Missing tool.execute.before hook')",
+                "const toolName = process.env.SCAFFORGE_PLUGIN_TOOL",
+                "const rawArgs = process.env.SCAFFORGE_PLUGIN_ARGS || '{}'",
+                'await hook({ tool: toolName }, { args: JSON.parse(rawArgs) })',
+                'console.log(JSON.stringify({ ok: true }))',
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    env = os.environ.copy()
+    env["SCAFFORGE_PLUGIN_PATH"] = str((dest / relative_plugin_path).resolve())
+    env["SCAFFORGE_PLUGIN_TOOL"] = tool_name
+    env["SCAFFORGE_PLUGIN_ARGS"] = json.dumps(args)
+    result = subprocess.run(
+        ["node", "--experimental-strip-types", str(runner)],
+        cwd=dest,
+        check=False,
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    if result.returncode == 0:
+        raise RuntimeError(f"Plugin hook unexpectedly succeeded: {relative_plugin_path} {tool_name}")
+    return f"{result.stdout}\n{result.stderr}".strip()
+
+
 def register_current_ticket_artifact(
     dest: Path,
     *,
@@ -3338,6 +3412,70 @@ def main() -> int:
             raise RuntimeError("artifact_register should persist the stage and kind of the registered artifact")
         if not str(latest_registered_plan["path"]).startswith(".opencode/state/artifacts/history/setup-001/planning/"):
             raise RuntimeError("artifact_register should snapshot canonical artifacts into history-backed registry storage")
+        stage_gate_reserved_write_error = run_generated_plugin_before_error(
+            executed_artifact_tools_dest,
+            ".opencode/plugins/stage-gate-enforcer.ts",
+            "artifact_write",
+            {
+                "ticket_id": "SETUP-001",
+                "path": ".opencode/state/smoke-tests/setup-001-smoke-test-smoke-test.md",
+                "kind": "smoke-test",
+                "stage": "smoke-test",
+                "content": "# Synthetic Smoke\n",
+            },
+        )
+        if "Use smoke_test to create smoke-test artifacts." not in stage_gate_reserved_write_error:
+            raise RuntimeError("Stage gate plugin should block generic artifact_write for reserved smoke-test artifacts")
+        stage_gate_reserved_register_error = run_generated_plugin_before_error(
+            executed_artifact_tools_dest,
+            ".opencode/plugins/stage-gate-enforcer.ts",
+            "artifact_register",
+            {
+                "ticket_id": "SETUP-001",
+                "path": ".opencode/state/smoke-tests/setup-001-smoke-test-smoke-test.md",
+                "kind": "smoke-test",
+                "stage": "smoke-test",
+                "summary": "Synthetic smoke summary.",
+            },
+        )
+        if "Use smoke_test to create smoke-test artifacts." not in stage_gate_reserved_register_error:
+            raise RuntimeError("Stage gate plugin should block generic artifact_register for reserved smoke-test artifacts")
+        stage_gate_missing_lease_error = run_generated_plugin_before_error(
+            executed_artifact_tools_dest,
+            ".opencode/plugins/stage-gate-enforcer.ts",
+            "artifact_write",
+            {
+                "ticket_id": "SETUP-001",
+                "path": ".opencode/state/implementations/setup-001-implementation-implementation.md",
+                "kind": "implementation",
+                "stage": "implementation",
+                "content": "# Synthetic Implementation\n",
+            },
+        )
+        if "must hold an active write lease" not in stage_gate_missing_lease_error:
+            raise RuntimeError("Stage gate plugin should block implementation artifact writes when no active ticket lease exists")
+        run_generated_tool(
+            executed_artifact_tools_dest,
+            ".opencode/tools/ticket_claim.ts",
+            {
+                "ticket_id": "SETUP-001",
+                "owner_agent": "smoke-stage-gate",
+                "allowed_paths": [".opencode/state"],
+                "write_lock": True,
+            },
+        )
+        run_generated_plugin_before(
+            executed_artifact_tools_dest,
+            ".opencode/plugins/stage-gate-enforcer.ts",
+            "artifact_write",
+            {
+                "ticket_id": "SETUP-001",
+                "path": ".opencode/state/implementations/setup-001-implementation-implementation.md",
+                "kind": "implementation",
+                "stage": "implementation",
+                "content": "# Synthetic Implementation\n",
+            },
+        )
         executed_reopen_dest = workspace / "executed-ticket-reopen"
         shutil.copytree(full_dest, executed_reopen_dest)
         seed_closed_ticket_needing_explicit_reverification(executed_reopen_dest)

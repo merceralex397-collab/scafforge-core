@@ -223,6 +223,9 @@ Implemented:
   - `ticket_create` split-scope follow-up creation
   - `ticket_create` process-verification follow-up creation
   - `issue_intake` rollback-required follow-up creation
+- package-local plugin execution coverage now exercises:
+  - `stage-gate-enforcer` reserved smoke-test artifact blocking for both `artifact_write` and `artifact_register`
+  - `stage-gate-enforcer` implementation artifact write-lease enforcement, including a passing leased path after `ticket_claim`
 - restart-surface fixtures now cover:
   - closed ticket with blocked dependents
   - closed ticket needing explicit reverification
@@ -243,8 +246,8 @@ Important detail:
 
 Residual follow-through:
 
-- direct execution coverage for plugin enforcement surfaces is still lighter than the tool coverage
-- the stubbed plugin runtime harness has not yet been generalized into a broader plugin-execution harness
+- direct plugin execution coverage is stronger than before, but it is still lighter than the tool coverage
+- the stubbed plugin runtime harness now covers the main stage-gate artifact/lease cases, but it has not yet been generalized into a broader plugin-execution harness
 - if later regressions cluster around stage-gate enforcement rather than tool behavior, that should be treated as additional verification hardening rather than proof that the core Phase 5 tool work is missing
 - most of the ordinary queue mutation, artifact, restart-publication, and historical-repair paths are now covered, but the wider generated workflow toolchain is still not fully execution-proven
 
@@ -342,7 +345,7 @@ Still needed:
 Why it still matters:
 
 - the core generated tools in the Phase 5 plan are now execution-backed
-- the remaining verification gap is mainly plugin enforcement breadth, not the primary tool lifecycle itself
+- the remaining verification gap is now mainly plugin enforcement breadth and adjacent restart-policy surfaces, not the primary tool lifecycle itself
 
 ### 3. Deepen Pivot Orchestration
 
