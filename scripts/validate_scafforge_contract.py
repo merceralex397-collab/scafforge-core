@@ -763,6 +763,7 @@ def validate_audit_repair_surfaces(findings: list[Finding]) -> None:
     audit_skill = ROOT / "skills" / "scafforge-audit"
     repair_skill = ROOT / "skills" / "scafforge-repair"
     audit_execution_surfaces = audit_skill / "scripts" / "audit_execution_surfaces.py"
+    audit_lifecycle_contracts = audit_skill / "scripts" / "audit_lifecycle_contracts.py"
     audit_restart_surfaces = audit_skill / "scripts" / "audit_restart_surfaces.py"
     audit_ticket_graph = audit_skill / "scripts" / "audit_ticket_graph.py"
     require_paths(
@@ -772,6 +773,7 @@ def validate_audit_repair_surfaces(findings: list[Finding]) -> None:
             audit_skill / "agents" / "openai.yaml",
             audit_skill / "scripts" / "audit_repo_process.py",
             audit_execution_surfaces,
+            audit_lifecycle_contracts,
             audit_restart_surfaces,
             audit_ticket_graph,
             audit_skill / "scripts" / "shared_verifier.py",
@@ -803,18 +805,25 @@ def validate_audit_repair_surfaces(findings: list[Finding]) -> None:
     require_contains(findings, audit_skill / "scripts" / "shared_verifier_types.py", "@dataclass")
     require_contains(findings, audit_skill / "scripts" / "shared_verifier_types.py", "class Finding")
     require_contains(findings, audit_skill / "scripts" / "audit_repo_process.py", "from audit_execution_surfaces import ExecutionSurfaceAuditContext, run_execution_surface_audits")
+    require_contains(findings, audit_skill / "scripts" / "audit_repo_process.py", "from audit_lifecycle_contracts import LifecycleContractAuditContext, run_lifecycle_contract_audits")
     require_contains(findings, audit_skill / "scripts" / "audit_repo_process.py", "from audit_restart_surfaces import RestartSurfaceAuditContext, run_restart_surface_audits")
     require_contains(findings, audit_skill / "scripts" / "audit_repo_process.py", "from audit_ticket_graph import TicketGraphAuditContext, run_ticket_graph_audits")
     require_contains(findings, audit_skill / "scripts" / "audit_repo_process.py", "execution_surface_audit_context")
+    require_contains(findings, audit_skill / "scripts" / "audit_repo_process.py", "lifecycle_contract_audit_context")
     require_contains(findings, audit_skill / "scripts" / "audit_repo_process.py", "restart_surface_audit_context")
     require_contains(findings, audit_skill / "scripts" / "audit_repo_process.py", "ticket_graph_audit_context")
     require_contains(findings, audit_skill / "scripts" / "audit_repo_process.py", "run_execution_surface_audits(root, findings, execution_ctx)")
+    require_contains(findings, audit_skill / "scripts" / "audit_repo_process.py", "run_lifecycle_contract_audits(root, findings, lifecycle_ctx)")
     require_contains(findings, audit_skill / "scripts" / "audit_repo_process.py", "run_restart_surface_audits(root, findings, restart_ctx)")
     require_contains(findings, audit_skill / "scripts" / "audit_repo_process.py", "run_ticket_graph_audits(root, findings, ticket_graph_ctx)")
     require_contains(findings, audit_execution_surfaces, "class ExecutionSurfaceAuditContext")
     require_contains(findings, audit_execution_surfaces, "def run_execution_surface_audits(")
     require_contains(findings, audit_execution_surfaces, "def audit_environment_prerequisites(")
     require_contains(findings, audit_execution_surfaces, "def audit_python_execution(")
+    require_contains(findings, audit_lifecycle_contracts, "class LifecycleContractAuditContext")
+    require_contains(findings, audit_lifecycle_contracts, "def run_lifecycle_contract_audits(")
+    require_contains(findings, audit_lifecycle_contracts, "def audit_active_process_verification(")
+    require_contains(findings, audit_lifecycle_contracts, "def audit_ticket_transition_contract(")
     require_contains(findings, audit_restart_surfaces, "class RestartSurfaceAuditContext")
     require_contains(findings, audit_restart_surfaces, "def run_restart_surface_audits(")
     require_contains(findings, audit_restart_surfaces, "def audit_restart_surface_drift(")
@@ -904,16 +913,16 @@ def validate_audit_repair_surfaces(findings: list[Finding]) -> None:
     require_contains(findings, audit_skill / "scripts" / "audit_repo_process.py", 'code="CYCLE003"')
     require_contains(findings, audit_execution_surfaces, 'code="WFLOW001"')
     require_contains(findings, audit_restart_surfaces, 'code="WFLOW002"')
-    require_contains(findings, audit_skill / "scripts" / "audit_repo_process.py", 'code="WFLOW003"')
-    require_contains(findings, audit_skill / "scripts" / "audit_repo_process.py", 'code="WFLOW004"')
-    require_contains(findings, audit_skill / "scripts" / "audit_repo_process.py", 'code="WFLOW005"')
+    require_contains(findings, audit_lifecycle_contracts, 'code="WFLOW003"')
+    require_contains(findings, audit_lifecycle_contracts, 'code="WFLOW004"')
+    require_contains(findings, audit_lifecycle_contracts, 'code="WFLOW005"')
     require_contains(findings, audit_restart_surfaces, 'code="WFLOW006"')
-    require_contains(findings, audit_skill / "scripts" / "audit_repo_process.py", 'code="WFLOW007"')
-    require_contains(findings, audit_skill / "scripts" / "audit_repo_process.py", 'code="WFLOW008"')
-    require_contains(findings, audit_skill / "scripts" / "audit_repo_process.py", 'code="WFLOW009"')
+    require_contains(findings, audit_lifecycle_contracts, 'code="WFLOW007"')
+    require_contains(findings, audit_lifecycle_contracts, 'code="WFLOW008"')
+    require_contains(findings, audit_lifecycle_contracts, 'code="WFLOW009"')
     require_contains(findings, audit_restart_surfaces, 'code="WFLOW010"')
-    require_contains(findings, audit_skill / "scripts" / "audit_repo_process.py", "Affected done tickets: none; the workflow flag should now be directly clearable.")
-    require_contains(findings, audit_skill / "scripts" / "audit_repo_process.py", "does not expose whether pending_process_verification is immediately clearable")
+    require_contains(findings, audit_lifecycle_contracts, "Affected done tickets: none; the workflow flag should now be directly clearable.")
+    require_contains(findings, audit_lifecycle_contracts, "does not expose whether pending_process_verification is immediately clearable")
     require_contains(findings, audit_restart_surfaces, 'code="WFLOW011"')
     require_contains(findings, audit_restart_surfaces, 'code="WFLOW012"')
     require_contains(findings, audit_restart_surfaces, 'code="WFLOW013"')
