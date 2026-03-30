@@ -20,6 +20,7 @@ AUDIT = ROOT / "skills" / "scafforge-audit" / "scripts" / "audit_repo_process.py
 REPAIR = ROOT / "skills" / "scafforge-repair" / "scripts" / "apply_repo_process_repair.py"
 PUBLIC_REPAIR = ROOT / "skills" / "scafforge-repair" / "scripts" / "run_managed_repair.py"
 REGENERATE = ROOT / "skills" / "scafforge-repair" / "scripts" / "regenerate_restart_surfaces.py"
+PIVOT = ROOT / "skills" / "scafforge-pivot" / "scripts" / "plan_pivot.py"
 BOOTSTRAP_INPUT_FILES = (
     "package.json",
     "package-lock.json",
@@ -2350,6 +2351,52 @@ def main() -> int:
         context_snapshot = (full_dest / ".opencode" / "state" / "context-snapshot.md").read_text(encoding="utf-8")
         if "- Open split children: none" not in context_snapshot or "- handoff_allowed:" in context_snapshot:
             raise RuntimeError("Generated context snapshot should expose split children and omit public handoff_allowed state")
+        pivot_dest = workspace / "pivot"
+        shutil.copytree(full_dest, pivot_dest)
+        make_stack_skill_non_placeholder(pivot_dest)
+        pivot_payload = run_json(
+            [
+                sys.executable,
+                str(PIVOT),
+                str(pivot_dest),
+                "--pivot-class",
+                "architecture-change",
+                "--requested-change",
+                "Move from single-service layout to modular domain services with explicit workflow contract updates.",
+                "--accepted-decision",
+                "Adopt modular service boundaries and regenerate workflow prompts around the new topology.",
+                "--unresolved-follow-up",
+                "Reconcile historical tickets that still assume the old monolith execution path.",
+                "--format",
+                "json",
+            ],
+            ROOT,
+        )
+        if pivot_payload["verification_status"]["verification_kind"] != "post_pivot":
+            raise RuntimeError("Pivot orchestration should record a post_pivot verification result")
+        if not pivot_payload["verification_status"]["verification_passed"]:
+            raise RuntimeError("Pivot orchestration should pass verification on a clean generated repo")
+        if pivot_payload["stale_surface_map"]["canonical_brief_and_truth_docs"]["status"] != "replace":
+            raise RuntimeError("Pivot orchestration should always replace canonical brief truth surfaces")
+        if pivot_payload["stale_surface_map"]["managed_workflow_tools_and_prompts"]["status"] != "replace":
+            raise RuntimeError("Architecture pivots should route managed workflow drift through replacement state")
+        pivot_stages = [item["stage"] for item in pivot_payload["downstream_refresh"]]
+        for expected in ("project-skill-bootstrap", "opencode-team-bootstrap", "agent-prompt-engineering", "ticket-pack-builder", "scafforge-repair"):
+            if expected not in pivot_stages:
+                raise RuntimeError(f"Pivot orchestration should route {expected} for an architecture-change pivot")
+        pivot_brief = (pivot_dest / "docs" / "spec" / "CANONICAL-BRIEF.md").read_text(encoding="utf-8")
+        if "## Pivot History" not in pivot_brief or "architecture-change" not in pivot_brief:
+            raise RuntimeError("Pivot orchestration should append a Pivot History section to the canonical brief")
+        pivot_state_path = pivot_dest / ".opencode" / "meta" / "pivot-state.json"
+        if not pivot_state_path.exists():
+            raise RuntimeError("Pivot orchestration should persist .opencode/meta/pivot-state.json")
+        pivot_state = json.loads(pivot_state_path.read_text(encoding="utf-8"))
+        if pivot_state["pivot_state_path"] != ".opencode/meta/pivot-state.json":
+            raise RuntimeError("Pivot orchestration should record the canonical pivot state path")
+        pivot_provenance = json.loads((pivot_dest / ".opencode" / "meta" / "bootstrap-provenance.json").read_text(encoding="utf-8"))
+        pivot_history = pivot_provenance.get("pivot_history")
+        if not isinstance(pivot_history, list) or not pivot_history or pivot_history[-1]["pivot_class"] != "architecture-change":
+            raise RuntimeError("Pivot orchestration should append pivot history to bootstrap provenance")
         invocation_tracker = (full_dest / ".opencode" / "plugins" / "invocation-tracker.ts").read_text(encoding="utf-8")
         if "agent: input.agent ?? null" not in invocation_tracker:
             raise RuntimeError("Generated invocation-tracker.ts should record agent ownership on command and tool events")

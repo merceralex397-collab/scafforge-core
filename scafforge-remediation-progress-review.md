@@ -254,6 +254,15 @@ Implemented:
 
 - `scafforge-pivot` exists
 - pivot is wired into flow manifest and lifecycle docs
+- a packaged pivot orchestration entrypoint now exists:
+  - [plan_pivot.py](/home/rowan/Scafforge/skills/scafforge-pivot/scripts/plan_pivot.py)
+- pivot orchestration now:
+  - appends `Pivot History` entries to `docs/spec/CANONICAL-BRIEF.md`
+  - writes `.opencode/meta/pivot-state.json`
+  - appends pivot history to `.opencode/meta/bootstrap-provenance.json`
+  - emits a machine-readable stale-surface map
+  - computes bounded downstream refresh routing
+  - records a post-pivot verification result
 - pivot contract requires:
   - canonical truth update first
   - stale-surface mapping
@@ -263,11 +272,13 @@ Implemented:
 What this achieved:
 
 - pivot is now a named lifecycle instead of an implied combination of refine, audit, and repair
+- pivot is no longer only prose and manifest routing; the package now has an executable host-side pivot planner with verifier-backed output and smoke coverage
 
 Not yet done:
 
-- pivot is still mostly contract-level
-- the deeper runtime orchestration described in the plan has not been implemented yet
+- the pivot planner still records and routes downstream work rather than executing the full downstream lifecycle itself
+- ticket supersede/reopen/reconcile mutations are still delegated to the downstream ticket machinery instead of being execution-backed directly from the pivot layer
+- restart-surface publication after pivot still depends on later handoff/repair steps rather than a dedicated pivot publisher
 
 ### Phase 7: Rebuild Verification Around Curated Regression Fixtures
 
@@ -308,19 +319,7 @@ Not yet done:
 
 The remaining work is best understood in this order.
 
-### 1. Finish Phase 3 Audit Modularization
-
-Still needed:
-
-- split the remaining monolith into rule families
-- move canonical-truth drift and transcript/session contradiction logic out of the main audit file
-- keep shrinking prose-heavy audit knowledge into rule-plus-fixture coverage
-
-Why it still matters:
-
-- the current branch has improved audit directionally, but audit is still larger and more coupled than the plan target allows
-
-### 2. Finish Phase 4 Repair Execution-State Architecture
+### 1. Finish Phase 4 Repair Execution-State Architecture
 
 Still needed:
 
@@ -332,7 +331,7 @@ Why it still matters:
 
 - repair is significantly safer now, but it still depends on a transitional follow-on execution model
 
-### 3. Phase 5 Follow-Through: Plugin And Stage-Gate Execution Coverage
+### 2. Phase 5 Follow-Through: Plugin And Stage-Gate Execution Coverage
 
 Still needed:
 
@@ -345,22 +344,21 @@ Why it still matters:
 - the core generated tools in the Phase 5 plan are now execution-backed
 - the remaining verification gap is mainly plugin enforcement breadth, not the primary tool lifecycle itself
 
-### 4. Implement Real Pivot Orchestration
+### 3. Deepen Pivot Orchestration
 
 Still needed:
 
-- make `scafforge-pivot` more than a contract surface
-- add runtime behavior for:
-  - truth updates
-  - selective downstream refresh
+- extend pivot beyond planning/recording into richer downstream execution support
+- add stronger runtime behavior for:
   - ticket supersede/reopen/reconcile behavior
-  - post-pivot verification output
+  - downstream refresh execution-state tracking
+  - restart-surface publication after pivot
 
 Why it still matters:
 
-- the package now acknowledges pivot as a lifecycle, but the deeper plan intent is not complete until the lifecycle is operational
+- the package now has an operational pivot planner, but the deeper plan intent is not complete until more of the lifecycle is execution-backed
 
-### 5. Finish Phase 0 And 7 Repo Cleanup
+### 4. Finish Phase 0 And 7 Repo Cleanup
 
 Still needed:
 
@@ -371,7 +369,7 @@ Why it still matters:
 
 - this is still one of the root causes behind noisy retrieval and weak-signal package context
 
-### 6. Phase 8 Migration And GPTTalker Revalidation
+### 5. Phase 8 Migration And GPTTalker Revalidation
 
 Still needed:
 

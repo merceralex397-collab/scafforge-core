@@ -187,6 +187,7 @@
         "pivot classification",
         "docs/spec/CANONICAL-BRIEF.md updated with pivot history",
         "machine-readable stale-surface map",
+        ".opencode/meta/pivot-state.json",
         "explicit downstream refresh routing"
       ],
       "upstreams": ["scaffold-kickoff"],

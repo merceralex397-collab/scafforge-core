@@ -10,6 +10,14 @@ Use this skill when an existing repo needs a midstream change that is larger tha
 This is the host-side pivot surface. It classifies the requested change, updates canonical truth first, records which surfaces are now stale, routes the required downstream refresh work, and requires a post-pivot verification pass before handoff.
 Use [../../references/competence-contract.md](../../references/competence-contract.md) as the bar for whether the repo still exposes one clear legal next move after the pivot.
 
+Pivot orchestration command:
+
+```sh
+python3 scripts/plan_pivot.py <repo-root> --pivot-class <class> --requested-change "<summary>" --format both
+```
+
+Use this to write the canonical `Pivot History` entry, emit `.opencode/meta/pivot-state.json`, record bounded downstream refresh routing, and run the post-pivot verification pass. Keep it thin: this command plans and records the pivot, then routes follow-on work to the right downstream skills.
+
 ## When to use this skill
 
 - `scaffold-kickoff` classifies the request as a pivot
@@ -70,6 +78,8 @@ Produce a machine-readable stale-surface map that classifies affected surfaces a
 - `ticket_follow_up`
 - `human_decision`
 
+Persist the resulting pivot state at `.opencode/meta/pivot-state.json` so later handoff and review work can inspect the exact pivot classification, stale-surface map, downstream refresh routing, and post-pivot verification result.
+
 At minimum, classify these families:
 
 - canonical brief and truth docs
@@ -127,6 +137,7 @@ The handoff must state that a pivot occurred, which surfaces changed, and what f
 - classified pivot type
 - updated `docs/spec/CANONICAL-BRIEF.md` with `Pivot History`
 - machine-readable stale-surface map
+- `.opencode/meta/pivot-state.json`
 - explicit downstream refresh decisions
 - ticket lineage updates or follow-up routing
 - post-pivot verification result

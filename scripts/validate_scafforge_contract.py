@@ -403,6 +403,7 @@ def validate_skill_contracts(findings: list[Finding]) -> None:
     ticket_system_ref = ROOT / "skills" / "ticket-pack-builder" / "references" / "ticket-system.md"
     pivot_skill = ROOT / "skills" / "scafforge-pivot" / "SKILL.md"
     pivot_agent = ROOT / "skills" / "scafforge-pivot" / "agents" / "openai.yaml"
+    pivot_script = ROOT / "skills" / "scafforge-pivot" / "scripts" / "plan_pivot.py"
     handoff = ROOT / "skills" / "handoff-brief" / "SKILL.md"
 
     require_paths(
@@ -419,6 +420,7 @@ def validate_skill_contracts(findings: list[Finding]) -> None:
             ticket_system_ref,
             pivot_skill,
             pivot_agent,
+            pivot_script,
             handoff,
         ],
     )
@@ -504,9 +506,18 @@ def validate_skill_contracts(findings: list[Finding]) -> None:
 
     require_contains(findings, pivot_skill, "machine-readable stale-surface map")
     require_contains(findings, pivot_skill, "Pivot History")
+    require_contains(findings, pivot_skill, "python3 scripts/plan_pivot.py <repo-root>")
+    require_contains(findings, pivot_skill, ".opencode/meta/pivot-state.json")
     require_contains(findings, pivot_skill, "Do not let `scafforge-pivot` become a second scaffold engine or a second repair engine.")
     require_contains(findings, pivot_skill, "Use repair only for managed workflow refresh, not for product-truth changes")
     require_contains(findings, pivot_agent, 'display_name: "Scafforge Pivot"')
+    require_contains(findings, pivot_script, '"verification_kind": "post_pivot"')
+    require_contains(findings, pivot_script, "build_pivot_stale_surface_map")
+    require_contains(findings, pivot_script, "downstream_refresh")
+    require_contains(findings, pivot_script, "docs/spec/CANONICAL-BRIEF.md")
+    require_contains(findings, pivot_script, ".opencode/meta/pivot-state.json")
+    require_contains(findings, pivot_script, "Pivot History")
+    require_script_help_runs(findings, pivot_script)
 
     require_contains(findings, handoff, "**Generation Status**")
     require_contains(findings, handoff, "**Post-Generation Audit Status**")
