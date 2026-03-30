@@ -54,7 +54,7 @@ Important clarification:
 - Phase 2: partially implemented
 - Phase 3: partially implemented
 - Phase 4: partially implemented
-- Phase 5: substantially advanced, but not complete
+- Phase 5: complete for the primary generated tool surfaces in the plan
 - Phase 6: partially implemented at contract level
 - Phase 7: partially implemented
 - Phase 8: not started
@@ -186,6 +186,8 @@ Implemented:
   - `ticket_reopen` completed-ticket invalidation and reopen flow
   - `context_snapshot` snapshot publication
   - `handoff_publish` restart-surface publication and invalid next-action rejection
+  - `environment_bootstrap` proof persistence and successful command execution
+  - `smoke_test` explicit command execution plus missing-executable host-surface failure classification
   - `ticket_reverify`
   - `ticket_reconcile`
   - `ticket_create` split-scope follow-up creation
@@ -209,10 +211,11 @@ Important detail:
 - the branch now has direct runtime proof for both historical repair paths and the ordinary early-lifecycle path weaker agents hit first
 - restart publication, canonical artifact handling, and completed-ticket reopen behavior are now also execution-proven rather than only contract-checked
 
-Not yet done:
+Residual follow-through:
 
-- generated-tool execution coverage is still selective rather than comprehensive
-- the stubbed plugin runtime harness has not yet been generalized across the full generated tool surface
+- direct execution coverage for plugin enforcement surfaces is still lighter than the tool coverage
+- the stubbed plugin runtime harness has not yet been generalized into a broader plugin-execution harness
+- if later regressions cluster around stage-gate enforcement rather than tool behavior, that should be treated as additional verification hardening rather than proof that the core Phase 5 tool work is missing
 - most of the ordinary queue mutation, artifact, restart-publication, and historical-repair paths are now covered, but the wider generated workflow toolchain is still not fully execution-proven
 
 ### Phase 6: Add A First-Class Pivot Skill
@@ -299,21 +302,18 @@ Why it still matters:
 
 - repair is significantly safer now, but it still depends on a transitional follow-on execution model
 
-### 3. Continue Phase 5 Runtime Tool Coverage
+### 3. Phase 5 Follow-Through: Plugin And Stage-Gate Execution Coverage
 
 Still needed:
 
-- extend generated-tool execution coverage beyond the currently exercised mutation tools:
-  - `environment_bootstrap`
-  - `smoke_test`
 - add direct execution coverage for the remaining restart/plugin enforcement surfaces that still sit outside the current harness
-- add direct execution coverage for more of the ordinary generated workflow toolchain and stage-gate paths
+- broaden execution proof for plugin-enforced write-lease and reserved-artifact behavior if those become active regression sources
 - keep checking that generated mutation tools and routing surfaces stay aligned, not just documented
 
 Why it still matters:
 
-- most of the recent Phase 5 work fixed routing and next-move exposure
-- more of the underlying mutation tools now have direct end-to-end protection, but that protection is still not broad enough across the full generated tool surface
+- the core generated tools in the Phase 5 plan are now execution-backed
+- the remaining verification gap is mainly plugin enforcement breadth, not the primary tool lifecycle itself
 
 ### 4. Implement Real Pivot Orchestration
 

@@ -246,6 +246,40 @@ def seed_ready_bootstrap(dest: Path) -> None:
     workflow_path.write_text(json.dumps(workflow, indent=2) + "\n", encoding="utf-8")
 
 
+def seed_minimal_npm_repo(dest: Path) -> None:
+    (dest / "package.json").write_text(
+        json.dumps(
+            {
+                "name": "smoke-example",
+                "version": "1.0.0",
+                "private": True,
+            },
+            indent=2,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    (dest / "package-lock.json").write_text(
+        json.dumps(
+            {
+                "name": "smoke-example",
+                "version": "1.0.0",
+                "lockfileVersion": 3,
+                "requires": True,
+                "packages": {
+                    "": {
+                        "name": "smoke-example",
+                        "version": "1.0.0",
+                    }
+                },
+            },
+            indent=2,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+
 def seed_uv_python_fixture(
     dest: Path,
     *,
@@ -2128,6 +2162,7 @@ def verify_render(dest: Path, *, expect_full_repo: bool) -> None:
 def main() -> int:
     workspace = Path(tempfile.mkdtemp(prefix="scafforge-smoke-"))
     host_has_uv = shutil.which("uv") is not None
+    host_has_npm = shutil.which("npm") is not None
     try:
         full_dest = workspace / "full"
         opencode_dest = workspace / "opencode"
@@ -3347,6 +3382,99 @@ def main() -> int:
         )
         if "pending_process_verification" not in invalid_handoff_error:
             raise RuntimeError("handoff_publish should reject clean-state claims while pending_process_verification remains true")
+
+        executed_environment_bootstrap_dest = workspace / "executed-environment-bootstrap"
+        shutil.copytree(full_dest, executed_environment_bootstrap_dest)
+        if host_has_npm:
+            seed_minimal_npm_repo(executed_environment_bootstrap_dest)
+        bootstrap_result = run_generated_tool(
+            executed_environment_bootstrap_dest,
+            ".opencode/tools/environment_bootstrap.ts",
+            {"ticket_id": "SETUP-001"},
+        )
+        if bootstrap_result["bootstrap_status"] != "ready":
+            raise RuntimeError("environment_bootstrap should record a ready bootstrap state when its detected commands succeed")
+        if host_has_npm and not any(command["label"] == "npm ci" and command["exit_code"] == 0 for command in bootstrap_result["commands"]):
+            raise RuntimeError("environment_bootstrap should execute npm ci for a minimal lockfile-backed Node repo")
+        if host_has_npm and bootstrap_result["host_surface_classification"] != "none":
+            raise RuntimeError("environment_bootstrap should not classify a successful bootstrap run as a host-surface failure")
+        bootstrap_proof = executed_environment_bootstrap_dest / str(bootstrap_result["proof_artifact"])
+        if not bootstrap_proof.exists():
+            raise RuntimeError("environment_bootstrap should persist the canonical bootstrap proof artifact")
+        bootstrap_workflow = json.loads((executed_environment_bootstrap_dest / ".opencode" / "state" / "workflow-state.json").read_text(encoding="utf-8"))
+        if bootstrap_workflow["bootstrap"]["status"] != "ready":
+            raise RuntimeError("environment_bootstrap should persist ready bootstrap state into workflow-state")
+
+        executed_smoke_test_dest = workspace / "executed-smoke-test"
+        shutil.copytree(full_dest, executed_smoke_test_dest)
+        seed_ready_bootstrap(executed_smoke_test_dest)
+        register_current_ticket_artifact(
+            executed_smoke_test_dest,
+            ticket_id="SETUP-001",
+            kind="qa",
+            stage="qa",
+            relative_path=".opencode/state/artifacts/setup-001-qa-qa.md",
+            summary="Synthetic QA artifact for smoke_test execution coverage.",
+            content="# QA\n\nCommand: python3 -m py_compile scripts/smoke_test_scafforge.py\n\nQA evidence is current.\n",
+        )
+        write_executable(
+            executed_smoke_test_dest / "scripts" / "mock_smoke.py",
+            "\n".join(
+                [
+                    "#!/usr/bin/env python3",
+                    "import os",
+                    "import sys",
+                    "print(f\"SMOKE_TOKEN={os.environ.get('SMOKE_TOKEN', '')}\")",
+                    "sys.exit(0 if os.environ.get('SMOKE_TOKEN') == 'phase5' else 1)",
+                ]
+            )
+            + "\n",
+        )
+        smoke_test_result = run_generated_tool(
+            executed_smoke_test_dest,
+            ".opencode/tools/smoke_test.ts",
+            {
+                "ticket_id": "SETUP-001",
+                "command_override": ["SMOKE_TOKEN=phase5 python3 scripts/mock_smoke.py"],
+            },
+        )
+        if smoke_test_result["passed"] is not True or smoke_test_result["host_surface_classification"] is not None:
+            raise RuntimeError("smoke_test should pass and avoid host-surface failure classification when its explicit command succeeds")
+        if smoke_test_result["commands"][0]["command"] != "SMOKE_TOKEN=phase5 python3 scripts/mock_smoke.py":
+            raise RuntimeError("smoke_test should preserve shell-style KEY=VALUE command_override parsing in the executed command record")
+        smoke_test_artifact = executed_smoke_test_dest / str(smoke_test_result["smoke_test_artifact"])
+        if not smoke_test_artifact.exists():
+            raise RuntimeError("smoke_test should persist the canonical smoke-test artifact")
+        smoke_test_artifact_body = smoke_test_artifact.read_text(encoding="utf-8")
+        if "Overall Result: PASS" not in smoke_test_artifact_body or "SMOKE_TOKEN=phase5 python3 scripts/mock_smoke.py" not in smoke_test_artifact_body:
+            raise RuntimeError("smoke_test should record the passing result and executed command in the smoke-test artifact")
+
+        executed_smoke_missing_exec_dest = workspace / "executed-smoke-test-missing-exec"
+        shutil.copytree(full_dest, executed_smoke_missing_exec_dest)
+        seed_ready_bootstrap(executed_smoke_missing_exec_dest)
+        register_current_ticket_artifact(
+            executed_smoke_missing_exec_dest,
+            ticket_id="SETUP-001",
+            kind="qa",
+            stage="qa",
+            relative_path=".opencode/state/artifacts/setup-001-qa-qa.md",
+            summary="Synthetic QA artifact for smoke_test failure coverage.",
+            content="# QA\n\nCommand: python3 -m py_compile scripts/smoke_test_scafforge.py\n\nQA evidence is current.\n",
+        )
+        smoke_missing_exec_result = run_generated_tool(
+            executed_smoke_missing_exec_dest,
+            ".opencode/tools/smoke_test.ts",
+            {
+                "ticket_id": "SETUP-001",
+                "command_override": ["definitely-missing-phase5-command"],
+            },
+        )
+        if smoke_missing_exec_result["passed"] is not False:
+            raise RuntimeError("smoke_test should fail when the explicit smoke command executable does not exist")
+        if smoke_missing_exec_result["failure_classification"] != "environment" or smoke_missing_exec_result["host_surface_classification"] != "missing_executable":
+            raise RuntimeError("smoke_test should classify missing explicit smoke executables as an environment host-surface failure")
+        if smoke_missing_exec_result["commands"][0]["missing_executable"] != "definitely-missing-phase5-command":
+            raise RuntimeError("smoke_test should report the missing explicit smoke executable by name")
 
         hidden_clearable_pending_dest = workspace / "hidden-clearable-pending-process-verification"
         shutil.copytree(full_dest, hidden_clearable_pending_dest)
