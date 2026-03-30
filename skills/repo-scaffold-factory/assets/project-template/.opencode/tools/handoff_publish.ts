@@ -4,9 +4,9 @@ import {
   refreshRestartSurfaces,
   latestHandoffPath,
   loadManifest,
+  loadPivotState,
   loadWorkflowState,
   readJson,
-  renderStartHere,
   startHerePath,
   validateHandoffNextAction,
 } from "../lib/workflow"
@@ -19,6 +19,7 @@ export default tool({
   async execute(args) {
     const manifest = await loadManifest()
     const workflow = await loadWorkflowState()
+    const pivot = await loadPivotState()
     const provenance = await readJson<{
       workflow_contract?: {
         post_migration_verification?: {
@@ -33,11 +34,7 @@ export default tool({
         throw new Error(handoffBlocker)
       }
     }
-    const content = renderStartHere(manifest, workflow, {
-      nextAction: args.next_action,
-      backlogVerifierAgent: typeof backlogVerifierAgent === "string" ? backlogVerifierAgent : undefined,
-    })
-    await refreshRestartSurfaces({ manifest, workflow, nextAction: args.next_action })
+    await refreshRestartSurfaces({ manifest, workflow, pivot, nextAction: args.next_action })
 
     return JSON.stringify({ start_here: startHerePath(), latest_handoff: latestHandoffPath() }, null, 2)
   },

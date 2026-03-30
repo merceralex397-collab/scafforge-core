@@ -304,6 +304,7 @@ Implemented:
   - exposes pivot restart-surface inputs such as `pivot_in_progress` and `pending_downstream_stages`
   - records a post-pivot verification result
 - routed pivot downstream work can now be recorded with evidence-backed completion state inside `.opencode/meta/pivot-state.json`
+- generated handoff publication now consumes pivot state so `START-HERE.md`, `.opencode/state/latest-handoff.md`, and `.opencode/state/context-snapshot.md` can publish truthful pivot status after a pivot
 - pivot contract requires:
   - canonical truth update first
   - stale-surface mapping
@@ -315,6 +316,7 @@ What this achieved:
 - pivot is now a named lifecycle instead of an implied combination of refine, audit, and repair
 - pivot is no longer only prose and manifest routing; the package now has an executable host-side pivot planner with verifier-backed output and smoke coverage
 - downstream pivot work is no longer only implied by a routing list; the repo now has machine-readable progress state for which routed stages are still pending versus completed
+- restart publication after pivot now uses that machine-readable pivot state instead of dropping back to generic non-pivot handoff narratives
 
 Not yet done:
 

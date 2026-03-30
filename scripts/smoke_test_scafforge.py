@@ -2430,6 +2430,12 @@ def main() -> int:
         pivot_dest = workspace / "pivot"
         shutil.copytree(full_dest, pivot_dest)
         make_stack_skill_non_placeholder(pivot_dest)
+        seed_ready_bootstrap(pivot_dest)
+        run_generated_tool(
+            pivot_dest,
+            ".opencode/tools/handoff_publish.ts",
+            {},
+        )
         pivot_payload = run_json(
             [
                 sys.executable,
@@ -2514,6 +2520,26 @@ def main() -> int:
             raise RuntimeError("Pivot stage recording should persist recorded execution for completed stages")
         if repair_stage_record["completed_by"] != "scafforge-pivot-smoke":
             raise RuntimeError("Pivot stage recording should persist completed_by provenance")
+        pivot_handoff_result = run_generated_tool(
+            pivot_dest,
+            ".opencode/tools/handoff_publish.ts",
+            {},
+        )
+        pivot_start_here = (pivot_dest / "START-HERE.md").read_text(encoding="utf-8")
+        pivot_latest_handoff = (pivot_dest / ".opencode" / "state" / "latest-handoff.md").read_text(encoding="utf-8")
+        pivot_context_snapshot = (pivot_dest / ".opencode" / "state" / "context-snapshot.md").read_text(encoding="utf-8")
+        if str(pivot_handoff_result["start_here"]) != str(pivot_dest / "START-HERE.md"):
+            raise RuntimeError("Pivot handoff publication should still report the canonical START-HERE path")
+        if "- handoff_status: pivot follow-up required" not in pivot_start_here:
+            raise RuntimeError("Post-pivot handoff should publish pivot follow-up required while downstream pivot work remains")
+        if "- pivot_in_progress: true" not in pivot_start_here or "- pivot_class: architecture-change" not in pivot_start_here:
+            raise RuntimeError("Post-pivot START-HERE should expose truthful pivot state")
+        if "- pivot_pending_stages: project-skill-bootstrap, opencode-team-bootstrap, agent-prompt-engineering, ticket-pack-builder" not in pivot_start_here:
+            raise RuntimeError("Post-pivot START-HERE should list the remaining pivot stages after recorded managed refresh")
+        if "- pivot_in_progress: true" not in pivot_latest_handoff:
+            raise RuntimeError("latest-handoff should stay aligned with START-HERE for pivot state")
+        if "- pivot_changed_surfaces: agent_team_and_prompts, canonical_brief_and_truth_docs, managed_workflow_tools_and_prompts, repo_local_skills, restart_surfaces, ticket_graph_and_lineage" not in pivot_context_snapshot:
+            raise RuntimeError("context snapshot should expose the pivot changed surfaces for restart review")
         pivot_provenance = json.loads((pivot_dest / ".opencode" / "meta" / "bootstrap-provenance.json").read_text(encoding="utf-8"))
         pivot_history = pivot_provenance.get("pivot_history")
         if not isinstance(pivot_history, list) or not pivot_history or pivot_history[-1]["pivot_class"] != "architecture-change":

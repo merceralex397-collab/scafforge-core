@@ -4,6 +4,7 @@ import {
   getTicket,
   isPlanApprovedForTicket,
   loadManifest,
+  loadPivotState,
   loadWorkflowState,
   renderContextSnapshot,
   writeText,
@@ -18,6 +19,7 @@ export default tool({
   async execute(args) {
     const manifest = await loadManifest()
     const workflow = await loadWorkflowState()
+    const pivot = await loadPivotState()
     const ticket = getTicket(manifest, args.ticket_id)
 
     // Use a copy for snapshot rendering to avoid mutating shared state
@@ -25,7 +27,7 @@ export default tool({
       ? { ...workflow, active_ticket: ticket.id, stage: ticket.stage, status: ticket.status, approved_plan: isPlanApprovedForTicket(workflow, ticket.id) }
       : workflow
 
-    const content = renderContextSnapshot(manifest, snapshotState, args.note)
+    const content = renderContextSnapshot(manifest, snapshotState, pivot, args.note)
     const path = contextSnapshotPath()
     await writeText(path, content)
 

@@ -58,6 +58,7 @@ Verify the handoff:
 - The reading order files all exist
 - The next action is specific and actionable
 - The next action matches the one legal first move exposed by canonical state when bootstrap is not yet ready
+- if `.opencode/meta/pivot-state.json` exists, the handoff surfaces reflect the current pivot state truthfully
 - The handoff is a truthful restart surface bounded by current evidence, even when later audit, repair, or backlog reverification is still pending
 
 ## Output contract
@@ -65,6 +66,7 @@ Verify the handoff:
 Before leaving this skill, confirm all of these are true:
 - `START-HERE.md` exists and uses canonical manifest/workflow-state facts rather than stale narrative memory
 - `.opencode/state/latest-handoff.md` exists and agrees with `START-HERE.md` on active ticket, bootstrap status, and pending process verification
+- active pivot state is reflected in `START-HERE.md`, `.opencode/state/context-snapshot.md`, and `.opencode/state/latest-handoff.md` when present
 - the read order lists `tickets/manifest.json` before `tickets/BOARD.md`
 - the next action is actionable and does not overclaim readiness beyond current evidence
 - the handoff proves immediate continuation rather than only surface agreement
