@@ -7,7 +7,9 @@ import shutil
 import subprocess
 import sys
 import tempfile
+from importlib.util import module_from_spec, spec_from_file_location
 from pathlib import Path
+from types import SimpleNamespace
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -18,6 +20,16 @@ AUDIT = ROOT / "skills" / "scafforge-audit" / "scripts" / "audit_repo_process.py
 REPAIR = ROOT / "skills" / "scafforge-repair" / "scripts" / "apply_repo_process_repair.py"
 PUBLIC_REPAIR = ROOT / "skills" / "scafforge-repair" / "scripts" / "run_managed_repair.py"
 REGENERATE = ROOT / "skills" / "scafforge-repair" / "scripts" / "regenerate_restart_surfaces.py"
+
+
+def load_python_module(path: Path, module_name: str):
+    spec = spec_from_file_location(module_name, path)
+    if spec is None or spec.loader is None:
+        raise RuntimeError(f"Unable to load module from {path}")
+    module = module_from_spec(spec)
+    sys.modules[module_name] = module
+    spec.loader.exec_module(module)
+    return module
 
 
 def package_commit() -> str:
@@ -1997,6 +2009,46 @@ def main() -> int:
             raise RuntimeError("Generated scaffold verifier should fail with exit code 2 when canonical state is corrupt")
         if "VERIFY001" not in corrupt_gate_codes:
             raise RuntimeError("Generated scaffold verifier should emit VERIFY001 instead of crashing on corrupt JSON state")
+
+        workflow_contract_drift_dest = workspace / "greenfield-proof-gate-workflow-contract-drift"
+        shutil.copytree(greenfield_gate_dest, workflow_contract_drift_dest)
+        tooling_doc_path = workflow_contract_drift_dest / "docs" / "process" / "tooling.md"
+        tooling_doc = tooling_doc_path.read_text(encoding="utf-8")
+        tooling_doc_path.write_text(
+            tooling_doc.replace("commands are human entrypoints only", "commands may drive the autonomous workflow"),
+            encoding="utf-8",
+        )
+        workflow_contract_gate_result = subprocess.run(
+            [sys.executable, str(VERIFY_GENERATED), str(workflow_contract_drift_dest), "--format", "json"],
+            cwd=ROOT,
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        workflow_contract_gate = json.loads(workflow_contract_gate_result.stdout)
+        workflow_contract_gate_codes = {finding["code"] for finding in workflow_contract_gate.get("findings", [])}
+        if workflow_contract_gate_result.returncode != 2:
+            raise RuntimeError("Generated scaffold verifier should fail when continuation-critical workflow contract surfaces drift")
+        if "VERIFY008" not in workflow_contract_gate_codes:
+            raise RuntimeError("Generated scaffold verifier should emit VERIFY008 when tooling and execution surfaces drift from the documented greenfield contract")
+
+        repair_scripts_dir = ROOT / "skills" / "scafforge-repair" / "scripts"
+        audit_scripts_dir = ROOT / "skills" / "scafforge-audit" / "scripts"
+        for script_dir in (repair_scripts_dir, audit_scripts_dir):
+            script_dir_str = str(script_dir)
+            if script_dir_str not in sys.path:
+                sys.path.insert(0, script_dir_str)
+        repair_module = load_python_module(REPAIR, "scafforge_smoke_apply_repo_process_repair")
+        env_only_stale_surface_map = repair_module.build_stale_surface_map(
+            ROOT,
+            [],
+            [SimpleNamespace(code="ENV001")],
+            False,
+        )
+        if env_only_stale_surface_map["workflow_tools_and_prompts"]["status"] != "stable":
+            raise RuntimeError("ENV-only findings should not misclassify workflow_tools_and_prompts as managed replacement drift")
+        if env_only_stale_surface_map["workflow_tools_and_prompts"].get("finding_codes"):
+            raise RuntimeError("ENV-only findings should not populate workflow_tools_and_prompts finding codes")
 
         initial_audit = run_json([sys.executable, str(AUDIT), str(full_dest), "--format", "json", "--emit-diagnosis-pack"], ROOT)
         initial_codes = {finding["code"] for finding in initial_audit.get("findings", [])}
