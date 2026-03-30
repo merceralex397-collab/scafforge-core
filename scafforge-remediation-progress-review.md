@@ -192,6 +192,7 @@ Implemented:
 - that polluted-state cleanup is now surfaced explicitly in repair state and execution output instead of happening silently
 - required follow-on stages and persisted stage records now carry canonical `owner` and `category` metadata from the repair stage catalog
 - stage-based follow-on history events now carry the same canonical `owner` and `category` metadata instead of dropping that context over time
+- known stage names now still fail closed when they do not belong to the current repair cycle, except for the intentional `handoff-brief` closeout case
 - repair verification now fails contract checks for:
   - non-clean zero-finding states
   - restart-surface drift after repair

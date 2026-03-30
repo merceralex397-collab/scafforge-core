@@ -2808,10 +2808,6 @@ def main() -> int:
                 str(PUBLIC_REPAIR),
                 str(verification_basis_regression_dest),
                 "--skip-deterministic-refresh",
-                "--stage-complete",
-                "ticket-pack-builder",
-                "--stage-complete",
-                "handoff-brief",
             ],
             cwd=ROOT,
             check=False,
@@ -2833,10 +2829,6 @@ def main() -> int:
                 "--skip-deterministic-refresh",
                 "--repair-basis-diagnosis",
                 str(verification_basis_regression_dest / "diagnosis" / "20260327-143940"),
-                "--stage-complete",
-                "ticket-pack-builder",
-                "--stage-complete",
-                "handoff-brief",
             ],
             cwd=ROOT,
             check=False,
@@ -4125,6 +4117,52 @@ def main() -> int:
         make_stack_skill_non_placeholder(source_follow_up_repair_dest)
         seed_failing_pytest_suite(source_follow_up_repair_dest)
         if host_has_uv:
+            invalid_known_stage_process = subprocess.run(
+                [
+                    sys.executable,
+                    str(PUBLIC_REPAIR),
+                    str(source_follow_up_repair_dest),
+                    "--skip-deterministic-refresh",
+                    "--stage-complete",
+                    "project-skill-bootstrap",
+                ],
+                cwd=ROOT,
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            if invalid_known_stage_process.returncode == 0:
+                raise RuntimeError("Public managed repair runner should reject known follow-on stages that are not part of the current repair cycle")
+            if "not part of the current repair cycle" not in invalid_known_stage_process.stderr and "not part of the current repair cycle" not in invalid_known_stage_process.stdout:
+                raise RuntimeError("Public managed repair runner should explain current-cycle rejection for known but non-required follow-on stages")
+            invalid_known_evidence_rel = ".opencode/state/artifacts/history/repair/non-required-stage.md"
+            invalid_known_evidence_path = source_follow_up_repair_dest / invalid_known_evidence_rel
+            invalid_known_evidence_path.parent.mkdir(parents=True, exist_ok=True)
+            invalid_known_evidence_path.write_text("# Non-required stage\n", encoding="utf-8")
+            invalid_known_record_stage = subprocess.run(
+                [
+                    sys.executable,
+                    str(RECORD_REPAIR_STAGE),
+                    str(source_follow_up_repair_dest),
+                    "--stage",
+                    "project-skill-bootstrap",
+                    "--completed-by",
+                    "tester",
+                    "--summary",
+                    "Known but non-required stage should fail.",
+                    "--evidence",
+                    invalid_known_evidence_rel,
+                ],
+                cwd=ROOT,
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            if invalid_known_record_stage.returncode == 0:
+                raise RuntimeError("record_repair_stage_completion should reject known follow-on stages that are not part of the current repair cycle")
+            if "not part of the current repair cycle" not in invalid_known_record_stage.stderr and "not part of the current repair cycle" not in invalid_known_record_stage.stdout:
+                raise RuntimeError("record_repair_stage_completion should explain current-cycle rejection for known but non-required follow-on stages")
+
             polluted_follow_on_state_dest = workspace / "polluted-follow-on-state"
             shutil.copytree(full_dest, polluted_follow_on_state_dest)
             make_stack_skill_non_placeholder(polluted_follow_on_state_dest)

@@ -35,6 +35,7 @@ CANONICAL_STAGE_EVIDENCE = {
 AUTO_DETECTED_COMPLETERS = {
     "ticket-pack-builder": "ticket-pack-builder:auto-detected",
 }
+OPTIONAL_RECORDABLE_FOLLOW_ON_STAGES = {"handoff-brief"}
 
 
 def read_json(path: Path) -> Any:
@@ -71,6 +72,23 @@ def follow_on_stage_history_metadata(stage: str) -> dict[str, str]:
         "owner": metadata["owner"],
         "category": metadata["category"],
     }
+
+
+def validate_stage_allowed_for_current_cycle(state: dict[str, Any], stage: str) -> str:
+    normalized = validate_follow_on_stage_name(stage)
+    required_stages = {
+        item.strip()
+        for item in (state.get("required_stages") if isinstance(state.get("required_stages"), list) else [])
+        if isinstance(item, str) and item.strip()
+    }
+    if normalized in required_stages or normalized in OPTIONAL_RECORDABLE_FOLLOW_ON_STAGES:
+        return normalized
+    allowed = sorted(required_stages | OPTIONAL_RECORDABLE_FOLLOW_ON_STAGES)
+    allowed_display = ", ".join(allowed) if allowed else "none"
+    raise ValueError(
+        f"Repair follow-on stage `{normalized}` is not part of the current repair cycle. "
+        f"Allowed stages for this cycle: {allowed_display}"
+    )
 
 
 def validate_follow_on_stage_name(stage: str) -> str:
@@ -303,6 +321,7 @@ def update_follow_on_tracking_state(
         }
 
     for stage in asserted_stage_names:
+        validate_stage_allowed_for_current_cycle(state, stage)
         existing = stage_records.get(stage, {})
         if existing.get("status") == "completed":
             stage_records[stage] = {
@@ -428,6 +447,7 @@ def record_follow_on_stage_completion(
 ) -> dict[str, Any]:
     stage = validate_follow_on_stage_name(stage)
     state = load_follow_on_tracking_state(repo_root)
+    stage = validate_stage_allowed_for_current_cycle(state, stage)
     records = state["stage_records"]
     now = current_iso_timestamp()
     existing = records.get(stage, {})

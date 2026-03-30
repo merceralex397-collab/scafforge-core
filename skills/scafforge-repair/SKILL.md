@@ -82,6 +82,7 @@ Both `--stage-complete` and `record_repair_stage_completion.py` must stay inside
 - `handoff-brief`
 
 Reject unknown stage names instead of silently recording arbitrary labels into repair state.
+Known stage names are still not enough by themselves. Outside the special closeout case for `handoff-brief`, a stage that is not part of the current repair cycle must be rejected instead of being recorded into the current cycle. In practice that means the stage must also be present in the current repair cycle's `required_stages`.
 When a downstream stage emits a canonical repair completion artifact for the current repair cycle, the public repair runner may auto-recognize that stage on the next run instead of requiring a separate recording command. The current bounded auto-recognition path is:
 
 - `ticket-pack-builder` via `.opencode/state/artifacts/history/repair/ticket-pack-builder-completion.md`
