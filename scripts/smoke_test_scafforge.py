@@ -4659,6 +4659,35 @@ def main() -> int:
                 if isinstance(item, dict)
             ):
                 raise RuntimeError("Persisted follow-on history should keep owner/category metadata for recorded execution events")
+            recorded_evidence_path.write_text(
+                "# Repair Follow-On Completion\n\n"
+                "- completed_stage: ticket-pack-builder\n"
+                "- cycle_id: stale-cycle\n"
+                "- completed_by: ticket-pack-builder\n\n"
+                "## Summary\n\n"
+                "- Drifted canonical evidence should invalidate reuse.\n",
+                encoding="utf-8",
+            )
+            recorded_follow_on_cycle_mismatch_process = subprocess.run(
+                [
+                    sys.executable,
+                    str(PUBLIC_REPAIR),
+                    str(recorded_follow_on_dest),
+                    "--skip-deterministic-refresh",
+                ],
+                cwd=ROOT,
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            recorded_follow_on_cycle_mismatch = json.loads(recorded_follow_on_cycle_mismatch_process.stdout)
+            if "ticket-pack-builder" not in recorded_follow_on_cycle_mismatch["execution_record"]["invalidated_recorded_stages"]:
+                raise RuntimeError("Managed repair should invalidate recorded execution reuse when canonical repair evidence drifts to a stale cycle")
+            if recorded_follow_on_cycle_mismatch["execution_record"]["recorded_execution_completed_stages"]:
+                raise RuntimeError("Managed repair should stop reporting canonical recorded execution after its cycle markers drift")
+            drifted_evidence_state = json.loads(recorded_follow_on_state_path.read_text(encoding="utf-8"))
+            if drifted_evidence_state["stage_records"]["ticket-pack-builder"].get("evidence_validation_error") != "canonical_evidence_cycle_mismatch":
+                raise RuntimeError("Follow-on tracking should record canonical_evidence_cycle_mismatch when a recorded canonical artifact no longer matches the current cycle")
             recorded_evidence_path.unlink()
             recorded_follow_on_missing_evidence_process = subprocess.run(
                 [
