@@ -184,6 +184,7 @@ Implemented:
 - deterministic refresh now resets that persistent follow-on tracker for a new repair cycle
 - later repair runs can reuse previously recorded follow-on stage completion without reasserting the same stage on every rerun
 - later repair runs now report explicit recorded execution separately from transitional assertions
+- recorded execution is now invalidated automatically when its supporting evidence path disappears, so repair stops trusting stale completion records
 - repair verification now fails contract checks for:
   - non-clean zero-finding states
   - restart-surface drift after repair
@@ -196,6 +197,7 @@ What this achieved:
 - follow-on stage progress is now machine-readable over time inside the subject repo instead of disappearing into CLI history
 - the repo now distinguishes transitional host assertions from explicit recorded execution with evidence-backed stage records
 - restart-surface truth now stays aligned when repair follow-on completion is recorded after the main repair run
+- explicit recorded execution is now evidence-sensitive rather than being trusted indefinitely after first record
 
 Not yet done:
 

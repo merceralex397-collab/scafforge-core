@@ -73,6 +73,7 @@ python3 scripts/record_repair_stage_completion.py <repo-root> --stage <stage> --
 ```
 
 Use that command to record real follow-on execution with evidence paths. Leave `--stage-complete` as a transitional input for hosts that still cannot write a richer execution record directly.
+If recorded execution evidence is later deleted or moved, Scafforge must stop trusting that recorded completion automatically instead of silently continuing to reuse stale completion state.
 The public runner must also fail explicit repair-contract consistency checks. At minimum, do not allow it to report verification success when restart surfaces still drift, placeholder local skills survive refresh, or it somehow reports zero findings while still not being current-state clean.
 
 ### 4. Use the deterministic engine as the internal refresh phase

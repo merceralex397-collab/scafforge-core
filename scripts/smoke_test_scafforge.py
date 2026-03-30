@@ -4215,6 +4215,29 @@ def main() -> int:
             recorded_follow_on_state = json.loads((recorded_follow_on_dest / ".opencode" / "meta" / "repair-follow-on-state.json").read_text(encoding="utf-8"))
             if recorded_follow_on_state["stage_records"]["ticket-pack-builder"]["completed_by"] != "ticket-pack-builder":
                 raise RuntimeError("Persisted follow-on tracking should keep completed_by for explicitly recorded execution")
+            recorded_evidence_path.unlink()
+            recorded_follow_on_missing_evidence_process = subprocess.run(
+                [
+                    sys.executable,
+                    str(PUBLIC_REPAIR),
+                    str(recorded_follow_on_dest),
+                    "--skip-deterministic-refresh",
+                ],
+                cwd=ROOT,
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            recorded_follow_on_missing_evidence = json.loads(recorded_follow_on_missing_evidence_process.stdout)
+            if "ticket-pack-builder" not in recorded_follow_on_missing_evidence["execution_record"]["invalidated_recorded_stages"]:
+                raise RuntimeError("Managed repair should invalidate recorded execution reuse when the supporting evidence path disappears")
+            if recorded_follow_on_missing_evidence["execution_record"]["recorded_execution_completed_stages"]:
+                raise RuntimeError("Managed repair should stop reporting recorded execution completion when its evidence is missing")
+            if not recorded_follow_on_missing_evidence["execution_record"]["blocking_reasons"]:
+                raise RuntimeError("Managed repair should block again when required recorded execution evidence is missing")
+            missing_evidence_state = json.loads((recorded_follow_on_dest / ".opencode" / "meta" / "repair-follow-on-state.json").read_text(encoding="utf-8"))
+            if missing_evidence_state["stage_records"]["ticket-pack-builder"]["status"] != "evidence_missing":
+                raise RuntimeError("Follow-on tracking should persist evidence_missing when recorded execution evidence disappears")
 
             run_managed_repair_module = load_python_module(PUBLIC_REPAIR, "scafforge_smoke_run_managed_repair")
             contract_failures = run_managed_repair_module.verification_contract_failures(

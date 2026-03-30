@@ -55,6 +55,46 @@ def persist_follow_on_tracking_state(repo_root: Path, state: dict[str, Any]) -> 
     write_json(repo_root / FOLLOW_ON_TRACKING_PATH, state)
 
 
+def validate_recorded_execution_evidence(repo_root: Path, state: dict[str, Any]) -> dict[str, Any]:
+    stage_records = state.get("stage_records") if isinstance(state.get("stage_records"), dict) else {}
+    history = state.get("history") if isinstance(state.get("history"), list) else []
+    now = current_iso_timestamp()
+    for stage, record in list(stage_records.items()):
+        if not isinstance(stage, str) or not isinstance(record, dict):
+            continue
+        if record.get("status") != "completed" or record.get("completion_mode") != "recorded_execution":
+            continue
+        evidence_paths = record.get("evidence_paths") if isinstance(record.get("evidence_paths"), list) else []
+        missing = [
+            path
+            for path in evidence_paths
+            if not isinstance(path, str) or not (repo_root / path).exists()
+        ]
+        if not missing:
+            continue
+        previous_missing = record.get("missing_evidence_paths") if isinstance(record.get("missing_evidence_paths"), list) else []
+        stage_records[stage] = {
+            **record,
+            "status": "evidence_missing",
+            "missing_evidence_paths": sorted(set(path for path in missing if isinstance(path, str))),
+            "last_checked_at": now,
+            "last_updated_at": now,
+        }
+        if sorted(set(path for path in missing if isinstance(path, str))) != sorted(set(path for path in previous_missing if isinstance(path, str))):
+            history.append(
+                {
+                    "recorded_at": now,
+                    "stage": stage,
+                    "status": "evidence_missing",
+                    "missing_evidence_paths": sorted(set(path for path in missing if isinstance(path, str))),
+                    "cycle_id": state.get("cycle_id"),
+                }
+            )
+    state["history"] = history
+    state["last_updated_at"] = now
+    return state
+
+
 def update_follow_on_tracking_state(
     repo_root: Path,
     *,
@@ -64,6 +104,7 @@ def update_follow_on_tracking_state(
     repair_package_commit: str,
 ) -> dict[str, Any]:
     state = load_follow_on_tracking_state(repo_root)
+    state = validate_recorded_execution_evidence(repo_root, state)
     stage_records = state["stage_records"]
     required_reason_map = {item["stage"]: item["reason"] for item in required_follow_on}
     now = current_iso_timestamp()
@@ -82,6 +123,15 @@ def update_follow_on_tracking_state(
     for stage, reason in required_reason_map.items():
         existing = stage_records.get(stage, {})
         if existing.get("status") in {"asserted_completed", "completed"}:
+            stage_records[stage] = {
+                **existing,
+                "stage": stage,
+                "reason": reason,
+                "currently_required": True,
+                "last_checked_at": now,
+            }
+            continue
+        if existing.get("status") == "evidence_missing":
             stage_records[stage] = {
                 **existing,
                 "stage": stage,
@@ -157,6 +207,15 @@ def recorded_execution_stage_names(state: dict[str, Any]) -> list[str]:
         stage
         for stage, record in records.items()
         if isinstance(stage, str) and isinstance(record, dict) and record.get("status") == "completed"
+    )
+
+
+def invalidated_recorded_stage_names(state: dict[str, Any]) -> list[str]:
+    records = state.get("stage_records") if isinstance(state.get("stage_records"), dict) else {}
+    return sorted(
+        stage
+        for stage, record in records.items()
+        if isinstance(stage, str) and isinstance(record, dict) and record.get("status") == "evidence_missing"
     )
 
 

@@ -20,7 +20,7 @@ from apply_repo_process_repair import (
     verification_logs,
 )
 from audit_repo_process import current_package_commit, emit_diagnosis_pack, select_diagnosis_destination
-from follow_on_tracking import completed_stage_names, recorded_execution_stage_names, update_follow_on_tracking_state
+from follow_on_tracking import completed_stage_names, invalidated_recorded_stage_names, recorded_execution_stage_names, update_follow_on_tracking_state
 from shared_verifier import audit_repo
 from regenerate_restart_surfaces import regenerate_restart_surfaces
 
@@ -232,6 +232,7 @@ def update_repair_follow_on_state(
         "tracking_mode": "persistent_recorded_state",
         "follow_on_state_path": str(FOLLOW_ON_TRACKING_PATH).replace("\\", "/"),
         "recorded_stage_state": tracking_state.get("stage_records", {}),
+        "invalidated_recorded_stages": invalidated_recorded_stage_names(tracking_state),
         "blocking_reasons": blocking_reasons,
         "verification_passed": verification_passed,
         "handoff_allowed": handoff_allowed,
@@ -304,6 +305,7 @@ def main() -> int:
     )
     persisted_completed_stage_names = completed_stage_names(tracking_state)
     recorded_execution_stage_list = recorded_execution_stage_names(tracking_state)
+    invalidated_recorded_stage_list = invalidated_recorded_stage_names(tracking_state)
     completed_stage_name_set = set(persisted_completed_stage_names)
     if not args.skip_deterministic_refresh:
         completed_stage_name_set.add("deterministic-refresh")
@@ -413,6 +415,7 @@ def main() -> int:
             "executed_stages": executed_stages,
             "recorded_completed_stages": persisted_completed_stage_names,
             "recorded_execution_completed_stages": recorded_execution_stage_list,
+            "invalidated_recorded_stages": invalidated_recorded_stage_list,
             "asserted_completed_stages": asserted_stage_names,
             "stage_completion_mode": "transitional_manual_assertion",
             "follow_on_tracking_mode": "persistent_recorded_state",
