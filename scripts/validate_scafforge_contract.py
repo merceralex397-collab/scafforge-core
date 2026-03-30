@@ -762,9 +762,11 @@ def validate_template_surfaces(findings: list[Finding]) -> None:
 def validate_audit_repair_surfaces(findings: list[Finding]) -> None:
     audit_skill = ROOT / "skills" / "scafforge-audit"
     repair_skill = ROOT / "skills" / "scafforge-repair"
+    audit_contract_surfaces = audit_skill / "scripts" / "audit_contract_surfaces.py"
     audit_execution_surfaces = audit_skill / "scripts" / "audit_execution_surfaces.py"
     audit_lifecycle_contracts = audit_skill / "scripts" / "audit_lifecycle_contracts.py"
     audit_repair_cycles = audit_skill / "scripts" / "audit_repair_cycles.py"
+    audit_session_transcripts = audit_skill / "scripts" / "audit_session_transcripts.py"
     audit_restart_surfaces = audit_skill / "scripts" / "audit_restart_surfaces.py"
     audit_ticket_graph = audit_skill / "scripts" / "audit_ticket_graph.py"
     require_paths(
@@ -773,9 +775,11 @@ def validate_audit_repair_surfaces(findings: list[Finding]) -> None:
             audit_skill / "SKILL.md",
             audit_skill / "agents" / "openai.yaml",
             audit_skill / "scripts" / "audit_repo_process.py",
+            audit_contract_surfaces,
             audit_execution_surfaces,
             audit_lifecycle_contracts,
             audit_repair_cycles,
+            audit_session_transcripts,
             audit_restart_surfaces,
             audit_ticket_graph,
             audit_skill / "scripts" / "shared_verifier.py",
@@ -806,21 +810,31 @@ def validate_audit_repair_surfaces(findings: list[Finding]) -> None:
     require_contains(findings, audit_skill / "scripts" / "shared_verifier.py", "VERIFY008")
     require_contains(findings, audit_skill / "scripts" / "shared_verifier_types.py", "@dataclass")
     require_contains(findings, audit_skill / "scripts" / "shared_verifier_types.py", "class Finding")
+    require_contains(findings, audit_skill / "scripts" / "audit_repo_process.py", "from audit_contract_surfaces import ContractSurfaceAuditContext, run_contract_surface_audits")
     require_contains(findings, audit_skill / "scripts" / "audit_repo_process.py", "from audit_execution_surfaces import ExecutionSurfaceAuditContext, run_execution_surface_audits")
     require_contains(findings, audit_skill / "scripts" / "audit_repo_process.py", "from audit_lifecycle_contracts import LifecycleContractAuditContext, run_lifecycle_contract_audits")
     require_contains(findings, audit_skill / "scripts" / "audit_repo_process.py", "from audit_repair_cycles import RepairCycleAuditContext, run_repair_cycle_audits")
+    require_contains(findings, audit_skill / "scripts" / "audit_repo_process.py", "from audit_session_transcripts import SessionTranscriptAuditContext, run_session_transcript_audits")
     require_contains(findings, audit_skill / "scripts" / "audit_repo_process.py", "from audit_restart_surfaces import RestartSurfaceAuditContext, run_restart_surface_audits")
     require_contains(findings, audit_skill / "scripts" / "audit_repo_process.py", "from audit_ticket_graph import TicketGraphAuditContext, run_ticket_graph_audits")
+    require_contains(findings, audit_skill / "scripts" / "audit_repo_process.py", "contract_surface_audit_context")
     require_contains(findings, audit_skill / "scripts" / "audit_repo_process.py", "execution_surface_audit_context")
     require_contains(findings, audit_skill / "scripts" / "audit_repo_process.py", "lifecycle_contract_audit_context")
     require_contains(findings, audit_skill / "scripts" / "audit_repo_process.py", "repair_cycle_audit_context")
+    require_contains(findings, audit_skill / "scripts" / "audit_repo_process.py", "session_transcript_audit_context")
     require_contains(findings, audit_skill / "scripts" / "audit_repo_process.py", "restart_surface_audit_context")
     require_contains(findings, audit_skill / "scripts" / "audit_repo_process.py", "ticket_graph_audit_context")
+    require_contains(findings, audit_skill / "scripts" / "audit_repo_process.py", "run_contract_surface_audits(root, findings, contract_ctx)")
     require_contains(findings, audit_skill / "scripts" / "audit_repo_process.py", "run_execution_surface_audits(root, findings, execution_ctx)")
     require_contains(findings, audit_skill / "scripts" / "audit_repo_process.py", "run_lifecycle_contract_audits(root, findings, lifecycle_ctx)")
     require_contains(findings, audit_skill / "scripts" / "audit_repo_process.py", "run_repair_cycle_audits(root, findings, repair_cycle_ctx)")
+    require_contains(findings, audit_skill / "scripts" / "audit_repo_process.py", "run_session_transcript_audits(root, findings, logs or [], session_ctx)")
     require_contains(findings, audit_skill / "scripts" / "audit_repo_process.py", "run_restart_surface_audits(root, findings, restart_ctx)")
     require_contains(findings, audit_skill / "scripts" / "audit_repo_process.py", "run_ticket_graph_audits(root, findings, ticket_graph_ctx)")
+    require_contains(findings, audit_contract_surfaces, "class ContractSurfaceAuditContext")
+    require_contains(findings, audit_contract_surfaces, "def run_contract_surface_audits(")
+    require_contains(findings, audit_contract_surfaces, "def audit_status_model(")
+    require_contains(findings, audit_contract_surfaces, "def audit_model_profile_drift(")
     require_contains(findings, audit_execution_surfaces, "class ExecutionSurfaceAuditContext")
     require_contains(findings, audit_execution_surfaces, "def run_execution_surface_audits(")
     require_contains(findings, audit_execution_surfaces, "def audit_environment_prerequisites(")
@@ -833,6 +847,10 @@ def validate_audit_repair_surfaces(findings: list[Finding]) -> None:
     require_contains(findings, audit_repair_cycles, "def run_repair_cycle_audits(")
     require_contains(findings, audit_repair_cycles, "def audit_failed_repair_cycle(")
     require_contains(findings, audit_repair_cycles, "def audit_verification_basis_regression(")
+    require_contains(findings, audit_session_transcripts, "class SessionTranscriptAuditContext")
+    require_contains(findings, audit_session_transcripts, "def run_session_transcript_audits(")
+    require_contains(findings, audit_session_transcripts, "def audit_session_chronology(")
+    require_contains(findings, audit_session_transcripts, "def audit_session_operator_trap(")
     require_contains(findings, audit_restart_surfaces, "class RestartSurfaceAuditContext")
     require_contains(findings, audit_restart_surfaces, "def run_restart_surface_audits(")
     require_contains(findings, audit_restart_surfaces, "def audit_restart_surface_drift(")
@@ -915,8 +933,12 @@ def validate_audit_repair_surfaces(findings: list[Finding]) -> None:
     require_absent(findings, repair_skill / "scripts" / "regenerate_restart_surfaces.py", "repair_follow_on_handoff_allowed")
     require_contains(findings, audit_execution_surfaces, 'code="BOOT001"')
     require_contains(findings, audit_execution_surfaces, 'code="BOOT002"')
-    require_contains(findings, audit_skill / "scripts" / "audit_repo_process.py", 'code="SKILL001"')
-    require_contains(findings, audit_skill / "scripts" / "audit_repo_process.py", 'code="MODEL001"')
+    require_contains(findings, audit_contract_surfaces, 'code="status-stage-collision"')
+    require_contains(findings, audit_contract_surfaces, 'code="dual-state-model"')
+    require_contains(findings, audit_contract_surfaces, 'code="artifact-persistence-through-register"')
+    require_contains(findings, audit_contract_surfaces, 'code="invalid-opencode-tool-schema"')
+    require_contains(findings, audit_contract_surfaces, 'code="SKILL001"')
+    require_contains(findings, audit_contract_surfaces, 'code="MODEL001"')
     require_contains(findings, audit_repair_cycles, 'code="CYCLE001"')
     require_contains(findings, audit_repair_cycles, 'code="CYCLE002"')
     require_contains(findings, audit_repair_cycles, 'code="CYCLE003"')
@@ -936,26 +958,26 @@ def validate_audit_repair_surfaces(findings: list[Finding]) -> None:
     require_contains(findings, audit_restart_surfaces, 'code="WFLOW012"')
     require_contains(findings, audit_restart_surfaces, 'code="WFLOW013"')
     require_contains(findings, audit_restart_surfaces, 'code="WFLOW014"')
-    require_contains(findings, audit_skill / "scripts" / "audit_repo_process.py", 'code="WFLOW015"')
-    require_contains(findings, audit_execution_surfaces, 'code="WFLOW016"')
-    require_contains(findings, audit_execution_surfaces, 'code="WFLOW017"')
+    require_contains(findings, audit_session_transcripts, 'code="WFLOW015"')
+    require_contains(findings, audit_session_transcripts, 'code="WFLOW016"')
+    require_contains(findings, audit_session_transcripts, 'code="WFLOW017"')
     require_contains(findings, audit_ticket_graph, 'code="WFLOW018"')
     require_contains(findings, audit_ticket_graph, 'code="WFLOW019"')
     require_contains(findings, audit_ticket_graph, 'code="WFLOW020"')
     require_contains(findings, audit_restart_surfaces, 'code="WFLOW021"')
-    require_contains(findings, audit_skill / "scripts" / "audit_repo_process.py", 'code="WFLOW022"')
-    require_contains(findings, audit_skill / "scripts" / "audit_repo_process.py", 'code="WFLOW023"')
+    require_contains(findings, audit_session_transcripts, 'code="WFLOW022"')
+    require_contains(findings, audit_session_transcripts, 'code="WFLOW023"')
     require_contains(findings, audit_ticket_graph, 'code="WFLOW024"')
     require_contains(findings, audit_execution_surfaces, 'code="ENV001"')
     require_contains(findings, audit_execution_surfaces, 'code="ENV002"')
     require_contains(findings, audit_execution_surfaces, 'code="ENV003"')
     require_contains(findings, audit_skill / "scripts" / "audit_repo_process.py", 'code="ENV004"')
-    require_contains(findings, audit_skill / "scripts" / "audit_repo_process.py", 'code="SESSION001"')
-    require_contains(findings, audit_skill / "scripts" / "audit_repo_process.py", 'code="SESSION002"')
-    require_contains(findings, audit_skill / "scripts" / "audit_repo_process.py", 'code="SESSION003"')
-    require_contains(findings, audit_skill / "scripts" / "audit_repo_process.py", 'code="SESSION004"')
-    require_contains(findings, audit_skill / "scripts" / "audit_repo_process.py", 'code="SESSION005"')
-    require_contains(findings, audit_skill / "scripts" / "audit_repo_process.py", 'code="SESSION006"')
+    require_contains(findings, audit_session_transcripts, 'code="SESSION001"')
+    require_contains(findings, audit_session_transcripts, 'code="SESSION002"')
+    require_contains(findings, audit_session_transcripts, 'code="SESSION003"')
+    require_contains(findings, audit_session_transcripts, 'code="SESSION004"')
+    require_contains(findings, audit_session_transcripts, 'code="SESSION005"')
+    require_contains(findings, audit_session_transcripts, 'code="SESSION006"')
     require_contains(findings, audit_restart_surfaces, 'code="SKILL002"')
     require_contains(findings, audit_skill / "scripts" / "audit_repo_process.py", "--supporting-log")
     require_contains(findings, audit_skill / "scripts" / "audit_repo_process.py", "TRANSCRIPT_SMOKE_OVERRIDE_FAILURE_PATTERNS")

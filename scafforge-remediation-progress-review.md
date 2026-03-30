@@ -135,6 +135,12 @@ Implemented:
 - a fifth audit family extraction landed
 - repair-cycle diagnostics were split out into:
   - [audit_repair_cycles.py](/home/rowan/Scafforge/skills/scafforge-audit/scripts/audit_repair_cycles.py)
+- a sixth audit family extraction landed
+- canonical-truth and contract-surface checks were split out into:
+  - [audit_contract_surfaces.py](/home/rowan/Scafforge/skills/scafforge-audit/scripts/audit_contract_surfaces.py)
+- a seventh audit family extraction landed
+- transcript-driven workflow contradiction checks were split out into:
+  - [audit_session_transcripts.py](/home/rowan/Scafforge/skills/scafforge-audit/scripts/audit_session_transcripts.py)
 - validator expectations were updated to treat rule-family modularization as part of the package contract
 
 What this achieved:
@@ -144,12 +150,14 @@ What this achieved:
 - ticket-graph and historical-routing logic is no longer buried only in the main monolith
 - lifecycle stage, proof-ownership, and pending-process-verification logic is no longer buried only in the main monolith
 - repair-cycle and false-clean regression logic is no longer buried only in the main monolith
+- canonical truth, artifact ownership, prompt-contract drift, and repo-local skill/model drift logic is no longer buried only in the main monolith
+- transcript chronology, operator-trap, and session-derived workflow contradiction logic is no longer buried only in the main monolith
 - the repo now has an actual pattern for continued audit modularization
 
 Not yet done:
 
 - `audit_repo_process.py` is still large and still owns most invariant families
-- canonical-truth drift and transcript/session-oriented contradiction families are not yet split into separate modules
+- the transcript/session family is now split, but helper parsing/report plumbing still lives in `audit_repo_process.py`
 - audit documentation is smaller than before in effect, but the full Phase 3 modularization target is still incomplete
 
 ### Phase 4: Make Repair Convergent And Bounded
