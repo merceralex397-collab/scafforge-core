@@ -4249,6 +4249,15 @@ def main() -> int:
                 raise RuntimeError("Persisted follow-on stage state should keep asserted follow-on stage completion")
             if follow_on_state["stage_records"]["ticket-pack-builder"]["owner"] != "ticket-pack-builder" or follow_on_state["stage_records"]["ticket-pack-builder"]["category"] != "ticket_follow_up":
                 raise RuntimeError("Persisted follow-on stage state should keep machine-readable owner/category metadata for canonical stages")
+            if not any(
+                item.get("status") == "asserted_completed"
+                and item.get("stage") == "ticket-pack-builder"
+                and item.get("owner") == "ticket-pack-builder"
+                and item.get("category") == "ticket_follow_up"
+                for item in follow_on_state.get("history", [])
+                if isinstance(item, dict)
+            ):
+                raise RuntimeError("Persisted follow-on history should keep owner/category metadata for asserted stage completion events")
 
             source_follow_up_repair_reuse = run_json(
                 [
@@ -4425,6 +4434,15 @@ def main() -> int:
             recorded_follow_on_state = json.loads((recorded_follow_on_dest / ".opencode" / "meta" / "repair-follow-on-state.json").read_text(encoding="utf-8"))
             if recorded_follow_on_state["stage_records"]["ticket-pack-builder"]["completed_by"] != "ticket-pack-builder":
                 raise RuntimeError("Persisted follow-on tracking should keep completed_by for explicitly recorded execution")
+            if not any(
+                item.get("status") == "completed"
+                and item.get("stage") == "ticket-pack-builder"
+                and item.get("owner") == "ticket-pack-builder"
+                and item.get("category") == "ticket_follow_up"
+                for item in recorded_follow_on_state.get("history", [])
+                if isinstance(item, dict)
+            ):
+                raise RuntimeError("Persisted follow-on history should keep owner/category metadata for recorded execution events")
             recorded_evidence_path.unlink()
             recorded_follow_on_missing_evidence_process = subprocess.run(
                 [

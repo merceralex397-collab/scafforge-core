@@ -945,6 +945,7 @@ def validate_audit_repair_surfaces(findings: list[Finding]) -> None:
     require_contains(findings, repair_skill / "scripts" / "follow_on_tracking.py", '"prompt_hardening"')
     require_contains(findings, repair_skill / "scripts" / "follow_on_tracking.py", '"ticket_follow_up"')
     require_contains(findings, repair_skill / "scripts" / "follow_on_tracking.py", '"restart_surface"')
+    require_contains(findings, repair_skill / "scripts" / "follow_on_tracking.py", "follow_on_stage_history_metadata")
     require_contains(findings, repair_skill / "scripts" / "follow_on_tracking.py", "Unknown repair follow-on stage")
     require_contains(findings, repair_skill / "scripts" / "follow_on_tracking.py", '"status": "pruned_unknown_stages"')
     require_contains(findings, repair_skill / "scripts" / "follow_on_tracking.py", '"pruned_unknown_stages"')

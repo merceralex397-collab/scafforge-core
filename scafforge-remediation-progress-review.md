@@ -191,6 +191,7 @@ Implemented:
 - polluted legacy follow-on tracking entries with unknown stage names are now pruned on load instead of being trusted as completed work
 - that polluted-state cleanup is now surfaced explicitly in repair state and execution output instead of happening silently
 - required follow-on stages and persisted stage records now carry canonical `owner` and `category` metadata from the repair stage catalog
+- stage-based follow-on history events now carry the same canonical `owner` and `category` metadata instead of dropping that context over time
 - repair verification now fails contract checks for:
   - non-clean zero-finding states
   - restart-surface drift after repair
