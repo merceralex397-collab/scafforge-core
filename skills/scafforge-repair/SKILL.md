@@ -72,7 +72,7 @@ Prefer explicit recorded completion when a downstream follow-on stage actually r
 python3 scripts/record_repair_stage_completion.py <repo-root> --stage <stage> --completed-by <skill> --summary "<what ran>"
 ```
 
-Use that command to record real follow-on execution with evidence paths. Leave `--stage-complete` as a transitional input for hosts that still cannot write a richer execution record directly.
+Use that command to record real follow-on execution with evidence paths. Recorded execution must include at least one repo-relative evidence path; zero-evidence recorded completion is invalid and must be rejected. Leave `--stage-complete` as a transitional input for hosts that still cannot write a richer execution record directly.
 Both `--stage-complete` and `record_repair_stage_completion.py` must stay inside the canonical repair follow-on stage catalog. The current allowed stage names are:
 
 - `project-skill-bootstrap`
@@ -93,7 +93,7 @@ That artifact is only trusted for the current repair cycle when it includes both
 - `- cycle_id: <current .opencode/meta/repair-follow-on-state.json cycle_id>`
 
 If a follow-on stage does not yet emit a canonical completion artifact, use `record_repair_stage_completion.py`.
-If recorded execution evidence is later deleted or moved, Scafforge must stop trusting that recorded completion automatically instead of silently continuing to reuse stale completion state.
+If recorded execution evidence is later deleted, moved, or was never recorded at all, Scafforge must stop trusting that recorded completion automatically instead of silently continuing to reuse stale completion state.
 The public runner must also fail explicit repair-contract consistency checks. At minimum, do not allow it to report verification success when restart surfaces still drift, placeholder local skills survive refresh, or it somehow reports zero findings while still not being current-state clean.
 
 ### 4. Use the deterministic engine as the internal refresh phase

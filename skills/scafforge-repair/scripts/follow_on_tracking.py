@@ -207,28 +207,36 @@ def validate_recorded_execution_evidence(repo_root: Path, state: dict[str, Any])
         if record.get("status") != "completed" or record.get("completion_mode") != "recorded_execution":
             continue
         evidence_paths = record.get("evidence_paths") if isinstance(record.get("evidence_paths"), list) else []
+        missing_recorded_evidence = not evidence_paths
         missing = [
             path
             for path in evidence_paths
             if not isinstance(path, str) or not (repo_root / path).exists()
         ]
-        if not missing:
+        if not missing and not missing_recorded_evidence:
             continue
         previous_missing = record.get("missing_evidence_paths") if isinstance(record.get("missing_evidence_paths"), list) else []
         stage_records[stage] = {
             **record,
             "status": "evidence_missing",
             "missing_evidence_paths": sorted(set(path for path in missing if isinstance(path, str))),
+            "evidence_validation_error": "missing_recorded_evidence" if missing_recorded_evidence else None,
             "last_checked_at": now,
             "last_updated_at": now,
         }
-        if sorted(set(path for path in missing if isinstance(path, str))) != sorted(set(path for path in previous_missing if isinstance(path, str))):
+        current_missing = sorted(set(path for path in missing if isinstance(path, str)))
+        previous_error = record.get("evidence_validation_error")
+        if (
+            current_missing != sorted(set(path for path in previous_missing if isinstance(path, str)))
+            or ("missing_recorded_evidence" if missing_recorded_evidence else None) != previous_error
+        ):
             history.append(
                 {
                     "recorded_at": now,
                     **follow_on_stage_history_metadata(stage),
                     "status": "evidence_missing",
-                    "missing_evidence_paths": sorted(set(path for path in missing if isinstance(path, str))),
+                    "missing_evidence_paths": current_missing,
+                    "evidence_validation_error": "missing_recorded_evidence" if missing_recorded_evidence else None,
                     "cycle_id": state.get("cycle_id"),
                 }
             )
@@ -448,6 +456,10 @@ def record_follow_on_stage_completion(
     stage = validate_follow_on_stage_name(stage)
     state = load_follow_on_tracking_state(repo_root)
     stage = validate_stage_allowed_for_current_cycle(state, stage)
+    if not any(isinstance(path, str) and path.strip() for path in evidence_paths):
+        raise ValueError(
+            f"Repair follow-on stage `{stage}` requires at least one repo-relative evidence path for recorded execution."
+        )
     records = state["stage_records"]
     now = current_iso_timestamp()
     existing = records.get(stage, {})
