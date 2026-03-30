@@ -3540,10 +3540,14 @@ def audit_session_operator_trap(root: Path, findings: list[Finding], logs: list[
 
 
 def _detect_python(root: Path) -> str | None:
-    """Return the Python executable to use for this repo (uv run python > python3 > python)."""
-    uv = root / ".venv" / "bin" / "python"
-    if uv.exists():
-        return str(uv)
+    """Return the Python executable to use for this repo (repo-local .venv > python3 > python)."""
+    for candidate in (
+        root / ".venv" / "bin" / "python",
+        root / ".venv" / "Scripts" / "python.exe",
+        root / ".venv" / "Scripts" / "python",
+    ):
+        if candidate.exists():
+            return str(candidate)
     for candidate in ("python3", "python"):
         rc, _ = _run([candidate, "--version"], root, timeout=5)
         if rc == 0:
@@ -3553,14 +3557,23 @@ def _detect_python(root: Path) -> str | None:
 
 def _detect_pytest_command(root: Path) -> list[str] | None:
     """Return the pytest command to use for this repo."""
-    venv_python = root / ".venv" / "bin" / "python"
-    if venv_python.exists():
+    for venv_python in (
+        root / ".venv" / "bin" / "python",
+        root / ".venv" / "Scripts" / "python.exe",
+        root / ".venv" / "Scripts" / "python",
+    ):
+        if not venv_python.exists():
+            continue
         rc, _ = _run([str(venv_python), "-m", "pytest", "--version"], root, timeout=5)
         if rc == 0:
             return [str(venv_python), "-m", "pytest"]
-    venv_pytest = root / ".venv" / "bin" / "pytest"
-    if venv_pytest.exists():
-        return [str(venv_pytest)]
+    for venv_pytest in (
+        root / ".venv" / "bin" / "pytest",
+        root / ".venv" / "Scripts" / "pytest.exe",
+        root / ".venv" / "Scripts" / "pytest",
+    ):
+        if venv_pytest.exists():
+            return [str(venv_pytest)]
     rc, _ = _run(["pytest", "--version"], root, timeout=5)
     if rc == 0:
         return ["pytest"]

@@ -99,7 +99,7 @@ Escalate instead of auto-applying when a repair would:
 BOOT findings mean the managed bootstrap layer is broken on the current machine. Treat this as a workflow-surface repair first, not as a source ticket.
 
 - refresh the managed bootstrap surfaces, especially `.opencode/tools/environment_bootstrap.ts` and any related bootstrap command docs, through `scafforge-repair`
-- replace bare global-pip assumptions with repo-native bootstrap logic (`uv` for uv-managed repos, otherwise repo-local `.venv` plus `.venv/bin/python -m pip`)
+- replace bare global-pip assumptions with repo-native bootstrap logic (`uv` for uv-managed repos, otherwise repo-local `.venv` plus its Python interpreter)
 - correlate `pyproject.toml`, the latest bootstrap artifact command trace, and `environment_bootstrap.ts` so uv-managed repos with dev extras or dependency groups actually emit the required `uv sync` flags
 - surface missing prerequisites accurately; a failed bootstrap artifact must not report `Missing Prerequisites: None` when `pip` or `uv` is actually missing
 - rerun the subject repo's `environment_bootstrap` flow after the managed-surface refresh, then rerun `audit_repo_process.py`; source-layer EXEC tickets should proceed only after `BOOT001` and `BOOT002` are gone

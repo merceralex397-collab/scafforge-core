@@ -55,6 +55,12 @@ def run_json(command: list[str], cwd: Path, *, env: dict[str, str] | None = None
         raise RuntimeError(f"Command did not return valid JSON: {' '.join(command)}\nSTDOUT:\n{result.stdout}") from exc
 
 
+def write_executable(path: Path, content: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(content, encoding="utf-8")
+    path.chmod(path.stat().st_mode | 0o111)
+
+
 def seed_uv_python_fixture(
     dest: Path,
     *,
@@ -1986,8 +1992,8 @@ def main() -> int:
             if expected not in generated_bootstrap:
                 raise RuntimeError("Generated environment_bootstrap.ts should classify missing-tool and permission-restriction host failures explicitly")
         generated_smoke_test = (full_dest / ".opencode" / "tools" / "smoke_test.ts").read_text(encoding="utf-8")
-        if 'join(root, ".venv", "bin", "python")' not in generated_smoke_test:
-            raise RuntimeError("Generated smoke_test.ts should support repo-local .venv Python execution")
+        if "findExistingRepoVenvExecutable" not in generated_smoke_test:
+            raise RuntimeError("Generated smoke_test.ts should support repo-local .venv Python execution across platform-specific virtualenv layouts")
         if "[tool.pytest.ini_options]" not in generated_smoke_test:
             raise RuntimeError("Generated smoke_test.ts should detect pyproject-only pytest configuration, not only tests/ or pytest.ini")
         for expected in ("scope:", "test_paths:", "args.scope", "args.test_paths"):
@@ -2129,6 +2135,13 @@ def main() -> int:
         if greenfield_gate.get("findings"):
             codes = ", ".join(item["code"] for item in greenfield_gate.get("findings", []))
             raise RuntimeError(f"A placeholder-free fresh scaffold should pass the shared greenfield continuation verifier, but it emitted: {codes}")
+        manifest = json.loads((ROOT / "skills" / "skill-flow-manifest.json").read_text(encoding="utf-8"))
+        greenfield_sequence = manifest["run_types"]["greenfield"]["sequence"]
+        verifier_step = "repo-scaffold-factory:verify-generated-scaffold"
+        if verifier_step not in greenfield_sequence:
+            raise RuntimeError("Greenfield manifest sequence should include the pre-handoff verification gate")
+        if greenfield_sequence.index(verifier_step) >= greenfield_sequence.index("handoff-brief"):
+            raise RuntimeError("Greenfield manifest sequence should place the verification gate before handoff-brief")
 
         corrupt_gate_dest = workspace / "greenfield-proof-gate-corrupt"
         shutil.copytree(greenfield_gate_dest, corrupt_gate_dest)
@@ -2176,6 +2189,27 @@ def main() -> int:
             if script_dir_str not in sys.path:
                 sys.path.insert(0, script_dir_str)
         repair_module = load_python_module(REPAIR, "scafforge_smoke_apply_repo_process_repair")
+        regenerate_module = load_python_module(REGENERATE, "scafforge_smoke_regenerate_restart_surfaces")
+        audit_module = load_python_module(AUDIT, "scafforge_smoke_audit_repo_process")
+
+        rendered_block = "\n".join(
+            [
+                "# START HERE",
+                "",
+                "<!-- SCAFFORGE:START_HERE_BLOCK START -->",
+                "fresh managed block",
+                "<!-- SCAFFORGE:START_HERE_BLOCK END -->",
+                "",
+            ]
+        )
+        for merge_fn in (repair_module.merge_start_here, regenerate_module.merge_start_here):
+            partial_start = merge_fn("intro\n<!-- SCAFFORGE:START_HERE_BLOCK START -->\nstale managed block", rendered_block)
+            if "stale managed block" in partial_start or "fresh managed block" not in partial_start:
+                raise RuntimeError("Partial START marker state should be repaired by replacing the stale managed block")
+            partial_end = merge_fn("stale prelude\n<!-- SCAFFORGE:START_HERE_BLOCK END -->\noutro", rendered_block)
+            if "stale prelude" in partial_end or "fresh managed block" not in partial_end or "outro" not in partial_end:
+                raise RuntimeError("Partial END marker state should be repaired by restoring the managed block while preserving trailing unmanaged content")
+
         env_only_stale_surface_map = repair_module.build_stale_surface_map(
             ROOT,
             [],
@@ -2186,6 +2220,24 @@ def main() -> int:
             raise RuntimeError("ENV-only findings should not misclassify workflow_tools_and_prompts as managed replacement drift")
         if env_only_stale_surface_map["workflow_tools_and_prompts"].get("finding_codes"):
             raise RuntimeError("ENV-only findings should not populate workflow_tools_and_prompts finding codes")
+        if env_only_stale_surface_map["canonical_project_decisions"]["status"] != "stable":
+            raise RuntimeError("Routine public repair should not emit canonical-project human-decision escalation from the stale-surface map")
+
+        windows_venv_dest = workspace / "windows-venv-detection"
+        windows_venv_dest.mkdir(parents=True, exist_ok=True)
+        windows_python = windows_venv_dest / ".venv" / "Scripts" / "python.exe"
+        windows_pytest = windows_venv_dest / ".venv" / "Scripts" / "pytest.exe"
+        write_executable(
+            windows_python,
+            "#!/bin/sh\nif [ \"$1\" = \"-m\" ] && [ \"$2\" = \"pytest\" ] && [ \"$3\" = \"--version\" ]; then exit 0; fi\nif [ \"$1\" = \"--version\" ]; then exit 0; fi\nexit 1\n",
+        )
+        write_executable(windows_pytest, "#!/bin/sh\nexit 0\n")
+        detected_python = audit_module._detect_python(windows_venv_dest)
+        if detected_python != str(windows_python):
+            raise RuntimeError("Audit python detection should recognize repo-local Windows-style .venv/Scripts/python.exe")
+        detected_pytest = audit_module._detect_pytest_command(windows_venv_dest)
+        if detected_pytest != [str(windows_python), "-m", "pytest"]:
+            raise RuntimeError("Audit pytest detection should use Windows-style repo-local python when it is the available executable")
 
         initial_audit = run_json([sys.executable, str(AUDIT), str(full_dest), "--format", "json", "--emit-diagnosis-pack"], ROOT)
         initial_codes = {finding["code"] for finding in initial_audit.get("findings", [])}

@@ -78,7 +78,8 @@ python3 scripts/apply_repo_process_repair.py <repo-root>
 
 Use this when the repo needs one deliberate workflow-contract refresh rather than piecemeal edits.
 This deterministic repair flow regenerates `START-HERE.md`, `.opencode/state/context-snapshot.md`, and `.opencode/state/latest-handoff.md` from canonical state, then records the verification outcome before publishing the updated restart narrative.
-It must also emit a machine-readable stale-surface map using the bounded categories `stable`, `replace`, `regenerate`, `ticket_follow_up`, and `human_decision`.
+It must also emit a machine-readable stale-surface map using the bounded categories `stable`, `replace`, `regenerate`, and `ticket_follow_up`.
+Intent-changing drift is out of scope for routine public repair and must route back through kickoff or pivot instead of being reported as a repair-emitted stale-surface category.
 Treat this command as the internal refresh engine, not as the whole user-facing repair contract. A repair run is still incomplete if required regeneration, ticket follow-up, or post-repair verification did not happen afterward.
 
 ### 5. Continue into required project-specific regeneration

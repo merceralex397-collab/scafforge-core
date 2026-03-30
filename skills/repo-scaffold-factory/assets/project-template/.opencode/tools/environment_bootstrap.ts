@@ -6,11 +6,13 @@ import { join } from "node:path"
 import {
   computeBootstrapFingerprint,
   defaultBootstrapProofPath,
+  findExistingRepoVenvExecutable,
   getTicket,
   loadArtifactRegistry,
   loadManifest,
   loadWorkflowState,
   normalizeRepoPath,
+  repoVenvExecutable,
   registerArtifactSnapshot,
   rootPath,
   saveWorkflowBundle,
@@ -158,6 +160,9 @@ async function isUvManagedVenv(root: string): Promise<boolean> {
 }
 
 async function detectUvPythonBootstrap(root: string, pyprojectText: string): Promise<DetectionResult> {
+  const repoPython = repoVenvExecutable(root, "python")
+  const repoPytest = repoVenvExecutable(root, "pytest")
+  const repoRuff = repoVenvExecutable(root, "ruff")
   const commands: CommandSpec[] = [
     {
       label: "uv availability",
@@ -174,20 +179,20 @@ async function detectUvPythonBootstrap(root: string, pyprojectText: string): Pro
   })
   commands.push({
     label: "project python ready",
-    argv: [join(root, ".venv", "bin", "python"), "--version"],
+    argv: [repoPython, "--version"],
     reason: "Verify the repo-local Python interpreter is available after bootstrap.",
   })
   if (hasPythonTestSurface(root, pyprojectText)) {
     commands.push({
       label: "project pytest ready",
-      argv: [join(root, ".venv", "bin", "pytest"), "--version"],
+      argv: [repoPytest, "--version"],
       reason: "Verify the repo-local pytest executable is available for validation work.",
     })
   }
   if (hasRuffSurface(root, pyprojectText)) {
     commands.push({
       label: "project ruff ready",
-      argv: [join(root, ".venv", "bin", "ruff"), "--version"],
+      argv: [repoRuff, "--version"],
       reason: "Verify the repo-local ruff executable is still available after bootstrap sync.",
     })
   }
@@ -202,7 +207,9 @@ async function detectPipPythonBootstrap(root: string, pyprojectText: string): Pr
     return { commands: [], missingPrerequisites: ["python"] }
   }
 
-  const venvPython = join(root, ".venv", "bin", "python")
+  const venvPython = (await findExistingRepoVenvExecutable(root, "python")) ?? repoVenvExecutable(root, "python")
+  const venvPytest = (await findExistingRepoVenvExecutable(root, "pytest")) ?? repoVenvExecutable(root, "pytest")
+  const venvRuff = (await findExistingRepoVenvExecutable(root, "ruff")) ?? repoVenvExecutable(root, "ruff")
   if (!(await exists(venvPython))) {
     commands.push({
       label: "create repo virtualenv",
@@ -254,14 +261,14 @@ async function detectPipPythonBootstrap(root: string, pyprojectText: string): Pr
   if (hasPythonTestSurface(root, pyprojectText)) {
     commands.push({
       label: "project pytest ready",
-      argv: [join(root, ".venv", "bin", "pytest"), "--version"],
+      argv: [venvPytest, "--version"],
       reason: "Verify the repo-local pytest executable is available for validation work.",
     })
   }
   if (hasRuffSurface(root, pyprojectText)) {
     commands.push({
       label: "project ruff ready",
-      argv: [join(root, ".venv", "bin", "ruff"), "--version"],
+      argv: [venvRuff, "--version"],
       reason: "Verify the repo-local ruff executable is available for lint/runtime validation work.",
     })
   }

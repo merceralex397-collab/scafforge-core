@@ -213,6 +213,7 @@ def validate_flow_manifest(findings: list[Finding]) -> None:
         "opencode-team-bootstrap",
         "agent-prompt-engineering",
         "ticket-pack-builder:bootstrap",
+        "repo-scaffold-factory:verify-generated-scaffold",
         "handoff-brief",
     ]
     greenfield = run_types.get("greenfield", {})
@@ -601,6 +602,9 @@ def validate_template_surfaces(findings: list[Finding]) -> None:
     require_contains(findings, workflow_lib, "Run environment_bootstrap, register its proof artifact, rerun ticket_lookup, and do not continue lifecycle work until bootstrap is ready.")
     require_contains(findings, workflow_lib, 'export type RepairFollowOnOutcome = "managed_blocked" | "source_follow_up" | "clean"')
     require_contains(findings, workflow_lib, 'export type TicketSourceMode = "process_verification" | "post_completion_issue" | "net_new_scope" | "split_scope"')
+    require_contains(findings, workflow_lib, "repoVenvExecutableCandidates")
+    require_contains(findings, workflow_lib, "repoVenvExecutable")
+    require_contains(findings, workflow_lib, "findExistingRepoVenvExecutable")
     require_contains(findings, workflow_lib, "repair_follow_on_outcome")
     require_contains(findings, workflow_lib, "workflow.repair_follow_on.outcome === \"source_follow_up\"")
     require_contains(findings, workflow_lib, '"plan_review"')
@@ -620,9 +624,11 @@ def validate_template_surfaces(findings: list[Finding]) -> None:
     require_contains(findings, environment_bootstrap, "Fix the permission/tool policy")
     require_contains(findings, environment_bootstrap, "defaultBootstrapProofPath")
     require_contains(findings, environment_bootstrap, "normalizeRepoPath")
+    require_contains(findings, environment_bootstrap, "repoVenvExecutable")
+    require_contains(findings, environment_bootstrap, "findExistingRepoVenvExecutable")
     require_absent(findings, environment_bootstrap, "(?:\\\\n\\\\[|$)")
     require_contains(findings, smoke_test, 'join(root, "uv.lock")')
-    require_contains(findings, smoke_test, 'join(root, ".venv", "bin", "python")')
+    require_contains(findings, smoke_test, "findExistingRepoVenvExecutable")
     require_contains(findings, smoke_test, "[tool.pytest.ini_options]")
     require_contains(findings, smoke_test, "scope:")
     require_contains(findings, smoke_test, "test_paths:")
@@ -795,7 +801,7 @@ def validate_audit_repair_surfaces(findings: list[Finding]) -> None:
     require_contains(findings, repair_skill / "scripts" / "apply_repo_process_repair.py", "build_stale_surface_map")
     require_contains(findings, repair_skill / "scripts" / "apply_repo_process_repair.py", '"stale_surface_map"')
     require_contains(findings, repair_skill / "scripts" / "apply_repo_process_repair.py", '"ticket_follow_up"')
-    require_contains(findings, repair_skill / "scripts" / "apply_repo_process_repair.py", '"human_decision"')
+    require_absent(findings, repair_skill / "scripts" / "apply_repo_process_repair.py", '"human_decision"')
     require_contains(findings, repair_skill / "scripts" / "apply_repo_process_repair.py", '"stage_completion_mode": "transitional_manual_assertion"')
     require_contains(findings, repair_skill / "scripts" / "apply_repo_process_repair.py", '"asserted_completed_stages": []')
     require_contains(findings, repair_skill / "scripts" / "apply_repo_process_repair.py", ".opencode/state/context-snapshot.md")
@@ -812,7 +818,7 @@ def validate_audit_repair_surfaces(findings: list[Finding]) -> None:
     require_contains(findings, repair_skill / "scripts" / "apply_repo_process_repair.py", "Run scafforge-audit before relying on this restart narrative for continued development.")
     require_contains(findings, repair_skill / "SKILL.md", "python3 scripts/run_managed_repair.py <repo-root>")
     require_contains(findings, repair_skill / "SKILL.md", "machine-readable stale-surface map")
-    require_contains(findings, repair_skill / "SKILL.md", "`stable`, `replace`, `regenerate`, `ticket_follow_up`, and `human_decision`")
+    require_contains(findings, repair_skill / "SKILL.md", "`stable`, `replace`, `regenerate`, and `ticket_follow_up`")
     require_contains(findings, repair_skill / "SKILL.md", "The current `--stage-complete` path is transitional.")
     require_contains(findings, repair_skill / "SKILL.md", "repair-contract consistency checks")
     require_contains(findings, repair_skill / "scripts" / "run_managed_repair.py", '"required_follow_on_stages"')

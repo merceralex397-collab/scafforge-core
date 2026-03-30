@@ -33,10 +33,11 @@ scaffold-kickoff
   -> opencode-team-bootstrap
   -> agent-prompt-engineering
   -> ticket-pack-builder
+  -> repo-scaffold-factory:verify-generated-scaffold
   -> handoff-brief
 ```
 
-This pass allows one batched blocking-decision round and then completes in one uninterrupted same-session generation run. No second Scafforge generation pass is required before development begins. Greenfield completion requires immediate continuation proof, not only surface agreement.
+This pass allows one batched blocking-decision round and then completes in one uninterrupted same-session generation run. No second Scafforge generation pass is required before development begins. Greenfield completion requires immediate continuation proof, not only surface agreement. That proof must be completed before handoff publication.
 The current package still carries one temporary contract smell: `project-skill-bootstrap` and `opencode-team-bootstrap` form a dependency seam, so Scafforge keeps the current order until a minimal-operable-versus-specialization split exists.
 
 `scaffold-kickoff` remains the single public entrypoint for:
@@ -108,7 +109,7 @@ Generated repos use a structured truth hierarchy so state does not drift:
 Generation, audit, repair, and pivot are separate lifecycle stages.
 
 - `scaffold-kickoff` is the only public generation entrypoint.
-- Initial generation ends at `handoff-brief`.
+- Initial generation ends only after the pre-handoff verification gate and `handoff-brief`.
 - `scafforge-audit`, `scafforge-repair`, and `scafforge-pivot` are later lifecycle tools, not part of the initial generation cycle.
 
 - `scafforge-audit` is read-only and always validates review evidence, runs the audit script, and emits the four-report diagnosis pack in the subject repo's `diagnosis/` folder.

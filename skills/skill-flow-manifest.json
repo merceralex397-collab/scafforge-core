@@ -27,6 +27,7 @@
         "opencode-team-bootstrap",
         "agent-prompt-engineering",
         "ticket-pack-builder:bootstrap",
+        "repo-scaffold-factory:verify-generated-scaffold",
         "handoff-brief"
       ]
     },

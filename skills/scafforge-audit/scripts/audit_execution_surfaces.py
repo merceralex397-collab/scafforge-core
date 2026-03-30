@@ -25,6 +25,24 @@ class ExecutionSurfaceAuditContext:
     run_command: Callable[[list[str], Path, int], tuple[int, str]]
 
 
+def repo_venv_executable_candidates(root: Path, executable: str) -> list[Path]:
+    names = [executable] if executable.lower().endswith(".exe") else [executable, f"{executable}.exe"]
+    candidates: list[Path] = []
+    for directory in (root / ".venv" / "bin", root / ".venv" / "Scripts"):
+        for name in names:
+            candidate = directory / name
+            if candidate not in candidates:
+                candidates.append(candidate)
+    return candidates
+
+
+def existing_repo_venv_executable(root: Path, executable: str) -> Path | None:
+    for candidate in repo_venv_executable_candidates(root, executable):
+        if candidate.exists():
+            return candidate
+    return None
+
+
 def parse_bootstrap_artifact_commands(text: str) -> list[str]:
     return [match.group(1).strip() for match in re.finditer(r"^- command: `([^`]+)`", text, re.MULTILINE)]
 
@@ -196,7 +214,7 @@ def audit_bootstrap_deadlock(root: Path, findings: list[Finding], ctx: Execution
             problem="The generated bootstrap contract cannot ready this repo on the current machine, so write-capable workflow stages can deadlock before source fixes start.",
             root_cause="The managed `environment_bootstrap` surface still relies on bare `python3 -m pip` or otherwise ignores repo-local uv/.venv signals. When global pip is absent, bootstrap fails even if the repo has a usable project virtual environment or uv lockfile.",
             files=list(dict.fromkeys(affected_files)),
-            safer_pattern="Prefer repo-native bootstrap (`uv sync --locked` for uv repos; otherwise repo-local `.venv` plus `.venv/bin/python -m pip`), record missing prerequisites accurately, and keep bootstrap readiness separate from source import/test failures.",
+            safer_pattern="Prefer repo-native bootstrap (`uv sync --locked` for uv repos; otherwise repo-local `.venv` plus its Python interpreter), record missing prerequisites accurately, and keep bootstrap readiness separate from source import/test failures.",
             evidence=evidence[:8],
             provenance="script",
         ),
@@ -209,7 +227,7 @@ def audit_smoke_test_contract(root: Path, findings: list[Finding], ctx: Executio
         return
 
     text = ctx.read_text(tool_path)
-    has_repo_python = (root / "uv.lock").exists() or (root / ".venv" / "bin" / "python").exists()
+    has_repo_python = (root / "uv.lock").exists() or existing_repo_venv_executable(root, "python") is not None
     hardcoded_system_pytest = 'argv: ["python3", "-m", "pytest"]' in text
     if not (has_repo_python and hardcoded_system_pytest):
         return
@@ -217,8 +235,9 @@ def audit_smoke_test_contract(root: Path, findings: list[Finding], ctx: Executio
     evidence = []
     if (root / "uv.lock").exists():
         evidence.append("Repo contains uv.lock, so smoke tests should prefer `uv run python -m pytest`.")
-    if (root / ".venv" / "bin" / "python").exists():
-        evidence.append("Repo contains .venv/bin/python, so smoke tests can use the repo-local virtualenv directly.")
+    repo_python = existing_repo_venv_executable(root, "python")
+    if repo_python is not None:
+        evidence.append(f"Repo contains {ctx.normalize_path(repo_python, root)}, so smoke tests can use the repo-local virtualenv directly.")
     evidence.append(f"{ctx.normalize_path(tool_path, root)} still hardcodes `python3 -m pytest` for detected Python test surfaces.")
 
     ctx.add_finding(
@@ -229,7 +248,7 @@ def audit_smoke_test_contract(root: Path, findings: list[Finding], ctx: Executio
             problem="The managed smoke-test tool ignores repo-managed Python execution and can deadlock closeout on uv or .venv repos.",
             root_cause="The generated smoke-test contract still hardcodes system `python3 -m pytest` instead of selecting repo-native Python execution when `uv.lock` or `.venv` is present.",
             files=[ctx.normalize_path(tool_path, root)],
-            safer_pattern="Prefer explicit project smoke-test overrides first, then `uv run python -m pytest` for uv-managed repos, then `.venv/bin/python -m pytest` for repo-local virtualenvs before falling back to system python.",
+            safer_pattern="Prefer explicit project smoke-test overrides first, then `uv run python -m pytest` for uv-managed repos, then the repo-local `.venv` Python interpreter before falling back to system python.",
             evidence=evidence,
             provenance="script",
         ),
@@ -319,9 +338,9 @@ def audit_environment_prerequisites(root: Path, findings: list[Finding], ctx: Ex
                 problem="The current machine does not expose a usable Python interpreter for this repo's runtime and verification flow.",
                 root_cause="The repo is Python-backed, but the host environment cannot run repo-local `.venv` Python or a system `python3`/`python`, so audit and repair cannot execute import or test verification.",
                 files=[path for path in (ctx.normalize_path(environment_bootstrap, root), ctx.normalize_path(smoke_test, root)) if (root / path).exists()],
-                safer_pattern="Ensure the host can run repo-local `.venv/bin/python` or a system Python before treating audit or repair verification as complete.",
+                safer_pattern="Ensure the host can run the repo-local `.venv` Python interpreter or a system Python before treating audit or repair verification as complete.",
                 evidence=[
-                    "No repo-local `.venv/bin/python` was detected.",
+                    "No repo-local `.venv` Python interpreter was detected.",
                     "Neither `python3 --version` nor `python --version` succeeded on this machine.",
                 ],
                 provenance="script",
@@ -377,7 +396,7 @@ def audit_environment_prerequisites(root: Path, findings: list[Finding], ctx: Ex
                 code="ENV002",
                 severity="error",
                 problem="The repo has Python tests, but no usable pytest command is available on the current machine.",
-                root_cause="The workflow expects test collection or suite execution, but the host cannot run repo-local `python -m pytest`, `.venv/bin/pytest`, or a global `pytest` binary. Audit would otherwise skip runtime verification and misstate repo health.",
+                root_cause="The workflow expects test collection or suite execution, but the host cannot run repo-local `python -m pytest`, repo-local `.venv` pytest, or a global `pytest` binary. Audit would otherwise skip runtime verification and misstate repo health.",
                 files=[ctx.normalize_path(tests_dir, root)],
                 safer_pattern="Install or sync the repo-local test environment first, then rerun audit or repair verification with a working pytest command.",
                 evidence=[

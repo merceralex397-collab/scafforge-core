@@ -19,6 +19,7 @@ scaffold-kickoff
   -> opencode-team-bootstrap
   -> agent-prompt-engineering
   -> ticket-pack-builder
+  -> repo-scaffold-factory:verify-generated-scaffold
   -> handoff-brief
 ```
 
@@ -34,6 +35,7 @@ scaffold-kickoff
 - The host agent must complete every downstream greenfield generation skill in the same session.
 - No second Scafforge generation pass is required before development begins.
 - Greenfield completion requires immediate continuation proof, not only surface agreement.
+- That proof must complete before handoff publication.
 
 ## Lifecycle boundaries
 

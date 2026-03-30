@@ -217,6 +217,40 @@ export const DEFAULT_OVERLAP_RISK: OverlapRisk = "high"
 export const DEFAULT_PARALLEL_MODE: ParallelMode = "sequential"
 export const MIN_EXECUTION_ARTIFACT_BYTES = 200
 
+export function repoVenvExecutableCandidates(root: string, executable: string): string[] {
+  const names = executable.toLowerCase().endsWith(".exe") ? [executable] : [executable, `${executable}.exe`]
+  const dirs =
+    process.platform === "win32"
+      ? [join(root, ".venv", "Scripts"), join(root, ".venv", "bin")]
+      : [join(root, ".venv", "bin"), join(root, ".venv", "Scripts")]
+  const candidates: string[] = []
+  for (const dir of dirs) {
+    for (const name of names) {
+      const candidate = join(dir, name)
+      if (!candidates.includes(candidate)) {
+        candidates.push(candidate)
+      }
+    }
+  }
+  return candidates
+}
+
+export function repoVenvExecutable(root: string, executable: string): string {
+  return repoVenvExecutableCandidates(root, executable)[0]
+}
+
+export async function findExistingRepoVenvExecutable(root: string, executable: string): Promise<string | null> {
+  for (const candidate of repoVenvExecutableCandidates(root, executable)) {
+    try {
+      await stat(candidate)
+      return candidate
+    } catch {
+      continue
+    }
+  }
+  return null
+}
+
 const EXECUTION_EVIDENCE_PATTERNS = [
   /```(?:bash|sh|shell|console|text)?[\s\S]*?(?:npm|pnpm|yarn|bun|pytest|cargo|go test|go vet|python(?:3)? -m|node(?:\s|$)|tsc(?:\s|$)|make(?:\s|$)|exit code|passed|failed)/i,
   /(?:^|\n)(?:\$ |>|command: ).*(?:npm|pnpm|yarn|bun|pytest|cargo|go test|go vet|python(?:3)? -m|node|tsc|make)/i,

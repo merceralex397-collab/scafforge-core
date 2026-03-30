@@ -89,13 +89,9 @@ Create implementation-ready tickets only after local skills, team topology, and 
 - keep each ticket small enough for one agent session
 - convert unresolved major decisions into blocked or decision tickets instead of guesses
 
-### Step 8: Write the handoff surface
+### Step 8: Verify immediate continuation before handoff
 
-Read `../handoff-brief/SKILL.md` and follow its procedure.
-
-Generate `START-HERE.md` with actual project state so the repo can be resumed by another agent or session.
-
-Before you finish the handoff, run one same-session immediate-continuation verification gate across the generated workflow surfaces:
+Before you begin the handoff step, run one same-session immediate-continuation verification gate across the generated workflow surfaces:
 
 ```sh
 python3 ../repo-scaffold-factory/scripts/verify_generated_scaffold.py <repo-root> --format both
@@ -121,7 +117,13 @@ Confirm that they agree on:
 
 If these surfaces disagree, fix the contract before handing off the repo.
 
-### Step 9: Done
+### Step 9: Write the handoff surface
+
+Read `../handoff-brief/SKILL.md` and follow its procedure.
+
+Generate `START-HERE.md` with actual project state so the repo can be resumed by another agent or session.
+
+### Step 10: Done
 
 The scaffold is complete when all of these exist:
 - `docs/spec/CANONICAL-BRIEF.md` with real project content

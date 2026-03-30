@@ -6,6 +6,7 @@ import { join } from "node:path"
 import {
   currentArtifacts,
   defaultArtifactPath,
+  findExistingRepoVenvExecutable,
   getTicket,
   latestArtifact,
   loadArtifactRegistry,
@@ -223,8 +224,8 @@ async function detectPythonRunner(root: string, pyprojectText: string): Promise<
     }
   }
 
-  const repoVenvPython = join(root, ".venv", "bin", "python")
-  if (await exists(repoVenvPython)) {
+  const repoVenvPython = await findExistingRepoVenvExecutable(root, "python")
+  if (repoVenvPython) {
     return {
       label: "repo-local python",
       argv: [repoVenvPython],

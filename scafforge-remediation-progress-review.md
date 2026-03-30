@@ -37,14 +37,15 @@ Current remediation commits on this branch:
 At the current tip of the branch:
 
 - `python3 scripts/validate_scafforge_contract.py` passes
-- `python3 scripts/smoke_test_scafforge.py` passes
+- `python3 scripts/smoke_test_scafforge.py` passes on the current host
 - the public repair and verification entrypoints start cleanly
 
 Important clarification:
 
 - the consolidated plan still records an older environment-sensitive smoke failure caused by missing `uv`
 - that is no longer the current branch state on this machine
-- `uv` is now available and the branch currently validates and smokes cleanly
+- `uv` is now available and the branch currently validates and smokes cleanly here
+- this should not be read as cross-host proof until the repo-local `.venv` path handling is exercised beyond the current host
 
 ## Phase Status Summary
 
@@ -145,7 +146,6 @@ Implemented:
   - `replace`
   - `regenerate`
   - `ticket_follow_up`
-  - `human_decision`
 - stale-surface routing was corrected after review so it no longer contradicts the runner’s actual follow-on stages
 - `--stage-complete` is explicitly marked transitional in repair state and execution records
 - repair verification now fails contract checks for:

@@ -91,8 +91,16 @@ def merge_start_here(existing: str, rendered: str) -> str:
         return rendered
     if not existing.strip():
         return rendered
-    if START_HERE_MANAGED_START not in existing or START_HERE_MANAGED_END not in existing:
+    start_index = existing.find(START_HERE_MANAGED_START)
+    end_index = existing.find(START_HERE_MANAGED_END)
+    if start_index == -1 and end_index == -1:
         return existing
+    if start_index != -1 and end_index == -1:
+        prefix = existing[:start_index].rstrip()
+        return f"{prefix}\n\n{rendered_match.group(0)}\n" if prefix else f"{rendered_match.group(0)}\n"
+    if start_index == -1 and end_index != -1:
+        suffix = existing[end_index + len(START_HERE_MANAGED_END):].lstrip("\r\n")
+        return f"{rendered_match.group(0)}\n\n{suffix}" if suffix else rendered_match.group(0)
     return rendered_pattern.sub(rendered_match.group(0), existing, count=1)
 
 
@@ -291,7 +299,6 @@ def build_stale_surface_map(
     pending_process_verification: bool,
     *,
     required_stage_names: set[str] | None = None,
-    intent_decision_required: bool = False,
 ) -> dict[str, dict[str, Any]]:
     required_stage_names = required_stage_names or set()
     codes = {getattr(finding, "code", "") for finding in findings if getattr(finding, "code", "")}
@@ -368,13 +375,9 @@ def build_stale_surface_map(
             reason="Restart surfaces are derived and must be regenerated whenever managed repair changes workflow state.",
         ),
         "canonical_project_decisions": _surface_entry(
-            status="human_decision" if intent_decision_required else "stable",
-            surfaces=["docs/spec/CANONICAL-BRIEF.md"] if intent_decision_required else [],
-            reason=(
-                "Repair exposed intent-changing drift; update canonical project decisions explicitly instead of treating this as routine managed repair."
-                if intent_decision_required
-                else "Managed repair preserves accepted project-scope decisions unless the repair basis explicitly exposes intent drift."
-            ),
+            status="stable",
+            surfaces=[],
+            reason="Managed repair preserves accepted project-scope decisions. Intent-changing drift must route outside routine public repair.",
         ),
     }
 
