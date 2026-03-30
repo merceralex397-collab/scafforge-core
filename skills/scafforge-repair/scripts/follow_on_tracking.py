@@ -64,6 +64,15 @@ def follow_on_stage_metadata(stage: str) -> dict[str, str]:
     }
 
 
+def follow_on_stage_history_metadata(stage: str) -> dict[str, str]:
+    metadata = follow_on_stage_metadata(stage)
+    return {
+        "stage": metadata["stage"],
+        "owner": metadata["owner"],
+        "category": metadata["category"],
+    }
+
+
 def validate_follow_on_stage_name(stage: str) -> str:
     normalized = stage.strip()
     if normalized in FOLLOW_ON_STAGE_CATALOG:
@@ -199,7 +208,7 @@ def validate_recorded_execution_evidence(repo_root: Path, state: dict[str, Any])
             history.append(
                 {
                     "recorded_at": now,
-                    "stage": stage,
+                    **follow_on_stage_history_metadata(stage),
                     "status": "evidence_missing",
                     "missing_evidence_paths": sorted(set(path for path in missing if isinstance(path, str))),
                     "cycle_id": state.get("cycle_id"),
@@ -324,7 +333,7 @@ def update_follow_on_tracking_state(
         state["history"].append(
             {
                 "recorded_at": now,
-                "stage": stage,
+                **follow_on_stage_history_metadata(stage),
                 "status": "asserted_completed",
                 "completion_mode": "transitional_manual_assertion",
                 "reason": reason,
@@ -444,7 +453,7 @@ def record_follow_on_stage_completion(
     state["history"].append(
         {
             "recorded_at": now,
-            "stage": stage,
+            **follow_on_stage_history_metadata(stage),
             "status": "completed",
             "completion_mode": "recorded_execution",
             "completed_by": completed_by,
