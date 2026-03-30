@@ -14,7 +14,7 @@ Use [../../references/competence-contract.md](../../references/competence-contra
 ## When to use this skill
 
 - The user asks for diagnosis, review, audit, or report generation
-- `scaffold-kickoff` reaches the final verification pass in a greenfield or retrofit flow
+- `scaffold-kickoff` reaches the retrofit audit step or an explicit diagnosis/review flow
 - A managed repo needs a current-state diagnosis before any repair work
 - A PR or review thread has findings that need evidence validation and ticket recommendations
 - A generated repo needs a diagnosis pack that the user will manually carry into the Scafforge dev repo for package work

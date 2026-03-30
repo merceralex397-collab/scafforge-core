@@ -1,0 +1,4 @@
+interface:
+  display_name: "Scafforge Pivot"
+  short_description: "Route a midstream feature or design change through canonical-truth updates, bounded refresh, and post-pivot verification"
+  default_prompt: "Use $scafforge-pivot to classify the requested pivot, update canonical brief truth first, emit a stale-surface map, route only the affected downstream refresh steps, and verify the repo before handoff."

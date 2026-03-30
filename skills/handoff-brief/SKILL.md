@@ -57,6 +57,7 @@ Verify the handoff:
 - The referenced ticket actually exists in the manifest
 - The reading order files all exist
 - The next action is specific and actionable
+- The next action matches the one legal first move exposed by canonical state when bootstrap is not yet ready
 - The handoff is a truthful restart surface bounded by current evidence, even when later audit, repair, or backlog reverification is still pending
 
 ## Output contract
@@ -66,6 +67,7 @@ Before leaving this skill, confirm all of these are true:
 - `.opencode/state/latest-handoff.md` exists and agrees with `START-HERE.md` on active ticket, bootstrap status, and pending process verification
 - the read order lists `tickets/manifest.json` before `tickets/BOARD.md`
 - the next action is actionable and does not overclaim readiness beyond current evidence
+- the handoff proves immediate continuation rather than only surface agreement
 
 ## After this step
 

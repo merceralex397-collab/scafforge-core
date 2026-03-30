@@ -64,7 +64,7 @@ These skills are the current backbone and should remain coherent as a chain:
 - `ticket-pack-builder`
 - `handoff-brief`
 
-`scafforge-audit` and `scafforge-repair` remain separate post-generation lifecycle skills.
+`scafforge-audit`, `scafforge-repair`, and `scafforge-pivot` remain separate post-generation lifecycle skills.
 Optional extension skills may exist outside this default scaffold spine when they solve later host-side workflow needs without polluting the scaffold chain. These should stay clearly marked as optional.
 
 ## Canonical workflow contract
@@ -82,7 +82,8 @@ The default route should be:
 7. `ticket-pack-builder` runs in bootstrap mode
 8. `handoff-brief` refreshes the restart surface
 
-A greenfield scaffold allows one batched blocking-decision round and then completes in one uninterrupted same-session pass. No second Scafforge generation pass is required before development begins.
+A greenfield scaffold allows one batched blocking-decision round and then completes in one uninterrupted same-session pass. No second Scafforge generation pass is required before development begins. Greenfield completion requires immediate continuation proof, not only surface agreement.
+The package still carries one explicit temporary contract smell: `project-skill-bootstrap` and `opencode-team-bootstrap` form a dependency seam, and the current order stays in place until Scafforge introduces a real minimal-operable-versus-specialization split.
 
 ## Product contract refinements
 
@@ -91,13 +92,15 @@ These refinements now govern implementation of the package contract:
 - intake is **opportunistic first**: scan messy docs, notes, and fragmented inputs before normalizing them into a canonical brief
 - meaningful ambiguity must be converted into a **batched decision packet** and asked, not silently assumed
 - the default output remains **one full orchestration OpenCode scaffold**
-- `scaffold-kickoff` remains the **single public entrypoint** for greenfield, retrofit, managed-repair/update, and diagnosis/review flows; downstream skills are routing targets, not user-facing starting points
+- `scaffold-kickoff` remains the **single public entrypoint** for greenfield, retrofit, pivot, managed-repair/update, and diagnosis/review flows; downstream skills are routing targets, not user-facing starting points
 - the greenfield path is **one-shot**: one batched blocking-decision round, one uninterrupted same-session generation pass, then direct handoff into development
+- the greenfield handoff must be **immediately continuable**: one legal first move, one named owner, and no bootstrap-first ambiguity across restart, prompt, tool, and workflow surfaces
 - the generated repo must have a **structured truth hierarchy** with exact canonical owners for facts, queue state, transient workflow state, artifacts, provenance, and restart surfaces
 - the generated repo must always expose **one legal next move** with one named owner and one blocker return path
 - the initial backlog should be **implementation-ready where decisions are resolved**, while unresolved major choices become explicit blocked or decision tickets instead of fabricated detail
 - `scafforge-audit` should own read-only diagnosis, review validation, and full diagnosis-pack generation on every audit run
 - `scafforge-repair` should consume audit outputs, apply safe repairs, continue into required project-specific regeneration steps, and escalate intent-changing repairs
+- `scafforge-pivot` should update canonical truth first, emit a stale-surface map, and route only the affected downstream refresh steps
 - post-repair verification must prove both current-state cleanliness and causal-regression coverage whenever the repair basis was transcript-backed
 - package-level PR evidence intake should be folded into `scafforge-audit` instead of surviving as a separate primary skill
 - standalone refinement routing should not remain as a package-level flow
@@ -139,6 +142,19 @@ Use this path when a repo is already Scafforge-managed or otherwise OpenCode-ori
 5. `agent-prompt-engineering` reruns when regenerated skills or agents changed prompt behavior
 6. `ticket-pack-builder` repairs backlog state if needed
 7. `handoff-brief` publishes restart state
+
+### Pivot flow
+
+Use this path when a repo needs a midstream feature, design, architecture, or workflow change that alters canonical truth:
+
+1. `scaffold-kickoff` decides this is pivot work
+2. `scafforge-pivot` updates canonical brief truth and emits a stale-surface map
+3. `project-skill-bootstrap` reruns only if repo-local skills changed
+4. `opencode-team-bootstrap` follows only if team or tool surfaces changed
+5. `agent-prompt-engineering` reruns only if prompt behavior changed
+6. `ticket-pack-builder` repairs lineage when tickets must be refined, reopened, superseded, or reconciled
+7. `scafforge-repair` runs only if the pivot also exposed managed workflow drift
+8. `handoff-brief` publishes restart state
 
 ### Diagnosis / review flow
 
@@ -227,6 +243,11 @@ It should validate PR or review evidence against the actual repo before treating
 Owns workflow repair execution and post-audit follow-up.
 
 It should consume audit outputs, apply safe managed-surface repairs, and leave explicit provenance and verification state.
+
+### `scafforge-pivot`
+Owns pivot classification and bounded downstream refresh routing.
+
+It should update canonical truth first, emit a stale-surface map, and reuse repair or ticket machinery where needed without becoming a second scaffold or repair engine.
 
 ### `handoff-brief`
 Owns the restart surface and closeout summary, not planning.

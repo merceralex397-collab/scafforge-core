@@ -9,6 +9,9 @@ from typing import Any
 
 from apply_repo_process_repair import (
     apply_repair,
+    build_stale_surface_map,
+    detect_agent_prompt_drift,
+    find_placeholder_skills,
     load_metadata,
     load_pending_process_verification,
     repair_basis_requires_causal_replay,
@@ -16,7 +19,8 @@ from apply_repo_process_repair import (
     run_bootstrap_render,
     verification_logs,
 )
-from audit_repo_process import audit_repo, current_package_commit, emit_diagnosis_pack, select_diagnosis_destination
+from audit_repo_process import current_package_commit, emit_diagnosis_pack, select_diagnosis_destination
+from shared_verifier import audit_repo
 from regenerate_restart_surfaces import regenerate_restart_surfaces
 
 
@@ -61,44 +65,8 @@ def read_json(path: Path) -> Any:
     return json.loads(path.read_text(encoding="utf-8")) if path.exists() else None
 
 
-def load_text(path: Path) -> str:
-    return path.read_text(encoding="utf-8") if path.exists() else ""
-
-
 def current_iso_timestamp() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
-
-
-def find_placeholder_skills(repo_root: Path) -> list[str]:
-    hits: list[str] = []
-    skills_root = repo_root / ".opencode" / "skills"
-    if not skills_root.exists():
-        return hits
-    for path in sorted(skills_root.rglob("SKILL.md")):
-        text = load_text(path)
-        if "Replace this file" in text or "TODO: replace" in text:
-            hits.append(str(path.relative_to(repo_root)))
-    return hits
-
-
-def detect_agent_prompt_drift(repo_root: Path) -> list[str]:
-    hits: list[str] = []
-    agents_root = repo_root / ".opencode" / "agents"
-    if not agents_root.exists():
-        return hits
-
-    team_leader = next(agents_root.glob("*team-leader*.md"), None)
-    if team_leader:
-        text = load_text(team_leader)
-        if "next_action_tool" not in text or "summary-only stopping is invalid" not in text:
-            hits.append(str(team_leader.relative_to(repo_root)))
-
-    for pattern in ("*implementer*.md", "*lane-executor*.md", "*docs-handoff*.md"):
-        for path in agents_root.glob(pattern):
-            text = load_text(path)
-            if "team leader already owns lease claim and release" not in text:
-                hits.append(str(path.relative_to(repo_root)))
-    return sorted(set(hits))
 
 
 def derive_required_follow_on_stages(
@@ -210,6 +178,7 @@ def update_repair_follow_on_state(
     outcome: str,
     required_stage_names: list[str],
     completed_stage_names: list[str],
+    asserted_stage_names: list[str],
     blocking_reasons: list[str],
     verification_passed: bool,
     handoff_allowed: bool,
@@ -225,6 +194,8 @@ def update_repair_follow_on_state(
         "outcome": outcome,
         "required_stages": required_stage_names,
         "completed_stages": completed_stage_names,
+        "asserted_completed_stages": asserted_stage_names,
+        "stage_completion_mode": "transitional_manual_assertion",
         "blocking_reasons": blocking_reasons,
         "verification_passed": verification_passed,
         "handoff_allowed": handoff_allowed,
@@ -279,13 +250,21 @@ def main() -> int:
 
     required_follow_on = derive_required_follow_on_stages(repo_root, findings, replaced_surfaces, pending_process_verification)
     required_stage_names = [item["stage"] for item in required_follow_on]
+    stale_surface_map = build_stale_surface_map(
+        repo_root,
+        replaced_surfaces,
+        findings,
+        pending_process_verification,
+        required_stage_names=set(required_stage_names),
+    )
     requested_stage_names = sorted(set(args.stage_complete))
     completed_stage_names = {"deterministic-refresh"} if not args.skip_deterministic_refresh else set()
+    asserted_stage_names = sorted(set(requested_stage_names))
 
     executed_stages = [{"stage": "deterministic-refresh", "status": "completed"}] if not args.skip_deterministic_refresh else []
     for stage in requested_stage_names:
         completed_stage_names.add(stage)
-        executed_stages.append({"stage": stage, "status": "completed"})
+        executed_stages.append({"stage": stage, "status": "asserted_completed", "completion_mode": "transitional_manual_assertion"})
 
     skipped_stages = []
     for item in required_follow_on:
@@ -324,6 +303,7 @@ def main() -> int:
         outcome=repair_follow_on_outcome,
         required_stage_names=required_stage_names,
         completed_stage_names=sorted(completed_stage_names),
+        asserted_stage_names=asserted_stage_names,
         blocking_reasons=blocking_reasons,
         verification_passed=verification_status["verification_passed"],
         handoff_allowed=handoff_allowed,
@@ -355,6 +335,7 @@ def main() -> int:
             "repo_root": str(repo_root),
             "required_follow_on_stages": required_follow_on,
             "replaced_surfaces": replaced_surfaces,
+            "stale_surface_map": stale_surface_map,
         },
         "stage_results": executed_stages + deferred_stages + skipped_stages,
         "execution_record": {
@@ -363,12 +344,15 @@ def main() -> int:
             "repair_basis_path": str(repair_basis_path) if repair_basis_path else None,
             "required_follow_on_stages": required_stage_names,
             "executed_stages": executed_stages,
+            "asserted_completed_stages": asserted_stage_names,
+            "stage_completion_mode": "transitional_manual_assertion",
             "deferred_stages": deferred_stages,
             "skipped_stages": skipped_stages,
             "blocking_reasons": blocking_reasons,
             "repair_follow_on_outcome": repair_follow_on_outcome,
             "verification_status": verification_status,
             "handoff_allowed": handoff_allowed,
+            "stale_surface_map": stale_surface_map,
         },
         "repair_follow_on_state": repair_follow_on_state,
     }

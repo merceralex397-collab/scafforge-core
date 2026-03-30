@@ -23,6 +23,12 @@ Scafforge is not competent unless the generated workflow exposes one clear legal
 - repair must carry forward the audit evidence basis automatically
 - repair is not converged if it can only prove the repo looks clean now; it must also prove the original trap no longer routes the operator into confusion
 
+## Pivot expectations
+
+- pivot must update canonical truth before regenerating derived surfaces
+- pivot must leave ticket lineage and restart surfaces truthful to the new design
+- post-pivot verification must prove the repo still exposes one legal next move
+
 ## Greenfield expectations
 
 - generated tickets must have executable acceptance that belongs entirely to the ticket's own scope

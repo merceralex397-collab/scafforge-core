@@ -12,6 +12,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 BOOTSTRAP = ROOT / "skills" / "repo-scaffold-factory" / "scripts" / "bootstrap_repo_scaffold.py"
+VERIFY_GENERATED = ROOT / "skills" / "repo-scaffold-factory" / "scripts" / "verify_generated_scaffold.py"
 CHECKLIST = ROOT / "skills" / "repo-scaffold-factory" / "references" / "opencode-conformance-checklist.json"
 AUDIT = ROOT / "skills" / "scafforge-audit" / "scripts" / "audit_repo_process.py"
 REPAIR = ROOT / "skills" / "scafforge-repair" / "scripts" / "apply_repo_process_repair.py"
@@ -1806,6 +1807,7 @@ def verify_render(dest: Path, *, expect_full_repo: bool) -> None:
 
 def main() -> int:
     workspace = Path(tempfile.mkdtemp(prefix="scafforge-smoke-"))
+    host_has_uv = shutil.which("uv") is not None
     try:
         full_dest = workspace / "full"
         opencode_dest = workspace / "opencode"
@@ -1971,6 +1973,31 @@ def main() -> int:
         if "expectedPath = defaultArtifactPath" not in generated_artifact_register or "canonicalizeRepoPath(args.path)" not in generated_artifact_register:
             raise RuntimeError("Generated artifact_register.ts should enforce canonical artifact paths")
 
+        greenfield_gate_dest = workspace / "greenfield-proof-gate"
+        shutil.copytree(full_dest, greenfield_gate_dest)
+        make_stack_skill_non_placeholder(greenfield_gate_dest)
+        greenfield_gate = run_json([sys.executable, str(VERIFY_GENERATED), str(greenfield_gate_dest), "--format", "json"], ROOT)
+        if greenfield_gate.get("findings"):
+            codes = ", ".join(item["code"] for item in greenfield_gate.get("findings", []))
+            raise RuntimeError(f"A placeholder-free fresh scaffold should pass the shared greenfield continuation verifier, but it emitted: {codes}")
+
+        corrupt_gate_dest = workspace / "greenfield-proof-gate-corrupt"
+        shutil.copytree(greenfield_gate_dest, corrupt_gate_dest)
+        (corrupt_gate_dest / "tickets" / "manifest.json").write_text("{\n", encoding="utf-8")
+        corrupt_gate_result = subprocess.run(
+            [sys.executable, str(VERIFY_GENERATED), str(corrupt_gate_dest), "--format", "json"],
+            cwd=ROOT,
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        corrupt_gate_payload = json.loads(corrupt_gate_result.stdout)
+        corrupt_gate_codes = {finding["code"] for finding in corrupt_gate_payload.get("findings", [])}
+        if corrupt_gate_result.returncode != 2:
+            raise RuntimeError("Generated scaffold verifier should fail with exit code 2 when canonical state is corrupt")
+        if "VERIFY001" not in corrupt_gate_codes:
+            raise RuntimeError("Generated scaffold verifier should emit VERIFY001 instead of crashing on corrupt JSON state")
+
         initial_audit = run_json([sys.executable, str(AUDIT), str(full_dest), "--format", "json", "--emit-diagnosis-pack"], ROOT)
         initial_codes = {finding["code"] for finding in initial_audit.get("findings", [])}
         if "SKILL001" not in initial_codes:
@@ -2014,6 +2041,18 @@ def main() -> int:
         bootstrap_guidance_dest = workspace / "bootstrap-guidance-drift"
         shutil.copytree(full_dest, bootstrap_guidance_dest)
         seed_bootstrap_guidance_drift(bootstrap_guidance_dest)
+        make_stack_skill_non_placeholder(bootstrap_guidance_dest)
+        bootstrap_guidance_gate_result = subprocess.run(
+            [sys.executable, str(VERIFY_GENERATED), str(bootstrap_guidance_dest), "--format", "json"],
+            cwd=ROOT,
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        bootstrap_guidance_gate = json.loads(bootstrap_guidance_gate_result.stdout)
+        bootstrap_guidance_gate_codes = {finding["code"] for finding in bootstrap_guidance_gate.get("findings", [])}
+        if "VERIFY006" not in bootstrap_guidance_gate_codes:
+            raise RuntimeError("A repo whose greenfield bootstrap routing drifted should fail the shared continuation verifier with VERIFY006")
         bootstrap_guidance_audit = run_json([sys.executable, str(AUDIT), str(bootstrap_guidance_dest), "--format", "json", "--no-diagnosis-pack"], ROOT)
         bootstrap_guidance_codes = {finding["code"] for finding in bootstrap_guidance_audit.get("findings", [])}
         if "WFLOW011" not in bootstrap_guidance_codes:
@@ -2423,7 +2462,7 @@ def main() -> int:
         shutil.copytree(full_dest, repair_redirected_output_dest)
         make_stack_skill_non_placeholder(repair_redirected_output_dest)
         repair_redirected_output_dir = workspace / "repair-diagnosis-output"
-        repair_redirected_payload = run_json(
+        repair_redirected_result = subprocess.run(
             [
                 sys.executable,
                 str(PUBLIC_REPAIR),
@@ -2432,8 +2471,18 @@ def main() -> int:
                 "--diagnosis-output-dir",
                 str(repair_redirected_output_dir),
             ],
-            ROOT,
+            cwd=ROOT,
+            check=False,
+            capture_output=True,
+            text=True,
         )
+        try:
+            repair_redirected_payload = json.loads(repair_redirected_result.stdout)
+        except json.JSONDecodeError as exc:
+            raise RuntimeError(
+                "Public managed repair runner should emit JSON even when verification finds host-level prerequisites.\n"
+                f"STDOUT:\n{repair_redirected_result.stdout}\nSTDERR:\n{repair_redirected_result.stderr}"
+            ) from exc
         repair_diagnosis_pack_path = repair_redirected_payload.get("diagnosis_pack", {}).get("path", "")
         if repair_diagnosis_pack_path != str(repair_redirected_output_dir):
             raise RuntimeError("Public managed repair runner should honor --diagnosis-output-dir for the post-repair diagnosis pack")
@@ -2717,38 +2766,41 @@ def main() -> int:
         shutil.copytree(full_dest, source_follow_up_repair_dest)
         make_stack_skill_non_placeholder(source_follow_up_repair_dest)
         seed_failing_pytest_suite(source_follow_up_repair_dest)
-        source_follow_up_repair = run_json(
-            [
-                sys.executable,
-                str(PUBLIC_REPAIR),
-                str(source_follow_up_repair_dest),
-                "--skip-deterministic-refresh",
-                "--stage-complete",
-                "ticket-pack-builder",
-                "--stage-complete",
-                "handoff-brief",
-            ],
-            ROOT,
-        )
-        if source_follow_up_repair["execution_record"]["blocking_reasons"]:
-            raise RuntimeError("Source-layer EXEC follow-up alone should not keep managed repair follow-on blocked once the required follow-on stages are complete")
-        if source_follow_up_repair["execution_record"]["verification_status"]["source_follow_up_codes"] != ["EXEC003"]:
-            raise RuntimeError("Public managed repair runner should classify EXEC findings as source follow-up instead of managed repair blockers")
-        if source_follow_up_repair["execution_record"]["verification_status"]["current_state_clean"]:
-            raise RuntimeError("Public managed repair runner should not call EXEC-only residual work current_state_clean")
-        if not source_follow_up_repair["execution_record"]["verification_status"]["causal_regression_verified"]:
-            raise RuntimeError("Public managed repair runner should still mark managed repair verification as satisfied when only source follow-up remains")
-        if source_follow_up_repair["execution_record"]["repair_follow_on_outcome"] != "source_follow_up":
-            raise RuntimeError("Public managed repair runner should classify EXEC-only residual work as source_follow_up")
-        if not source_follow_up_repair["execution_record"]["handoff_allowed"]:
-            raise RuntimeError("Public managed repair runner should allow handoff once only source follow-up remains and the required follow-on stages are complete")
-        source_follow_up_workflow = json.loads((source_follow_up_repair_dest / ".opencode" / "state" / "workflow-state.json").read_text(encoding="utf-8"))
-        if source_follow_up_workflow["repair_follow_on"]["handoff_allowed"] is not True:
-            raise RuntimeError("Managed repair should write a cleared repair_follow_on state when only source-layer follow-up remains")
-        if source_follow_up_workflow["repair_follow_on"]["outcome"] != "source_follow_up":
-            raise RuntimeError("Managed repair should record source_follow_up when only source-layer remediation remains")
-        if source_follow_up_workflow["repair_follow_on"]["current_state_clean"] is not False:
-            raise RuntimeError("Managed repair should not record current_state_clean when source-layer remediation remains")
+        if host_has_uv:
+            source_follow_up_repair = run_json(
+                [
+                    sys.executable,
+                    str(PUBLIC_REPAIR),
+                    str(source_follow_up_repair_dest),
+                    "--skip-deterministic-refresh",
+                    "--stage-complete",
+                    "ticket-pack-builder",
+                    "--stage-complete",
+                    "handoff-brief",
+                ],
+                ROOT,
+            )
+            if source_follow_up_repair["execution_record"]["blocking_reasons"]:
+                raise RuntimeError("Source-layer EXEC follow-up alone should not keep managed repair follow-on blocked once the required follow-on stages are complete")
+            if source_follow_up_repair["execution_record"]["verification_status"]["source_follow_up_codes"] != ["EXEC003"]:
+                raise RuntimeError("Public managed repair runner should classify EXEC findings as source follow-up instead of managed repair blockers")
+            if source_follow_up_repair["execution_record"]["verification_status"]["current_state_clean"]:
+                raise RuntimeError("Public managed repair runner should not call EXEC-only residual work current_state_clean")
+            if not source_follow_up_repair["execution_record"]["verification_status"]["causal_regression_verified"]:
+                raise RuntimeError("Public managed repair runner should still mark managed repair verification as satisfied when only source follow-up remains")
+            if source_follow_up_repair["execution_record"]["repair_follow_on_outcome"] != "source_follow_up":
+                raise RuntimeError("Public managed repair runner should classify EXEC-only residual work as source_follow_up")
+            if not source_follow_up_repair["execution_record"]["handoff_allowed"]:
+                raise RuntimeError("Public managed repair runner should allow handoff once only source follow-up remains and the required follow-on stages are complete")
+            source_follow_up_workflow = json.loads((source_follow_up_repair_dest / ".opencode" / "state" / "workflow-state.json").read_text(encoding="utf-8"))
+            if source_follow_up_workflow["repair_follow_on"]["handoff_allowed"] is not True:
+                raise RuntimeError("Managed repair should write a cleared repair_follow_on state when only source-layer follow-up remains")
+            if source_follow_up_workflow["repair_follow_on"]["outcome"] != "source_follow_up":
+                raise RuntimeError("Managed repair should record source_follow_up when only source-layer remediation remains")
+            if source_follow_up_workflow["repair_follow_on"]["current_state_clean"] is not False:
+                raise RuntimeError("Managed repair should not record current_state_clean when source-layer remediation remains")
+        else:
+            print("Skipping uv-dependent source-follow-up public repair assertions because `uv` is not available on this host.")
 
         print("Scafforge smoke test passed.")
         return 0

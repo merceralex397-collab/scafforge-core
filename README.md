@@ -17,7 +17,7 @@ Scafforge should be treated as a skill bundle, not as a CLI product.
 ## Usage
 
 1. Open a repo that contains specs, plans, notes, or design docs.
-2. Tell the agent to scaffold, retrofit, repair, or diagnose the project, or invoke `scaffold-kickoff`.
+2. Tell the agent to scaffold, retrofit, pivot, repair, or diagnose the project, or invoke `scaffold-kickoff`.
 3. The agent reads the inputs, asks one batched round of blocking decisions when needed, and routes through the correct skill path.
 4. Output: a complete project repo or an evidence-backed diagnosis and repair path.
 
@@ -36,11 +36,13 @@ scaffold-kickoff
   -> handoff-brief
 ```
 
-This pass allows one batched blocking-decision round and then completes in one uninterrupted same-session generation run. No second Scafforge generation pass is required before development begins.
+This pass allows one batched blocking-decision round and then completes in one uninterrupted same-session generation run. No second Scafforge generation pass is required before development begins. Greenfield completion requires immediate continuation proof, not only surface agreement.
+The current package still carries one temporary contract smell: `project-skill-bootstrap` and `opencode-team-bootstrap` form a dependency seam, so Scafforge keeps the current order until a minimal-operable-versus-specialization split exists.
 
 `scaffold-kickoff` remains the single public entrypoint for:
 - greenfield scaffold
 - retrofit scaffold
+- pivot on an existing repo
 - managed repair or update
 - diagnosis or review of an in-progress repo
 
@@ -98,18 +100,20 @@ Generated repos use a structured truth hierarchy so state does not drift:
 | `agent-prompt-engineering` | Hardens prompts for generated agents, commands, and workflow surfaces |
 | `scafforge-audit` | Runs read-only workflow diagnosis, review validation, and the diagnosis pack |
 | `scafforge-repair` | Applies safe workflow-contract repair and managed-surface refreshes |
+| `scafforge-pivot` | Routes midstream feature/design changes through canonical-truth updates and bounded refresh |
 | `handoff-brief` | Publishes `START-HERE.md` and the restart surface |
 
 ## Diagnosis and repair
 
-Generation, audit, and repair are separate lifecycle stages.
+Generation, audit, repair, and pivot are separate lifecycle stages.
 
 - `scaffold-kickoff` is the only public generation entrypoint.
 - Initial generation ends at `handoff-brief`.
-- `scafforge-audit` and `scafforge-repair` are later lifecycle tools, not part of the initial generation cycle.
+- `scafforge-audit`, `scafforge-repair`, and `scafforge-pivot` are later lifecycle tools, not part of the initial generation cycle.
 
 - `scafforge-audit` is read-only and always validates review evidence, runs the audit script, and emits the four-report diagnosis pack in the subject repo's `diagnosis/` folder.
 - `scafforge-repair` is the public repair contract: it must apply safe managed-surface repairs, continue into any required local-skill or agent/prompt/ticket follow-up, record provenance, and route ticket follow-up when needed.
+- `scafforge-pivot` is the public pivot contract: it must update canonical brief truth first, record stale surfaces, route only the affected refresh steps, and verify the repo before handoff.
 - Source-layer `EXEC*` follow-up and visible `pending_process_verification` are not, by themselves, proof that managed repair failed. They remain live repo follow-up after the managed workflow layer is repaired.
 - `skills/scafforge-repair/scripts/run_managed_repair.py` is the public fail-closed repair runner. It emits the machine-readable repair plan, execution record, and post-repair verification diagnosis pack, automatically carries forward transcript-backed audit evidence when that evidence exists, reruns verification, and blocks handoff when required downstream stages still have not run.
 - `skills/scafforge-repair/scripts/apply_repo_process_repair.py` is the deterministic refresh engine for the first repair phase only. Invoking that script alone does not satisfy the full repair contract unless no downstream regeneration or ticket follow-up is required.
@@ -159,6 +163,15 @@ managed repair or update
   -> opencode-team-bootstrap (if project-specific drift remains)
   -> agent-prompt-engineering (if prompts or model-profile surfaces changed)
   -> ticket-pack-builder (if follow-up is needed)
+  -> handoff-brief
+
+pivot
+  -> scafforge-pivot
+  -> project-skill-bootstrap (if local skills changed)
+  -> opencode-team-bootstrap (if team/tools drifted)
+  -> agent-prompt-engineering (if prompts changed)
+  -> ticket-pack-builder (if lineage must be refined, reopened, or superseded)
+  -> scafforge-repair (if managed workflow surfaces drifted)
   -> handoff-brief
 
 diagnosis or review

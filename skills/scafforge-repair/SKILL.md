@@ -63,8 +63,9 @@ Public repair command:
 python3 scripts/run_managed_repair.py <repo-root>
 ```
 
-Use this as the default repair entrypoint. It runs the deterministic managed-surface refresh, emits the machine-readable repair plan and execution record, reruns verification, and fails closed when required follow-on stages still have not been executed.
+Use this as the default repair entrypoint. It runs the deterministic managed-surface refresh, emits the machine-readable repair plan, stale-surface map, and execution record, reruns verification, and fails closed when required follow-on stages still have not been executed.
 If the selected diagnosis basis still records `package_work_required_first: true`, repair must stop and send the user back to one fresh post-package revalidation audit instead of mutating the subject repo.
+The current `--stage-complete` path is transitional. Treat it as a host assertion recorded in the execution record, not as the final architecture for persistent follow-on stage tracking.
 
 ### 4. Use the deterministic engine as the internal refresh phase
 
@@ -76,6 +77,7 @@ python3 scripts/apply_repo_process_repair.py <repo-root>
 
 Use this when the repo needs one deliberate workflow-contract refresh rather than piecemeal edits.
 This deterministic repair flow regenerates `START-HERE.md`, `.opencode/state/context-snapshot.md`, and `.opencode/state/latest-handoff.md` from canonical state, then records the verification outcome before publishing the updated restart narrative.
+It must also emit a machine-readable stale-surface map using the bounded categories `stable`, `replace`, `regenerate`, `ticket_follow_up`, and `human_decision`.
 Treat this command as the internal refresh engine, not as the whole user-facing repair contract. A repair run is still incomplete if required regeneration, ticket follow-up, or post-repair verification did not happen afterward.
 
 ### 5. Continue into required project-specific regeneration
@@ -194,9 +196,11 @@ Keep the diagnosis decision and the repair action separated.
 - Validated repair basis
 - Prior diagnosis/repair-cycle analysis when this is a repeat repair attempt
 - Exact files changed
+- Machine-readable stale-surface map
 - Safe-versus-escalated repair boundary
 - Whether deterministic managed-surface replacement occurred
 - Whether project-skill, agent-team, and prompt-hardening follow-up ran
+- Which follow-on stages were only host-asserted through the transitional `--stage-complete` path
 - Provenance and workflow-state updates applied
 - Ticket follow-up created or recommended
 - Post-repair verification results

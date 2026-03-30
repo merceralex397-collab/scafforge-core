@@ -14,6 +14,12 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+SCRIPT_DIR = Path(__file__).resolve().parent
+if str(SCRIPT_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPT_DIR))
+
+from shared_verifier_types import Finding
+
 try:
     import tomllib
 except ModuleNotFoundError:  # pragma: no cover - Python < 3.11 fallback
@@ -159,19 +165,6 @@ DIAGNOSIS_REPORTS = {
     "report_3": "03-scafforge-prevention-actions.md",
     "report_4": "04-live-repo-repair-plan.md",
 }
-
-
-@dataclass
-class Finding:
-    code: str
-    severity: str
-    problem: str
-    root_cause: str
-    files: list[str]
-    safer_pattern: str
-    evidence: list[str]
-    provenance: str = "script"
-
 
 @dataclass
 class TranscriptToolEvent:

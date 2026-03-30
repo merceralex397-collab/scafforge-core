@@ -11,13 +11,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from audit_repo_process import (
-    audit_repo,
-    load_latest_previous_diagnosis,
-    manifest_supporting_logs,
-    supporting_log_paths,
-)
+from audit_repo_process import load_latest_previous_diagnosis, manifest_supporting_logs, supporting_log_paths
 from regenerate_restart_surfaces import regenerate_restart_surfaces
+from shared_verifier import audit_repo
 
 
 START_HERE_MANAGED_START = "<!-- SCAFFORGE:START_HERE_BLOCK START -->"
@@ -237,6 +233,150 @@ def normalize_ticket_state_map(value: Any) -> dict[str, dict[str, Any]]:
 
 def current_iso_timestamp() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+
+
+def find_placeholder_skills(repo_root: Path) -> list[str]:
+    hits: list[str] = []
+    skills_root = repo_root / ".opencode" / "skills"
+    if not skills_root.exists():
+        return hits
+    for path in sorted(skills_root.rglob("SKILL.md")):
+        text = read_text(path)
+        if "Replace this file" in text or "TODO: replace" in text:
+            hits.append(str(path.relative_to(repo_root)))
+    return hits
+
+
+def detect_agent_prompt_drift(repo_root: Path) -> list[str]:
+    hits: list[str] = []
+    agents_root = repo_root / ".opencode" / "agents"
+    if not agents_root.exists():
+        return hits
+
+    team_leader = next(agents_root.glob("*team-leader*.md"), None)
+    if team_leader:
+        text = read_text(team_leader)
+        if "next_action_tool" not in text or "summary-only stopping is invalid" not in text:
+            hits.append(str(team_leader.relative_to(repo_root)))
+
+    for pattern in ("*implementer*.md", "*lane-executor*.md", "*docs-handoff*.md"):
+        for path in agents_root.glob(pattern):
+            text = read_text(path)
+            if "team leader already owns lease claim and release" not in text:
+                hits.append(str(path.relative_to(repo_root)))
+    return sorted(set(hits))
+
+
+def _surface_entry(
+    *,
+    status: str,
+    surfaces: list[str],
+    reason: str,
+    finding_codes: set[str] | None = None,
+) -> dict[str, Any]:
+    payload: dict[str, Any] = {
+        "status": status,
+        "surfaces": sorted(set(surfaces)),
+        "reason": reason,
+    }
+    if finding_codes:
+        payload["finding_codes"] = sorted(finding_codes)
+    return payload
+
+
+def build_stale_surface_map(
+    repo_root: Path,
+    replaced_surfaces: list[str],
+    findings: list[Any],
+    pending_process_verification: bool,
+    *,
+    required_stage_names: set[str] | None = None,
+    intent_decision_required: bool = False,
+) -> dict[str, dict[str, Any]]:
+    required_stage_names = required_stage_names or set()
+    codes = {getattr(finding, "code", "") for finding in findings if getattr(finding, "code", "")}
+    workflow_codes = {code for code in codes if code.startswith(("WFLOW", "BOOT", "CYCLE", "ENV")) and code != "WFLOW008"}
+    prompt_codes = {code for code in codes if code.startswith("WFLOW")}
+    skill_codes = {code for code in codes if code.startswith(("SKILL", "MODEL"))}
+    ticket_codes = {code for code in codes if code.startswith("EXEC") or code == "WFLOW008"}
+
+    workflow_surfaces = [
+        surface
+        for surface in replaced_surfaces
+        if surface in {"opencode.jsonc", ".opencode/tools", ".opencode/lib", ".opencode/plugins", ".opencode/commands"}
+        or surface.startswith("docs/process/")
+    ]
+    restart_surfaces = [
+        surface
+        for surface in replaced_surfaces
+        if surface in {"START-HERE.md managed block", ".opencode/state/context-snapshot.md", ".opencode/state/latest-handoff.md"}
+    ]
+    placeholder_skills = find_placeholder_skills(repo_root)
+    prompt_drift = detect_agent_prompt_drift(repo_root)
+
+    return {
+        "workflow_tools_and_prompts": _surface_entry(
+            status="replace" if workflow_surfaces or workflow_codes else "stable",
+            surfaces=workflow_surfaces,
+            reason="Managed workflow tools, prompts, and process docs were refreshed or still show workflow/environment drift.",
+            finding_codes=workflow_codes,
+        ),
+        "repo_local_skills": _surface_entry(
+            status=(
+                "regenerate"
+                if "project-skill-bootstrap" in required_stage_names
+                or "scaffold-managed .opencode/skills" in replaced_surfaces
+                or placeholder_skills
+                or skill_codes
+                else "stable"
+            ),
+            surfaces=(["scaffold-managed .opencode/skills"] if "scaffold-managed .opencode/skills" in replaced_surfaces else []) + placeholder_skills,
+            reason="Repo-local skills need regeneration when scaffold-managed skills were replaced or placeholder/model drift remains.",
+            finding_codes=skill_codes,
+        ),
+        "agent_team_and_prompts": _surface_entry(
+            status=(
+                "regenerate"
+                if {"opencode-team-bootstrap", "agent-prompt-engineering"} & required_stage_names
+                or prompt_drift
+                or prompt_codes
+                else "stable"
+            ),
+            surfaces=prompt_drift,
+            reason="Agent-team prompts stay stable unless drift remains after managed repair.",
+            finding_codes=prompt_codes,
+        ),
+        "ticket_graph_and_follow_up": _surface_entry(
+            status=(
+                "ticket_follow_up"
+                if "ticket-pack-builder" in required_stage_names or any(code.startswith("EXEC") for code in ticket_codes)
+                else "stable"
+            ),
+            surfaces=[],
+            reason=(
+                "Ticket follow-up is required when source findings still need explicit routing through ticket-pack-builder."
+                if "ticket-pack-builder" in required_stage_names or any(code.startswith("EXEC") for code in ticket_codes)
+                else "Bare pending_process_verification remains workflow-state truth, but does not by itself force repair-side ticket follow-up."
+                if pending_process_verification or "WFLOW008" in ticket_codes
+                else "Ticket graph stays stable when repair did not uncover source-layer follow-up."
+            ),
+            finding_codes=ticket_codes,
+        ),
+        "restart_surfaces": _surface_entry(
+            status="replace" if restart_surfaces else "stable",
+            surfaces=restart_surfaces,
+            reason="Restart surfaces are derived and must be regenerated whenever managed repair changes workflow state.",
+        ),
+        "canonical_project_decisions": _surface_entry(
+            status="human_decision" if intent_decision_required else "stable",
+            surfaces=["docs/spec/CANONICAL-BRIEF.md"] if intent_decision_required else [],
+            reason=(
+                "Repair exposed intent-changing drift; update canonical project decisions explicitly instead of treating this as routine managed repair."
+                if intent_decision_required
+                else "Managed repair preserves accepted project-scope decisions unless the repair basis explicitly exposes intent drift."
+            ),
+        ),
+    }
 
 
 def resolve_repair_basis(repo_root: Path, explicit_basis: str | None) -> tuple[Path, dict[str, Any]] | None:
@@ -546,6 +686,8 @@ def update_workflow_state(repo_root: Path, rendered_provenance: dict[str, Any], 
             "outcome": "managed_blocked",
             "required_stages": [],
             "completed_stages": [],
+            "asserted_completed_stages": [],
+            "stage_completion_mode": "transitional_manual_assertion",
             "blocking_reasons": [
                 "Managed repair refreshed workflow surfaces. Run the full scafforge-repair follow-on flow before resuming normal ticket lifecycle execution."
             ],
@@ -670,9 +812,11 @@ def main() -> int:
     environment_findings = [finding for finding in findings if finding.code.startswith("ENV")]
     source_findings = [finding for finding in findings if finding.code.startswith("EXEC")]
     process_follow_up_findings = [finding for finding in findings if finding.code in {"WFLOW008", "WFLOW009"}]
+    stale_surface_map = build_stale_surface_map(repo_root, replaced_surfaces, findings, pending_process_verification)
     payload = {
         "repo_root": str(repo_root),
         "replaced_surfaces": replaced_surfaces,
+        "stale_surface_map": stale_surface_map,
         "verification": {
             "performed": not args.skip_verify,
             "finding_count": len(findings),

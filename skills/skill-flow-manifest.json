@@ -3,6 +3,20 @@
   "product": "Scafforge",
   "output_profiles": ["opencode"],
   "optional_extensions": [],
+  "contract_smells": [
+    {
+      "code": "CYCLE001",
+      "title": "Project-skill and team-bootstrap dependency seam",
+      "status": "accepted-temporary-debt",
+      "skills": ["project-skill-bootstrap", "opencode-team-bootstrap"],
+      "current_order": [
+        "project-skill-bootstrap:full-greenfield-pass",
+        "opencode-team-bootstrap"
+      ],
+      "why_safe_now": "Greenfield keeps project-skill-bootstrap before opencode-team-bootstrap so generated agent allowlists can reference repo-local skills that already exist.",
+      "removal_condition": "Replace this seam only after Scafforge splits minimal-operable managed surfaces from later project-specific specialization."
+    }
+  ],
   "run_types": {
     "greenfield": {
       "entrypoint": "scaffold-kickoff",
@@ -38,6 +52,18 @@
         "handoff-brief"
       ]
     },
+    "pivot": {
+      "entrypoint": "scaffold-kickoff",
+      "sequence": [
+        "scafforge-pivot:classify_and_route",
+        "project-skill-bootstrap:repair-or-regeneration_if_needed",
+        "opencode-team-bootstrap:follow_up_if_project_specific_drift",
+        "agent-prompt-engineering:repair-hardening_if_needed",
+        "ticket-pack-builder:refine_if_needed",
+        "scafforge-repair:follow_up_if_managed_workflow_drift",
+        "handoff-brief"
+      ]
+    },
     "diagnosis-review": {
       "entrypoint": "scaffold-kickoff",
       "sequence": [
@@ -49,17 +75,17 @@
   "skills": {
     "scaffold-kickoff": {
       "owner": "conductor",
-      "modes": ["greenfield", "retrofit", "managed-repair", "diagnosis-review"],
+      "modes": ["greenfield", "retrofit", "managed-repair", "pivot", "diagnosis-review"],
       "inputs": ["messy project inputs", "normalized decisions"],
       "outputs": ["orchestrated run", "required downstream sequence"],
       "required_outputs": [
         "canonical brief or diagnosis scope",
         "selected run-type completion state",
         "aligned ticket/workflow restart surface",
-        "same-session workflow contract conformance check"
+        "same-session immediate continuation verification gate"
       ],
       "upstreams": [],
-      "downstreams": ["spec-pack-normalizer", "repo-scaffold-factory", "project-skill-bootstrap", "opencode-team-bootstrap", "agent-prompt-engineering", "ticket-pack-builder", "scafforge-audit", "scafforge-repair", "handoff-brief"]
+      "downstreams": ["spec-pack-normalizer", "repo-scaffold-factory", "project-skill-bootstrap", "opencode-team-bootstrap", "agent-prompt-engineering", "ticket-pack-builder", "scafforge-audit", "scafforge-repair", "scafforge-pivot", "handoff-brief"]
     },
     "spec-pack-normalizer": {
       "owner": "intake",
@@ -150,6 +176,20 @@
       "outputs": ["safe repairs", "project-specific regeneration", "prompt-hardening refresh", "provenance updates", "verification results", "ticket follow-up routing"],
       "upstreams": ["scafforge-audit", "scaffold-kickoff", "opencode-team-bootstrap"],
       "downstreams": ["ticket-pack-builder", "handoff-brief"]
+    },
+    "scafforge-pivot": {
+      "owner": "pivot-orchestration",
+      "modes": ["classify-and-route"],
+      "inputs": ["requested change", "canonical brief", "current ticket graph", "workflow state", "existing repo surfaces"],
+      "outputs": ["pivot classification", "brief update", "stale-surface map", "bounded refresh routing", "verification result"],
+      "required_outputs": [
+        "pivot classification",
+        "docs/spec/CANONICAL-BRIEF.md updated with pivot history",
+        "machine-readable stale-surface map",
+        "explicit downstream refresh routing"
+      ],
+      "upstreams": ["scaffold-kickoff"],
+      "downstreams": ["project-skill-bootstrap", "opencode-team-bootstrap", "agent-prompt-engineering", "ticket-pack-builder", "scafforge-repair", "handoff-brief"]
     },
     "handoff-brief": {
       "owner": "restart-surface",
