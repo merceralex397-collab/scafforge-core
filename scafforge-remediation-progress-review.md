@@ -177,10 +177,13 @@ Implemented:
 - follow-on stage assertions are now persisted in `.opencode/meta/repair-follow-on-state.json` instead of living only in one runner invocation
 - a packaged recorded-execution entrypoint now exists:
   - [record_repair_stage_completion.py](/home/rowan/Scafforge/skills/scafforge-repair/scripts/record_repair_stage_completion.py)
+- shared follow-on tracking now lives in:
+  - [follow_on_tracking.py](/home/rowan/Scafforge/skills/scafforge-repair/scripts/follow_on_tracking.py)
 - follow-on stages can now be recorded as explicit completed execution with evidence paths, not only as transitional assertions
 - recorded follow-on completion now regenerates restart surfaces immediately so repair-state tracking itself does not create restart drift
 - deterministic refresh now resets that persistent follow-on tracker for a new repair cycle
 - later repair runs can reuse previously recorded follow-on stage completion without reasserting the same stage on every rerun
+- later repair runs now report explicit recorded execution separately from transitional assertions
 - repair verification now fails contract checks for:
   - non-clean zero-finding states
   - restart-surface drift after repair
@@ -192,6 +195,7 @@ What this achieved:
 - repair no longer silently claims success in several contradictory post-repair states that were previously slipping through
 - follow-on stage progress is now machine-readable over time inside the subject repo instead of disappearing into CLI history
 - the repo now distinguishes transitional host assertions from explicit recorded execution with evidence-backed stage records
+- restart-surface truth now stays aligned when repair follow-on completion is recorded after the main repair run
 
 Not yet done:
 
