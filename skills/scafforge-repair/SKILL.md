@@ -66,6 +66,13 @@ python3 scripts/run_managed_repair.py <repo-root>
 Use this as the default repair entrypoint. It runs the deterministic managed-surface refresh, emits the machine-readable repair plan, stale-surface map, and execution record, reruns verification, and fails closed when required follow-on stages still have not been executed.
 If the selected diagnosis basis still records `package_work_required_first: true`, repair must stop and send the user back to one fresh post-package revalidation audit instead of mutating the subject repo.
 The current `--stage-complete` path is transitional. Treat it as a host assertion input, not as a silent one-shot bypass. The public repair runner must record those assertions into persistent follow-on state under `.opencode/meta/repair-follow-on-state.json` so later repair runs can see which required stages were already completed in the current repair cycle.
+Prefer explicit recorded completion when a downstream follow-on stage actually ran:
+
+```sh
+python3 scripts/record_repair_stage_completion.py <repo-root> --stage <stage> --completed-by <skill> --summary "<what ran>"
+```
+
+Use that command to record real follow-on execution with evidence paths. Leave `--stage-complete` as a transitional input for hosts that still cannot write a richer execution record directly.
 The public runner must also fail explicit repair-contract consistency checks. At minimum, do not allow it to report verification success when restart surfaces still drift, placeholder local skills survive refresh, or it somehow reports zero findings while still not being current-state clean.
 
 ### 4. Use the deterministic engine as the internal refresh phase
@@ -203,6 +210,7 @@ Keep the diagnosis decision and the repair action separated.
 - Whether deterministic managed-surface replacement occurred
 - Whether project-skill, agent-team, and prompt-hardening follow-up ran
 - Which follow-on stages were only host-asserted through the transitional `--stage-complete` path
+- Which follow-on stages were explicitly recorded as completed through `record_repair_stage_completion.py`
 - The persistent follow-on state path and recorded stage state for the current repair cycle
 - Provenance and workflow-state updates applied
 - Ticket follow-up created or recommended

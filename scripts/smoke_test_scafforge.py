@@ -21,6 +21,7 @@ REPAIR = ROOT / "skills" / "scafforge-repair" / "scripts" / "apply_repo_process_
 PUBLIC_REPAIR = ROOT / "skills" / "scafforge-repair" / "scripts" / "run_managed_repair.py"
 REGENERATE = ROOT / "skills" / "scafforge-repair" / "scripts" / "regenerate_restart_surfaces.py"
 PIVOT = ROOT / "skills" / "scafforge-pivot" / "scripts" / "plan_pivot.py"
+RECORD_REPAIR_STAGE = ROOT / "skills" / "scafforge-repair" / "scripts" / "record_repair_stage_completion.py"
 BOOTSTRAP_INPUT_FILES = (
     "package.json",
     "package-lock.json",
@@ -4148,6 +4149,72 @@ def main() -> int:
             }
             if recorded_stage_results != {"handoff-brief": "recorded_completed", "ticket-pack-builder": "recorded_completed"}:
                 raise RuntimeError("Managed repair should expose reused follow-on completions as recorded_completed stage results")
+
+            recorded_follow_on_dest = workspace / "recorded-follow-on-repair"
+            shutil.copytree(full_dest, recorded_follow_on_dest)
+            make_stack_skill_non_placeholder(recorded_follow_on_dest)
+            seed_failing_pytest_suite(recorded_follow_on_dest)
+            recorded_follow_on_initial_process = subprocess.run(
+                [
+                    sys.executable,
+                    str(PUBLIC_REPAIR),
+                    str(recorded_follow_on_dest),
+                    "--skip-deterministic-refresh",
+                ],
+                cwd=ROOT,
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            recorded_follow_on_initial = json.loads(recorded_follow_on_initial_process.stdout)
+            if not recorded_follow_on_initial["execution_record"]["blocking_reasons"]:
+                raise RuntimeError("A repair run without any follow-on completion record should remain blocked when ticket follow-up is still required")
+            recorded_evidence_rel = ".opencode/state/artifacts/history/repair/ticket-pack-builder-completion.md"
+            recorded_evidence_path = recorded_follow_on_dest / recorded_evidence_rel
+            recorded_evidence_path.parent.mkdir(parents=True, exist_ok=True)
+            recorded_evidence_path.write_text("# Ticket Pack Builder Completion\n\nRecorded execution evidence.\n", encoding="utf-8")
+            recorded_stage_payload = run_json(
+                [
+                    sys.executable,
+                    str(RECORD_REPAIR_STAGE),
+                    str(recorded_follow_on_dest),
+                    "--stage",
+                    "ticket-pack-builder",
+                    "--completed-by",
+                    "ticket-pack-builder",
+                    "--summary",
+                    "Refined repair follow-up tickets after managed repair.",
+                    "--evidence",
+                    recorded_evidence_rel,
+                ],
+                ROOT,
+            )
+            if recorded_stage_payload["recorded_stage"]["status"] != "completed":
+                raise RuntimeError("record_repair_stage_completion should persist completed status for explicit recorded execution")
+            if recorded_stage_payload["recorded_stage"]["completion_mode"] != "recorded_execution":
+                raise RuntimeError("record_repair_stage_completion should mark explicit stage completion as recorded_execution")
+            if recorded_stage_payload["recorded_stage"]["evidence_paths"] != [recorded_evidence_rel]:
+                raise RuntimeError("record_repair_stage_completion should preserve the recorded evidence paths")
+            recorded_follow_on_reuse = run_json(
+                [
+                    sys.executable,
+                    str(PUBLIC_REPAIR),
+                    str(recorded_follow_on_dest),
+                    "--skip-deterministic-refresh",
+                ],
+                ROOT,
+            )
+            if recorded_follow_on_reuse["execution_record"]["blocking_reasons"]:
+                raise RuntimeError("A later repair run should reuse explicit recorded stage completion without needing transitional --stage-complete input")
+            if recorded_follow_on_reuse["execution_record"]["recorded_execution_completed_stages"] != ["ticket-pack-builder"]:
+                raise RuntimeError("Managed repair should report explicit recorded_execution completions separately from asserted stages")
+            if recorded_follow_on_reuse["execution_record"]["asserted_completed_stages"]:
+                raise RuntimeError("Explicit recorded_execution follow-on completion should not populate asserted_completed_stages")
+            if recorded_follow_on_reuse["execution_record"]["repair_follow_on_outcome"] != "source_follow_up":
+                raise RuntimeError("Explicit recorded_execution follow-on completion should still converge to source_follow_up when only EXEC findings remain")
+            recorded_follow_on_state = json.loads((recorded_follow_on_dest / ".opencode" / "meta" / "repair-follow-on-state.json").read_text(encoding="utf-8"))
+            if recorded_follow_on_state["stage_records"]["ticket-pack-builder"]["completed_by"] != "ticket-pack-builder":
+                raise RuntimeError("Persisted follow-on tracking should keep completed_by for explicitly recorded execution")
 
             run_managed_repair_module = load_python_module(PUBLIC_REPAIR, "scafforge_smoke_run_managed_repair")
             contract_failures = run_managed_repair_module.verification_contract_failures(

@@ -175,6 +175,10 @@ Implemented:
 - stale-surface routing was corrected after review so it no longer contradicts the runner’s actual follow-on stages
 - `--stage-complete` is explicitly marked transitional in repair state and execution records
 - follow-on stage assertions are now persisted in `.opencode/meta/repair-follow-on-state.json` instead of living only in one runner invocation
+- a packaged recorded-execution entrypoint now exists:
+  - [record_repair_stage_completion.py](/home/rowan/Scafforge/skills/scafforge-repair/scripts/record_repair_stage_completion.py)
+- follow-on stages can now be recorded as explicit completed execution with evidence paths, not only as transitional assertions
+- recorded follow-on completion now regenerates restart surfaces immediately so repair-state tracking itself does not create restart drift
 - deterministic refresh now resets that persistent follow-on tracker for a new repair cycle
 - later repair runs can reuse previously recorded follow-on stage completion without reasserting the same stage on every rerun
 - repair verification now fails contract checks for:
@@ -187,10 +191,11 @@ What this achieved:
 - the public repair runner is more honest about what it did, what is still blocked, and what still needs follow-on
 - repair no longer silently claims success in several contradictory post-repair states that were previously slipping through
 - follow-on stage progress is now machine-readable over time inside the subject repo instead of disappearing into CLI history
+- the repo now distinguishes transitional host assertions from explicit recorded execution with evidence-backed stage records
 
 Not yet done:
 
-- stage completion still enters through transitional host assertion rather than a deeper automatic execution-state model
+- stage completion can now enter through explicit recorded execution, but automatic downstream execution-state capture is still not in place
 - project-specific regeneration is still orchestrated rather than deterministic
 - the longer-term recorded execution-state architecture described in the plan is not complete
 
