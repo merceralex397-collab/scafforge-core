@@ -193,6 +193,8 @@ Implemented:
 - required follow-on stages and persisted stage records now carry canonical `owner` and `category` metadata from the repair stage catalog
 - stage-based follow-on history events now carry the same canonical `owner` and `category` metadata instead of dropping that context over time
 - known stage names now still fail closed when they do not belong to the current repair cycle, except for the intentional `handoff-brief` closeout case
+- explicit recorded follow-on completion now fails closed unless it includes at least one repo-relative evidence path
+- polluted recorded-execution state with zero evidence is now invalidated on the next repair run instead of being trusted as completed work
 - repair verification now fails contract checks for:
   - non-clean zero-finding states
   - restart-surface drift after repair
@@ -206,6 +208,7 @@ What this achieved:
 - the repo now distinguishes transitional host assertions from explicit recorded execution with evidence-backed stage records
 - restart-surface truth now stays aligned when repair follow-on completion is recorded after the main repair run
 - explicit recorded execution is now evidence-sensitive rather than being trusted indefinitely after first record
+- explicit recorded execution also no longer accepts zero-proof completion at record time
 - repair no longer requires a separate manual recording step for `ticket-pack-builder` when that stage emits the canonical current-cycle completion artifact
 
 Not yet done:

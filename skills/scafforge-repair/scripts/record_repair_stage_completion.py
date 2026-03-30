@@ -24,7 +24,15 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--stage", required=True, help="Follow-on stage that completed, for example project-skill-bootstrap.")
     parser.add_argument("--completed-by", required=True, help="Skill or operator that completed the stage.")
     parser.add_argument("--summary", required=True, help="Short summary of what completed.")
-    parser.add_argument("--evidence", action="append", default=[], help="Repo-relative evidence path supporting completion. May be provided multiple times.")
+    parser.add_argument(
+        "--evidence",
+        action="append",
+        default=[],
+        help=(
+            "Repo-relative evidence path supporting completion. "
+            "May be provided multiple times. Recorded execution requires at least one repo-relative evidence path."
+        ),
+    )
     return parser.parse_args()
 
 
@@ -57,14 +65,17 @@ def main() -> int:
     except ValueError as exc:
         raise SystemExit(str(exc)) from exc
     evidence_paths = normalize_evidence_paths(repo_root, args.evidence)
-    tracking_state = record_follow_on_stage_completion(
-        repo_root,
-        stage=stage,
-        completed_by=args.completed_by.strip(),
-        summary=args.summary.strip(),
-        evidence_paths=evidence_paths,
-        repair_package_commit=current_package_commit(),
-    )
+    try:
+        tracking_state = record_follow_on_stage_completion(
+            repo_root,
+            stage=stage,
+            completed_by=args.completed_by.strip(),
+            summary=args.summary.strip(),
+            evidence_paths=evidence_paths,
+            repair_package_commit=current_package_commit(),
+        )
+    except ValueError as exc:
+        raise SystemExit(str(exc)) from exc
     payload = {
         "repo_root": str(repo_root),
         "follow_on_state_path": str(FOLLOW_ON_TRACKING_PATH).replace("\\", "/"),

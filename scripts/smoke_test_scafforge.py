@@ -4162,7 +4162,6 @@ def main() -> int:
                 raise RuntimeError("record_repair_stage_completion should reject known follow-on stages that are not part of the current repair cycle")
             if "not part of the current repair cycle" not in invalid_known_record_stage.stderr and "not part of the current repair cycle" not in invalid_known_record_stage.stdout:
                 raise RuntimeError("record_repair_stage_completion should explain current-cycle rejection for known but non-required follow-on stages")
-
             polluted_follow_on_state_dest = workspace / "polluted-follow-on-state"
             shutil.copytree(full_dest, polluted_follow_on_state_dest)
             make_stack_skill_non_placeholder(polluted_follow_on_state_dest)
@@ -4407,6 +4406,80 @@ def main() -> int:
             if auto_detected_state["stage_records"]["ticket-pack-builder"]["evidence_paths"] != [auto_evidence_rel]:
                 raise RuntimeError("Auto-detected canonical ticket-pack-builder evidence should preserve the canonical repair artifact path")
 
+            zero_evidence_follow_on_dest = workspace / "zero-evidence-follow-on-repair"
+            shutil.copytree(full_dest, zero_evidence_follow_on_dest)
+            make_stack_skill_non_placeholder(zero_evidence_follow_on_dest)
+            seed_failing_pytest_suite(zero_evidence_follow_on_dest)
+            zero_evidence_initial_process = subprocess.run(
+                [
+                    sys.executable,
+                    str(PUBLIC_REPAIR),
+                    str(zero_evidence_follow_on_dest),
+                    "--skip-deterministic-refresh",
+                ],
+                cwd=ROOT,
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            zero_evidence_initial = json.loads(zero_evidence_initial_process.stdout)
+            if not zero_evidence_initial["execution_record"]["blocking_reasons"]:
+                raise RuntimeError("A repair run without any follow-on completion record should remain blocked before zero-evidence pollution is tested")
+            zero_evidence_state_path = zero_evidence_follow_on_dest / ".opencode" / "meta" / "repair-follow-on-state.json"
+            zero_evidence_state = json.loads(zero_evidence_state_path.read_text(encoding="utf-8"))
+            zero_evidence_state["stage_records"]["ticket-pack-builder"] = {
+                "stage": "ticket-pack-builder",
+                "owner": "ticket-pack-builder",
+                "category": "ticket_follow_up",
+                "status": "completed",
+                "completion_mode": "recorded_execution",
+                "evidence_paths": [],
+                "completed_by": "ticket-pack-builder",
+                "summary": "Polluted zero-evidence completion",
+                "last_recorded_at": "2026-03-30T00:00:00Z",
+                "last_checked_at": "2026-03-30T00:00:00Z",
+                "last_updated_at": "2026-03-30T00:00:00Z",
+            }
+            zero_evidence_state["history"].append(
+                {
+                    "recorded_at": "2026-03-30T00:00:00Z",
+                    "stage": "ticket-pack-builder",
+                    "owner": "ticket-pack-builder",
+                    "category": "ticket_follow_up",
+                    "status": "completed",
+                    "completion_mode": "recorded_execution",
+                    "completed_by": "ticket-pack-builder",
+                    "summary": "Polluted zero-evidence completion",
+                    "evidence_paths": [],
+                    "cycle_id": zero_evidence_state["cycle_id"],
+                }
+            )
+            zero_evidence_state_path.write_text(json.dumps(zero_evidence_state, indent=2) + "\n", encoding="utf-8")
+            zero_evidence_follow_on_process = subprocess.run(
+                [
+                    sys.executable,
+                    str(PUBLIC_REPAIR),
+                    str(zero_evidence_follow_on_dest),
+                    "--skip-deterministic-refresh",
+                ],
+                cwd=ROOT,
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            zero_evidence_follow_on = json.loads(zero_evidence_follow_on_process.stdout)
+            if "ticket-pack-builder" not in zero_evidence_follow_on["execution_record"]["invalidated_recorded_stages"]:
+                raise RuntimeError("Managed repair should invalidate recorded execution state that claims completion with zero evidence paths")
+            if zero_evidence_follow_on["execution_record"]["recorded_execution_completed_stages"]:
+                raise RuntimeError("Managed repair should not report zero-evidence recorded execution as completed work")
+            if not zero_evidence_follow_on["execution_record"]["blocking_reasons"]:
+                raise RuntimeError("Managed repair should block again when polluted zero-evidence recorded execution is invalidated")
+            zero_evidence_follow_on_state = json.loads(zero_evidence_state_path.read_text(encoding="utf-8"))
+            if zero_evidence_follow_on_state["stage_records"]["ticket-pack-builder"]["status"] != "evidence_missing":
+                raise RuntimeError("Follow-on tracking should persist evidence_missing when polluted recorded execution has zero evidence paths")
+            if zero_evidence_follow_on_state["stage_records"]["ticket-pack-builder"].get("evidence_validation_error") != "missing_recorded_evidence":
+                raise RuntimeError("Follow-on tracking should record why zero-evidence recorded execution was invalidated")
+
             recorded_follow_on_dest = workspace / "recorded-follow-on-repair"
             shutil.copytree(full_dest, recorded_follow_on_dest)
             make_stack_skill_non_placeholder(recorded_follow_on_dest)
@@ -4426,6 +4499,27 @@ def main() -> int:
             recorded_follow_on_initial = json.loads(recorded_follow_on_initial_process.stdout)
             if not recorded_follow_on_initial["execution_record"]["blocking_reasons"]:
                 raise RuntimeError("A repair run without any follow-on completion record should remain blocked when ticket follow-up is still required")
+            no_evidence_record_stage = subprocess.run(
+                [
+                    sys.executable,
+                    str(RECORD_REPAIR_STAGE),
+                    str(recorded_follow_on_dest),
+                    "--stage",
+                    "ticket-pack-builder",
+                    "--completed-by",
+                    "tester",
+                    "--summary",
+                    "Missing evidence should fail.",
+                ],
+                cwd=ROOT,
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            if no_evidence_record_stage.returncode == 0:
+                raise RuntimeError("record_repair_stage_completion should reject explicit recorded execution that provides zero evidence paths")
+            if "requires at least one repo-relative evidence path" not in no_evidence_record_stage.stderr and "requires at least one repo-relative evidence path" not in no_evidence_record_stage.stdout:
+                raise RuntimeError("record_repair_stage_completion should explain zero-evidence recorded execution rejection")
             recorded_evidence_rel = ".opencode/state/artifacts/history/repair/ticket-pack-builder-completion.md"
             recorded_evidence_path = recorded_follow_on_dest / recorded_evidence_rel
             recorded_evidence_path.parent.mkdir(parents=True, exist_ok=True)
