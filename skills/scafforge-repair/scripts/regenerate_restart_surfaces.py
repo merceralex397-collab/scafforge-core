@@ -278,6 +278,15 @@ def process_verification_state(manifest: dict[str, Any], workflow: dict[str, Any
     }
 
 
+def ticket_needs_trust_restoration(ticket: dict[str, Any], workflow: dict[str, Any]) -> bool:
+    ticket_id = str(ticket.get("id", "")).strip()
+    if ticket.get("status") != "done" or not ticket_id:
+        return False
+    if ticket_needs_process_verification(ticket, workflow):
+        return True
+    return get_ticket_state(workflow, ticket_id).get("needs_reverification") is True
+
+
 def compute_handoff_status(workflow: dict[str, Any], verification_passed: bool | None = None) -> str:
     bootstrap = workflow.get("bootstrap") if isinstance(workflow.get("bootstrap"), dict) else {}
     bootstrap_status = str(bootstrap.get("status", "")).strip() or "missing"
@@ -298,6 +307,7 @@ def default_next_action(manifest: dict[str, Any], workflow: dict[str, Any], back
         return "Resolve the canonical manifest and workflow-state mismatch before resuming autonomous work."
 
     verification_state = process_verification_state(manifest, workflow, str(ticket.get("id", "")))
+    ticket_trust_needs_restoration = ticket_needs_trust_restoration(ticket, workflow)
     bootstrap = workflow.get("bootstrap") if isinstance(workflow.get("bootstrap"), dict) else {}
     bootstrap_status = str(bootstrap.get("status", "")).strip() or "missing"
     blocked = blocked_dependents(manifest, str(ticket.get("id", "")))
@@ -314,6 +324,11 @@ def default_next_action(manifest: dict[str, Any], workflow: dict[str, Any], back
         )
     if verification_passed is False and workflow.get("pending_process_verification") is not True:
         return "Resolve the post-repair audit blockers and rerun scafforge-audit before treating the restart narrative as ready for continued development."
+    if ticket_trust_needs_restoration:
+        return (
+            f"Ticket is already closed, but historical trust still needs restoration. Use {verifier_label} to produce "
+            f"current evidence, then run ticket_reverify on {ticket.get('id')} instead of trying to reclaim it."
+        )
     if split_children and ticket.get("status") != "done":
         return (
             f"Keep {ticket.get('id')} open as a split parent and continue the child ticket lane"
@@ -363,7 +378,8 @@ def render_start_here(
     repair_follow_on_pending = has_pending_repair_follow_on(workflow, verification_passed)
     source_follow_up_pending = repair_follow_on["outcome"] == "source_follow_up"
     repair_follow_on_next_stage = next_repair_follow_on_stage(workflow) or "none"
-    handoff_status = compute_handoff_status(workflow, verification_passed)
+    active_ticket_trust_needs_restoration = ticket_needs_trust_restoration(ticket, workflow)
+    handoff_status = "workflow verification pending" if active_ticket_trust_needs_restoration else compute_handoff_status(workflow, verification_passed)
     recommended_action = next_action or default_next_action(manifest, workflow, backlog_verifier_agent, verification_passed)
 
     risk_lines: list[str] = []
@@ -374,8 +390,8 @@ def render_start_here(
         risk_lines.append(f"- Repair follow-on remains incomplete{': ' + repair_blocker if repair_blocker else '.'}")
     if source_follow_up_pending:
         risk_lines.append("- Managed repair converged, but source-layer follow-up still remains in the ticket graph.")
-    if verification_state["pending"]:
-        risk_lines.append("- Historical completion should not be treated as fully trusted until pending process verification is cleared.")
+    if active_ticket_trust_needs_restoration or verification_state["pending"]:
+        risk_lines.append("- Historical completion should not be treated as fully trusted until pending process verification or explicit reverification is cleared.")
     if verification_state["clearable_now"]:
         risk_lines.append("- The workflow still records pending process verification even though no done tickets remain affected; clear the workflow flag before relying on a clean-state restart narrative.")
     if suspect_done:

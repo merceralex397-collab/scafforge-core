@@ -995,6 +995,11 @@ export function getProcessVerificationState(manifest: Manifest, workflow: Workfl
     done_but_not_fully_trusted: doneButNotFullyTrusted,
   }
 }
+export function ticketNeedsTrustRestoration(ticket: Ticket, workflow: WorkflowState): boolean {
+  if (ticket.status !== "done") return false
+  if (ticketNeedsProcessVerification(ticket, workflow)) return true
+  return getTicketWorkflowState(workflow, ticket.id).needs_reverification === true
+}
 export function hasPendingRepairFollowOn(workflow: WorkflowState): boolean {
   return workflow.repair_follow_on.outcome === "managed_blocked"
 }
@@ -1094,6 +1099,7 @@ export function renderStartHere(manifest: Manifest, workflow: WorkflowState, opt
   const ticket = getTicket(manifest, workflow.active_ticket)
   const reopened = manifest.tickets.filter((item) => item.resolution_state === "reopened")
   const processVerification = getProcessVerificationState(manifest, workflow, ticket.id)
+  const activeTicketNeedsTrustRestoration = ticketNeedsTrustRestoration(ticket, workflow)
   const suspectDone = processVerification.done_but_not_fully_trusted
   const reverification = manifest.tickets.filter((item) => getTicketWorkflowState(workflow, item.id).needs_reverification)
   const blockedDependents = blockedDependentTickets(manifest, ticket.id)
@@ -1108,7 +1114,7 @@ export function renderStartHere(manifest: Manifest, workflow: WorkflowState, opt
       ? "bootstrap recovery required"
       : repairFollowOnPending
         ? "repair follow-up required"
-        : processVerification.pending
+        : processVerification.pending || activeTicketNeedsTrustRestoration
           ? "workflow verification pending"
           : "ready for continued development"
   )
@@ -1121,20 +1127,22 @@ export function renderStartHere(manifest: Manifest, workflow: WorkflowState, opt
           ? `Keep ${ticket.id} open as a split parent and continue the child ticket lane${splitChildren.length > 1 ? "s" : ""}: ${splitChildren.map((item) => item.id).join(", ")}.`
           : ticket.status !== "done"
             ? `Keep ${ticket.id} as the foreground ticket and continue its lifecycle from ${ticket.stage}. Historical done-ticket reverification stays secondary until the active open ticket is resolved.`
-            : processVerification.pending
-              ? processVerification.clearable_now
+            : activeTicketNeedsTrustRestoration
+              ? `Ticket is already closed, but historical trust still needs restoration. Use ${verifierLabel} to produce current evidence, then run ticket_reverify on ${ticket.id} instead of trying to reclaim it.`
+              : processVerification.pending
+                ? processVerification.clearable_now
                 ? "Use ticket_update to clear pending_process_verification now that no historical done tickets still require process verification, then rerun ticket_lookup."
                 : `Use the team leader to route ${verifierLabel} across done tickets whose trust predates the current process contract: ${processVerification.affected_done_tickets.map((item) => item.id).join(", ")}.`
-              : blockedDependents.length > 0
-                ? dependentContinuationAction(ticket, blockedDependents)
-                : "Continue the required internal lifecycle from the current ticket stage."
+                : blockedDependents.length > 0
+                  ? dependentContinuationAction(ticket, blockedDependents)
+                  : "Continue the required internal lifecycle from the current ticket stage."
   )
   const summarizeTickets = (items: Ticket[]) => items.length > 0 ? items.map((item) => item.id).join(", ") : "none"
   const riskLines = [
     workflow.bootstrap.status !== "ready" ? "- Environment validation can fail for setup reasons until bootstrap proof exists." : null,
     repairFollowOnPending ? `- Repair follow-on remains incomplete${repairBlocker ? `: ${repairBlocker}` : "."}` : null,
     sourceFollowUpPending ? "- Managed repair converged, but source-layer follow-up still remains in the ticket graph." : null,
-    processVerification.pending ? "- Historical completion should not be treated as fully trusted until pending process verification is cleared." : null,
+    activeTicketNeedsTrustRestoration || processVerification.pending ? "- Historical completion should not be treated as fully trusted until pending process verification or explicit reverification is cleared." : null,
     processVerification.clearable_now ? "- The workflow still records pending process verification even though no done tickets remain affected; clear the workflow flag before relying on a clean-state restart narrative." : null,
     suspectDone.length > 0 ? `- Some done tickets are not fully trusted yet: ${suspectDone.map((item) => item.id).join(", ")}.` : null,
     splitChildren.length > 0 ? `- ${ticket.id} is an open split parent; child ticket${splitChildren.length > 1 ? "s" : ""} ${splitChildren.map((item) => item.id).join(", ")} remain the active foreground work.` : null,

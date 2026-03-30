@@ -21,6 +21,7 @@ import {
   nextRepairFollowOnStage,
   openSplitScopeChildren,
   repairFollowOnBlockingReason,
+  ticketNeedsTrustRestoration,
   ticketNeedsProcessVerification,
   validateImplementationArtifactEvidence,
   validateLifecycleStageStatus,
@@ -33,6 +34,7 @@ async function buildTransitionGuidance(ticket: ReturnType<typeof getTicket>, wor
   const blocker = validateLifecycleStageStatus(ticket.stage, ticket.status)
   const approvedPlan = isPlanApprovedForTicket(workflow, ticket.id)
   const needsProcessVerification = ticketNeedsProcessVerification(ticket, workflow)
+  const ticketTrustNeedsRestoration = ticketNeedsTrustRestoration(ticket, workflow)
   const bootstrapStatus = workflow.bootstrap.status
   const repairFollowOnPending = hasPendingRepairFollowOn(workflow)
   const repairFollowOnStage = nextRepairFollowOnStage(workflow)
@@ -278,7 +280,7 @@ async function buildTransitionGuidance(ticket: ReturnType<typeof getTicket>, wor
       }
     }
     case "closeout":
-      if (ticket.status === "done" && needsProcessVerification) {
+      if (ticket.status === "done" && ticketTrustNeedsRestoration) {
         return {
           ...base,
           next_allowed_stages: [],

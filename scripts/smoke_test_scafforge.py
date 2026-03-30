@@ -458,6 +458,38 @@ def seed_closed_ticket_with_blocked_dependent(dest: Path) -> None:
     workflow_path.write_text(json.dumps(workflow, indent=2) + "\n", encoding="utf-8")
 
 
+def seed_closed_ticket_needing_explicit_reverification(dest: Path) -> None:
+    manifest_path = dest / "tickets" / "manifest.json"
+    workflow_path = dest / ".opencode" / "state" / "workflow-state.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    workflow = json.loads(workflow_path.read_text(encoding="utf-8"))
+    active_ticket_id = manifest["active_ticket"]
+    active_ticket = next(ticket for ticket in manifest["tickets"] if ticket["id"] == active_ticket_id)
+    active_ticket["stage"] = "closeout"
+    active_ticket["status"] = "done"
+    active_ticket["resolution_state"] = "done"
+    active_ticket["verification_state"] = "suspect"
+    workflow["stage"] = "closeout"
+    workflow["status"] = "done"
+    workflow["pending_process_verification"] = False
+    workflow["bootstrap"] = {
+        "status": "ready",
+        "last_verified_at": "2026-03-26T00:00:00Z",
+        "environment_fingerprint": "synthetic-ready-bootstrap",
+        "proof_artifact": ".opencode/state/bootstrap/synthetic-ready-bootstrap.md",
+    }
+    ticket_state = workflow.get("ticket_state")
+    if isinstance(ticket_state, dict):
+        active_ticket_state = ticket_state.get(active_ticket_id)
+        if isinstance(active_ticket_state, dict):
+            active_ticket_state["needs_reverification"] = True
+    proof_path = dest / ".opencode" / "state" / "bootstrap" / "synthetic-ready-bootstrap.md"
+    proof_path.parent.mkdir(parents=True, exist_ok=True)
+    proof_path.write_text("# Ready Bootstrap\n", encoding="utf-8")
+    manifest_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+    workflow_path.write_text(json.dumps(workflow, indent=2) + "\n", encoding="utf-8")
+
+
 def seed_legacy_smoke_test_tool(dest: Path) -> None:
     tool_path = dest / ".opencode" / "tools" / "smoke_test.ts"
     tool_path.write_text(
@@ -1960,6 +1992,8 @@ def main() -> int:
             raise RuntimeError("Generated workflow.ts should expose blocked dependent routing as a reusable canonical helper")
         if "export function dependentContinuationAction" not in generated_workflow:
             raise RuntimeError("Generated workflow.ts should expose one canonical dependent-continuation action helper for restart and lookup surfaces")
+        if "export function ticketNeedsTrustRestoration" not in generated_workflow:
+            raise RuntimeError("Generated workflow.ts should expose explicit closed-ticket trust-restoration state for restart and lookup surfaces")
         if "Historical done-ticket reverification stays secondary until the active open ticket is resolved." not in generated_workflow:
             raise RuntimeError("Generated workflow.ts should keep the active open ticket primary when process verification is pending")
         if "Cannot publish dependency-readiness claims" not in generated_workflow or "Cannot publish causal claims" not in generated_workflow:
@@ -1975,6 +2009,8 @@ def main() -> int:
             raise RuntimeError("Generated ticket_lookup.ts should foreground split children without marking the parent blocked")
         if "dependentContinuationAction" not in generated_ticket_lookup:
             raise RuntimeError("Generated ticket_lookup.ts should route closed completed tickets through the shared dependent-continuation helper instead of presenting them as terminal")
+        if "ticketNeedsTrustRestoration" not in generated_ticket_lookup:
+            raise RuntimeError("Generated ticket_lookup.ts should detect explicit closed-ticket trust-restoration state, not only global pending process verification")
         if 'next_action_tool: "smoke_test",\n          delegate_to_agent: null,\n          required_owner: "team-leader",' not in generated_ticket_lookup:
             raise RuntimeError("Generated ticket_lookup.ts should keep smoke_test team-leader-owned instead of delegating it to tester-qa")
         generated_ticket_create = (full_dest / ".opencode" / "tools" / "ticket_create.ts").read_text(encoding="utf-8")
@@ -2474,6 +2510,19 @@ def main() -> int:
         closed_ticket_handoff = (closed_ticket_dependent_dest / ".opencode" / "state" / "latest-handoff.md").read_text(encoding="utf-8")
         if "Current ticket is already closed. Activate dependent ticket EXEC-DEP and continue that lane instead of trying to mutate" not in closed_ticket_handoff:
             raise RuntimeError("latest-handoff should stay aligned with START-HERE for closed-ticket dependent continuation")
+
+        explicit_reverification_dest = workspace / "closed-ticket-explicit-reverification"
+        shutil.copytree(full_dest, explicit_reverification_dest)
+        seed_closed_ticket_needing_explicit_reverification(explicit_reverification_dest)
+        run_json([sys.executable, str(REGENERATE), str(explicit_reverification_dest)], ROOT)
+        explicit_reverification_start_here = (explicit_reverification_dest / "START-HERE.md").read_text(encoding="utf-8")
+        if "- handoff_status: workflow verification pending" not in explicit_reverification_start_here:
+            raise RuntimeError("Restart regeneration should keep handoff_status verification-pending when the active closed ticket still needs explicit reverification")
+        if "run ticket_reverify on SETUP-001 instead of trying to reclaim it" not in explicit_reverification_start_here:
+            raise RuntimeError("Restart regeneration should surface ticket_reverify as the next move when the active closed ticket still needs explicit trust restoration")
+        explicit_reverification_handoff = (explicit_reverification_dest / ".opencode" / "state" / "latest-handoff.md").read_text(encoding="utf-8")
+        if "run ticket_reverify on SETUP-001 instead of trying to reclaim it" not in explicit_reverification_handoff:
+            raise RuntimeError("latest-handoff should stay aligned with START-HERE for explicit closed-ticket trust restoration")
 
         hidden_clearable_pending_dest = workspace / "hidden-clearable-pending-process-verification"
         shutil.copytree(full_dest, hidden_clearable_pending_dest)
