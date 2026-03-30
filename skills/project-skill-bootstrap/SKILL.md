@@ -140,6 +140,28 @@ Before leaving this skill, confirm all of these are true:
 - `.opencode/skills/ticket-execution/SKILL.md` matches the current lifecycle contract, artifact ownership rules, bootstrap-first routing, and blocker behavior
 - any synthesized skill is repo-specific, has valid frontmatter, and is justified by project evidence
 
+## Repair follow-on artifact
+
+When this skill runs as a `scafforge-repair` follow-on regeneration pass, read `.opencode/meta/repair-follow-on-state.json` and, after the repo-local skill pack is actually refreshed for the current repair cycle, write:
+
+- `.opencode/state/artifacts/history/repair/project-skill-bootstrap-completion.md`
+
+Use this minimal shape so the public repair runner can auto-recognize `project-skill-bootstrap` completion for the current repair cycle on the next run:
+
+```md
+# Repair Follow-On Completion
+
+- completed_stage: project-skill-bootstrap
+- cycle_id: <cycle_id from .opencode/meta/repair-follow-on-state.json>
+- completed_by: project-skill-bootstrap
+
+## Summary
+
+- Regenerated the repo-local skill pack and removed scaffold placeholder or model drift for the current repair cycle.
+```
+
+Do not emit this artifact speculatively. Only write it once the repo-local skill regeneration work is actually complete for the current repair cycle.
+
 ## After this step
 
 Continue to `../opencode-team-bootstrap/SKILL.md` as directed by scaffold-kickoff.

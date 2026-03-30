@@ -30,10 +30,16 @@ FOLLOW_ON_STAGE_CATALOG = {
     },
 }
 CANONICAL_STAGE_EVIDENCE = {
+    "project-skill-bootstrap": ".opencode/state/artifacts/history/repair/project-skill-bootstrap-completion.md",
+    "opencode-team-bootstrap": ".opencode/state/artifacts/history/repair/opencode-team-bootstrap-completion.md",
+    "agent-prompt-engineering": ".opencode/state/artifacts/history/repair/agent-prompt-engineering-completion.md",
     "ticket-pack-builder": ".opencode/state/artifacts/history/repair/ticket-pack-builder-completion.md",
     "handoff-brief": ".opencode/state/artifacts/history/repair/handoff-brief-completion.md",
 }
 AUTO_DETECTED_COMPLETERS = {
+    "project-skill-bootstrap": "project-skill-bootstrap:auto-detected",
+    "opencode-team-bootstrap": "opencode-team-bootstrap:auto-detected",
+    "agent-prompt-engineering": "agent-prompt-engineering:auto-detected",
     "ticket-pack-builder": "ticket-pack-builder:auto-detected",
     "handoff-brief": "handoff-brief:auto-detected",
 }
