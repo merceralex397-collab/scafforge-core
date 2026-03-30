@@ -20,7 +20,13 @@ from apply_repo_process_repair import (
     verification_logs,
 )
 from audit_repo_process import current_package_commit, emit_diagnosis_pack, select_diagnosis_destination
-from follow_on_tracking import completed_stage_names, invalidated_recorded_stage_names, recorded_execution_stage_names, update_follow_on_tracking_state
+from follow_on_tracking import (
+    auto_record_stage_completion_from_canonical_evidence,
+    completed_stage_names,
+    invalidated_recorded_stage_names,
+    recorded_execution_stage_names,
+    update_follow_on_tracking_state,
+)
 from shared_verifier import audit_repo
 from regenerate_restart_surfaces import regenerate_restart_surfaces
 
@@ -303,6 +309,11 @@ def main() -> int:
         repair_basis_path=repair_basis_path,
         repair_package_commit=current_package_commit(),
     )
+    tracking_state, auto_detected_recorded_stage_names = auto_record_stage_completion_from_canonical_evidence(
+        repo_root,
+        required_stage_names=required_stage_names,
+        repair_package_commit=current_package_commit(),
+    )
     persisted_completed_stage_names = completed_stage_names(tracking_state)
     recorded_execution_stage_list = recorded_execution_stage_names(tracking_state)
     invalidated_recorded_stage_list = invalidated_recorded_stage_names(tracking_state)
@@ -415,6 +426,7 @@ def main() -> int:
             "executed_stages": executed_stages,
             "recorded_completed_stages": persisted_completed_stage_names,
             "recorded_execution_completed_stages": recorded_execution_stage_list,
+            "auto_detected_recorded_stages": auto_detected_recorded_stage_names,
             "invalidated_recorded_stages": invalidated_recorded_stage_list,
             "asserted_completed_stages": asserted_stage_names,
             "stage_completion_mode": "transitional_manual_assertion",

@@ -7,6 +7,13 @@ from typing import Any
 
 from apply_repo_process_repair import FOLLOW_ON_TRACKING_PATH
 
+CANONICAL_STAGE_EVIDENCE = {
+    "ticket-pack-builder": ".opencode/state/artifacts/history/repair/ticket-pack-builder-completion.md",
+}
+AUTO_DETECTED_COMPLETERS = {
+    "ticket-pack-builder": "ticket-pack-builder:auto-detected",
+}
+
 
 def read_json(path: Path) -> Any:
     return json.loads(path.read_text(encoding="utf-8")) if path.exists() else None
@@ -55,6 +62,11 @@ def persist_follow_on_tracking_state(repo_root: Path, state: dict[str, Any]) -> 
     write_json(repo_root / FOLLOW_ON_TRACKING_PATH, state)
 
 
+def canonical_stage_evidence_path(stage: str) -> str | None:
+    value = CANONICAL_STAGE_EVIDENCE.get(stage)
+    return value if isinstance(value, str) and value else None
+
+
 def validate_recorded_execution_evidence(repo_root: Path, state: dict[str, Any]) -> dict[str, Any]:
     stage_records = state.get("stage_records") if isinstance(state.get("stage_records"), dict) else {}
     history = state.get("history") if isinstance(state.get("history"), list) else []
@@ -93,6 +105,21 @@ def validate_recorded_execution_evidence(repo_root: Path, state: dict[str, Any])
     state["history"] = history
     state["last_updated_at"] = now
     return state
+
+
+def artifact_matches_current_cycle(repo_root: Path, *, stage: str, cycle_id: str) -> tuple[bool, str | None]:
+    evidence_path = canonical_stage_evidence_path(stage)
+    if not evidence_path:
+        return False, None
+    path = repo_root / evidence_path
+    if not path.exists():
+        return False, evidence_path
+    text = path.read_text(encoding="utf-8")
+    if f"- completed_stage: {stage}" not in text:
+        return False, evidence_path
+    if f"- cycle_id: {cycle_id}" not in text:
+        return False, evidence_path
+    return True, evidence_path
 
 
 def update_follow_on_tracking_state(
@@ -190,6 +217,48 @@ def update_follow_on_tracking_state(
 
     persist_follow_on_tracking_state(repo_root, state)
     return state
+
+
+def auto_record_stage_completion_from_canonical_evidence(
+    repo_root: Path,
+    *,
+    required_stage_names: list[str],
+    repair_package_commit: str,
+) -> tuple[dict[str, Any], list[str]]:
+    state = load_follow_on_tracking_state(repo_root)
+    state = validate_recorded_execution_evidence(repo_root, state)
+    persist_follow_on_tracking_state(repo_root, state)
+
+    auto_recorded: list[str] = []
+    cycle_id = state.get("cycle_id") if isinstance(state.get("cycle_id"), str) else ""
+    if not cycle_id:
+        return state, auto_recorded
+
+    for stage in required_stage_names:
+        evidence_path = canonical_stage_evidence_path(stage)
+        if not evidence_path:
+            continue
+        existing = state.get("stage_records", {}).get(stage, {})
+        if (
+            isinstance(existing, dict)
+            and existing.get("status") == "completed"
+            and existing.get("completion_mode") == "recorded_execution"
+            and evidence_path in (existing.get("evidence_paths") if isinstance(existing.get("evidence_paths"), list) else [])
+        ):
+            continue
+        matches_cycle, detected_path = artifact_matches_current_cycle(repo_root, stage=stage, cycle_id=cycle_id)
+        if not matches_cycle or not detected_path:
+            continue
+        state = record_follow_on_stage_completion(
+            repo_root,
+            stage=stage,
+            completed_by=AUTO_DETECTED_COMPLETERS.get(stage, f"{stage}:auto-detected"),
+            summary=f"Auto-detected canonical {stage} repair follow-on completion for cycle {cycle_id}.",
+            evidence_paths=[detected_path],
+            repair_package_commit=repair_package_commit,
+        )
+        auto_recorded.append(stage)
+    return state, sorted(set(auto_recorded))
 
 
 def completed_stage_names(state: dict[str, Any]) -> list[str]:
