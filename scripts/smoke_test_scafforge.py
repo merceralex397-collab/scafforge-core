@@ -4376,6 +4376,29 @@ def main() -> int:
                 raise RuntimeError("Managed repair should not auto-detect canonical stage evidence whose cycle_id does not match the current repair cycle")
             if not wrong_cycle_auto_detect["execution_record"]["blocking_reasons"]:
                 raise RuntimeError("Managed repair should remain blocked when only a stale-cycle completion artifact exists")
+            wrong_cycle_manual_record = subprocess.run(
+                [
+                    sys.executable,
+                    str(RECORD_REPAIR_STAGE),
+                    str(auto_detected_follow_on_dest),
+                    "--stage",
+                    "ticket-pack-builder",
+                    "--completed-by",
+                    "ticket-pack-builder",
+                    "--summary",
+                    "Stale-cycle canonical evidence should fail.",
+                    "--evidence",
+                    auto_evidence_rel,
+                ],
+                cwd=ROOT,
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            if wrong_cycle_manual_record.returncode == 0:
+                raise RuntimeError("record_repair_stage_completion should reject stale-cycle canonical repair evidence instead of trusting it as explicit recorded execution")
+            if "must match the current repair cycle" not in wrong_cycle_manual_record.stderr and "must match the current repair cycle" not in wrong_cycle_manual_record.stdout:
+                raise RuntimeError("record_repair_stage_completion should explain stale-cycle canonical evidence rejection")
             auto_evidence_path.write_text(
                 "# Repair Follow-On Completion\n\n"
                 "- completed_stage: ticket-pack-builder\n"
@@ -4499,6 +4522,9 @@ def main() -> int:
             recorded_follow_on_initial = json.loads(recorded_follow_on_initial_process.stdout)
             if not recorded_follow_on_initial["execution_record"]["blocking_reasons"]:
                 raise RuntimeError("A repair run without any follow-on completion record should remain blocked when ticket follow-up is still required")
+            recorded_follow_on_state_path = recorded_follow_on_dest / ".opencode" / "meta" / "repair-follow-on-state.json"
+            recorded_follow_on_initial_state = json.loads(recorded_follow_on_state_path.read_text(encoding="utf-8"))
+            recorded_cycle_id = recorded_follow_on_initial_state["cycle_id"]
             no_evidence_record_stage = subprocess.run(
                 [
                     sys.executable,
@@ -4523,7 +4549,15 @@ def main() -> int:
             recorded_evidence_rel = ".opencode/state/artifacts/history/repair/ticket-pack-builder-completion.md"
             recorded_evidence_path = recorded_follow_on_dest / recorded_evidence_rel
             recorded_evidence_path.parent.mkdir(parents=True, exist_ok=True)
-            recorded_evidence_path.write_text("# Ticket Pack Builder Completion\n\nRecorded execution evidence.\n", encoding="utf-8")
+            recorded_evidence_path.write_text(
+                "# Repair Follow-On Completion\n\n"
+                "- completed_stage: ticket-pack-builder\n"
+                f"- cycle_id: {recorded_cycle_id}\n"
+                "- completed_by: ticket-pack-builder\n\n"
+                "## Summary\n\n"
+                "- Refined repair follow-up tickets after managed repair.\n",
+                encoding="utf-8",
+            )
             recorded_stage_payload = run_json(
                 [
                     sys.executable,
@@ -4563,7 +4597,7 @@ def main() -> int:
                 raise RuntimeError("Explicit recorded_execution follow-on completion should not populate asserted_completed_stages")
             if recorded_follow_on_reuse["execution_record"]["repair_follow_on_outcome"] != "source_follow_up":
                 raise RuntimeError("Explicit recorded_execution follow-on completion should still converge to source_follow_up when only EXEC findings remain")
-            recorded_follow_on_state = json.loads((recorded_follow_on_dest / ".opencode" / "meta" / "repair-follow-on-state.json").read_text(encoding="utf-8"))
+            recorded_follow_on_state = json.loads(recorded_follow_on_state_path.read_text(encoding="utf-8"))
             if recorded_follow_on_state["stage_records"]["ticket-pack-builder"]["completed_by"] != "ticket-pack-builder":
                 raise RuntimeError("Persisted follow-on tracking should keep completed_by for explicitly recorded execution")
             if not any(
