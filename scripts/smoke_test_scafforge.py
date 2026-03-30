@@ -2851,6 +2851,52 @@ def main() -> int:
                 raise RuntimeError("Managed repair should record source_follow_up when only source-layer remediation remains")
             if source_follow_up_workflow["repair_follow_on"]["current_state_clean"] is not False:
                 raise RuntimeError("Managed repair should not record current_state_clean when source-layer remediation remains")
+
+            run_managed_repair_module = load_python_module(PUBLIC_REPAIR, "scafforge_smoke_run_managed_repair")
+            contract_failures = run_managed_repair_module.verification_contract_failures(
+                [SimpleNamespace(code="WFLOW010")],
+                performed=True,
+                current_state_clean=False,
+                pending_process_verification=False,
+                classes={
+                    "managed_blockers": [SimpleNamespace(code="WFLOW010")],
+                    "source_follow_up": [],
+                    "manual_prerequisites": [],
+                    "process_state_only": [],
+                },
+            )
+            if "restart_surface_drift_after_repair" not in contract_failures:
+                raise RuntimeError("Repair verification contract checks should treat WFLOW010 as a hard post-repair consistency failure")
+
+            placeholder_contract_failures = run_managed_repair_module.verification_contract_failures(
+                [SimpleNamespace(code="SKILL001")],
+                performed=True,
+                current_state_clean=False,
+                pending_process_verification=False,
+                classes={
+                    "managed_blockers": [SimpleNamespace(code="SKILL001")],
+                    "source_follow_up": [],
+                    "manual_prerequisites": [],
+                    "process_state_only": [],
+                },
+            )
+            if "placeholder_local_skills_survived_refresh" not in placeholder_contract_failures:
+                raise RuntimeError("Repair verification contract checks should treat SKILL001 as a hard post-repair consistency failure")
+
+            empty_non_clean_contract_failures = run_managed_repair_module.verification_contract_failures(
+                [],
+                performed=True,
+                current_state_clean=False,
+                pending_process_verification=False,
+                classes={
+                    "managed_blockers": [],
+                    "source_follow_up": [],
+                    "manual_prerequisites": [],
+                    "process_state_only": [],
+                },
+            )
+            if "non_clean_without_findings" not in empty_non_clean_contract_failures:
+                raise RuntimeError("Repair verification contract checks should flag zero-finding non-clean states as a repair-contract failure")
         else:
             print("Skipping uv-dependent source-follow-up public repair assertions because `uv` is not available on this host.")
 

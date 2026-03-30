@@ -66,6 +66,7 @@ python3 scripts/run_managed_repair.py <repo-root>
 Use this as the default repair entrypoint. It runs the deterministic managed-surface refresh, emits the machine-readable repair plan, stale-surface map, and execution record, reruns verification, and fails closed when required follow-on stages still have not been executed.
 If the selected diagnosis basis still records `package_work_required_first: true`, repair must stop and send the user back to one fresh post-package revalidation audit instead of mutating the subject repo.
 The current `--stage-complete` path is transitional. Treat it as a host assertion recorded in the execution record, not as the final architecture for persistent follow-on stage tracking.
+The public runner must also fail explicit repair-contract consistency checks. At minimum, do not allow it to report verification success when restart surfaces still drift, placeholder local skills survive refresh, or it somehow reports zero findings while still not being current-state clean.
 
 ### 4. Use the deterministic engine as the internal refresh phase
 

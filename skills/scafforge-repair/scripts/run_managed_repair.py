@@ -133,6 +133,32 @@ def classify_verification_findings(findings: list[Any]) -> dict[str, list[Any]]:
     }
 
 
+def verification_contract_failures(
+    findings: list[Any],
+    *,
+    performed: bool,
+    current_state_clean: bool,
+    pending_process_verification: bool,
+    classes: dict[str, list[Any]],
+) -> list[str]:
+    codes = {getattr(finding, "code", "") for finding in findings}
+    failures: list[str] = []
+    if (
+        performed
+        and not findings
+        and not current_state_clean
+        and not classes["source_follow_up"]
+        and not classes["process_state_only"]
+        and not pending_process_verification
+    ):
+        failures.append("non_clean_without_findings")
+    if "WFLOW010" in codes:
+        failures.append("restart_surface_drift_after_repair")
+    if "SKILL001" in codes:
+        failures.append("placeholder_local_skills_survived_refresh")
+    return failures
+
+
 def summarize_verification(
     findings: list[Any],
     pending_process_verification: bool,
@@ -152,6 +178,13 @@ def summarize_verification(
         and not pending_process_verification
     )
     causal_regression_verified = managed_repair_verified
+    contract_failures = verification_contract_failures(
+        findings,
+        performed=performed,
+        current_state_clean=current_state_clean,
+        pending_process_verification=pending_process_verification,
+        classes=classes,
+    )
     return {
         "performed": performed,
         "finding_count": len(findings),
@@ -167,7 +200,9 @@ def summarize_verification(
         "repair_basis_path": str(repair_basis_path) if repair_basis_path else None,
         "current_state_clean": current_state_clean,
         "causal_regression_verified": causal_regression_verified,
-        "verification_passed": causal_regression_verified,
+        "contract_failures": contract_failures,
+        "contract_passed": not contract_failures,
+        "verification_passed": causal_regression_verified and not contract_failures,
         "supporting_logs": [str(path) for path in supporting_logs],
     }
 
@@ -286,6 +321,12 @@ def main() -> int:
         blocking_reasons.append("Post-repair verification was skipped; rerun scafforge-audit before handoff.")
     elif basis_requires_causal_replay and not logs:
         blocking_reasons.append("Post-repair verification did not inherit the transcript-backed repair basis; rerun the public repair runner with the causal transcript evidence before handoff.")
+    elif verification_status["contract_failures"]:
+        blocking_reasons.append(
+            "Post-repair verification failed repair-contract consistency checks: "
+            + ", ".join(verification_status["contract_failures"])
+            + "."
+        )
     elif finding_classes["managed_blockers"] or finding_classes["manual_prerequisites"]:
         blocking_reasons.append("Post-repair verification still reports managed workflow or environment findings; handoff must remain blocked until they are resolved.")
 
