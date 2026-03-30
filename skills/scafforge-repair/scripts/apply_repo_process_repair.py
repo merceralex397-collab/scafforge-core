@@ -295,7 +295,7 @@ def build_stale_surface_map(
 ) -> dict[str, dict[str, Any]]:
     required_stage_names = required_stage_names or set()
     codes = {getattr(finding, "code", "") for finding in findings if getattr(finding, "code", "")}
-    workflow_codes = {code for code in codes if code.startswith(("WFLOW", "BOOT", "CYCLE", "ENV")) and code != "WFLOW008"}
+    workflow_codes = {code for code in codes if code.startswith(("WFLOW", "BOOT", "CYCLE")) and code != "WFLOW008"}
     prompt_codes = {code for code in codes if code.startswith("WFLOW")}
     skill_codes = {code for code in codes if code.startswith(("SKILL", "MODEL"))}
     ticket_codes = {code for code in codes if code.startswith("EXEC") or code == "WFLOW008"}
@@ -318,7 +318,7 @@ def build_stale_surface_map(
         "workflow_tools_and_prompts": _surface_entry(
             status="replace" if workflow_surfaces or workflow_codes else "stable",
             surfaces=workflow_surfaces,
-            reason="Managed workflow tools, prompts, and process docs were refreshed or still show workflow/environment drift.",
+            reason="Managed workflow tools, prompts, and process docs were refreshed or still show workflow drift.",
             finding_codes=workflow_codes,
         ),
         "repo_local_skills": _surface_entry(

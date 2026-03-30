@@ -62,6 +62,10 @@ def _placeholder_skill_hits(root: Path) -> list[str]:
     return hits
 
 
+def _contains_all(text: str, required_snippets: tuple[str, ...]) -> bool:
+    return all(snippet in text for snippet in required_snippets)
+
+
 def verify_greenfield_continuation(root: Path) -> list[Finding]:
     findings: list[Finding] = []
 
@@ -70,7 +74,12 @@ def verify_greenfield_continuation(root: Path) -> list[Finding]:
     start_here_path = root / "START-HERE.md"
     latest_handoff_path = root / ".opencode" / "state" / "latest-handoff.md"
     workflow_doc_path = root / "docs" / "process" / "workflow.md"
+    tooling_doc_path = root / "docs" / "process" / "tooling.md"
+    tickets_readme_path = root / "tickets" / "README.md"
     ticket_lookup_path = root / ".opencode" / "tools" / "ticket_lookup.ts"
+    ticket_update_path = root / ".opencode" / "tools" / "ticket_update.ts"
+    smoke_test_path = root / ".opencode" / "tools" / "smoke_test.ts"
+    handoff_publish_path = root / ".opencode" / "tools" / "handoff_publish.ts"
     ticket_execution_path = root / ".opencode" / "skills" / "ticket-execution" / "SKILL.md"
     team_leader_path = next((root / ".opencode" / "agents").glob("*team-leader*.md"), None)
 
@@ -79,7 +88,12 @@ def verify_greenfield_continuation(root: Path) -> list[Finding]:
     start_here = _read_text(start_here_path)
     latest_handoff = _read_text(latest_handoff_path)
     workflow_doc = _read_text(workflow_doc_path)
+    tooling_doc = _read_text(tooling_doc_path)
+    tickets_readme = _read_text(tickets_readme_path)
     ticket_lookup = _read_text(ticket_lookup_path)
+    ticket_update = _read_text(ticket_update_path)
+    smoke_test = _read_text(smoke_test_path)
+    handoff_publish = _read_text(handoff_publish_path)
     ticket_execution = _read_text(ticket_execution_path)
     team_leader = _read_text(team_leader_path) if team_leader_path else ""
 
@@ -202,6 +216,62 @@ def verify_greenfield_continuation(root: Path) -> list[Finding]:
                 files=placeholder_hits,
                 safer_pattern="Run project-skill-bootstrap until scaffold placeholder text is removed from repo-local skills before treating greenfield generation as complete.",
                 evidence=[f"placeholder skills: {', '.join(placeholder_hits)}"],
+            )
+        )
+
+    contract_alignment_missing: list[str] = []
+    if not _contains_all(
+        tooling_doc,
+        (
+            "returns `transition_guidance` with the next legal stage move",
+            "`ticket_update` changes lifecycle stage",
+            "`smoke_test` runs deterministic smoke-test commands, writes the canonical smoke-test artifact itself",
+            "`handoff_publish` refreshes the top-level handoff",
+            "commands are human entrypoints only",
+        ),
+    ):
+        contract_alignment_missing.append(_normalize(tooling_doc_path, root))
+    if not _contains_all(
+        tickets_readme,
+        (
+            "keep ticket `status` coarse",
+            "keep ticket `stage` lifecycle-oriented",
+            "use `ticket_lookup.transition_guidance` before changing a ticket stage",
+        ),
+    ):
+        contract_alignment_missing.append(_normalize(tickets_readme_path, root))
+    if not _contains_all(
+        ticket_update,
+        (
+            "to implementation before it passes through plan_review.",
+            "Cannot move to qa before at least one review artifact exists.",
+            "validateSmokeTestArtifactEvidence",
+        ),
+    ):
+        contract_alignment_missing.append(_normalize(ticket_update_path, root))
+    if not _contains_all(
+        smoke_test,
+        (
+            "Ticket acceptance criteria define an explicit smoke-test command.",
+            "command_override cannot mix tokenized argv entries with multiple shell-style command strings.",
+            "registerArtifactSnapshot",
+        ),
+    ):
+        contract_alignment_missing.append(_normalize(smoke_test_path, root))
+    if "const handoffBlocker = await validateHandoffNextAction" not in handoff_publish or "await refreshRestartSurfaces" not in handoff_publish:
+        contract_alignment_missing.append(_normalize(handoff_publish_path, root))
+    elif handoff_publish.find("const handoffBlocker = await validateHandoffNextAction") >= handoff_publish.find("await refreshRestartSurfaces"):
+        contract_alignment_missing.append(_normalize(handoff_publish_path, root))
+
+    if contract_alignment_missing:
+        findings.append(
+            _finding(
+                code="VERIFY008",
+                problem="The generated repo does not keep its workflow docs and executable tool surfaces aligned on continuation-critical lifecycle behavior.",
+                root_cause="Immediate continuation becomes brittle when the proof-first gate ignores documented workflow surfaces or those surfaces drift from the executable contract.",
+                files=contract_alignment_missing,
+                safer_pattern="Keep tooling docs, ticket guidance docs, ticket_update, smoke_test, and handoff_publish aligned on lifecycle gating, canonical smoke ownership, transition guidance, and truthful handoff publication before greenfield handoff.",
+                evidence=[f"missing or drifted contract surfaces: {', '.join(contract_alignment_missing)}"],
             )
         )
 
