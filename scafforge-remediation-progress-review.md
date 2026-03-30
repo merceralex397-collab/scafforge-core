@@ -123,17 +123,21 @@ Implemented:
 - the first audit family extraction landed
 - execution-surface rules were split out of the monolithic audit file into:
   - [audit_execution_surfaces.py](/home/rowan/Scafforge/skills/scafforge-audit/scripts/audit_execution_surfaces.py)
+- a second audit family extraction landed
+- restart-surface and next-move clarity rules were split out into:
+  - [audit_restart_surfaces.py](/home/rowan/Scafforge/skills/scafforge-audit/scripts/audit_restart_surfaces.py)
 - validator expectations were updated to treat rule-family modularization as part of the package contract
 
 What this achieved:
 
 - new execution-surface logic is no longer buried only in the main monolith
+- restart-surface and resume-truth logic is no longer buried only in the main monolith
 - the repo now has an actual pattern for continued audit modularization
 
 Not yet done:
 
 - `audit_repo_process.py` is still large and still owns most invariant families
-- next-move clarity, canonical-truth drift, ticket graph defects, and restart-surface contradiction families are not yet split into separate modules
+- canonical-truth drift, ticket graph defects, and transcript/session-oriented contradiction families are not yet split into separate modules
 - audit documentation is smaller than before in effect, but the full Phase 3 modularization target is still incomplete
 
 ### Phase 4: Make Repair Convergent And Bounded
@@ -283,7 +287,7 @@ The remaining work is best understood in this order.
 Still needed:
 
 - split the remaining monolith into rule families
-- move next-move clarity, ticket graph, and restart-surface contradiction logic out of the main audit file
+- move ticket graph, canonical-truth drift, and transcript/session contradiction logic out of the main audit file
 - keep shrinking prose-heavy audit knowledge into rule-plus-fixture coverage
 
 Why it still matters:
