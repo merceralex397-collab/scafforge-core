@@ -3208,6 +3208,146 @@ def main() -> int:
         if release_result["active_leases"]:
             raise RuntimeError("ticket_release should leave no active leases after releasing the only lease")
 
+        executed_artifact_tools_dest = workspace / "executed-artifact-tools"
+        shutil.copytree(full_dest, executed_artifact_tools_dest)
+        seed_ready_bootstrap(executed_artifact_tools_dest)
+        noncanonical_artifact_error = run_generated_tool_error(
+            executed_artifact_tools_dest,
+            ".opencode/tools/artifact_write.ts",
+            {
+                "ticket_id": "SETUP-001",
+                "path": "notes/noncanonical-plan.md",
+                "kind": "plan",
+                "stage": "planning",
+                "content": "# Invalid Plan\n",
+            },
+        )
+        if "Artifact path mismatch" not in noncanonical_artifact_error or ".opencode/state/plans/setup-001-planning-plan.md" not in noncanonical_artifact_error:
+            raise RuntimeError("artifact_write should reject non-canonical artifact paths")
+        plan_artifact_path = ".opencode/state/plans/setup-001-planning-plan.md"
+        artifact_write_result = run_generated_tool(
+            executed_artifact_tools_dest,
+            ".opencode/tools/artifact_write.ts",
+            {
+                "ticket_id": "SETUP-001",
+                "path": plan_artifact_path,
+                "kind": "plan",
+                "stage": "planning",
+                "content": "# Plan\n\nCommand: rg --files\n\nCanonical planning artifact body.\n",
+            },
+        )
+        if artifact_write_result["path"] != plan_artifact_path:
+            raise RuntimeError("artifact_write should persist to the canonical planning artifact path")
+        if not (executed_artifact_tools_dest / plan_artifact_path).exists():
+            raise RuntimeError("artifact_write should create the canonical artifact file on disk")
+        artifact_register_result = run_generated_tool(
+            executed_artifact_tools_dest,
+            ".opencode/tools/artifact_register.ts",
+            {
+                "ticket_id": "SETUP-001",
+                "path": plan_artifact_path,
+                "kind": "plan",
+                "stage": "planning",
+                "summary": "Synthetic registered plan artifact.",
+            },
+        )
+        latest_registered_plan = artifact_register_result["latest_artifact"]
+        if latest_registered_plan["stage"] != "planning" or latest_registered_plan["kind"] != "plan":
+            raise RuntimeError("artifact_register should persist the stage and kind of the registered artifact")
+        if not str(latest_registered_plan["path"]).startswith(".opencode/state/artifacts/history/setup-001/planning/"):
+            raise RuntimeError("artifact_register should snapshot canonical artifacts into history-backed registry storage")
+        executed_reopen_dest = workspace / "executed-ticket-reopen"
+        shutil.copytree(full_dest, executed_reopen_dest)
+        seed_closed_ticket_needing_explicit_reverification(executed_reopen_dest)
+        reopen_evidence_rel = ".opencode/state/reviews/setup-001-review-reopen-evidence.md"
+        register_current_ticket_artifact(
+            executed_reopen_dest,
+            ticket_id="SETUP-001",
+            kind="backlog-verification",
+            stage="review",
+            relative_path=reopen_evidence_rel,
+            summary="Synthetic reopen evidence.",
+            content="# Reopen Evidence\n\nA newly discovered defect invalidates completion.\n",
+        )
+        reopen_workflow_path = executed_reopen_dest / ".opencode" / "state" / "workflow-state.json"
+        reopen_workflow = json.loads(reopen_workflow_path.read_text(encoding="utf-8"))
+        reopen_workflow["lane_leases"] = [
+            {
+                "ticket_id": "SETUP-001",
+                "lane": "repo-foundation",
+                "owner_agent": "smoke-implementer",
+                "write_lock": True,
+                "claimed_at": "2026-03-30T00:00:00Z",
+                "expires_at": "2099-03-30T00:00:00Z",
+                "allowed_paths": ["."],
+            }
+        ]
+        reopen_workflow_path.write_text(json.dumps(reopen_workflow, indent=2) + "\n", encoding="utf-8")
+        ticket_reopen_result = run_generated_tool(
+            executed_reopen_dest,
+            ".opencode/tools/ticket_reopen.ts",
+            {
+                "ticket_id": "SETUP-001",
+                "reason": "Synthetic reopened scope due to newly discovered defect.",
+                "evidence_artifact_path": reopen_evidence_rel,
+                "activate": True,
+            },
+        )
+        if ticket_reopen_result["reopened_ticket"] != "SETUP-001":
+            raise RuntimeError("ticket_reopen should report the reopened ticket id")
+        reopened_manifest = json.loads((executed_reopen_dest / "tickets" / "manifest.json").read_text(encoding="utf-8"))
+        reopened_workflow = json.loads(reopen_workflow_path.read_text(encoding="utf-8"))
+        reopened_ticket = next(ticket for ticket in reopened_manifest["tickets"] if ticket["id"] == "SETUP-001")
+        if reopened_ticket["stage"] != "planning" or reopened_ticket["status"] != "todo":
+            raise RuntimeError("ticket_reopen should return a completed ticket to planning/todo")
+        if reopened_ticket["resolution_state"] != "reopened" or reopened_ticket["verification_state"] != "invalidated":
+            raise RuntimeError("ticket_reopen should mark the reopened ticket as reopened and invalidated")
+        if reopened_workflow["ticket_state"]["SETUP-001"]["reopen_count"] != 1 or reopened_workflow["ticket_state"]["SETUP-001"]["needs_reverification"] is not True:
+            raise RuntimeError("ticket_reopen should increment reopen_count and require reverification")
+        if reopened_workflow["lane_leases"]:
+            raise RuntimeError("ticket_reopen should release any active lease on the reopened ticket")
+        if not all(artifact["trust_state"] != "current" for artifact in reopened_ticket["artifacts"]):
+            raise RuntimeError("ticket_reopen should mark prior current artifacts historical when reopening a ticket")
+        executed_context_handoff_dest = workspace / "executed-context-and-handoff"
+        shutil.copytree(full_dest, executed_context_handoff_dest)
+        seed_ready_bootstrap(executed_context_handoff_dest)
+        context_snapshot_result = run_generated_tool(
+            executed_context_handoff_dest,
+            ".opencode/tools/context_snapshot.ts",
+            {
+                "note": "Synthetic snapshot note for Phase 5 runtime coverage.",
+            },
+        )
+        context_snapshot_path = Path(context_snapshot_result["path"])
+        context_snapshot_text = context_snapshot_path.read_text(encoding="utf-8")
+        if "## Active Ticket" not in context_snapshot_text or "Synthetic snapshot note for Phase 5 runtime coverage." not in context_snapshot_text:
+            raise RuntimeError("context_snapshot should write the canonical snapshot with the requested note")
+        handoff_publish_result = run_generated_tool(
+            executed_context_handoff_dest,
+            ".opencode/tools/handoff_publish.ts",
+            {
+                "next_action": "Keep SETUP-001 as the foreground ticket and continue its lifecycle from planning.",
+            },
+        )
+        start_here_text = (executed_context_handoff_dest / "START-HERE.md").read_text(encoding="utf-8")
+        latest_handoff_text = (executed_context_handoff_dest / ".opencode" / "state" / "latest-handoff.md").read_text(encoding="utf-8")
+        if str(handoff_publish_result["start_here"]) != str(executed_context_handoff_dest / "START-HERE.md"):
+            raise RuntimeError("handoff_publish should report the canonical START-HERE path")
+        if "Keep SETUP-001 as the foreground ticket and continue its lifecycle from planning." not in start_here_text:
+            raise RuntimeError("handoff_publish should publish the requested next_action into START-HERE")
+        if "Keep SETUP-001 as the foreground ticket and continue its lifecycle from planning." not in latest_handoff_text:
+            raise RuntimeError("handoff_publish should publish the requested next_action into the latest handoff copy")
+        invalid_handoff_dest = workspace / "executed-invalid-handoff"
+        shutil.copytree(full_dest, invalid_handoff_dest)
+        seed_truthful_process_verification(invalid_handoff_dest)
+        invalid_handoff_error = run_generated_tool_error(
+            invalid_handoff_dest,
+            ".opencode/tools/handoff_publish.ts",
+            {"next_action": "Repo is clean and fully verified. No follow-up required."},
+        )
+        if "pending_process_verification" not in invalid_handoff_error:
+            raise RuntimeError("handoff_publish should reject clean-state claims while pending_process_verification remains true")
+
         hidden_clearable_pending_dest = workspace / "hidden-clearable-pending-process-verification"
         shutil.copytree(full_dest, hidden_clearable_pending_dest)
         seed_process_verification_clear_deadlock(hidden_clearable_pending_dest, stale_surfaces=True)

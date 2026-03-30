@@ -181,6 +181,11 @@ Implemented:
   - `ticket_lookup` bootstrap gating and early-stage next-action routing
   - `ticket_update` early-stage progression and separate plan-approval sequencing
   - `ticket_claim` / `ticket_release` ordinary write-lease handling
+  - `artifact_write` canonical artifact persistence
+  - `artifact_register` history-backed artifact registration
+  - `ticket_reopen` completed-ticket invalidation and reopen flow
+  - `context_snapshot` snapshot publication
+  - `handoff_publish` restart-surface publication and invalid next-action rejection
   - `ticket_reverify`
   - `ticket_reconcile`
   - `ticket_create` split-scope follow-up creation
@@ -202,12 +207,13 @@ Important detail:
 - several of the key improvements were made in the generated repo runtime surfaces themselves, not only in docs or validators
 - the smoke harness now executes a larger slice of the generated TypeScript tools under a stubbed plugin runtime instead of only checking static contract presence
 - the branch now has direct runtime proof for both historical repair paths and the ordinary early-lifecycle path weaker agents hit first
+- restart publication, canonical artifact handling, and completed-ticket reopen behavior are now also execution-proven rather than only contract-checked
 
 Not yet done:
 
 - generated-tool execution coverage is still selective rather than comprehensive
 - the stubbed plugin runtime harness has not yet been generalized across the full generated tool surface
-- more ordinary queue mutation paths such as intake, creation, lookup, update, and lease handling are now covered, but the wider generated workflow toolchain is still not fully execution-proven
+- most of the ordinary queue mutation, artifact, restart-publication, and historical-repair paths are now covered, but the wider generated workflow toolchain is still not fully execution-proven
 
 ### Phase 6: Add A First-Class Pivot Skill
 
@@ -298,13 +304,9 @@ Why it still matters:
 Still needed:
 
 - extend generated-tool execution coverage beyond the currently exercised mutation tools:
-  - `ticket_reopen`
-  - `artifact_write`
-  - `artifact_register`
-  - `handoff_publish`
-  - `context_snapshot`
   - `environment_bootstrap`
   - `smoke_test`
+- add direct execution coverage for the remaining restart/plugin enforcement surfaces that still sit outside the current harness
 - add direct execution coverage for more of the ordinary generated workflow toolchain and stage-gate paths
 - keep checking that generated mutation tools and routing surfaces stay aligned, not just documented
 
