@@ -460,6 +460,14 @@ def record_follow_on_stage_completion(
         raise ValueError(
             f"Repair follow-on stage `{stage}` requires at least one repo-relative evidence path for recorded execution."
         )
+    canonical_evidence_path = canonical_stage_evidence_path(stage)
+    if canonical_evidence_path and canonical_evidence_path in evidence_paths:
+        cycle_id = state.get("cycle_id") if isinstance(state.get("cycle_id"), str) else ""
+        matches_cycle, _ = artifact_matches_current_cycle(repo_root, stage=stage, cycle_id=cycle_id)
+        if not matches_cycle:
+            raise ValueError(
+                f"Canonical repair evidence for `{stage}` must match the current repair cycle before recorded execution can be accepted."
+            )
     records = state["stage_records"]
     now = current_iso_timestamp()
     existing = records.get(stage, {})
