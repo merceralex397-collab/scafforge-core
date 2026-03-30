@@ -185,6 +185,8 @@ Implemented:
 - later repair runs can reuse previously recorded follow-on stage completion without reasserting the same stage on every rerun
 - later repair runs now report explicit recorded execution separately from transitional assertions
 - recorded execution is now invalidated automatically when its supporting evidence path disappears, so repair stops trusting stale completion records
+- the public repair runner can now auto-recognize one bounded canonical follow-on completion artifact for the current repair cycle:
+  - `ticket-pack-builder` via `.opencode/state/artifacts/history/repair/ticket-pack-builder-completion.md` with matching `cycle_id`
 - repair verification now fails contract checks for:
   - non-clean zero-finding states
   - restart-surface drift after repair
@@ -198,10 +200,11 @@ What this achieved:
 - the repo now distinguishes transitional host assertions from explicit recorded execution with evidence-backed stage records
 - restart-surface truth now stays aligned when repair follow-on completion is recorded after the main repair run
 - explicit recorded execution is now evidence-sensitive rather than being trusted indefinitely after first record
+- repair no longer requires a separate manual recording step for `ticket-pack-builder` when that stage emits the canonical current-cycle completion artifact
 
 Not yet done:
 
-- stage completion can now enter through explicit recorded execution, but automatic downstream execution-state capture is still not in place
+- stage completion can now enter through explicit recorded execution and one bounded canonical auto-recognition path, but broader automatic downstream execution-state capture is still not in place
 - project-specific regeneration is still orchestrated rather than deterministic
 - the longer-term recorded execution-state architecture described in the plan is not complete
 

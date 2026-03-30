@@ -73,6 +73,16 @@ python3 scripts/record_repair_stage_completion.py <repo-root> --stage <stage> --
 ```
 
 Use that command to record real follow-on execution with evidence paths. Leave `--stage-complete` as a transitional input for hosts that still cannot write a richer execution record directly.
+When a downstream stage emits a canonical repair completion artifact for the current repair cycle, the public repair runner may auto-recognize that stage on the next run instead of requiring a separate recording command. The current bounded auto-recognition path is:
+
+- `ticket-pack-builder` via `.opencode/state/artifacts/history/repair/ticket-pack-builder-completion.md`
+
+That artifact is only trusted for the current repair cycle when it includes both:
+
+- `- completed_stage: ticket-pack-builder`
+- `- cycle_id: <current .opencode/meta/repair-follow-on-state.json cycle_id>`
+
+If a follow-on stage does not yet emit a canonical completion artifact, use `record_repair_stage_completion.py`.
 If recorded execution evidence is later deleted or moved, Scafforge must stop trusting that recorded completion automatically instead of silently continuing to reuse stale completion state.
 The public runner must also fail explicit repair-contract consistency checks. At minimum, do not allow it to report verification success when restart surfaces still drift, placeholder local skills survive refresh, or it somehow reports zero findings while still not being current-state clean.
 

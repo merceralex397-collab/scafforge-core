@@ -4150,6 +4150,91 @@ def main() -> int:
             if recorded_stage_results != {"handoff-brief": "recorded_completed", "ticket-pack-builder": "recorded_completed"}:
                 raise RuntimeError("Managed repair should expose reused follow-on completions as recorded_completed stage results")
 
+            auto_detected_follow_on_dest = workspace / "auto-detected-follow-on-repair"
+            shutil.copytree(full_dest, auto_detected_follow_on_dest)
+            make_stack_skill_non_placeholder(auto_detected_follow_on_dest)
+            seed_failing_pytest_suite(auto_detected_follow_on_dest)
+            auto_detected_initial_process = subprocess.run(
+                [
+                    sys.executable,
+                    str(PUBLIC_REPAIR),
+                    str(auto_detected_follow_on_dest),
+                    "--skip-deterministic-refresh",
+                ],
+                cwd=ROOT,
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            if auto_detected_initial_process.returncode == 0:
+                raise RuntimeError("A repair run with unresolved ticket follow-up should fail closed before any canonical completion artifact exists")
+            auto_detected_initial = json.loads(auto_detected_initial_process.stdout)
+            if not auto_detected_initial["execution_record"]["blocking_reasons"]:
+                raise RuntimeError("A repair run with unresolved ticket follow-up should stay blocked before any canonical completion artifact exists")
+            auto_follow_on_state_path = auto_detected_follow_on_dest / ".opencode" / "meta" / "repair-follow-on-state.json"
+            auto_follow_on_state = json.loads(auto_follow_on_state_path.read_text(encoding="utf-8"))
+            auto_cycle_id = auto_follow_on_state["cycle_id"]
+            auto_evidence_rel = ".opencode/state/artifacts/history/repair/ticket-pack-builder-completion.md"
+            auto_evidence_path = auto_detected_follow_on_dest / auto_evidence_rel
+            auto_evidence_path.parent.mkdir(parents=True, exist_ok=True)
+            auto_evidence_path.write_text(
+                "# Repair Follow-On Completion\n\n"
+                "- completed_stage: ticket-pack-builder\n"
+                "- cycle_id: stale-cycle\n"
+                "- completed_by: ticket-pack-builder\n\n"
+                "## Summary\n\n"
+                "- Created or updated the canonical repair follow-up tickets required by the current repair cycle.\n",
+                encoding="utf-8",
+            )
+            wrong_cycle_auto_detect_process = subprocess.run(
+                [
+                    sys.executable,
+                    str(PUBLIC_REPAIR),
+                    str(auto_detected_follow_on_dest),
+                    "--skip-deterministic-refresh",
+                ],
+                cwd=ROOT,
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            if wrong_cycle_auto_detect_process.returncode == 0:
+                raise RuntimeError("Managed repair should fail closed when only a stale-cycle canonical completion artifact exists")
+            wrong_cycle_auto_detect = json.loads(wrong_cycle_auto_detect_process.stdout)
+            if wrong_cycle_auto_detect["execution_record"]["auto_detected_recorded_stages"]:
+                raise RuntimeError("Managed repair should not auto-detect canonical stage evidence whose cycle_id does not match the current repair cycle")
+            if not wrong_cycle_auto_detect["execution_record"]["blocking_reasons"]:
+                raise RuntimeError("Managed repair should remain blocked when only a stale-cycle completion artifact exists")
+            auto_evidence_path.write_text(
+                "# Repair Follow-On Completion\n\n"
+                "- completed_stage: ticket-pack-builder\n"
+                f"- cycle_id: {auto_cycle_id}\n"
+                "- completed_by: ticket-pack-builder\n\n"
+                "## Summary\n\n"
+                "- Created or updated the canonical repair follow-up tickets required by the current repair cycle.\n",
+                encoding="utf-8",
+            )
+            auto_detected_reuse = run_json(
+                [
+                    sys.executable,
+                    str(PUBLIC_REPAIR),
+                    str(auto_detected_follow_on_dest),
+                    "--skip-deterministic-refresh",
+                ],
+                ROOT,
+            )
+            if auto_detected_reuse["execution_record"]["blocking_reasons"]:
+                raise RuntimeError("Managed repair should auto-recognize current-cycle canonical ticket-pack-builder completion evidence without a separate recording command")
+            if auto_detected_reuse["execution_record"]["auto_detected_recorded_stages"] != ["ticket-pack-builder"]:
+                raise RuntimeError("Managed repair should report current-cycle canonical ticket-pack-builder evidence as an auto-detected recorded stage")
+            if auto_detected_reuse["execution_record"]["recorded_execution_completed_stages"] != ["ticket-pack-builder"]:
+                raise RuntimeError("Auto-detected canonical ticket-pack-builder evidence should count as recorded_execution completion")
+            auto_detected_state = json.loads(auto_follow_on_state_path.read_text(encoding="utf-8"))
+            if auto_detected_state["stage_records"]["ticket-pack-builder"]["completed_by"] != "ticket-pack-builder:auto-detected":
+                raise RuntimeError("Auto-detected canonical ticket-pack-builder evidence should persist completed_by as ticket-pack-builder:auto-detected")
+            if auto_detected_state["stage_records"]["ticket-pack-builder"]["evidence_paths"] != [auto_evidence_rel]:
+                raise RuntimeError("Auto-detected canonical ticket-pack-builder evidence should preserve the canonical repair artifact path")
+
             recorded_follow_on_dest = workspace / "recorded-follow-on-repair"
             shutil.copytree(full_dest, recorded_follow_on_dest)
             make_stack_skill_non_placeholder(recorded_follow_on_dest)

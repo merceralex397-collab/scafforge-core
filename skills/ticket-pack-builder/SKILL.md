@@ -218,6 +218,28 @@ After applying the follow-up:
 - regenerate `tickets/BOARD.md`
 - ensure any changed trust, reverification, or process-follow-up state stays consistent with `.opencode/state/workflow-state.json`
 
+### 6. Emit canonical repair completion evidence when this ran as repair follow-up
+
+When `scafforge-repair` required `ticket-pack-builder` as a repair follow-on stage, read `.opencode/meta/repair-follow-on-state.json` and, after the ticket follow-up work is actually complete, write:
+
+- `.opencode/state/artifacts/history/repair/ticket-pack-builder-completion.md`
+
+Use this minimal shape so the public repair runner can auto-recognize completion for the current repair cycle on the next run:
+
+```md
+# Repair Follow-On Completion
+
+- completed_stage: ticket-pack-builder
+- cycle_id: <cycle_id from .opencode/meta/repair-follow-on-state.json>
+- completed_by: ticket-pack-builder
+
+## Summary
+
+- Created or updated the canonical repair follow-up tickets required by the current repair cycle.
+```
+
+Do not write this artifact speculatively. Only emit it once the remediation-follow-up ticket work is actually complete for the current cycle.
+
 ## After this step
 
 Continue to `../handoff-brief/SKILL.md` as directed by scaffold-kickoff.
