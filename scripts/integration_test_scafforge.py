@@ -91,6 +91,13 @@ def bootstrap_full(dest: Path) -> None:
     )
 
 
+def require_host_prerequisite(name: str, *, context: str) -> str:
+    path = shutil.which(name)
+    if not path:
+        raise RuntimeError(f"{context} requires `{name}` to be available on the current host.")
+    return path
+
+
 def seed_prompt_drift(dest: Path) -> None:
     team_leader = next((dest / ".opencode" / "agents").glob("*team-leader*.md"))
     text = team_leader.read_text(encoding="utf-8")
@@ -156,9 +163,7 @@ def greenfield_integration(workspace: Path) -> None:
 
 
 def repair_integration(workspace: Path) -> None:
-    if shutil.which("uv") is None:
-        print("Skipping repair integration because `uv` is not available on this host.")
-        return
+    require_host_prerequisite("uv", context="Scafforge repair integration")
     dest = workspace / "repair"
     bootstrap_full(dest)
     seed_ready_bootstrap(dest)
@@ -343,12 +348,30 @@ def fixture_builder_integration(fixtures: dict[str, dict[str, Any]], workspace: 
         contract_path = dest / ".opencode" / "meta" / "gpttalker-fixture.json"
         if not contract_path.exists():
             raise RuntimeError(f"Fixture builder should emit .opencode/meta/gpttalker-fixture.json for `{slug}`.")
+        expected_finding_codes = contract.get("expected_finding_codes")
+        if not isinstance(expected_finding_codes, list) or not expected_finding_codes:
+            raise RuntimeError(f"Fixture builder should persist expected_finding_codes for `{slug}`.")
+        command = [sys.executable, str(AUDIT), str(dest), "--format", "json", "--no-diagnosis-pack"]
+        supporting_log = contract.get("supporting_log")
+        if isinstance(supporting_log, str) and supporting_log.strip():
+            command.extend(["--supporting-log", str(dest / supporting_log)])
         audit_payload = run_json(
-            [sys.executable, str(AUDIT), str(dest), "--format", "json", "--no-diagnosis-pack"],
+            command,
             ROOT,
         )
         if not isinstance(audit_payload.get("findings"), list) or audit_payload.get("finding_count", 0) <= 0:
             raise RuntimeError(f"Fixture `{slug}` should produce actionable audit findings, not a no-op repo.")
+        audit_codes = {
+            str(item.get("code", "")).strip()
+            for item in audit_payload.get("findings", [])
+            if isinstance(item, dict) and str(item.get("code", "")).strip()
+        }
+        missing_codes = [code for code in expected_finding_codes if isinstance(code, str) and code not in audit_codes]
+        if missing_codes:
+            raise RuntimeError(
+                f"Fixture `{slug}` did not trigger its declared invariant finding codes. Missing: {', '.join(missing_codes)}; "
+                f"observed: {', '.join(sorted(audit_codes)) or 'none'}"
+            )
 
 
 def main() -> int:

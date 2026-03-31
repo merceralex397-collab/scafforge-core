@@ -112,6 +112,22 @@ def write_json(path: Path, payload: Any) -> None:
     path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
 
 
+def resolve_supporting_logs(repo_root: Path, values: list[str]) -> list[Path]:
+    resolved: list[Path] = []
+    seen: set[Path] = set()
+    for raw in values:
+        candidate = Path(raw).expanduser()
+        candidate = candidate if candidate.is_absolute() else (repo_root / candidate)
+        resolved_path = candidate.resolve()
+        if not resolved_path.exists() or not resolved_path.is_file():
+            raise SystemExit(f"--supporting-log must resolve to an existing file inside or alongside the pivoted repo: {raw}")
+        if resolved_path in seen:
+            continue
+        seen.add(resolved_path)
+        resolved.append(resolved_path)
+    return resolved
+
+
 def default_affected_families(pivot_class: str) -> list[str]:
     mapping = {
         "feature-add": ["ticket_graph_and_lineage", "restart_surfaces"],
@@ -464,7 +480,7 @@ def main() -> int:
     }
     update_provenance(repo_root, pivot_entry)
 
-    supporting_logs = [Path(item).expanduser().resolve() for item in args.supporting_log]
+    supporting_logs = resolve_supporting_logs(repo_root, args.supporting_log)
     findings = [] if args.skip_verify else audit_repo(repo_root, logs=supporting_logs)
     verification_status = summarize_verification(findings, not args.skip_verify, supporting_logs)
 

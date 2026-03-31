@@ -6,7 +6,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from test_support.scafforge_harness import compute_bootstrap_fingerprint
+from test_support.scafforge_harness import compute_bootstrap_fingerprint, package_commit
 
 
 def read_json(path: Path) -> Any:
@@ -169,7 +169,7 @@ def seed_repeated_diagnosis_churn(dest: Path) -> None:
             "result_state": "validated failures found",
             "diagnosis_kind": "initial_diagnosis",
             "evidence_mode": "current_state_only",
-            "audit_package_commit": "fixture-current-package",
+            "audit_package_commit": package_commit(),
             "ticket_recommendations": [
                 {
                     "source_finding_code": "SKILL001",
@@ -178,6 +178,7 @@ def seed_repeated_diagnosis_churn(dest: Path) -> None:
                 }
             ],
         }
+    baseline_manifest["audit_package_commit"] = package_commit()
     baseline_manifest["generated_at"] = "2026-03-27T00:03:00Z"
     baseline_manifest["ticket_recommendations"] = [
         {

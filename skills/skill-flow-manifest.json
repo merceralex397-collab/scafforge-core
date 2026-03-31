@@ -3,6 +3,12 @@
   "product": "Scafforge",
   "output_profiles": ["opencode"],
   "optional_extensions": [],
+  "flow_graph_sanity": {
+    "single_public_entrypoint": "scaffold-kickoff",
+    "all_run_types_end_with": "handoff-brief",
+    "validate_sequence_modes": true,
+    "acyclic_except_contract_smells": ["CYCLE001"]
+  },
   "contract_smells": [
     {
       "code": "CYCLE001",
@@ -91,7 +97,7 @@
     },
     "spec-pack-normalizer": {
       "owner": "intake",
-      "modes": ["normalize"],
+      "modes": ["normalize", "if_needed"],
       "inputs": ["docs", "notes", "spec packs", "fragmented plans"],
       "outputs": ["canonical brief", "decision packet", "backlog readiness"],
       "required_outputs": [
@@ -104,7 +110,7 @@
     },
     "repo-scaffold-factory": {
       "owner": "scaffold",
-      "modes": ["full", "opencode"],
+      "modes": ["full", "opencode", "verify-bootstrap-lane", "verify-generated-scaffold"],
       "inputs": ["canonical brief", "provider/model choices", "project identifiers"],
       "outputs": ["repo skeleton", "template docs", ".opencode layer", "bootstrap provenance"],
       "upstreams": ["spec-pack-normalizer", "scaffold-kickoff"],
@@ -112,7 +118,7 @@
     },
     "opencode-team-bootstrap": {
       "owner": "agent-team-design",
-      "modes": ["design", "retrofit"],
+      "modes": ["design", "retrofit", "follow_up_if_project_specific_drift"],
       "inputs": ["canonical brief", "base scaffold agents or existing repo", "repo-local skill pack when present", "project type"],
       "outputs": ["project-specific agents", "customized tools/plugins", "team structure"],
       "required_outputs": [
@@ -125,7 +131,7 @@
     },
     "ticket-pack-builder": {
       "owner": "queue",
-      "modes": ["bootstrap", "refine", "remediation-follow-up"],
+      "modes": ["bootstrap", "refine", "refine_if_needed", "remediation-follow-up"],
       "inputs": ["canonical brief", "decision packet", "backlog readiness", "finalized local workflow surfaces", "audit/repair ticket recommendations"],
       "outputs": ["tickets", "manifest", "board", "decision/blocker tickets", "remediation/verification tickets"],
       "required_outputs": [
@@ -139,7 +145,7 @@
     },
     "project-skill-bootstrap": {
       "owner": "local-skills",
-      "modes": ["full-greenfield-pass", "repair-or-regeneration"],
+      "modes": ["full-greenfield-pass", "repair-or-regeneration", "repair-or-regeneration_if_needed"],
       "inputs": ["repo structure", "stack evidence", "workflow contract", "selected downstream model profile"],
       "outputs": ["repo-local skill pack", "synthesized local skills", "model operating profile"],
       "required_outputs": [
@@ -152,7 +158,7 @@
     },
     "agent-prompt-engineering": {
       "owner": "prompts",
-      "modes": ["required-pass"],
+      "modes": ["required-pass", "repair-hardening_if_needed"],
       "inputs": ["workflow contract", "weak-model constraints", "repo context"],
       "outputs": ["hardened prompts", "blocker rules", "anti-summary rails"],
       "required_outputs": [
@@ -165,7 +171,7 @@
     },
     "scafforge-audit": {
       "owner": "audit-review",
-      "modes": ["full-diagnosis"],
+      "modes": ["full-diagnosis", "audit_then_route_repair_if_needed", "review_and_emit_diagnosis_pack"],
       "inputs": ["repo workflow surfaces", "contract docs", "template outputs", "optional PR/review evidence"],
       "outputs": ["diagnosis", "validated review findings", "four-report pack", "ticket recommendations"],
       "upstreams": ["repo-scaffold-factory", "opencode-team-bootstrap", "agent-prompt-engineering", "project-skill-bootstrap", "scaffold-kickoff"],
@@ -173,7 +179,7 @@
     },
     "scafforge-repair": {
       "owner": "managed-repair",
-      "modes": ["apply-safe-repair"],
+      "modes": ["apply-safe-repair", "follow_up_if_managed_workflow_drift"],
       "inputs": ["audit outputs", "repair plan", "validated workflow drift"],
       "outputs": ["safe repairs", "project-specific regeneration", "prompt-hardening refresh", "provenance updates", "verification results", "ticket follow-up routing"],
       "upstreams": ["scafforge-audit", "scaffold-kickoff", "opencode-team-bootstrap"],
@@ -181,7 +187,7 @@
     },
     "scafforge-pivot": {
       "owner": "pivot-orchestration",
-      "modes": ["classify-and-route"],
+      "modes": ["classify-and-route", "classify_and_route"],
       "inputs": ["requested change", "canonical brief", "current ticket graph", "workflow state", "existing repo surfaces"],
       "outputs": ["pivot classification", "brief update", "stale-surface map", "bounded refresh routing", "verification result"],
       "required_outputs": [

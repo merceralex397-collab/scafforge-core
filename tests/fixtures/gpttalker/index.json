@@ -10,6 +10,10 @@
         "bootstrap dependency-layout awareness",
         "missing executable classification"
       ],
+      "expected_finding_codes": [
+        "BOOT002",
+        "WFLOW010"
+      ],
       "expected_coverage": [
         "integration:greenfield",
         "smoke:seed_bootstrap_command_layout_mismatch"
@@ -27,6 +31,15 @@
       "invariant_focus": [
         "host-surface classification",
         "permission blockage versus repo defect"
+      ],
+      "expected_finding_codes": [
+        "WFLOW002",
+        "WFLOW010",
+        "SESSION001",
+        "SESSION002",
+        "SESSION003",
+        "SESSION004",
+        "SESSION006"
       ],
       "expected_coverage": [
         "integration:greenfield",
@@ -46,6 +59,10 @@
         "one legal next move",
         "repair must not leave contradictory follow-on state"
       ],
+      "expected_finding_codes": [
+        "SKILL001",
+        "CYCLE002"
+      ],
       "expected_coverage": [
         "integration:repair",
         "smoke:seed_repeated_diagnosis_churn"
@@ -63,6 +80,10 @@
       "invariant_focus": [
         "WFLOW010 must fail repair verification",
         "restart surfaces must be republished from canonical state"
+      ],
+      "expected_finding_codes": [
+        "WFLOW008",
+        "WFLOW010"
       ],
       "expected_coverage": [
         "integration:repair",
@@ -82,6 +103,9 @@
         "SKILL001 must block repair closure",
         "repo-local skills require explicit regeneration"
       ],
+      "expected_finding_codes": [
+        "SKILL001"
+      ],
       "expected_coverage": [
         "integration:repair",
         "smoke:placeholder local skill survival checks"
@@ -100,6 +124,10 @@
         "historical reconciliation",
         "ticket lineage correction",
         "closed-ticket trust restoration"
+      ],
+      "expected_finding_codes": [
+        "WFLOW010",
+        "WFLOW024"
       ],
       "expected_coverage": [
         "integration:pivot",

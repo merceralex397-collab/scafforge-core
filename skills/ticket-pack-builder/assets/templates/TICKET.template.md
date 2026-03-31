@@ -2,13 +2,24 @@
 
 ## Summary
 
+## Wave
+
+## Lane
+
+## Parallel Safety
+
+- parallel_safe:
+- overlap_risk:
+
 ## Stage
 
 ## Status
 
-Use coarse queue state only: `todo`, `ready`, `in_progress`, `blocked`, `review`, `qa`, or `done`.
-
 ## Depends On
+
+## Decision Blockers
+
+- None
 
 ## Acceptance Criteria
 

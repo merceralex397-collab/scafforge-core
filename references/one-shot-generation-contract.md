@@ -15,6 +15,7 @@ A greenfield run follows this exact sequence:
 scaffold-kickoff
   -> spec-pack-normalizer
   -> repo-scaffold-factory
+  -> repo-scaffold-factory:verify-bootstrap-lane
   -> project-skill-bootstrap
   -> opencode-team-bootstrap
   -> agent-prompt-engineering

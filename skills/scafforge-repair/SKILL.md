@@ -64,6 +64,7 @@ python3 scripts/run_managed_repair.py <repo-root>
 ```
 
 Use this as the default repair entrypoint. It runs the deterministic managed-surface refresh, emits the machine-readable repair plan, stale-surface map, and execution record, reruns verification, and fails closed when required follow-on stages still have not been executed.
+The canonical execution record lives at `.opencode/meta/repair-execution.json`, and the persistent follow-on tracking ledger lives at `.opencode/meta/repair-follow-on-state.json`.
 If the selected diagnosis basis still records `package_work_required_first: true`, repair must stop and send the user back to one fresh post-package revalidation audit instead of mutating the subject repo.
 Prefer explicit recorded completion when a downstream follow-on stage actually ran:
 
@@ -116,6 +117,7 @@ This deterministic repair flow regenerates `START-HERE.md`, `.opencode/state/con
 It must also emit a machine-readable stale-surface map using the bounded categories `stable`, `replace`, `regenerate`, and `ticket_follow_up`.
 Intent-changing drift is out of scope for routine public repair and must route back through kickoff or pivot instead of being reported as a repair-emitted stale-surface category.
 Treat this command as the internal refresh engine, not as the whole user-facing repair contract. A repair run is still incomplete if required regeneration, ticket follow-up, or post-repair verification did not happen afterward.
+If repair runs after a pivot, preserve the pivot-owned stale-surface and restart-state truth instead of republishing generic ready-state restart surfaces. Managed repair can refresh workflow surfaces, but it must not erase active pivot blockers or pending pivot lineage work from `START-HERE.md`, `.opencode/state/latest-handoff.md`, or `.opencode/state/context-snapshot.md`.
 
 ### 5. Continue into required project-specific regeneration
 

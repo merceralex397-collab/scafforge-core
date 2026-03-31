@@ -53,7 +53,7 @@ def manifest_ticket(manifest: dict[str, Any], ticket_id: str) -> dict[str, Any]:
     raise RuntimeError(f"Pivot lineage execution could not find ticket {ticket_id} in tickets/manifest.json")
 
 
-def execute_action(repo_root: Path, action: dict[str, Any]) -> dict[str, Any] | None:
+def execute_action(repo_root: Path, action: dict[str, Any]) -> tuple[dict[str, Any] | None, str | None]:
     action_type = str(action.get("action", "")).strip()
     target_ticket_id = str(action.get("target_ticket_id", "")).strip()
     reason = str(action.get("reason", "")).strip()
@@ -64,7 +64,7 @@ def execute_action(repo_root: Path, action: dict[str, Any]) -> dict[str, Any] | 
 
     if action_type == "reopen":
         if not target_ticket_id or not evidence_artifact_path:
-            return None
+            return None, "reopen requires both target_ticket_id and evidence_artifact_path."
         return run_generated_tool(
             repo_root,
             ".opencode/tools/ticket_reopen.ts",
@@ -74,16 +74,16 @@ def execute_action(repo_root: Path, action: dict[str, Any]) -> dict[str, Any] | 
                 "evidence_artifact_path": evidence_artifact_path,
                 "activate": True,
             },
-        )
+        ), None
 
     if action_type == "reconcile":
         if not target_ticket_id or not evidence_artifact_path:
-            return None
+            return None, "reconcile requires both target_ticket_id and evidence_artifact_path."
         manifest = load_manifest(repo_root)
         target_ticket = manifest_ticket(manifest, target_ticket_id)
         source_ticket_id = str(target_ticket.get("source_ticket_id", "")).strip() or replacement_source_ticket_id
         if not source_ticket_id:
-            return None
+            return None, "reconcile requires a canonical source ticket or replacement source ticket."
         args: dict[str, object] = {
             "source_ticket_id": source_ticket_id,
             "target_ticket_id": target_ticket_id,
@@ -96,16 +96,16 @@ def execute_action(repo_root: Path, action: dict[str, Any]) -> dict[str, Any] | 
             args["replacement_source_ticket_id"] = replacement_source_ticket_id
         if replacement_source_mode:
             args["replacement_source_mode"] = replacement_source_mode
-        return run_generated_tool(repo_root, ".opencode/tools/ticket_reconcile.ts", args)
+        return run_generated_tool(repo_root, ".opencode/tools/ticket_reconcile.ts", args), None
 
     if action_type == "supersede":
         if not target_ticket_id or not evidence_artifact_path:
-            return None
+            return None, "supersede requires both target_ticket_id and evidence_artifact_path."
         manifest = load_manifest(repo_root)
         target_ticket = manifest_ticket(manifest, target_ticket_id)
         source_ticket_id = str(target_ticket.get("source_ticket_id", "")).strip() or replacement_source_ticket_id
         if not source_ticket_id:
-            return None
+            return None, "supersede requires a canonical source ticket or replacement source ticket."
         args = {
             "source_ticket_id": source_ticket_id,
             "target_ticket_id": target_ticket_id,
@@ -119,7 +119,7 @@ def execute_action(repo_root: Path, action: dict[str, Any]) -> dict[str, Any] | 
             args["replacement_source_ticket_id"] = replacement_source_ticket_id
         if replacement_source_mode:
             args["replacement_source_mode"] = replacement_source_mode
-        return run_generated_tool(repo_root, ".opencode/tools/ticket_reconcile.ts", args)
+        return run_generated_tool(repo_root, ".opencode/tools/ticket_reconcile.ts", args), None
 
     if action_type == "create_follow_up" and ticket_spec:
         args = dict(ticket_spec)
@@ -127,9 +127,11 @@ def execute_action(repo_root: Path, action: dict[str, Any]) -> dict[str, Any] | 
             args["summary"] = str(action.get("summary", "")).strip()
         if "activate" not in args:
             args["activate"] = True
-        return run_generated_tool(repo_root, ".opencode/tools/ticket_create.ts", args)
+        return run_generated_tool(repo_root, ".opencode/tools/ticket_create.ts", args), None
 
-    return None
+    if action_type == "create_follow_up":
+        return None, "create_follow_up requires runtime ticket_spec metadata before it can execute safely."
+    return None, f"{action_type or 'unknown'} is not an executable pivot lineage action."
 
 
 def main() -> int:
@@ -149,12 +151,12 @@ def main() -> int:
             continue
         if action.get("status") == "completed":
             continue
-        result = execute_action(repo_root, action)
+        result, skip_reason = execute_action(repo_root, action)
         if result is None:
             skipped.append(
                 {
                     "label": label,
-                    "reason": "Action is still routing-only because the pivot plan does not yet carry enough runtime metadata to execute it safely.",
+                    "reason": skip_reason or "Action is still routing-only because the pivot plan does not yet carry enough runtime metadata to execute it safely.",
                 }
             )
             continue

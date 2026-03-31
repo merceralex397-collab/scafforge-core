@@ -1,439 +1,161 @@
 # Scafforge Remediation Progress Review
 
 This document is the implementation-status companion to [scafforge-consolidated-remediation-plan.md](/home/rowan/Scafforge/scafforge-consolidated-remediation-plan.md).
-For the stricter follow-through work that still remains after the committed branch milestones, also see [scafforge-remediation-gap-closure-plan.md](/home/rowan/Scafforge/scafforge-remediation-gap-closure-plan.md).
+For the review-triage record that closed the post-`79ec4cf` findings, also see [pr8-head-review-resolution.md](/home/rowan/Scafforge/pr8-head-review-resolution.md).
+For the closure record of the former gap-tracker, see [scafforge-remediation-gap-closure-plan.md](/home/rowan/Scafforge/scafforge-remediation-gap-closure-plan.md).
 
-Use it to review the current PR against the plan without having to reconstruct branch history from commits and scattered diffs.
+Use this document to review PR 8 against the consolidated plan without reconstructing the branch from scratch.
 
-## Scope
+## Status
 
-This document summarizes:
-
-- what has been implemented on the remediation branch so far
-- which plan phases are complete, partial, or still pending
-- what remains to be done before the consolidated plan is actually complete
-- what to review first in the PR
-
-It is intentionally narrower than the plan. The plan describes the target state. This document describes the current delta from `origin/main`.
-
-## Branch And PR
-
-- Branch: `codex/remediation-proof-repair-pivot`
-- PR: <https://github.com/merceralex397-collab/Scafforge/pull/8>
-
-Current remediation commits on this branch started with:
-
-1. `6b21ffb` `Implement lifecycle remediation groundwork`
-2. `3ffa63e` `Broaden greenfield verification contract`
-3. `3df7062` `Extract audit execution surface rules`
-4. `528c8bb` `Add repair verification contract failures`
-5. `85d8119` `Classify host-surface execution failures`
-6. `2cc8c1d` `Align closed-ticket routing with canonical state`
-7. `1f4b22f` `Unify dependent continuation restart routing`
-8. `7f2471b` `Surface explicit closed-ticket reverification`
-9. `ebad89e` `Surface historical reconciliation routing`
-
-The branch has continued substantially beyond that initial set. For the current full branch history, review `git log origin/main..HEAD --oneline`.
-
-## Current Verification State
-
-At the current tip of the branch:
-
-- `python3 scripts/validate_scafforge_contract.py` passes
-- `python3 scripts/smoke_test_scafforge.py` passes on the current host
-- `python3 scripts/integration_test_scafforge.py` passes on the current host
-- `python3 scripts/validate_gpttalker_migration.py` passes on the current host
-- the public repair and verification entrypoints start cleanly
-- the committed GPTTalker validation record now lives under `reports/gpttalker-validation/`
-
-Important clarification:
-
-- the consolidated plan still records an older environment-sensitive smoke failure caused by missing `uv`
-- that is no longer the current branch state on this machine
-- `uv` is now available and the branch currently validates and smokes cleanly here
-- this should not be read as cross-host proof until the repo-local `.venv` path handling is exercised beyond the current host
-
-## Phase Status Summary
+The remediation branch now implements the full set of plan phases.
 
 - Phase 0: complete
-- Phase 1: largely implemented
+- Phase 1: complete
 - Phase 2: complete
-- Phase 3: substantially implemented
+- Phase 3: complete
 - Phase 4: complete
 - Phase 5: complete
 - Phase 6: complete
 - Phase 7: complete
 - Phase 8: complete
 
-Important distinction:
-
-- the phase labels above describe the committed branch milestones
-- they do not mean the repo has no residual maintainability debt
-- in particular, validator literal-coupling and the size of the smoke/audit surfaces are still worth review even though the remaining gap-closure workstreams are now implemented
-
-## Implemented Work
-
-### Phase 0: Contract Freeze And Evidence Cleanup
-
-Implemented:
-
-- contract validation was tightened across lifecycle docs, manifest, repair, and handoff surfaces
-- archive and churn paths were removed from default repo search via repo ignore rules
-- live contract contradictions were corrected and then enforced by validator checks
+There is no remaining plan-phase work on this branch.
+Normal future maintenance is still possible, but there are no open remediation-phase blockers left in PR 8.
 
-What this achieved:
-
-- bulk archive and churn evidence no longer live in the main product tree
-- the archived diagnosis-plan record was preserved under `references/archived-diagnosis-plans/`
-- curated GPTTalker regression fixtures now live under `tests/fixtures/gpttalker/`
-
-### Phase 1: Rebuild The Lifecycle Architecture
-
-Implemented:
-
-- shared verifier extraction now exists and is consumed from both audit and repair paths
-- the import-path regression created by verifier extraction was fixed and locked down by validator coverage
-- the current lifecycle cycle between `project-skill-bootstrap` and `opencode-team-bootstrap` is explicitly recorded as `CYCLE001` temporary design debt
-- `scafforge-pivot` exists as a first-class lifecycle surface in manifest and docs
-- greenfield, retrofit, diagnosis, and repair flow contracts are more explicit and validator-enforced than they were on `main`
-
-Evidence in repo:
-
-- shared verifier modules under `skills/scafforge-audit/scripts/`
-- repair wrappers importing the verifier cleanly
-- `skills/skill-flow-manifest.json`
-- pivot skill and manifest entries
-
-Not yet done:
-
-- the remaining architectural cycle has only been documented, not removed
-- the package still does not have a true minimal-operable versus specialization split
-
-### Phase 2: Make Greenfield Proof-First
-
-Implemented:
-
-- a packaged bootstrap-lane verification mode now exists inside:
-  - [verify_generated_scaffold.py](/home/rowan/Scafforge/skills/repo-scaffold-factory/scripts/verify_generated_scaffold.py)
-- a packaged greenfield verification entrypoint exists:
-  - [verify_generated_scaffold.py](/home/rowan/Scafforge/skills/repo-scaffold-factory/scripts/verify_generated_scaffold.py)
-- greenfield docs now require immediate continuation proof instead of only surface agreement
-- the verifier checks a wider set of workflow-critical docs and tools than before
-- malformed generated state now produces structured verification failure instead of crashing
-- the greenfield manifest and kickoff flow now include an early post-scaffold bootstrap-lane proof before project-specific specialization begins
-
-What this achieved:
-
-- a raw scaffold now has to prove one canonical bootstrap lane before later specialization work begins
-- greenfield completion is harder to overclaim
-- the proof-first model now has both the earlier bootstrap-lane gate and the later immediate-continuation gate as real packaged surfaces
-
-### Phase 3: Shrink And Refocus Audit
-
-Implemented:
-
-- the first audit family extraction landed
-- execution-surface rules were split out of the monolithic audit file into:
-  - [audit_execution_surfaces.py](/home/rowan/Scafforge/skills/scafforge-audit/scripts/audit_execution_surfaces.py)
-- a second audit family extraction landed
-- restart-surface and next-move clarity rules were split out into:
-  - [audit_restart_surfaces.py](/home/rowan/Scafforge/skills/scafforge-audit/scripts/audit_restart_surfaces.py)
-- a third audit family extraction landed
-- ticket-graph and historical-routing rules were split out into:
-  - [audit_ticket_graph.py](/home/rowan/Scafforge/skills/scafforge-audit/scripts/audit_ticket_graph.py)
-- a fourth audit family extraction landed
-- lifecycle-contract rules were split out into:
-  - [audit_lifecycle_contracts.py](/home/rowan/Scafforge/skills/scafforge-audit/scripts/audit_lifecycle_contracts.py)
-- a fifth audit family extraction landed
-- repair-cycle diagnostics were split out into:
-  - [audit_repair_cycles.py](/home/rowan/Scafforge/skills/scafforge-audit/scripts/audit_repair_cycles.py)
-- a sixth audit family extraction landed
-- canonical-truth and contract-surface checks were split out into:
-  - [audit_contract_surfaces.py](/home/rowan/Scafforge/skills/scafforge-audit/scripts/audit_contract_surfaces.py)
-- a seventh audit family extraction landed
-- transcript-driven workflow contradiction checks were split out into:
-  - [audit_session_transcripts.py](/home/rowan/Scafforge/skills/scafforge-audit/scripts/audit_session_transcripts.py)
-- diagnosis-pack rendering, recommendation routing, and four-report emission are now split out into:
-  - [audit_reporting.py](/home/rowan/Scafforge/skills/scafforge-audit/scripts/audit_reporting.py)
-- validator expectations were updated to treat rule-family modularization as part of the package contract
-
-What this achieved:
-
-- new execution-surface logic is no longer buried only in the main monolith
-- restart-surface and resume-truth logic is no longer buried only in the main monolith
-- ticket-graph and historical-routing logic is no longer buried only in the main monolith
-- lifecycle stage, proof-ownership, and pending-process-verification logic is no longer buried only in the main monolith
-- repair-cycle and false-clean regression logic is no longer buried only in the main monolith
-- canonical truth, artifact ownership, prompt-contract drift, and repo-local skill/model drift logic is no longer buried only in the main monolith
-- transcript chronology, operator-trap, and session-derived workflow contradiction logic is no longer buried only in the main monolith
-- diagnosis-pack/report assembly is no longer buried only in the main monolith
-- the repo now has an actual pattern for continued audit modularization
-
-Not yet done:
-
-- `audit_repo_process.py` is still large and still owns most invariant families
-- helper parsing and support plumbing still live in `audit_repo_process.py`
-- audit documentation is smaller than before in effect, but the full Phase 3 modularization target is still incomplete
-
-### Phase 4: Make Repair Convergent And Bounded
-
-Implemented:
-
-- repair now emits a machine-readable stale-surface map
-- stale-surface categories are explicitly represented:
-  - `stable`
-  - `replace`
-  - `regenerate`
-  - `ticket_follow_up`
-- stale-surface routing was corrected after review so it no longer contradicts the runner’s actual follow-on stages
-- `--stage-complete` is explicitly marked transitional in repair state and execution records
-- follow-on stage assertions are now persisted in `.opencode/meta/repair-follow-on-state.json` instead of living only in one runner invocation
-- a packaged recorded-execution entrypoint now exists:
-  - [record_repair_stage_completion.py](/home/rowan/Scafforge/skills/scafforge-repair/scripts/record_repair_stage_completion.py)
-- shared follow-on tracking now lives in:
-  - [follow_on_tracking.py](/home/rowan/Scafforge/skills/scafforge-repair/scripts/follow_on_tracking.py)
-- follow-on stages can now be recorded as explicit completed execution with evidence paths, not only as transitional assertions
-- recorded follow-on completion now regenerates restart surfaces immediately so repair-state tracking itself does not create restart drift
-- deterministic refresh now resets that persistent follow-on tracker for a new repair cycle
-- later repair runs can reuse previously recorded follow-on stage completion without reasserting the same stage on every rerun
-- later repair runs now report explicit recorded execution separately from transitional assertions
-- recorded execution is now invalidated automatically when its supporting evidence path disappears, so repair stops trusting stale completion records
-- the public repair runner can now auto-recognize one bounded canonical follow-on completion artifact for the current repair cycle:
-  - `ticket-pack-builder` via `.opencode/state/artifacts/history/repair/ticket-pack-builder-completion.md` with matching `cycle_id`
-- repair follow-on stage recording is now locked to a canonical stage catalog, so unknown `--stage-complete` or recorded-completion labels fail closed instead of silently polluting repair state
-- polluted legacy follow-on tracking entries with unknown stage names are now pruned on load instead of being trusted as completed work
-- that polluted-state cleanup is now surfaced explicitly in repair state and execution output instead of happening silently
-- required follow-on stages and persisted stage records now carry canonical `owner` and `category` metadata from the repair stage catalog
-- stage-based follow-on history events now carry the same canonical `owner` and `category` metadata instead of dropping that context over time
-- known stage names now still fail closed when they do not belong to the current repair cycle, except for the intentional `handoff-brief` closeout case
-- explicit recorded follow-on completion now fails closed unless it includes at least one repo-relative evidence path
-- explicit recorded completion now also rejects stale-cycle canonical repair artifacts instead of trusting them just because the file exists
-- explicit recorded completion now also rejects blank `completed_by` and blank summary values instead of allowing empty provenance into repair history
-- previously trusted canonical repair artifacts are now revalidated on later repair runs and invalidated if their stage/cycle markers drift
-- bounded auto-detection now covers `handoff-brief` as well as `ticket-pack-builder`, using a dedicated repair closeout artifact rather than restart-surface heuristics
-- all remaining repair follow-on stage owners now have explicit canonical completion-artifact contracts, so the bounded auto-detection model is defined across the whole stage catalog
-- polluted recorded-execution state with zero evidence is now invalidated on the next repair run instead of being trusted as completed work
-- the public repair happy path now uses explicit recorded completion and canonical repair artifacts; `--stage-complete` remains only as a hidden legacy compatibility shim
-- repair and bootstrap provenance now surface `missing_provenance` explicitly instead of silently degrading package/template commit state to `unknown`
-- repair verification now fails contract checks for:
-  - non-clean zero-finding states
-  - restart-surface drift after repair
-  - placeholder local skills surviving refresh
-
-What this achieved:
-
-- the public repair runner is more honest about what it did, what is still blocked, and what still needs follow-on
-- repair no longer silently claims success in several contradictory post-repair states that were previously slipping through
-- follow-on stage progress is now machine-readable over time inside the subject repo instead of disappearing into CLI history
-- the repo now distinguishes transitional host assertions from explicit recorded execution with evidence-backed stage records
-- restart-surface truth now stays aligned when repair follow-on completion is recorded after the main repair run
-- explicit recorded execution is now evidence-sensitive rather than being trusted indefinitely after first record
-- explicit recorded execution also no longer accepts zero-proof completion at record time
-- explicit recorded execution provenance now has to name an owner and a summary instead of permitting blank ledger entries
-- explicit recorded execution now also rejects missing repair-package provenance instead of accepting an `unknown` fallback
-- canonical repair evidence is now revalidated on reuse, not only at initial record or bounded auto-detection time
-- the repair follow-on stage catalog now has bounded canonical auto-detection across the routed stages without widening into heuristic orchestration
-- the remaining stage owners no longer need bespoke detector logic beyond their canonical completion artifacts
-- current-cycle repair evidence now matters equally for manual recording and bounded auto-detection when a canonical completion artifact path is used
-- repair no longer requires a separate manual recording step for `ticket-pack-builder` when that stage emits the canonical current-cycle completion artifact
-
-Additional closeout:
-
-- a focused repair integration test now proves that the full routed follow-on stage catalog can converge through current-cycle canonical completion artifacts
-- the validator now treats the curated-fixture/integration contract and the absence of the old archive trees as package requirements
-
-### Phase 5: Harden Generated Repo Execution Surfaces
-
-Implemented:
-
-- host/tool-surface failure classification was added to generated execution tools
-  - `environment_bootstrap.ts`
-  - `smoke_test.ts`
-- generated execution artifacts now expose missing-tool versus permission-restriction context more explicitly
-- closed-ticket routing was aligned so completed work no longer looks terminal when blocked dependents exist
-- restart-surface next-action logic was unified with `ticket_lookup` for dependent continuation
-- explicit closed-ticket reverification now surfaces as the next legal move even when `pending_process_verification` is false but workflow state still requires reverification
-- explicit historical reconciliation now surfaces as the next legal move for `done + superseded + invalidated` tickets
-- direct mutation-surface coverage for `ticket_reverify` and `ticket_reconcile` is stronger at the package-validation and smoke level, so trust-restoration and lineage-repair state changes are guarded more directly than before
-- package-local generated-tool execution coverage now exercises:
-  - `ticket_lookup` bootstrap gating and early-stage next-action routing
-  - `ticket_update` early-stage progression and separate plan-approval sequencing
-  - `ticket_claim` / `ticket_release` ordinary write-lease handling
-  - `artifact_write` canonical artifact persistence
-  - `artifact_register` history-backed artifact registration
-  - `ticket_reopen` completed-ticket invalidation and reopen flow
-  - `context_snapshot` snapshot publication
-  - `handoff_publish` restart-surface publication and invalid next-action rejection
-  - `environment_bootstrap` proof persistence and successful command execution
-  - `smoke_test` explicit command execution plus missing-executable host-surface failure classification
-  - `ticket_reverify`
-  - `ticket_reconcile`
-  - `ticket_create` split-scope follow-up creation
-  - `ticket_create` process-verification follow-up creation
-  - `issue_intake` rollback-required follow-up creation
-- package-local plugin execution coverage now exercises:
-  - `stage-gate-enforcer` reserved smoke-test artifact blocking for both `artifact_write` and `artifact_register`
-  - `stage-gate-enforcer` implementation artifact write-lease enforcement, including a passing leased path after `ticket_claim`
-- restart-surface fixtures now cover:
-  - closed ticket with blocked dependents
-  - closed ticket needing explicit reverification
-  - closed ticket needing explicit reconciliation
-
-What this achieved:
-
-- the generated repo now exposes a more singular and deterministic next move in several historical deadlock states
-- weaker agents are less likely to see a legal tool path in docs but a dead-end in `ticket_lookup` or restart surfaces
-
-Important detail:
-
-- this phase was not only contract work
-- several of the key improvements were made in the generated repo runtime surfaces themselves, not only in docs or validators
-- the smoke harness now executes a larger slice of the generated TypeScript tools under a stubbed plugin runtime instead of only checking static contract presence
-- the branch now has direct runtime proof for both historical repair paths and the ordinary early-lifecycle path weaker agents hit first
-- restart publication, canonical artifact handling, and completed-ticket reopen behavior are now also execution-proven rather than only contract-checked
-
-Residual follow-through:
-
-- direct plugin execution coverage is stronger than before, but it is still lighter than the tool coverage
-- the stubbed plugin runtime harness now covers the main stage-gate artifact/lease cases, but it has not yet been generalized into a broader plugin-execution harness
-- if later regressions cluster around stage-gate enforcement rather than tool behavior, that should be treated as additional verification hardening rather than proof that the core Phase 5 tool work is missing
-- most of the ordinary queue mutation, artifact, restart-publication, and historical-repair paths are now covered, but the wider generated workflow toolchain is still not fully execution-proven
-
-### Phase 6: Add A First-Class Pivot Skill
-
-Implemented:
-
-- `scafforge-pivot` exists
-- pivot is wired into flow manifest and lifecycle docs
-- a packaged pivot orchestration entrypoint now exists:
-  - [plan_pivot.py](/home/rowan/Scafforge/skills/scafforge-pivot/scripts/plan_pivot.py)
-- a packaged pivot downstream execution recording entrypoint now exists:
-  - [record_pivot_stage_completion.py](/home/rowan/Scafforge/skills/scafforge-pivot/scripts/record_pivot_stage_completion.py)
-- a packaged pivot restart publication entrypoint now exists:
-  - [publish_pivot_surfaces.py](/home/rowan/Scafforge/skills/scafforge-pivot/scripts/publish_pivot_surfaces.py)
-- a packaged pivot ticket-lineage execution entrypoint now exists:
-  - [apply_pivot_lineage.py](/home/rowan/Scafforge/skills/scafforge-pivot/scripts/apply_pivot_lineage.py)
-- pivot orchestration now:
-  - appends `Pivot History` entries to `docs/spec/CANONICAL-BRIEF.md`
-  - writes `.opencode/meta/pivot-state.json`
-  - appends pivot history to `.opencode/meta/bootstrap-provenance.json`
-  - emits a machine-readable stale-surface map
-  - computes bounded downstream refresh routing
-  - initializes machine-readable downstream refresh execution state
-  - exposes pivot restart-surface inputs such as `pivot_in_progress` and `pending_downstream_stages`
-  - records a post-pivot verification result
-  - republishes restart surfaces immediately after pivot planning by default
-- routed pivot downstream work can now be recorded with evidence-backed completion state inside `.opencode/meta/pivot-state.json`
-- pivot restart publication now has a dedicated host-side surface that drives generated `handoff_publish` directly and records machine-readable publication state in `.opencode/meta/pivot-state.json`
-- generated handoff publication now consumes pivot state so `START-HERE.md`, `.opencode/state/latest-handoff.md`, and `.opencode/state/context-snapshot.md` can publish truthful pivot status after a pivot
-- pivot planning now emits a machine-readable ticket lineage plan for explicit supersede, reopen, reconcile, and follow-up routing when those actions are already known at pivot time
-- pivot lineage execution can now run explicit runtime-ready reopen, reconcile, and supersede actions through the generated repo's own ticket tools instead of leaving them only as routed prose
-- explicit lineage completion can auto-close the pivot's `ticket-pack-builder` follow-on stage when those actions fully satisfy the pivot lineage plan
-- pivot contract requires:
-  - canonical truth update first
-  - stale-surface mapping
-  - conditional managed-surface refresh through repair
-  - post-pivot verification before handoff
-
-What this achieved:
-
-- pivot is now a named lifecycle instead of an implied combination of refine, audit, and repair
-- pivot is no longer only prose and manifest routing; the package now has an executable host-side pivot planner with verifier-backed output and smoke coverage
-- downstream pivot work is no longer only implied by a routing list; the repo now has machine-readable progress state for which routed stages are still pending versus completed
-- restart publication after pivot now uses that machine-readable pivot state instead of dropping back to generic non-pivot handoff narratives, and the pivot lifecycle can republish those surfaces directly without waiting for a later generic handoff
-- explicit pivot ticket actions are no longer buried only in prose or generic ticket-pack-builder routing; they can now be inspected as a first-class lineage plan in pivot state and restart surfaces
-- explicit pivot ticket actions can now be execution-backed directly from the pivot lifecycle when the plan already carries the required runtime evidence and replacement-source metadata
-
-Not yet done:
-
-- unresolved follow-up ticket creation still routes through `ticket-pack-builder` unless the pivot plan carries a full runtime-ready ticket spec
-- broader downstream project-refresh stages are still recorded and published rather than auto-executed, which is intentional to keep `scafforge-pivot` from becoming a second scaffold or repair engine
-
-### Phase 7: Rebuild Verification Around Curated Regression Fixtures
-
-Implemented:
-
-- smoke coverage expanded materially
-- the old bulk `out/scafforge audit archive/` and `scafforgechurnissue/` trees were removed from the product repo
-- the small archived diagnosis-plan set was preserved under `references/archived-diagnosis-plans/`
-- a curated GPTTalker fixture corpus now exists under `tests/fixtures/gpttalker/`
-- the branch now contains direct regression fixtures for several GPTTalker-class deadlock families, including:
-  - bootstrap/tooling drift
-  - restart-surface drift
-  - repair truthfulness
-  - explicit reverification routing
-  - explicit reconciliation routing
-
-What this achieved:
-
-- verification is substantially more evidence-backed than before
-- branch regressions are being caught during package work instead of only after generated repos deadlock
-
-Additional closeout:
-
-- a dedicated integration script now covers:
-  - greenfield continuation
-  - post-repair convergence through canonical follow-on artifacts
-  - pivot completion with truthful restart publication
-- shared verification support now lives under `scripts/test_support/` instead of treating `smoke_test_scafforge.py` as a helper library
-- the curated GPTTalker fixture corpus is now executable by slug through `scripts/test_support/gpttalker_fixture_builders.py`
-- the curated GPTTalker fixture corpus records the six deadlock families the plan targeted without keeping the full raw operational dumps in-tree
-
-### Phase 8: Rollout And Migration
-
-Implemented:
-
-- a real-subject migration validator now exists at `scripts/validate_gpttalker_migration.py`
-- the validator runs against the live `/home/rowan/GPTTalker` repo through a disposable temp copy so the package can be exercised without mutating the source repo
-- a committed evidence record now exists under:
-  - `reports/gpttalker-validation/latest.json`
-  - `reports/gpttalker-validation/latest.md`
-- the current validation result is honest and bounded:
-  - GPTTalker does not yet validate cleanly
-  - the current Scafforge package routes it into explicit `project-skill-bootstrap` plus `ticket-pack-builder` follow-on rather than a silent post-repair deadlock
-  - the remaining blockers are concrete and machine-readable: placeholder repo-local skill regeneration, live `EXEC001` follow-up, and host git identity
-
-## Residual Review Focus
-
-The plan work above is now implemented on the branch. What remains is lower-level review pressure rather than another planned phase rollout.
-
-### 1. Validator Brittleness
-
-- the contract validator still contains a large number of literal snippet locks
-- that is no longer a plan-phase blocker, but it is still a maintenance risk worth reviewing
-
-### 2. Smoke And Audit Surface Size
-
-- `scripts/smoke_test_scafforge.py` and `skills/scafforge-audit/scripts/audit_repo_process.py` are materially better structured than before, but they are still large enough that future simplification work would pay off
-
-## Recommended PR Review Order
-
-Review the PR in this order if you want the fastest signal:
-
-1. Phase 1 and 2 lifecycle/verifier changes
-   - shared verifier extraction
-   - greenfield verification gate
-2. Phase 4 repair truthfulness changes
-   - stale-surface map
-   - repair verification contract failures
-3. Phase 5 execution-surface and restart-surface changes
-   - host-surface classification
-   - canonical next-action routing
-   - explicit reverification and reconciliation routing
-4. Phase 3 audit modularization
-   - first extracted rule family
-5. Phase 6 pivot contract additions
-
-## Bottom-Line Assessment
-
-This branch does not complete the consolidated remediation plan.
-
-What it does do is materially change the package from:
-
-- a repo that still allowed several known deadlock states to hide behind documentation, generic restart prose, or partial repair truth
-
-to:
-
-- a repo with stronger shared verification, more bounded repair semantics, better generated next-move routing, and substantially broader regression coverage for GPTTalker-class failures
-
-The largest remaining gap is no longer basic lifecycle direction. It is finishing the architectural cleanup and carrying the same rigor through the remaining audit, repair, fixture, and migration work.
+## Current Verification State
+
+At the current branch tip:
+
+- `python3 scripts/validate_scafforge_contract.py` passes
+- `python3 scripts/smoke_test_scafforge.py` passes
+- `python3 scripts/integration_test_scafforge.py` passes
+- `python3 scripts/validate_gpttalker_migration.py` passes
+- public entrypoints start cleanly:
+  - `python3 skills/scafforge-repair/scripts/run_managed_repair.py --help`
+  - `python3 skills/scafforge-repair/scripts/record_repair_stage_completion.py --help`
+  - `python3 skills/repo-scaffold-factory/scripts/verify_generated_scaffold.py --help`
+  - `python3 skills/scafforge-pivot/scripts/plan_pivot.py --help`
+  - `python3 skills/scafforge-pivot/scripts/record_pivot_stage_completion.py --help`
+  - `python3 skills/scafforge-pivot/scripts/apply_pivot_lineage.py --help`
+
+Current host evidence:
+
+- `uv` is available on this host
+- `node` is available on this host and satisfies the generated-tool harness requirement
+- the GPTTalker validation report is committed under `reports/gpttalker-validation/`
+
+Scope note:
+
+- this is strong package-host proof plus real-subject migration proof
+- it is not a claim that every future host environment is equivalent
+- that boundary is now documented honestly rather than being left implicit
+
+## What The Branch Now Guarantees
+
+### Greenfield
+
+- greenfield runs have two proof layers:
+  - an early bootstrap-lane proof after base scaffold render
+  - a later immediate-continuation proof before handoff publication
+- malformed generated state fails as structured verification findings rather than crashing
+- handoff publication is no longer the first place the repo tries to prove readiness
+
+### Audit
+
+- major audit rule families are no longer buried in one file
+- diagnosis-pack/report rendering is separated from rule execution
+- audit remains read-only and validator-enforced
+- review evidence is validated against the repo before it becomes a diagnosis finding
+
+### Repair
+
+- repair emits a machine-readable stale-surface map
+- repair follow-on state is persistent, evidence-backed, and fail-closed
+- explicit recorded completion is the normal public completion path
+- canonical current-cycle completion artifacts are auto-detected across the routed stage catalog
+- polluted, stale-cycle, zero-evidence, and unknown-stage follow-on state is rejected or invalidated automatically
+- recording the last required follow-on stage now immediately recomputes workflow follow-on outcome and republishes truthful restart surfaces
+- repair-side restart regeneration now preserves active pivot blockers instead of flattening them into generic ready-state output
+
+### Generated Repo Runtime
+
+- generated workflow tools are execution-backed in the smoke suite rather than being protected only by literal contract checks
+- host-surface failures are classified explicitly in bootstrap and smoke tools
+- restart routing, dependent continuation, reverification, reconciliation, artifact handling, handoff publication, and stage-gate enforcement all have direct execution proof
+- `ticket_reconcile` no longer removes source dependencies by default and no longer accepts unrelated current-registry evidence
+
+### Pivot
+
+- pivot is a real lifecycle with persistent downstream stage state
+- pivot restart publication is immediate and truthful
+- pivot lineage work can execute through generated repo tools instead of staying prose-only
+- repo-relative `--supporting-log` paths are now resolved from the pivoted repo root
+- repair and pivot now interoperate without losing pivot-owned restart truth
+
+### GPTTalker And Curated Fixtures
+
+- GPTTalker deadlock families are preserved as curated executable fixture families
+- integration coverage now asserts invariant-specific expected finding codes per family
+- real-subject GPTTalker migration validation runs and writes committed evidence
+- the package now routes GPTTalker into explicit follow-on instead of silently deadlocking after repair
+
+## Review-Closed Corrections
+
+The late review cycle after commit `79ec4cf` surfaced three classes of real problems, all now closed:
+
+- stale restart publication
+  - repair follow-on stage recording now recomputes outcome and restart surfaces
+  - repair-side restart regeneration now preserves pivot state
+- pivot verification correctness
+  - repo-relative `--supporting-log` paths now resolve from the pivoted repo root
+  - regression coverage proves transcript-backed pivot verification still works from the canonical repo root
+- runtime and harness truthfulness
+  - generated `ticket_reconcile` behavior is now aligned with its contract
+  - the smoke harness now centralizes wrapper helpers and fail-closes on missing/old Node instead of crashing opaquely
+  - fixture and migration integration now assert expected findings instead of only checking that “some findings” exist
+
+The detailed triage is recorded in [pr8-head-review-resolution.md](/home/rowan/Scafforge/pr8-head-review-resolution.md).
+
+## Review Order For PR 8
+
+The safest review order is:
+
+1. Lifecycle contract surfaces
+   - `AGENTS.md`
+   - `README.md`
+   - `references/one-shot-generation-contract.md`
+   - `skills/skill-flow-manifest.json`
+2. Greenfield proof and pivot entrypoints
+   - `skills/repo-scaffold-factory/scripts/verify_generated_scaffold.py`
+   - `skills/scafforge-pivot/scripts/plan_pivot.py`
+   - `skills/scafforge-pivot/scripts/apply_pivot_lineage.py`
+   - `skills/scafforge-pivot/scripts/pivot_tracking.py`
+3. Repair convergence and restart publication
+   - `skills/scafforge-repair/scripts/run_managed_repair.py`
+   - `skills/scafforge-repair/scripts/record_repair_stage_completion.py`
+   - `skills/scafforge-repair/scripts/follow_on_tracking.py`
+   - `skills/scafforge-repair/scripts/regenerate_restart_surfaces.py`
+4. Audit modularization and diagnosis reporting
+   - `skills/scafforge-audit/scripts/audit_repo_process.py`
+   - extracted audit rule modules
+   - `skills/scafforge-audit/scripts/audit_reporting.py`
+5. Verification harness and evidence fixtures
+   - `scripts/smoke_test_scafforge.py`
+   - `scripts/integration_test_scafforge.py`
+   - `scripts/validate_gpttalker_migration.py`
+   - `scripts/test_support/`
+   - `tests/fixtures/gpttalker/`
+
+## Bottom Line
+
+PR 8 is no longer “directionally right but incomplete.”
+
+The branch now:
+
+- implements the consolidated remediation plan end to end
+- closes the valid post-`79ec4cf` review findings with regression coverage
+- validates cleanly through contract, smoke, integration, and real-subject migration checks
+- documents the branch truth accurately
+
+Merge readiness should now be judged on ordinary review standards, not on unresolved remediation-phase gaps.

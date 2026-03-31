@@ -266,4 +266,4 @@ Continue to `../handoff-brief/SKILL.md` as directed by scaffold-kickoff.
 ## References
 
 - `references/ticket-system.md` for the contract
-- `assets/templates/TICKET.template.md` for the ticket template
+- `assets/templates/TICKET.template.md` for the package-side canonical ticket template; it must stay identical to the generated `tickets/templates/TICKET.template.md` surface

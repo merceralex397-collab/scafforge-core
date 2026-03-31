@@ -278,18 +278,63 @@ def recommended_next_step(findings: list[Finding], recommendations: list[dict[st
     return "done"
 
 
+def diagnosis_result_state(findings: list[Finding]) -> str:
+    return "validated failures found" if findings else "no validated failures found"
+
+
+def evidence_grade(finding: Finding) -> str:
+    if finding.code.startswith("SESSION"):
+        return "transcript-backed and repo-validated"
+    if finding.code.startswith("ENV"):
+        return "host evidence plus repo-state validation"
+    if finding.evidence:
+        return "repo-state validation"
+    return "current-state validation"
+
+
+def ownership_classification(finding: Finding) -> str:
+    if finding.code.startswith("ENV"):
+        return "host prerequisite or package boundary"
+    if finding.code.startswith("EXEC"):
+        return "generated repo execution surface"
+    if finding.code.startswith(("SKILL", "MODEL")):
+        return "project skill or prompt surface"
+    if finding.code.startswith(("SESSION", "CYCLE")):
+        return "audit and lifecycle diagnosis surface"
+    return "managed workflow contract surface"
+
+
+def validation_target_for_finding(finding: Finding) -> str:
+    if finding.code.startswith("EXEC"):
+        return "rerun the generated-tool execution smoke coverage plus the relevant GPTTalker fixture family"
+    if finding.code.startswith("ENV"):
+        return "rerun contract validation and host-sensitive smoke coverage on a host with the required prerequisites available"
+    if finding.code.startswith("SESSION"):
+        return "rerun transcript-backed audit coverage plus the related curated GPTTalker fixture family"
+    return "rerun contract validation, smoke, and integration coverage for the affected managed surfaces"
+
+
 def render_report_one(root: Path, findings: list[Finding], generated_at: str, logs: list[Path]) -> str:
     grouped = findings_by_severity(findings)
+    result_state = diagnosis_result_state(findings)
     lines = [
-        "# Report 1: Initial Codebase Review",
+        "# Initial Codebase Review",
         "",
-        f"- Repo: {root}",
-        f"- Generated at: {generated_at}",
-        f"- Finding count: {len(findings)}",
-        f"- Errors: {len(grouped.get('error', []))}",
-        f"- Warnings: {len(grouped.get('warning', []))}",
+        "## Scope",
         "",
-        "## Validated findings",
+        f"- subject repo: {root}",
+        f"- diagnosis timestamp: {generated_at}",
+        "- audit scope: managed workflow, restart, ticket, prompt, and execution surfaces",
+        f"- verification scope: {'current repo state plus supporting logs' if logs else 'current repo state only'}",
+        "",
+        "## Result State",
+        "",
+        f"- result_state: {result_state}",
+        f"- finding_count: {len(findings)}",
+        f"- errors: {len(grouped.get('error', []))}",
+        f"- warnings: {len(grouped.get('warning', []))}",
+        "",
+        "## Validated Findings",
         "",
     ]
     if not findings:
@@ -297,33 +342,54 @@ def render_report_one(root: Path, findings: list[Finding], generated_at: str, lo
             [
                 "No validated workflow, review, runtime, environment, or process findings were detected.",
                 "",
-                "## Verification gaps",
+                "## Verification Gaps",
                 "",
                 "- No additional verification gaps were identified during this diagnosis pass.",
                 "",
             ]
         )
+        if logs:
+            lines.extend(
+                [
+                    "## Rejected or Outdated External Claims",
+                    "",
+                    "- None recorded. Supporting logs did not add any contradicted external claim beyond the validated finding set.",
+                    "",
+                ]
+            )
         return "\n".join(lines)
-
-    if logs:
-        lines.extend(
-            [
-                "## Supporting session evidence",
-                "",
-                *[f"- {normalize_path(path, root)}" for path in logs],
-                "",
-            ]
-        )
 
     for finding in sorted(findings, key=lambda item: (severity_rank(item.severity), item.code)):
         lines.extend(
             [
-                f"### [{finding.severity}] {finding.code}",
+                f"### {finding.code}",
                 "",
-                f"Problem: {finding.problem}",
-                f"Files: {', '.join(finding.files) if finding.files else '(none)'}",
-                "Verification gaps:",
-                *([f"- {item}" for item in finding.evidence] or ["- No extra verification gaps captured."]),
+                f"- finding_id: {finding.code}",
+                f"- summary: {finding.problem}",
+                f"- severity: {finding.severity}",
+                f"- evidence_grade: {evidence_grade(finding)}",
+                f"- affected_files_or_surfaces: {', '.join(finding.files) if finding.files else '(none)'}",
+                f"- observed_or_reproduced: {finding.root_cause}",
+                "- evidence:",
+                *([f"  - {item}" for item in finding.evidence] or ["  - No extra evidence lines were recorded beyond the validated repo state."]),
+                "- remaining_verification_gap: None recorded beyond the validated finding scope.",
+                "",
+            ]
+        )
+    lines.extend(
+        [
+            "## Verification Gaps",
+            "",
+            "- The diagnosis pack validates the concrete failures above. It does not claim broader runtime-path coverage than the current audit and supporting evidence actually exercised.",
+            "",
+        ]
+    )
+    if logs:
+        lines.extend(
+            [
+                "## Rejected or Outdated External Claims",
+                "",
+                "- None recorded separately. Supporting logs were incorporated into the validated findings above instead of being left as standalone unverified claims.",
                 "",
             ]
         )
@@ -332,23 +398,50 @@ def render_report_one(root: Path, findings: list[Finding], generated_at: str, lo
 
 def render_report_two(findings: list[Finding]) -> str:
     lines = [
-        "# Report 2: Scafforge Process Failures",
+        "# Scafforge Process Failures",
         "",
-        "This report maps validated issues back to Scafforge-owned skills, contracts, templates, or generated surfaces.",
+        "## Scope",
+        "",
+        "- Maps each validated finding back to the Scafforge-owned workflow surface that allowed it through.",
         "",
     ]
     if not findings:
-        lines.extend(["No process failures were mapped from the validated finding set.", ""])
+        lines.extend(["## Failure Map", "", "- No process failures were mapped from the validated finding set.", "", "## Ownership Classification", "", "- None recorded.", "", "## Root Cause Analysis", "", "- None recorded.", ""])
         return "\n".join(lines)
 
+    lines.extend(["## Failure Map", ""])
     for finding in sorted(findings, key=lambda item: (severity_rank(item.severity), item.code)):
         lines.extend(
             [
-                f"## {finding.code}",
+                f"### {finding.code}",
                 "",
-                f"- Surface: {infer_surface(finding)}",
-                f"- Root cause: {finding.root_cause}",
-                f"- Safer target pattern: {finding.safer_pattern}",
+                f"- linked_report_1_finding: {finding.code}",
+                f"- implicated_surface: {infer_surface(finding)}",
+                f"- ownership_class: {ownership_classification(finding)}",
+                f"- workflow_failure: {finding.problem}",
+                "",
+            ]
+        )
+    lines.extend(["## Ownership Classification", ""])
+    for finding in sorted(findings, key=lambda item: (ownership_classification(item), item.code)):
+        lines.extend(
+            [
+                f"### {finding.code}",
+                "",
+                f"- ownership_class: {ownership_classification(finding)}",
+                f"- affected_surface: {infer_surface(finding)}",
+                "",
+            ]
+        )
+    lines.extend(["## Root Cause Analysis", ""])
+    for finding in sorted(findings, key=lambda item: (severity_rank(item.severity), item.code)):
+        lines.extend(
+            [
+                f"### {finding.code}",
+                "",
+                f"- root_cause: {finding.root_cause}",
+                f"- safer_target_pattern: {finding.safer_pattern}",
+                f"- how_the_workflow_allowed_it: {finding.problem}",
                 "",
             ]
         )
@@ -356,23 +449,52 @@ def render_report_two(findings: list[Finding]) -> str:
 
 
 def render_report_three(findings: list[Finding]) -> str:
+    unique_findings = []
+    seen_codes: set[str] = set()
+    for finding in sorted(findings, key=lambda item: (severity_rank(item.severity), item.code)):
+        if finding.code in seen_codes:
+            continue
+        seen_codes.add(finding.code)
+        unique_findings.append(finding)
     lines = [
-        "# Report 3: Scafforge Prevention Actions",
+        "# Scafforge Prevention Actions",
         "",
-        "These actions describe package-side changes that prevent the same failures from reappearing in future generated repos.",
+        "## Package Changes Required",
         "",
     ]
-    if not findings:
-        lines.extend(["No additional prevention actions are required beyond keeping the current contract intact.", ""])
+    if not unique_findings:
+        lines.extend(["- No additional prevention actions are required beyond keeping the current contract intact.", "", "## Validation and Test Updates", "", "- None recorded.", "", "## Documentation or Prompt Updates", "", "- None recorded.", "", "## Open Decisions", "", "- None recorded.", ""])
         return "\n".join(lines)
 
-    seen: set[str] = set()
-    for finding in sorted(findings, key=lambda item: (severity_rank(item.severity), item.code)):
-        action = prevention_action(finding)
-        if action in seen:
-            continue
-        seen.add(action)
-        lines.extend([f"- {action}", ""])
+    for index, finding in enumerate(unique_findings, start=1):
+        lines.extend(
+            [
+                f"### ACTION-{index:03d}",
+                "",
+                f"- source_finding: {finding.code}",
+                f"- change_target: {infer_surface(finding)}",
+                f"- why_it_prevents_recurrence: {prevention_action(finding)}",
+                "- change_class: safe package-managed workflow change unless a later human decision overrides scope or product intent.",
+                f"- validation: {validation_target_for_finding(finding)}",
+                "",
+            ]
+        )
+    lines.extend(["## Validation and Test Updates", ""])
+    for finding in unique_findings:
+        lines.extend([f"- {finding.code}: {validation_target_for_finding(finding)}.", ""])
+    lines.extend(["## Documentation or Prompt Updates", ""])
+    doc_findings = [
+        finding
+        for finding in unique_findings
+        if finding.code.startswith(("WFLOW", "SKILL", "MODEL", "SESSION"))
+        or any(token in " ".join(finding.files) for token in ("docs/", ".opencode/agents/", ".opencode/skills/"))
+    ]
+    if doc_findings:
+        for finding in doc_findings:
+            lines.extend([f"- {finding.code}: keep the docs, prompts, and generated workflow surfaces aligned with the repaired state machine.", ""])
+    else:
+        lines.extend(["- None recorded.", ""])
+    lines.extend(["## Open Decisions", "", "- None recorded.", ""])
     return "\n".join(lines)
 
 
@@ -386,7 +508,9 @@ def render_report_four(root: Path, findings: list[Finding], recommendations: lis
     )
     repeated_cycle = next((finding for finding in findings if finding.code in {"CYCLE001", "CYCLE002", "CYCLE003"}), None)
     lines = [
-        "# Report 4: Live Repo Repair Plan",
+        "# Live Repo Repair Plan",
+        "",
+        "## Preconditions",
         "",
         f"- Repo: {root}",
         "- Audit stayed non-mutating. No repo or product-code edits were made by this diagnosis run.",
@@ -403,86 +527,76 @@ def render_report_four(root: Path, findings: list[Finding], recommendations: lis
                 "",
             ]
         )
-    lines.extend(
-        [
-            "## Safe repair boundary",
-            "",
-        ]
-    )
+    lines.extend(["## Package Changes Required First", ""])
+    if manual_prerequisites:
+        for item in manual_prerequisites:
+            lines.extend(
+                [
+                    f"### {item['id']}",
+                    "",
+                    f"- linked_report_id: {item['source_finding_code']}",
+                    f"- action_type: {item['repair_class']}",
+                    "- requires_scafforge_repair_afterward: no, not until the package or host prerequisite gap is resolved",
+                    "- carry_diagnosis_pack_into_scafforge_first: yes",
+                    f"- target_repo: {'Scafforge package repo' if 'Scafforge package work required' in item['repair_class'] else 'subject repo host environment'}",
+                    f"- summary: {item['summary']}",
+                    "",
+                ]
+            )
+    else:
+        lines.extend(["- None recorded.", ""])
+
+    lines.extend(["## Post-Update Repair Actions", ""])
     if safe_repairs:
-        lines.extend([f"- Route {len(safe_repairs)} workflow-layer findings into `scafforge-repair` for deterministic managed-surface repair.", ""])
+        lines.extend([f"- Route {len(safe_repairs)} workflow-layer finding(s) into `scafforge-repair` for deterministic managed-surface refresh.", ""])
         if requires_regeneration:
+            lines.extend(["- After deterministic repair, rerun project-local skill regeneration, agent-team follow-up, and prompt hardening before handoff.", ""])
+        for item in safe_repairs:
             lines.extend(
                 [
-                    "- Do not stop at tool replacement: rerun project-local skill regeneration, agent-team follow-up, and prompt hardening before handoff.",
+                    f"### {item['id']}",
                     "",
-                ]
-            )
-        if any(finding.code.startswith("WFLOW") for finding in findings):
-            lines.extend(
-                [
-                    "- Refresh generated ticket-update, ticket-lookup, stage-gate, smoke-test, handoff, workflow-doc, and coordinator-prompt surfaces together; these findings indicate a managed workflow-contract defect, not just repo-local operator error.",
-                    "",
-                ]
-            )
-        if any(finding.code in {"SKILL002", "SESSION002", "SESSION003", "SESSION004", "SESSION005", "SESSION006", "WFLOW007", "WFLOW012", "WFLOW013", "WFLOW014", "WFLOW015", "WFLOW016", "WFLOW017", "WFLOW022", "WFLOW023"} for finding in findings):
-            lines.extend(
-                [
-                    "- Rerun project-local skill regeneration and prompt hardening after the deterministic refresh so the repo-local `ticket-execution` skill and team-leader prompt explain the same state machine the tools enforce.",
-                    "",
-                ]
-            )
-        if any(finding.code == "MODEL001" for finding in findings):
-            lines.extend(
-                [
-                    "- Deprecated package-managed model defaults such as `MiniMax-M2.5` must be repaired; do not preserve them as protected intent unless newer explicit accepted-decision evidence exists.",
+                    f"- linked_report_id: {item['source_finding_code']}",
+                    f"- action_type: {item['repair_class']}",
+                    "- should_scafforge_repair_run: yes",
+                    "- carry_diagnosis_pack_into_scafforge_first: no",
+                    "- target_repo: subject repo",
+                    f"- summary: {item['summary']}",
                     "",
                 ]
             )
     else:
         lines.extend(["- No safe managed-surface repair was identified from the current findings.", ""])
 
-    lines.extend(["## Intent-changing boundary", "", "- Escalate any stack, scope, provider, or curated human-decision changes instead of labeling them as safe repair.", "", "## Ticket recommendations", ""])
-
-    if recommendations:
-        for item in recommendations:
+    lines.extend(["## Ticket Follow-Up", ""])
+    if source_follow_up:
+        for item in source_follow_up:
             lines.extend(
                 [
-                    f"### {item['id']} ({item['severity']})",
+                    f"### {item['id']}",
                     "",
-                    f"- Title: {item['title']}",
-                    f"- Route: `{item['route']}`",
-                    f"- Repair class: {item['repair_class']}",
-                    f"- Source finding: `{item['source_finding_code']}`",
-                    f"- Summary: {item['summary']}",
+                    f"- linked_report_id: {item['source_finding_code']}",
+                    "- action_type: generated-repo remediation ticket/process repair",
+                    "- should_scafforge_repair_run: only after managed workflow repair converges",
+                    "- carry_diagnosis_pack_into_scafforge_first: no",
+                    "- target_repo: subject repo",
+                    f"- summary: {item['summary']}",
                     "",
                 ]
             )
     else:
-        lines.extend(["- No follow-up tickets are recommended from the current diagnosis run.", ""])
+        lines.extend(["- No subject-repo ticket follow-up was recommended from the current diagnosis run.", ""])
 
-    if source_follow_up:
-        lines.extend(
-            [
-                "## Post-repair follow-up",
-                "",
-                f"- Route {len(source_follow_up)} source-layer remediation item(s) through `ticket-pack-builder` and any generated repo guarded ticket surfaces after workflow repair is complete.",
-                "",
-            ]
-        )
-
-    if manual_prerequisites:
-        lines.extend(
-            [
-                "## Host Prerequisites",
-                "",
-                "- The following findings are current-machine blockers or package stop conditions. Repair may refresh workflow surfaces, but these items still need operator action or Scafforge package work before verification can be trusted.",
-                "",
-            ]
-        )
-        for item in manual_prerequisites:
-            lines.extend([f"- `{item['source_finding_code']}`: {item['summary']}"])
-        lines.append("")
+    lines.extend(
+        [
+            "## Reverification Plan",
+            "",
+            "- After package-side fixes land, run one fresh audit on the subject repo before applying another repair cycle.",
+            "- After managed repair, rerun the public repair verifier and confirm restart surfaces, ticket routing, and any historical trust restoration paths match the current canonical state.",
+            "- Do not treat restart prose alone as proof; the canonical manifest and workflow state remain the source of truth.",
+            "",
+        ]
+    )
 
     return "\n".join(lines)
 
@@ -538,7 +652,7 @@ def emit_diagnosis_pack(
         "generated_at": generated_at,
         "repo_root": str(root),
         "finding_count": len(findings),
-        "result_state": "validated failures found" if findings else "clean",
+        "result_state": diagnosis_result_state(findings),
         "diagnosis_kind": "initial_diagnosis",
         "evidence_mode": "transcript_backed" if logs else "current_state_only",
         "audit_package_commit": ctx.current_package_commit,

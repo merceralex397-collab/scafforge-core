@@ -219,6 +219,7 @@ def main() -> int:
     source_repo = args.source_repo.resolve()
     if not source_repo.exists():
         raise RuntimeError(f"Source repo does not exist: {source_repo}")
+    summary: dict[str, Any]
     with tempfile.TemporaryDirectory(prefix="scafforge-gpttalker-validation-") as workspace_root:
         probe_root = Path(workspace_root) / source_repo.name
         shutil.copytree(source_repo, probe_root)
@@ -231,10 +232,10 @@ def main() -> int:
             ROOT,
             allow_returncodes={0, 3},
         )
-    issues = validate_invariants(audit_payload, repair_payload)
-    if issues:
-        raise RuntimeError("GPTTalker migration validation invariants failed:\n- " + "\n- ".join(issues))
-    summary = build_summary(source_repo, probe_root, audit_payload, repair_payload)
+        issues = validate_invariants(audit_payload, repair_payload)
+        if issues:
+            raise RuntimeError("GPTTalker migration validation invariants failed:\n- " + "\n- ".join(issues))
+        summary = build_summary(source_repo, probe_root, audit_payload, repair_payload)
     write_json(args.output_dir / "latest.json", summary)
     write_summary_report(args.output_dir, summary)
     print(json.dumps(summary, indent=2))

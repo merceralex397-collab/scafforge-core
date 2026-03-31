@@ -29,11 +29,25 @@ function isCompletedHistoricalTicket(ticket: Ticket): boolean {
   return ticket.status === "done" || ticket.resolution_state === "done" || ticket.resolution_state === "superseded"
 }
 
-function findEvidenceArtifact(sourceTicket: Ticket, targetTicket: Ticket, registry: Awaited<ReturnType<typeof loadArtifactRegistry>>, artifactPath: string): Artifact | undefined {
+function findEvidenceArtifact(
+  sourceTicket: Ticket,
+  targetTicket: Ticket,
+  replacementSourceTicket: Ticket,
+  registry: Awaited<ReturnType<typeof loadArtifactRegistry>>,
+  artifactPath: string,
+): Artifact | undefined {
   const normalized = normalizeRepoPath(artifactPath)
+  const allowedTicketIds = new Set([sourceTicket.id, targetTicket.id, replacementSourceTicket.id])
   return [...sourceTicket.artifacts, ...targetTicket.artifacts].find(
     (artifact) => artifact.path === normalized && artifact.trust_state === "current",
-  ) ?? currentRegistryArtifact(registry, normalized)
+  )
+    ?? ((): Artifact | undefined => {
+      const registryArtifact = currentRegistryArtifact(registry, normalized)
+      if (!registryArtifact || !allowedTicketIds.has(registryArtifact.ticket_id)) {
+        return undefined
+      }
+      return registryArtifact
+    })()
 }
 
 function renderArtifact(args: {
@@ -93,7 +107,7 @@ export default tool({
     const evidenceArtifactPath = normalizeRepoPath(args.evidence_artifact_path)
     const reason = args.reason.trim()
     const replacementSourceMode = args.replacement_source_mode || targetTicket.source_mode || null
-    const removeDependencyOnSource = args.remove_dependency_on_source !== false
+    const removeDependencyOnSource = args.remove_dependency_on_source === true
     const supersedeTarget = args.supersede_target === true
 
     if (!reason) {
@@ -101,7 +115,7 @@ export default tool({
     }
 
     const registry = await loadArtifactRegistry()
-    const evidenceArtifact = findEvidenceArtifact(sourceTicket, targetTicket, registry, evidenceArtifactPath)
+    const evidenceArtifact = findEvidenceArtifact(sourceTicket, targetTicket, replacementSourceTicket, registry, evidenceArtifactPath)
     if (!evidenceArtifact) {
       throw new Error(`No current registered evidence artifact exists at ${evidenceArtifactPath} for this reconciliation.`)
     }

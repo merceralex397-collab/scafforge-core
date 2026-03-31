@@ -3,6 +3,8 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
+import shutil
 import subprocess
 import sys
 from importlib.util import module_from_spec, spec_from_file_location
@@ -94,6 +96,59 @@ def write_executable(path: Path, content: str) -> None:
     path.chmod(path.stat().st_mode | 0o111)
 
 
+def node_command() -> list[str]:
+    node = shutil.which("node")
+    if not node:
+        raise RuntimeError("Node.js is required to execute generated TypeScript tools in Scafforge smoke and integration tests.")
+    result = subprocess.run([node, "--version"], cwd=ROOT, check=False, capture_output=True, text=True)
+    if result.returncode != 0:
+        raise RuntimeError(f"Unable to determine Node.js version for generated tool execution:\nSTDERR:\n{result.stderr}")
+    match = re.match(r"v?(\d+)\.(\d+)\.(\d+)", result.stdout.strip())
+    if not match:
+        raise RuntimeError(f"Unable to parse Node.js version output: {result.stdout.strip()!r}")
+    major, minor, patch = (int(part) for part in match.groups())
+    if (major, minor, patch) < (22, 6, 0):
+        raise RuntimeError(
+            f"Generated TypeScript tool execution requires Node.js 22.6.0 or newer for --experimental-strip-types; found {result.stdout.strip()}."
+        )
+    return [node, "--experimental-strip-types"]
+
+
+def write_runner(path: Path, lines: list[str]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
+def tool_runner_lines() -> list[str]:
+    return [
+        'import { pathToFileURL } from "node:url"',
+        "const toolPath = process.env.SCAFFORGE_TOOL_PATH",
+        "if (!toolPath) throw new Error('Missing SCAFFORGE_TOOL_PATH')",
+        "const mod = await import(pathToFileURL(toolPath).href)",
+        "const rawArgs = process.env.SCAFFORGE_TOOL_ARGS || '{}'",
+        "const payload = await mod.default.execute(JSON.parse(rawArgs))",
+        "console.log(payload)",
+    ]
+
+
+def plugin_runner_lines() -> list[str]:
+    return [
+        'import { pathToFileURL } from "node:url"',
+        "const pluginPath = process.env.SCAFFORGE_PLUGIN_PATH",
+        "if (!pluginPath) throw new Error('Missing SCAFFORGE_PLUGIN_PATH')",
+        "const mod = await import(pathToFileURL(pluginPath).href)",
+        "const factory = mod.StageGateEnforcer",
+        "if (typeof factory !== 'function') throw new Error('Missing StageGateEnforcer export')",
+        "const hooks = await factory()",
+        'const hook = hooks["tool.execute.before"]',
+        "if (typeof hook !== 'function') throw new Error('Missing tool.execute.before hook')",
+        "const toolName = process.env.SCAFFORGE_PLUGIN_TOOL",
+        "const rawArgs = process.env.SCAFFORGE_PLUGIN_ARGS || '{}'",
+        'await hook({ tool: toolName }, { args: JSON.parse(rawArgs) })',
+        'console.log(JSON.stringify({ ok: true }))',
+    ]
+
+
 def compute_bootstrap_fingerprint(dest: Path) -> str:
     digest = hashlib.sha256()
     for relative in sorted(path for path in BOOTSTRAP_INPUT_FILES if (dest / path).is_file()):
@@ -144,52 +199,22 @@ def prepare_generated_tool_runtime(dest: Path) -> None:
 def run_generated_tool(dest: Path, relative_tool_path: str, args: dict[str, object]) -> dict[str, object]:
     prepare_generated_tool_runtime(dest)
     runner = dest / ".opencode" / "state" / "tool-runner.mjs"
-    runner.parent.mkdir(parents=True, exist_ok=True)
-    runner.write_text(
-        "\n".join(
-            [
-                'import { pathToFileURL } from "node:url"',
-                "const toolPath = process.env.SCAFFORGE_TOOL_PATH",
-                "if (!toolPath) throw new Error('Missing SCAFFORGE_TOOL_PATH')",
-                "const mod = await import(pathToFileURL(toolPath).href)",
-                "const rawArgs = process.env.SCAFFORGE_TOOL_ARGS || '{}'",
-                "const payload = await mod.default.execute(JSON.parse(rawArgs))",
-                "console.log(payload)",
-            ]
-        )
-        + "\n",
-        encoding="utf-8",
-    )
+    write_runner(runner, tool_runner_lines())
     env = os.environ.copy()
     env["SCAFFORGE_TOOL_PATH"] = str((dest / relative_tool_path).resolve())
     env["SCAFFORGE_TOOL_ARGS"] = json.dumps(args)
-    return run_json(["node", "--experimental-strip-types", str(runner)], dest, env=env)
+    return run_json([*node_command(), str(runner)], dest, env=env)
 
 
 def run_generated_tool_error(dest: Path, relative_tool_path: str, args: dict[str, object]) -> str:
     prepare_generated_tool_runtime(dest)
     runner = dest / ".opencode" / "state" / "tool-runner.mjs"
-    runner.parent.mkdir(parents=True, exist_ok=True)
-    runner.write_text(
-        "\n".join(
-            [
-                'import { pathToFileURL } from "node:url"',
-                "const toolPath = process.env.SCAFFORGE_TOOL_PATH",
-                "if (!toolPath) throw new Error('Missing SCAFFORGE_TOOL_PATH')",
-                "const mod = await import(pathToFileURL(toolPath).href)",
-                "const rawArgs = process.env.SCAFFORGE_TOOL_ARGS || '{}'",
-                "const payload = await mod.default.execute(JSON.parse(rawArgs))",
-                "console.log(payload)",
-            ]
-        )
-        + "\n",
-        encoding="utf-8",
-    )
+    write_runner(runner, tool_runner_lines())
     env = os.environ.copy()
     env["SCAFFORGE_TOOL_PATH"] = str((dest / relative_tool_path).resolve())
     env["SCAFFORGE_TOOL_ARGS"] = json.dumps(args)
     result = subprocess.run(
-        ["node", "--experimental-strip-types", str(runner)],
+        [*node_command(), str(runner)],
         cwd=dest,
         check=False,
         capture_output=True,
@@ -204,66 +229,24 @@ def run_generated_tool_error(dest: Path, relative_tool_path: str, args: dict[str
 def run_generated_plugin_before(dest: Path, relative_plugin_path: str, tool_name: str, args: dict[str, object]) -> None:
     prepare_generated_tool_runtime(dest)
     runner = dest / ".opencode" / "state" / "plugin-runner.mjs"
-    runner.parent.mkdir(parents=True, exist_ok=True)
-    runner.write_text(
-        "\n".join(
-            [
-                'import { pathToFileURL } from "node:url"',
-                "const pluginPath = process.env.SCAFFORGE_PLUGIN_PATH",
-                "if (!pluginPath) throw new Error('Missing SCAFFORGE_PLUGIN_PATH')",
-                "const mod = await import(pathToFileURL(pluginPath).href)",
-                "const factory = mod.StageGateEnforcer",
-                "if (typeof factory !== 'function') throw new Error('Missing StageGateEnforcer export')",
-                "const hooks = await factory()",
-                'const hook = hooks["tool.execute.before"]',
-                "if (typeof hook !== 'function') throw new Error('Missing tool.execute.before hook')",
-                "const toolName = process.env.SCAFFORGE_PLUGIN_TOOL",
-                "const rawArgs = process.env.SCAFFORGE_PLUGIN_ARGS || '{}'",
-                'await hook({ tool: toolName }, { args: JSON.parse(rawArgs) })',
-                'console.log(JSON.stringify({ ok: true }))',
-            ]
-        )
-        + "\n",
-        encoding="utf-8",
-    )
+    write_runner(runner, plugin_runner_lines())
     env = os.environ.copy()
     env["SCAFFORGE_PLUGIN_PATH"] = str((dest / relative_plugin_path).resolve())
     env["SCAFFORGE_PLUGIN_TOOL"] = tool_name
     env["SCAFFORGE_PLUGIN_ARGS"] = json.dumps(args)
-    run(["node", "--experimental-strip-types", str(runner)], dest, env=env)
+    run([*node_command(), str(runner)], dest, env=env)
 
 
 def run_generated_plugin_before_error(dest: Path, relative_plugin_path: str, tool_name: str, args: dict[str, object]) -> str:
     prepare_generated_tool_runtime(dest)
     runner = dest / ".opencode" / "state" / "plugin-runner.mjs"
-    runner.parent.mkdir(parents=True, exist_ok=True)
-    runner.write_text(
-        "\n".join(
-            [
-                'import { pathToFileURL } from "node:url"',
-                "const pluginPath = process.env.SCAFFORGE_PLUGIN_PATH",
-                "if (!pluginPath) throw new Error('Missing SCAFFORGE_PLUGIN_PATH')",
-                "const mod = await import(pathToFileURL(pluginPath).href)",
-                "const factory = mod.StageGateEnforcer",
-                "if (typeof factory !== 'function') throw new Error('Missing StageGateEnforcer export')",
-                "const hooks = await factory()",
-                'const hook = hooks["tool.execute.before"]',
-                "if (typeof hook !== 'function') throw new Error('Missing tool.execute.before hook')",
-                "const toolName = process.env.SCAFFORGE_PLUGIN_TOOL",
-                "const rawArgs = process.env.SCAFFORGE_PLUGIN_ARGS || '{}'",
-                'await hook({ tool: toolName }, { args: JSON.parse(rawArgs) })',
-                'console.log(JSON.stringify({ ok: true }))',
-            ]
-        )
-        + "\n",
-        encoding="utf-8",
-    )
+    write_runner(runner, plugin_runner_lines())
     env = os.environ.copy()
     env["SCAFFORGE_PLUGIN_PATH"] = str((dest / relative_plugin_path).resolve())
     env["SCAFFORGE_PLUGIN_TOOL"] = tool_name
     env["SCAFFORGE_PLUGIN_ARGS"] = json.dumps(args)
     result = subprocess.run(
-        ["node", "--experimental-strip-types", str(runner)],
+        [*node_command(), str(runner)],
         cwd=dest,
         check=False,
         capture_output=True,

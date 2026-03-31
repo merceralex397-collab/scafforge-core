@@ -47,6 +47,14 @@ def require_absent(findings: list[Finding], path: Path, needle: str) -> None:
         findings.append(Finding("error", f"{path.relative_to(ROOT)} still contains forbidden text: {needle}"))
 
 
+def require_absent_regex(findings: list[Finding], path: Path, pattern: str) -> None:
+    if not path.exists():
+        add_missing(findings, path)
+        return
+    if re.search(pattern, read_text(path), flags=re.MULTILINE):
+        findings.append(Finding("error", f"{path.relative_to(ROOT)} still matches forbidden pattern: {pattern}"))
+
+
 def require_order(findings: list[Finding], path: Path, first: str, second: str) -> None:
     if not path.exists():
         add_missing(findings, path)
@@ -157,6 +165,13 @@ def require_script_help_runs(findings: list[Finding], path: Path) -> None:
         )
 
 
+def split_sequence_step(step: object) -> tuple[str | None, str | None]:
+    if not isinstance(step, str) or not step.strip():
+        return None, None
+    skill_name, _, mode = step.partition(":")
+    return skill_name.strip() or None, mode.strip() or None
+
+
 def validate_flow_manifest(findings: list[Finding]) -> None:
     if not FLOW_MANIFEST.exists():
         add_missing(findings, FLOW_MANIFEST)
@@ -176,9 +191,22 @@ def validate_flow_manifest(findings: list[Finding]) -> None:
         findings.append(Finding("error", "skill-flow-manifest.json is missing a skills object"))
         return
     contract_smells = manifest.get("contract_smells")
+    flow_graph_sanity = manifest.get("flow_graph_sanity")
     if not isinstance(contract_smells, list):
         findings.append(Finding("error", "skill-flow-manifest.json is missing a contract_smells list"))
         contract_smells = []
+    if not isinstance(flow_graph_sanity, dict):
+        findings.append(Finding("error", "skill-flow-manifest.json is missing a flow_graph_sanity object"))
+        flow_graph_sanity = {}
+    else:
+        if flow_graph_sanity.get("single_public_entrypoint") != "scaffold-kickoff":
+            findings.append(Finding("error", "flow_graph_sanity.single_public_entrypoint must remain scaffold-kickoff"))
+        if flow_graph_sanity.get("all_run_types_end_with") != "handoff-brief":
+            findings.append(Finding("error", "flow_graph_sanity.all_run_types_end_with must remain handoff-brief"))
+        if flow_graph_sanity.get("validate_sequence_modes") is not True:
+            findings.append(Finding("error", "flow_graph_sanity.validate_sequence_modes must remain true"))
+        if flow_graph_sanity.get("acyclic_except_contract_smells") != ["CYCLE001"]:
+            findings.append(Finding("error", "flow_graph_sanity.acyclic_except_contract_smells must only list CYCLE001"))
 
     cycle_smell = None
     for smell in contract_smells:
@@ -200,11 +228,34 @@ def validate_flow_manifest(findings: list[Finding]) -> None:
     for run_type, payload in run_types.items():
         if isinstance(payload, dict) and payload.get("entrypoint") != "scaffold-kickoff":
             findings.append(Finding("error", f"{run_type} must use scaffold-kickoff as its entrypoint"))
+        if isinstance(payload, dict):
+            sequence = payload.get("sequence")
+            if not isinstance(sequence, list) or not sequence or sequence[-1] != "handoff-brief":
+                findings.append(Finding("error", f"{run_type} sequence must end with handoff-brief"))
 
     for skill_name in skills:
         skill_file = ROOT / "skills" / skill_name / "SKILL.md"
         if not skill_file.exists():
             findings.append(Finding("error", f"Flow manifest references missing skill file: skills/{skill_name}/SKILL.md"))
+
+    if flow_graph_sanity.get("validate_sequence_modes") is True:
+        for run_type, payload in run_types.items():
+            sequence = payload.get("sequence") if isinstance(payload, dict) else None
+            if not isinstance(sequence, list):
+                continue
+            for step in sequence:
+                skill_name, mode = split_sequence_step(step)
+                if not skill_name:
+                    findings.append(Finding("error", f"{run_type} contains an invalid sequence step: {step!r}"))
+                    continue
+                skill_payload = skills.get(skill_name)
+                if not isinstance(skill_payload, dict):
+                    findings.append(Finding("error", f"{run_type} references unknown skill in its sequence: {skill_name}"))
+                    continue
+                if mode:
+                    modes = skill_payload.get("modes")
+                    if not isinstance(modes, list) or mode not in modes:
+                        findings.append(Finding("error", f"{run_type} references {skill_name}:{mode}, but {skill_name} does not declare that mode"))
 
     expected_greenfield = [
         "spec-pack-normalizer",
@@ -315,8 +366,9 @@ def validate_flow_manifest(findings: list[Finding]) -> None:
         findings.append(Finding("error", "opencode-team-bootstrap must record project-skill-bootstrap as an upstream while CYCLE001 remains active"))
 
     audit_modes = skills.get("scafforge-audit", {}).get("modes", [])
-    if audit_modes != ["full-diagnosis"]:
-        findings.append(Finding("error", "scafforge-audit must expose only the full-diagnosis mode"))
+    for mode in ("full-diagnosis", "audit_then_route_repair_if_needed", "review_and_emit_diagnosis_pack"):
+        if mode not in audit_modes:
+            findings.append(Finding("error", f"scafforge-audit must expose {mode} mode"))
 
     for required_skill in ("scafforge-audit", "scafforge-repair", "scafforge-pivot"):
         if required_skill not in skills:
@@ -712,7 +764,6 @@ def validate_template_surfaces(findings: list[Finding]) -> None:
     require_contains(findings, environment_bootstrap, "normalizeRepoPath")
     require_contains(findings, environment_bootstrap, "repoVenvExecutable")
     require_contains(findings, environment_bootstrap, "findExistingRepoVenvExecutable")
-    require_absent(findings, environment_bootstrap, "(?:\\\\n\\\\[|$)")
     require_contains(findings, smoke_test, 'join(root, "uv.lock")')
     require_contains(findings, smoke_test, "findExistingRepoVenvExecutable")
     require_contains(findings, smoke_test, "[tool.pytest.ini_options]")
@@ -752,7 +803,8 @@ def validate_template_surfaces(findings: list[Finding]) -> None:
     require_contains(findings, TEMPLATE_ROOT / ".opencode" / "tools" / "ticket_lookup.ts", "Keep ${ticket.id} open as a split parent and foreground child ticket ${foregroundChild.id} instead of advancing the parent lane directly.")
     require_contains(findings, TEMPLATE_ROOT / ".opencode" / "tools" / "ticket_lookup.ts", "dependentContinuationAction")
     require_contains(findings, TEMPLATE_ROOT / ".opencode" / "tools" / "ticket_lookup.ts", 'next_action_tool: "smoke_test"')
-    require_contains(findings, TEMPLATE_ROOT / ".opencode" / "tools" / "ticket_lookup.ts", 'next_action_tool: "smoke_test",\n          delegate_to_agent: null,\n          required_owner: "team-leader",')
+    require_contains(findings, TEMPLATE_ROOT / ".opencode" / "tools" / "ticket_lookup.ts", 'delegate_to_agent: null')
+    require_contains(findings, TEMPLATE_ROOT / ".opencode" / "tools" / "ticket_lookup.ts", 'required_owner: "team-leader"')
     require_contains(findings, TEMPLATE_ROOT / ".opencode" / "tools" / "ticket_reverify.ts", "legal mutation path for closed done tickets")
     require_contains(findings, TEMPLATE_ROOT / ".opencode" / "tools" / "ticket_reverify.ts", 'if (sourceTicket.status !== "done")')
     require_contains(findings, TEMPLATE_ROOT / ".opencode" / "tools" / "ticket_reverify.ts", "ticket_reverify requires evidence_artifact_path or verification_content.")
@@ -847,6 +899,11 @@ def validate_template_surfaces(findings: list[Finding]) -> None:
     for workflow_tool in (environment_bootstrap, smoke_test, handoff_publish, TEMPLATE_ROOT / ".opencode" / "tools" / "ticket_lookup.ts"):
         require_contains(findings, workflow_tool, "../lib/workflow")
     require_contains(findings, TEMPLATE_ROOT / "tickets" / "README.md", "mirror artifact metadata into `.opencode/state/artifacts/registry.json`")
+    require_files_equal(
+        findings,
+        ROOT / "skills" / "ticket-pack-builder" / "assets" / "templates" / "TICKET.template.md",
+        TEMPLATE_ROOT / "tickets" / "templates" / "TICKET.template.md",
+    )
 
 
 def validate_audit_repair_surfaces(findings: list[Finding]) -> None:
@@ -945,6 +1002,27 @@ def validate_audit_repair_surfaces(findings: list[Finding]) -> None:
     require_contains(findings, audit_reporting, "class AuditReportingContext")
     require_contains(findings, audit_reporting, "def emit_diagnosis_pack(")
     require_contains(findings, audit_reporting, "def render_report_four(")
+    require_contains(findings, audit_reporting, "# Initial Codebase Review")
+    require_contains(findings, audit_reporting, "## Scope")
+    require_contains(findings, audit_reporting, "## Result State")
+    require_contains(findings, audit_reporting, "## Validated Findings")
+    require_contains(findings, audit_reporting, "## Verification Gaps")
+    require_contains(findings, audit_reporting, "# Scafforge Process Failures")
+    require_contains(findings, audit_reporting, "## Failure Map")
+    require_contains(findings, audit_reporting, "## Ownership Classification")
+    require_contains(findings, audit_reporting, "## Root Cause Analysis")
+    require_contains(findings, audit_reporting, "# Scafforge Prevention Actions")
+    require_contains(findings, audit_reporting, "## Package Changes Required")
+    require_contains(findings, audit_reporting, "## Validation and Test Updates")
+    require_contains(findings, audit_reporting, "## Documentation or Prompt Updates")
+    require_contains(findings, audit_reporting, "## Open Decisions")
+    require_contains(findings, audit_reporting, "# Live Repo Repair Plan")
+    require_contains(findings, audit_reporting, "## Preconditions")
+    require_contains(findings, audit_reporting, "## Package Changes Required First")
+    require_contains(findings, audit_reporting, "## Post-Update Repair Actions")
+    require_contains(findings, audit_reporting, "## Ticket Follow-Up")
+    require_contains(findings, audit_reporting, "## Reverification Plan")
+    require_contains(findings, audit_reporting, '"no validated failures found"')
     require_contains(findings, audit_reporting, '"audit_package_commit"')
     require_contains(findings, audit_reporting, '"package_work_required_first"')
     require_contains(findings, audit_reporting, '"recommended_next_step"')
@@ -1456,6 +1534,9 @@ def validate_curated_fixtures(findings: list[Finding]) -> None:
                 findings.append(Finding("error", f"Fixture family `{slug}` notes file is missing: {notes_path.relative_to(ROOT)}"))
         if not isinstance(coverage, list) or not coverage:
             findings.append(Finding("error", f"Fixture family `{slug}` must declare expected coverage"))
+        expected_codes = item.get("expected_finding_codes")
+        if not isinstance(expected_codes, list) or not expected_codes:
+            findings.append(Finding("error", f"Fixture family `{slug}` must declare expected_finding_codes"))
     if actual_slugs != expected_slugs:
         findings.append(
             Finding(

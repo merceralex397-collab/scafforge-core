@@ -360,15 +360,15 @@ async function runCommand(root: string, command: CommandSpec): Promise<CommandRe
       })
     } catch (error) {
       const errorCode = typeof error === "object" && error && "code" in error ? String((error as { code?: string }).code || "") : ""
-      const stderr = String(error)
+      const errorStderr = String(error)
       const missingExecutable = errorCode === "ENOENT" ? command.argv[0] : undefined
-      const blockedByPermissions = errorCode === "EACCES" || errorCode === "EPERM" || isPermissionRestrictionOutput(stderr)
+      const blockedByPermissions = errorCode === "EACCES" || errorCode === "EPERM" || isPermissionRestrictionOutput(errorStderr)
       resolve({
         ...command,
         exit_code: -1,
         duration_ms: Date.now() - startedAt,
         stdout: "",
-        stderr,
+        stderr: errorStderr,
         missing_executable: missingExecutable,
         failure_classification: missingExecutable ? "missing_executable" : blockedByPermissions ? "permission_restriction" : "command_error",
         blocked_by_permissions: blockedByPermissions || undefined,

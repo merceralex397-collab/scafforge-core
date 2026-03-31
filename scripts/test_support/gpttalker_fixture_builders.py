@@ -13,6 +13,7 @@ from test_support.repo_seeders import (
     seed_ready_bootstrap,
     seed_repeated_diagnosis_churn,
     seed_restart_surface_drift,
+    seed_uv_python_fixture,
     seed_workflow_overclaim,
     write_json,
 )
@@ -40,6 +41,8 @@ def write_fixture_contract(dest: Path, *, slug: str, family: dict[str, Any], ext
         "slug": slug,
         "title": family.get("title"),
         "flow": family.get("flow"),
+        "invariant_focus": family.get("invariant_focus", []),
+        "expected_finding_codes": family.get("expected_finding_codes", []),
         "expected_coverage": family.get("expected_coverage", []),
         "archive_origin": family.get("archive_origin", []),
         "notes": family.get("notes"),
@@ -54,6 +57,7 @@ def write_fixture_contract(dest: Path, *, slug: str, family: dict[str, Any], ext
 def build_bootstrap_dependency_layout_drift(dest: Path, family: dict[str, Any]) -> dict[str, Any]:
     bootstrap_full(dest)
     make_stack_skill_non_placeholder(dest)
+    seed_uv_python_fixture(dest)
     seed_bootstrap_command_layout_mismatch(dest)
     return write_fixture_contract(dest, slug="bootstrap-dependency-layout-drift", family=family)
 
