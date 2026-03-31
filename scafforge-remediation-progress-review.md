@@ -1,6 +1,7 @@
 # Scafforge Remediation Progress Review
 
 This document is the implementation-status companion to [scafforge-consolidated-remediation-plan.md](/home/rowan/Scafforge/scafforge-consolidated-remediation-plan.md).
+For the stricter follow-through work that still remains after the committed branch milestones, also see [scafforge-remediation-gap-closure-plan.md](/home/rowan/Scafforge/scafforge-remediation-gap-closure-plan.md).
 
 Use it to review the current PR against the plan without having to reconstruct branch history from commits and scattered diffs.
 
@@ -61,6 +62,12 @@ Important clarification:
 - Phase 6: complete
 - Phase 7: complete
 - Phase 8: not started
+
+Important distinction:
+
+- the phase labels above describe the committed branch milestones
+- they do not mean every stricter follow-through item from the gap-closure plan is finished
+- in particular, Phase 2 still lacks the earlier bootstrap-lane proof layer, Phase 3 still needs further simplification, Phase 4 still carries a transitional public assertion path, and Phase 8 has not started
 
 ## Implemented Work
 
