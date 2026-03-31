@@ -53,31 +53,34 @@ def seed_bootstrap_command_layout_mismatch(dest: Path) -> None:
     current_path = dest / current_rel
     previous_path = dest / previous_rel
     current_path.parent.mkdir(parents=True, exist_ok=True)
-    artifact_body = "\n".join(
-        [
-            "# Environment Bootstrap",
-            "",
-            "## Missing Prerequisites",
-            "",
-            f"- {dest / '.venv' / 'bin' / 'pytest'}",
-            "",
-            "## Commands",
-            "",
-            "### 1. uv availability",
-            "",
-            "- command: `uv --version`",
-            "",
-            "### 2. uv sync",
-            "",
-            "- command: `uv sync --locked`",
-            "",
-            "### 3. project pytest ready",
-            "",
-            f"- command: `{dest / '.venv' / 'bin' / 'pytest'} --version`",
-            f"- missing_executable: {dest / '.venv' / 'bin' / 'pytest'}",
-            "",
-        ]
-    ) + "\n"
+    artifact_body = (
+        "\n".join(
+            [
+                "# Environment Bootstrap",
+                "",
+                "## Missing Prerequisites",
+                "",
+                f"- {dest / '.venv' / 'bin' / 'pytest'}",
+                "",
+                "## Commands",
+                "",
+                "### 1. uv availability",
+                "",
+                "- command: `uv --version`",
+                "",
+                "### 2. uv sync",
+                "",
+                "- command: `uv sync --locked`",
+                "",
+                "### 3. project pytest ready",
+                "",
+                f"- command: `{dest / '.venv' / 'bin' / 'pytest'} --version`",
+                f"- missing_executable: {dest / '.venv' / 'bin' / 'pytest'}",
+                "",
+            ]
+        )
+        + "\n"
+    )
     current_path.write_text(artifact_body, encoding="utf-8")
     previous_path.write_text(artifact_body, encoding="utf-8")
     workflow["bootstrap"] = {
@@ -105,7 +108,9 @@ def seed_workflow_overclaim(dest: Path) -> Path:
             "status": "ready",
             "depends_on": [active_ticket],
             "summary": "Synthetic dependent ticket for handoff overclaim coverage.",
-            "acceptance": ["Dependency claim remains blocked until the active ticket is done."],
+            "acceptance": [
+                "Dependency claim remains blocked until the active ticket is done."
+            ],
             "decision_blockers": [],
             "artifacts": [],
             "resolution_state": "open",
@@ -121,10 +126,16 @@ def seed_workflow_overclaim(dest: Path) -> Path:
     )
     for relative in ("START-HERE.md", ".opencode/state/latest-handoff.md"):
         path = dest / relative
-        original = path.read_text(encoding="utf-8") if path.exists() else (dest / "START-HERE.md").read_text(encoding="utf-8")
+        original = (
+            path.read_text(encoding="utf-8")
+            if path.exists()
+            else (dest / "START-HERE.md").read_text(encoding="utf-8")
+        )
         path.parent.mkdir(parents=True, exist_ok=True)
         if "## Next Action" in original:
-            updated = original.replace("## Next Action", f"## Next Action\n\n{overclaim}\n")
+            updated = original.replace(
+                "## Next Action", f"## Next Action\n\n{overclaim}\n"
+            )
         else:
             updated = original.rstrip() + f"\n\n## Next Action\n\n{overclaim}\n"
         path.write_text(updated, encoding="utf-8")
@@ -153,7 +164,11 @@ def seed_workflow_overclaim(dest: Path) -> Path:
 
 def seed_repeated_diagnosis_churn(dest: Path) -> None:
     diagnosis_root = dest / "diagnosis"
-    baseline_candidates = sorted(path for path in diagnosis_root.iterdir() if path.is_dir()) if diagnosis_root.exists() else []
+    baseline_candidates = (
+        sorted(path for path in diagnosis_root.iterdir() if path.is_dir())
+        if diagnosis_root.exists()
+        else []
+    )
     if baseline_candidates:
         baseline = baseline_candidates[-1]
         baseline_manifest_path = baseline / "manifest.json"
@@ -465,7 +480,9 @@ def seed_uv_python_fixture(
             ]
         )
 
-    (dest / "pyproject.toml").write_text("\n".join(pyproject_lines) + "\n", encoding="utf-8")
+    (dest / "pyproject.toml").write_text(
+        "\n".join(pyproject_lines) + "\n", encoding="utf-8"
+    )
     (dest / "uv.lock").write_text("version = 1\n", encoding="utf-8")
     venv_dir = dest / ".venv"
     venv_dir.mkdir(parents=True, exist_ok=True)
@@ -491,7 +508,9 @@ def seed_failing_pytest_suite(dest: Path) -> None:
     (src_pkg / "__init__.py").write_text("__all__ = ['ok']\n", encoding="utf-8")
     tests_dir = dest / "tests"
     tests_dir.mkdir(parents=True, exist_ok=True)
-    (tests_dir / "test_sample.py").write_text("def test_smoke():\n    assert True\n", encoding="utf-8")
+    (tests_dir / "test_sample.py").write_text(
+        "def test_smoke():\n    assert True\n", encoding="utf-8"
+    )
 
     venv_bin = dest / ".venv" / "bin"
     venv_bin.mkdir(parents=True, exist_ok=True)
@@ -516,3 +535,137 @@ def seed_failing_pytest_suite(dest: Path) -> None:
         encoding="utf-8",
     )
     (venv_bin / "pytest").chmod(0o755)
+
+
+def seed_closed_ticket_with_new_active_artifact_write(dest: Path) -> None:
+    """Seed a scenario where ticket A is closed, ticket B is active with a lease,
+    and an artifact write for B should succeed. This exercises the stage-gate-enforcer
+    fix that passes the target ticket ID to ensureWriteLease instead of always checking
+    workflow.active_ticket."""
+    manifest_path = dest / "tickets" / "manifest.json"
+    workflow_path = dest / ".opencode" / "state" / "workflow-state.json"
+    manifest = read_json(manifest_path)
+    workflow = read_json(workflow_path)
+
+    original_active = manifest["active_ticket"]
+
+    # Close the original ticket
+    for ticket in manifest["tickets"]:
+        if ticket["id"] == original_active:
+            ticket["stage"] = "closeout"
+            ticket["status"] = "done"
+            ticket["resolution_state"] = "done"
+            ticket["verification_state"] = "trusted"
+            break
+
+    # Add a new ticket and make it active
+    new_ticket_id = "TICK-002"
+    manifest["tickets"].append(
+        {
+            "id": new_ticket_id,
+            "title": "New active ticket after closeout",
+            "wave": 2,
+            "lane": "feature",
+            "parallel_safe": False,
+            "overlap_risk": "medium",
+            "stage": "planning",
+            "status": "todo",
+            "depends_on": [],
+            "summary": "Synthetic ticket to test artifact write after closeout.",
+            "acceptance": ["Artifact write succeeds with valid lease."],
+            "decision_blockers": [],
+            "artifacts": [],
+            "resolution_state": "open",
+            "verification_state": "suspect",
+            "follow_up_ticket_ids": [],
+        }
+    )
+    manifest["active_ticket"] = new_ticket_id
+
+    # Workflow state: active ticket updated, lease registered for new ticket
+    workflow["active_ticket"] = new_ticket_id
+    workflow["stage"] = "planning"
+    workflow["status"] = "todo"
+    workflow["lane_leases"] = [
+        {
+            "ticket_id": new_ticket_id,
+            "lane": "feature",
+            "owner_agent": "synthetic-team-leader",
+            "write_lock": True,
+            "claimed_at": "2026-03-31T20:00:00Z",
+            "allowed_paths": [
+                ".opencode/state/plans/",
+                ".opencode/state/implementations/",
+            ],
+        }
+    ]
+
+    write_json(manifest_path, manifest)
+    write_json(workflow_path, workflow)
+
+
+def seed_closed_ticket_with_new_active_artifact_write(dest: Path) -> None:
+    """Seed a scenario where ticket A is closed, ticket B is active with a lease,
+    and an artifact write for B should succeed. This exercises the stage-gate-enforcer
+    fix that passes the target ticket ID to ensureWriteLease instead of always checking
+    workflow.active_ticket."""
+    manifest_path = dest / "tickets" / "manifest.json"
+    workflow_path = dest / ".opencode" / "state" / "workflow-state.json"
+    manifest = read_json(manifest_path)
+    workflow = read_json(workflow_path)
+
+    original_active = manifest["active_ticket"]
+
+    # Close the original ticket
+    for ticket in manifest["tickets"]:
+        if ticket["id"] == original_active:
+            ticket["stage"] = "closeout"
+            ticket["status"] = "done"
+            ticket["resolution_state"] = "done"
+            ticket["verification_state"] = "trusted"
+            break
+
+    # Add a new ticket and make it active
+    new_ticket_id = "TICK-002"
+    manifest["tickets"].append(
+        {
+            "id": new_ticket_id,
+            "title": "New active ticket after closeout",
+            "wave": 2,
+            "lane": "feature",
+            "parallel_safe": False,
+            "overlap_risk": "medium",
+            "stage": "planning",
+            "status": "todo",
+            "depends_on": [],
+            "summary": "Synthetic ticket to test artifact write after closeout.",
+            "acceptance": ["Artifact write succeeds with valid lease."],
+            "decision_blockers": [],
+            "artifacts": [],
+            "resolution_state": "open",
+            "verification_state": "suspect",
+            "follow_up_ticket_ids": [],
+        }
+    )
+    manifest["active_ticket"] = new_ticket_id
+
+    # Workflow state: active ticket updated, lease registered for new ticket
+    workflow["active_ticket"] = new_ticket_id
+    workflow["stage"] = "planning"
+    workflow["status"] = "todo"
+    workflow["lane_leases"] = [
+        {
+            "ticket_id": new_ticket_id,
+            "lane": "feature",
+            "owner_agent": "synthetic-team-leader",
+            "write_lock": True,
+            "claimed_at": "2026-03-31T20:00:00Z",
+            "allowed_paths": [
+                ".opencode/state/plans/",
+                ".opencode/state/implementations/",
+            ],
+        }
+    ]
+
+    write_json(manifest_path, manifest)
+    write_json(workflow_path, workflow)

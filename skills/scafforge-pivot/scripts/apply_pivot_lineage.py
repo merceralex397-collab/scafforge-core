@@ -58,7 +58,12 @@ def execute_action(repo_root: Path, action: dict[str, Any]) -> tuple[dict[str, A
     target_ticket_id = str(action.get("target_ticket_id", "")).strip()
     reason = str(action.get("reason", "")).strip()
     evidence_artifact_path = str(action.get("evidence_artifact_path", "")).strip()
-    replacement_source_ticket_id = str(action.get("replacement_source_ticket_id", "")).strip()
+    _raw_replacement_source = action.get("replacement_source_ticket_id")
+    replacement_source_ticket_id = (
+        str(_raw_replacement_source).strip()
+        if _raw_replacement_source is not None
+        else ""
+    )
     replacement_source_mode = str(action.get("replacement_source_mode", "")).strip()
     ticket_spec = action.get("ticket_spec") if isinstance(action.get("ticket_spec"), dict) else None
 
@@ -81,7 +86,12 @@ def execute_action(repo_root: Path, action: dict[str, Any]) -> tuple[dict[str, A
             return None, "reconcile requires both target_ticket_id and evidence_artifact_path."
         manifest = load_manifest(repo_root)
         target_ticket = manifest_ticket(manifest, target_ticket_id)
-        source_ticket_id = str(target_ticket.get("source_ticket_id", "")).strip() or replacement_source_ticket_id
+        _raw_source = target_ticket.get("source_ticket_id")
+        source_ticket_id = (
+            str(_raw_source).strip()
+            if _raw_source is not None
+            else ""
+        ) or replacement_source_ticket_id
         if not source_ticket_id:
             return None, "reconcile requires a canonical source ticket or replacement source ticket."
         args: dict[str, object] = {
@@ -103,7 +113,12 @@ def execute_action(repo_root: Path, action: dict[str, Any]) -> tuple[dict[str, A
             return None, "supersede requires both target_ticket_id and evidence_artifact_path."
         manifest = load_manifest(repo_root)
         target_ticket = manifest_ticket(manifest, target_ticket_id)
-        source_ticket_id = str(target_ticket.get("source_ticket_id", "")).strip() or replacement_source_ticket_id
+        _raw_source = target_ticket.get("source_ticket_id")
+        source_ticket_id = (
+            str(_raw_source).strip()
+            if _raw_source is not None
+            else ""
+        ) or replacement_source_ticket_id
         if not source_ticket_id:
             return None, "supersede requires a canonical source ticket or replacement source ticket."
         args = {

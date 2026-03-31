@@ -60,24 +60,25 @@ async function ensureBootstrapReadyForValidation() {
   }
 }
 
-async function ensureWriteLease(pathValue?: string) {
+async function ensureWriteLease(pathValue?: string, ticketId?: string) {
   const workflow = await loadWorkflowState()
-  if (!hasWriteLeaseForTicket(workflow, workflow.active_ticket)) {
+  const checkedTicket = ticketId || workflow.active_ticket
+  if (!hasWriteLeaseForTicket(workflow, checkedTicket)) {
     throwWorkflowBlocker({
       type: "BLOCKER",
       reason_code: "missing_write_lease",
-      explanation: `Active ticket ${workflow.active_ticket} must hold an active write lease before write-capable work can proceed.`,
+      explanation: `Active ticket ${checkedTicket} must hold an active write lease before write-capable work can proceed.`,
       next_action_tool: "ticket_claim",
-      next_action_args: ticketClaimBlockerArgs(workflow.active_ticket),
+      next_action_args: ticketClaimBlockerArgs(checkedTicket),
     })
   }
-  if (pathValue && !hasWriteLeaseForTicketPath(workflow, workflow.active_ticket, pathValue)) {
+  if (pathValue && !hasWriteLeaseForTicketPath(workflow, checkedTicket, pathValue)) {
     throwWorkflowBlocker({
       type: "BLOCKER",
       reason_code: "write_path_not_covered",
-      explanation: `The active write lease for ${workflow.active_ticket} does not cover ${pathValue}.`,
+      explanation: `The active write lease for ${checkedTicket} does not cover ${pathValue}.`,
       next_action_tool: "ticket_claim",
-      next_action_args: ticketClaimBlockerArgs(workflow.active_ticket, [pathValue]),
+      next_action_args: ticketClaimBlockerArgs(checkedTicket, [pathValue]),
     })
   }
 }
@@ -285,7 +286,7 @@ export const StageGateEnforcer: Plugin = async () => {
         }
         if (LEASED_ARTIFACT_STAGES.has(stage) && !historicalVerificationMutation) {
           const artifactPath = typeof output.args.path === "string" ? output.args.path : ""
-          await ensureWriteLease(artifactPath || undefined)
+          await ensureWriteLease(artifactPath || undefined, ticketId)
         }
         if (stage === "smoke-test" || stage === "handoff") {
           await ensureBootstrapReadyForValidation()
@@ -310,7 +311,7 @@ export const StageGateEnforcer: Plugin = async () => {
           await ensureTargetTicketWriteLease(ticketId)
         }
         if (artifactPath && !historicalVerificationMutation) {
-          await ensureWriteLease(artifactPath)
+          await ensureWriteLease(artifactPath, ticketId)
         }
       }
 
