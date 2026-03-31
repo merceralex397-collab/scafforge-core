@@ -9,7 +9,10 @@ This document replaces the split remediation planning in:
 
 It also incorporates verified live-repo evidence from the current Scafforge package and from GPTTalker, where the recurring deadlocks have been reproduced in practice.
 
-For current branch implementation status and remaining work against this plan, see `scafforge-remediation-progress-review.md`.
+For current branch implementation status and remaining work against this plan, see:
+
+- `scafforge-remediation-progress-review.md`
+- `scafforge-remediation-gap-closure-plan.md`
 
 The goal is not to add more governance prose. The goal is to make generated repos continue cleanly after bugs, audits, repairs, and midstream design changes.
 
@@ -52,9 +55,10 @@ This remediation plan keeps the valid recommendations, rejects the parts that wo
 ### Confirmed by direct package verification
 
 - `python3 scripts/validate_scafforge_contract.py` passes.
-- `python3 scripts/smoke_test_scafforge.py` currently fails because a repair-path verification run reports `ENV001` for missing `uv`.
+- `python3 scripts/smoke_test_scafforge.py` passes on the current host.
+- `python3 scripts/integration_test_scafforge.py` passes on the current host.
 
-That smoke result is not the main product defect, but it does confirm that package verification is still environment-sensitive and not yet hermetic enough.
+Those results are current-host proof, not yet universal cross-host proof. The package is still not fully hermetic, and host/path/runtime assumptions must still be treated as live verification risk until broader migration validation is complete.
 
 ## Evidence Basis
 
