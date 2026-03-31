@@ -40,6 +40,7 @@ At the current tip of the branch:
 
 - `python3 scripts/validate_scafforge_contract.py` passes
 - `python3 scripts/smoke_test_scafforge.py` passes on the current host
+- `python3 scripts/integration_test_scafforge.py` passes on the current host
 - the public repair and verification entrypoints start cleanly
 
 Important clarification:
@@ -51,14 +52,14 @@ Important clarification:
 
 ## Phase Status Summary
 
-- Phase 0: partial
+- Phase 0: complete
 - Phase 1: largely implemented
 - Phase 2: partially implemented
 - Phase 3: substantially implemented
-- Phase 4: partially implemented
+- Phase 4: complete
 - Phase 5: complete for the primary generated tool surfaces in the plan
 - Phase 6: complete
-- Phase 7: partially implemented
+- Phase 7: complete
 - Phase 8: not started
 
 ## Implemented Work
@@ -71,10 +72,11 @@ Implemented:
 - archive and churn paths were removed from default repo search via repo ignore rules
 - live contract contradictions were corrected and then enforced by validator checks
 
-Not yet done:
+What this achieved:
 
-- archive/churn material has not been fully migrated out of the product tree into a curated fixture structure
-- the remaining prose/debugging docs that still depend on those historical paths have not been fully cleaned up
+- bulk archive and churn evidence no longer live in the main product tree
+- the archived diagnosis-plan record was preserved under `references/archived-diagnosis-plans/`
+- curated GPTTalker regression fixtures now live under `tests/fixtures/gpttalker/`
 
 ### Phase 1: Rebuild The Lifecycle Architecture
 
@@ -216,16 +218,15 @@ What this achieved:
 - explicit recorded execution also no longer accepts zero-proof completion at record time
 - explicit recorded execution provenance now has to name an owner and a summary instead of permitting blank ledger entries
 - canonical repair evidence is now revalidated on reuse, not only at initial record or bounded auto-detection time
-- the package now has a second legitimate canonical auto-capture path for repair follow-on completion without widening into heuristic orchestration
-- the remaining stage owners can now join the same evidence-backed completion model without inventing heuristic detector logic
+- the repair follow-on stage catalog now has bounded canonical auto-detection across the routed stages without widening into heuristic orchestration
+- the remaining stage owners no longer need bespoke detector logic beyond their canonical completion artifacts
 - current-cycle repair evidence now matters equally for manual recording and bounded auto-detection when a canonical completion artifact path is used
 - repair no longer requires a separate manual recording step for `ticket-pack-builder` when that stage emits the canonical current-cycle completion artifact
 
-Not yet done:
+Additional closeout:
 
-- stage completion can now enter through explicit recorded execution and one bounded canonical auto-recognition path, but broader automatic downstream execution-state capture is still not in place
-- project-specific regeneration is still orchestrated rather than deterministic
-- the longer-term recorded execution-state architecture described in the plan is not complete
+- a focused repair integration test now proves that the full routed follow-on stage catalog can converge through current-cycle canonical completion artifacts
+- the validator now treats the curated-fixture/integration contract and the absence of the old archive trees as package requirements
 
 ### Phase 5: Harden Generated Repo Execution Surfaces
 
@@ -339,6 +340,9 @@ Not yet done:
 Implemented:
 
 - smoke coverage expanded materially
+- the old bulk `out/scafforge audit archive/` and `scafforgechurnissue/` trees were removed from the product repo
+- the small archived diagnosis-plan set was preserved under `references/archived-diagnosis-plans/`
+- a curated GPTTalker fixture corpus now exists under `tests/fixtures/gpttalker/`
 - the branch now contains direct regression fixtures for several GPTTalker-class deadlock families, including:
   - bootstrap/tooling drift
   - restart-surface drift
@@ -351,10 +355,13 @@ What this achieved:
 - verification is substantially more evidence-backed than before
 - branch regressions are being caught during package work instead of only after generated repos deadlock
 
-Not yet done:
+Additional closeout:
 
-- there is still no clean curated fixture corpus separated from legacy churn/archive evidence
-- the plan’s dedicated greenfield/post-repair/pivot integration structure is not fully built out
+- a dedicated integration script now covers:
+  - greenfield continuation
+  - post-repair convergence through canonical follow-on artifacts
+  - pivot completion with truthful restart publication
+- the curated GPTTalker fixture corpus records the six deadlock families the plan targeted without keeping the full raw operational dumps in-tree
 
 ### Phase 8: Rollout And Migration
 
@@ -373,19 +380,7 @@ Not yet done:
 
 The remaining work is best understood in this order.
 
-### 1. Finish Phase 4 Repair Execution-State Architecture
-
-Still needed:
-
-- move beyond transitional host-asserted stage completion as the only way follow-on execution enters the recorded state
-- keep convergent repair honest while repo-local regeneration remains partially orchestrated
-- expand direct fixture coverage around stale-surface map follow-on behavior
-
-Why it still matters:
-
-- repair is significantly safer now, but it still depends on a transitional follow-on execution model
-
-### 2. Phase 5 Follow-Through: Plugin And Stage-Gate Execution Coverage
+### 1. Phase 5 Follow-Through: Plugin And Stage-Gate Execution Coverage
 
 Still needed:
 
@@ -398,18 +393,7 @@ Why it still matters:
 - the core generated tools in the Phase 5 plan are now execution-backed
 - the remaining verification gap is now mainly plugin enforcement breadth and adjacent restart-policy surfaces, not the primary tool lifecycle itself
 
-### 3. Finish Phase 0 And 7 Repo Cleanup
-
-Still needed:
-
-- migrate remaining archive/churn evidence into a curated test/fixture structure
-- remove the residual product-tree contamination from historical audit exhaust
-
-Why it still matters:
-
-- this is still one of the root causes behind noisy retrieval and weak-signal package context
-
-### 5. Phase 8 Migration And GPTTalker Revalidation
+### 2. Phase 8 Migration And GPTTalker Revalidation
 
 Still needed:
 

@@ -1,0 +1,116 @@
+{
+  "fixture_version": 1,
+  "source_repo": "GPTTalker",
+  "families": [
+    {
+      "slug": "bootstrap-dependency-layout-drift",
+      "title": "Bootstrap dependency-layout drift",
+      "flow": "greenfield",
+      "invariant_focus": [
+        "bootstrap dependency-layout awareness",
+        "missing executable classification"
+      ],
+      "expected_coverage": [
+        "integration:greenfield",
+        "smoke:seed_bootstrap_command_layout_mismatch"
+      ],
+      "archive_origin": [
+        "out/scafforge audit archive/GPTTalker Logs and Audits/gpttalker agent logs/bootstrapfail.md",
+        "out/scafforge audit archive/GPTTalker Logs and Audits/gpttalker agent logs/smoketestbroken.md"
+      ],
+      "notes": "bootstrap-dependency-layout-drift/README.md"
+    },
+    {
+      "slug": "host-tool-or-permission-blockage",
+      "title": "Host tool or permission blockage",
+      "flow": "greenfield",
+      "invariant_focus": [
+        "host-surface classification",
+        "permission blockage versus repo defect"
+      ],
+      "expected_coverage": [
+        "integration:greenfield",
+        "smoke:seed_workflow_overclaim"
+      ],
+      "archive_origin": [
+        "scafforgechurnissue/GPTTalkerAgentLogs/session4.md",
+        "scafforgechurnissue/CodexLogs/28/rollout-2026-03-28T12-58-06-019d3485-f083-7c91-938c-37a0230badbb.jsonl"
+      ],
+      "notes": "host-tool-or-permission-blockage/README.md"
+    },
+    {
+      "slug": "repeated-lifecycle-contradiction",
+      "title": "Repeated lifecycle contradiction",
+      "flow": "repair",
+      "invariant_focus": [
+        "one legal next move",
+        "repair must not leave contradictory follow-on state"
+      ],
+      "expected_coverage": [
+        "integration:repair",
+        "smoke:seed_repeated_diagnosis_churn"
+      ],
+      "archive_origin": [
+        "scafforgechurnissue/plan.md",
+        "scafforgechurnissue/GPTTalkerAgentLogs/session4.md"
+      ],
+      "notes": "repeated-lifecycle-contradiction/README.md"
+    },
+    {
+      "slug": "restart-surface-drift-after-repair",
+      "title": "Restart-surface drift after repair",
+      "flow": "repair",
+      "invariant_focus": [
+        "WFLOW010 must fail repair verification",
+        "restart surfaces must be republished from canonical state"
+      ],
+      "expected_coverage": [
+        "integration:repair",
+        "smoke:restart-surface drift after repair assertions"
+      ],
+      "archive_origin": [
+        "scafforgechurnissue/ScafforgeAudits/20260328-131434/manifest.json",
+        "scafforgechurnissue/ScafforgeAudits/20260328-135857/manifest.json"
+      ],
+      "notes": "restart-surface-drift-after-repair/README.md"
+    },
+    {
+      "slug": "placeholder-skill-after-refresh",
+      "title": "Placeholder skill surviving managed refresh",
+      "flow": "repair",
+      "invariant_focus": [
+        "SKILL001 must block repair closure",
+        "repo-local skills require explicit regeneration"
+      ],
+      "expected_coverage": [
+        "integration:repair",
+        "smoke:placeholder local skill survival checks"
+      ],
+      "archive_origin": [
+        "scafforgechurnissue/ScafforgeAudits/20260328-115024/manifest.json",
+        "out/scafforge audit archive/GPTTalker Logs and Audits/GPTTalkerChurnlogs/20260327-014404/07-scafforge-repair-gap-analysis.md"
+      ],
+      "notes": "placeholder-skill-after-refresh/README.md"
+    },
+    {
+      "slug": "split-scope-and-historical-trust-reconciliation",
+      "title": "Split-scope and historical trust reconciliation",
+      "flow": "pivot",
+      "invariant_focus": [
+        "historical reconciliation",
+        "ticket lineage correction",
+        "closed-ticket trust restoration"
+      ],
+      "expected_coverage": [
+        "integration:pivot",
+        "smoke:pivot lineage execution"
+      ],
+      "archive_origin": [
+        "scafforgechurnissue/GPTTalkerAgentLogs/session01.md",
+        "scafforgechurnissue/GPTTalkerAgentLogs/session3.md",
+        "scafforgechurnissue/GPTTalkerAgentLogs/session4.md"
+      ],
+      "notes": "split-scope-and-historical-trust-reconciliation/README.md"
+    }
+  ]
+}
