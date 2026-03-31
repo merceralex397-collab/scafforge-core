@@ -9,6 +9,7 @@ from generated_tool_runtime import run_generated_tool
 from pivot_tracking import (
     PIVOT_STATE_PATH,
     load_pivot_state,
+    persist_pivot_state,
     record_ticket_lineage_action_completion,
 )
 from publish_pivot_surfaces import publish_pivot_surfaces
@@ -190,6 +191,46 @@ def main() -> int:
                 "restart_surface_inputs": updated_payload.get("restart_surface_inputs", {}),
             }
         )
+
+    # Recompute restart_surface_inputs from current state before publishing
+    if not args.skip_publish:
+        final_payload_before_publish = load_pivot_state(repo_root)
+        downstream = final_payload_before_publish.get("downstream_refresh_state", {}) or {}
+        pending_stages = downstream.get("pending_stages", []) or []
+        if isinstance(pending_stages, dict):
+            pending_stages = [s for s, r in pending_stages.items() if isinstance(r, dict) and r.get("status") != "completed"]
+        pending_lineage = final_payload_before_publish.get("ticket_lineage_plan", {}).get("pending_actions", []) or []
+        pending_lineage = [a for a in pending_lineage if isinstance(a, dict) and a.get("status") != "completed"]
+        all_done = len(pending_stages) == 0 and len(pending_lineage) == 0
+        rsi = final_payload_before_publish.get("restart_surface_inputs", {}) or {}
+        if isinstance(rsi, dict):
+            rsi["pivot_in_progress"] = not all_done
+            rsi["pending_downstream_stages"] = [str(s) for s in pending_stages]
+            rsi["pending_ticket_lineage_actions"] = [str(a.get("label", a)) for a in pending_lineage if isinstance(a, dict)]
+            if all_done:
+                rsi["post_pivot_verification_passed"] = True
+            final_payload_before_publish["restart_surface_inputs"] = rsi
+            persist_pivot_state(repo_root, final_payload_before_publish)
+
+    # Recompute restart_surface_inputs from current state before publishing
+    if not args.skip_publish:
+        final_payload_before_publish = load_pivot_state(repo_root)
+        downstream = final_payload_before_publish.get("downstream_refresh_state", {}) or {}
+        pending_stages = downstream.get("pending_stages", []) or []
+        if isinstance(pending_stages, dict):
+            pending_stages = [s for s, r in pending_stages.items() if isinstance(r, dict) and r.get("status") != "completed"]
+        pending_lineage = final_payload_before_publish.get("ticket_lineage_plan", {}).get("pending_actions", []) or []
+        pending_lineage = [a for a in pending_lineage if isinstance(a, dict) and a.get("status") != "completed"]
+        all_done = len(pending_stages) == 0 and len(pending_lineage) == 0
+        rsi = final_payload_before_publish.get("restart_surface_inputs", {}) or {}
+        if isinstance(rsi, dict):
+            rsi["pivot_in_progress"] = not all_done
+            rsi["pending_downstream_stages"] = [str(s) for s in pending_stages]
+            rsi["pending_ticket_lineage_actions"] = [str(a.get("label", a)) for a in pending_lineage if isinstance(a, dict)]
+            if all_done:
+                rsi["post_pivot_verification_passed"] = True
+            final_payload_before_publish["restart_surface_inputs"] = rsi
+            persist_pivot_state(repo_root, final_payload_before_publish)
 
     publication = None
     if not args.skip_publish:

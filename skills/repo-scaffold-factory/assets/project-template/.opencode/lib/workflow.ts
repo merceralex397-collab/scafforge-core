@@ -566,6 +566,20 @@ function normalizePivotDownstreamStageState(stage: string, value: unknown): Pivo
   }
 }
 
+function computePivotInProgress(restartInputsRaw: Record<string, unknown> | undefined, downstreamRaw: Record<string, unknown> | undefined): boolean {
+  if (!restartInputsRaw) return false
+  const explicit = restartInputsRaw.pivot_in_progress
+  if (typeof explicit === "boolean") {
+    const pendingStages = normalizeStringArray(restartInputsRaw.pending_downstream_stages)
+    const pendingLineage = normalizeStringArray(restartInputsRaw.pending_ticket_lineage_actions)
+    if (pendingStages.length === 0 && pendingLineage.length === 0) {
+      return false
+    }
+    return explicit
+  }
+  return false
+}
+
 function normalizePivotState(value: unknown): PivotState {
   const fallbackRestartSurfaceInputs: PivotRestartSurfaceInputs = {
     pivot_in_progress: false,
@@ -617,7 +631,7 @@ function normalizePivotState(value: unknown): PivotState {
         }
       : null,
     restart_surface_inputs: {
-      pivot_in_progress: restartInputsRaw?.pivot_in_progress === true,
+      pivot_in_progress: computePivotInProgress(restartInputsRaw, downstreamRaw),
       pivot_class: typeof restartInputsRaw?.pivot_class === "string" && restartInputsRaw.pivot_class.trim() ? restartInputsRaw.pivot_class.trim() : null,
       pivot_changed_surfaces: normalizeStringArray(restartInputsRaw?.pivot_changed_surfaces),
       pending_downstream_stages: normalizeStringArray(restartInputsRaw?.pending_downstream_stages),
