@@ -53,6 +53,7 @@ If this is a repeat audit, explain why the previous audit-to-repair cycle failed
 
 The script is evidence extraction, not the whole diagnosis.
 Its rule logic should stay grouped by invariant family in code modules, not keep growing only as prose in references.
+Its report generation and ticket-recommendation assembly should also stay in code modules rather than turning this skill doc into a second implementation surface.
 New smell codes should land with rule implementation plus regression coverage, not just another narrative note.
 For transcript-backed audits, the invoker must do all three steps in order:
 
