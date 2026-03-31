@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -155,6 +156,8 @@ def managed_repo_root() -> Path:
 
 
 def template_commit() -> str:
+    if os.environ.get("SCAFFORGE_FORCE_MISSING_PROVENANCE") == "1":
+        return "missing_provenance"
     result = subprocess.run(
         ["git", "rev-parse", "HEAD"],
         cwd=managed_repo_root(),
@@ -165,8 +168,8 @@ def template_commit() -> str:
         errors="replace",
     )
     if result.returncode != 0:
-        return "unknown"
-    return result.stdout.strip() or "unknown"
+        return "missing_provenance"
+    return result.stdout.strip() or "missing_provenance"
 
 
 def write_bootstrap_provenance(

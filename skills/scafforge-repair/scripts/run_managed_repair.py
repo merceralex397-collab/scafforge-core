@@ -60,7 +60,7 @@ def parse_args() -> argparse.Namespace:
         help="Optional diagnosis pack directory or manifest path that this repair run is based on. Defaults to the latest diagnosis pack in the repo.",
     )
     parser.add_argument("--diagnosis-output-dir", help="Optional writable path for the post-repair diagnosis pack.")
-    parser.add_argument("--stage-complete", action="append", default=[], help="Mark a required follow-on stage as completed by the host skill.")
+    parser.add_argument("--stage-complete", action="append", default=[], help=argparse.SUPPRESS)
     parser.add_argument("--fail-on", choices=("never", "warning", "error"), default="never")
     return parser.parse_args()
 
@@ -242,7 +242,8 @@ def update_repair_follow_on_state(
         "required_stages": required_stage_names,
         "completed_stages": completed_stage_names,
         "asserted_completed_stages": asserted_stage_names,
-        "stage_completion_mode": "transitional_manual_assertion",
+        "legacy_asserted_completed_stages": asserted_stage_names,
+        "stage_completion_mode": "legacy_manual_assertion",
         "tracking_mode": "persistent_recorded_state",
         "follow_on_state_path": str(FOLLOW_ON_TRACKING_PATH).replace("\\", "/"),
         "recorded_stage_state": tracking_state.get("stage_records", {}),
@@ -346,7 +347,7 @@ def main() -> int:
 
     executed_stages = [{"stage": "deterministic-refresh", "status": "completed"}] if not args.skip_deterministic_refresh else []
     for stage in requested_stage_names:
-        executed_stages.append({"stage": stage, "status": "asserted_completed", "completion_mode": "transitional_manual_assertion"})
+        executed_stages.append({"stage": stage, "status": "asserted_completed", "completion_mode": "legacy_manual_assertion"})
 
     recorded_stage_results = []
     for stage in persisted_completed_stage_names:
@@ -357,7 +358,7 @@ def main() -> int:
             {
                 "stage": stage,
                 "status": "recorded_completed",
-                "completion_mode": record.get("completion_mode", "transitional_manual_assertion"),
+                "completion_mode": record.get("completion_mode", "legacy_manual_assertion"),
                 "recorded_at": record.get("last_recorded_at"),
             }
         )
@@ -455,7 +456,8 @@ def main() -> int:
             "pruned_unknown_stages": tracking_state.get("pruned_unknown_stages", []),
             "invalidated_recorded_stages": invalidated_recorded_stage_list,
             "asserted_completed_stages": asserted_stage_names,
-            "stage_completion_mode": "transitional_manual_assertion",
+            "legacy_asserted_completed_stages": asserted_stage_names,
+            "stage_completion_mode": "legacy_manual_assertion",
             "follow_on_tracking_mode": "persistent_recorded_state",
             "follow_on_state_path": str(FOLLOW_ON_TRACKING_PATH).replace("\\", "/"),
             "follow_on_tracking_state": tracking_state,

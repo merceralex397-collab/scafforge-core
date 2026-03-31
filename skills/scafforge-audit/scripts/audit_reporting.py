@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import tempfile
 from dataclasses import dataclass
@@ -564,6 +565,8 @@ def emit_diagnosis_pack(
 
 
 def resolve_current_package_commit(package_root: Path) -> str:
+    if os.environ.get("SCAFFORGE_FORCE_MISSING_PROVENANCE") == "1":
+        return "missing_provenance"
     result = subprocess.run(
         ["git", "rev-parse", "HEAD"],
         cwd=package_root,
@@ -574,5 +577,5 @@ def resolve_current_package_commit(package_root: Path) -> str:
         errors="replace",
     )
     if result.returncode != 0:
-        return "unknown"
-    return result.stdout.strip() or "unknown"
+        return "missing_provenance"
+    return result.stdout.strip() or "missing_provenance"

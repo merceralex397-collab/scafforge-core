@@ -44,6 +44,7 @@ AUTO_DETECTED_COMPLETERS = {
     "handoff-brief": "handoff-brief:auto-detected",
 }
 OPTIONAL_RECORDABLE_FOLLOW_ON_STAGES = {"handoff-brief"}
+MISSING_PROVENANCE = "missing_provenance"
 
 
 def read_json(path: Path) -> Any:
@@ -140,7 +141,7 @@ def normalize_follow_on_tracking_state(payload: Any, *, process_version: int) ->
     )
     return {
         "tracking_mode": "persistent_recorded_state",
-        "assertion_input_mode": "transitional_manual_assertion",
+        "assertion_input_mode": "legacy_manual_assertion",
         "cycle_id": payload.get("cycle_id") if isinstance(payload.get("cycle_id"), str) and payload.get("cycle_id").strip() else timestamp,
         "created_at": payload.get("created_at") if isinstance(payload.get("created_at"), str) and payload.get("created_at").strip() else timestamp,
         "last_updated_at": payload.get("last_updated_at") if isinstance(payload.get("last_updated_at"), str) and payload.get("last_updated_at").strip() else timestamp,
@@ -370,7 +371,7 @@ def update_follow_on_tracking_state(
             "status": "asserted_completed",
             "reason": reason,
             "currently_required": stage in required_reason_map,
-            "completion_mode": "transitional_manual_assertion",
+            "completion_mode": "legacy_manual_assertion",
             "first_recorded_at": first_recorded_at,
             "last_recorded_at": now,
             "last_checked_at": now,
@@ -382,7 +383,7 @@ def update_follow_on_tracking_state(
                 "recorded_at": now,
                 **follow_on_stage_history_metadata(stage),
                 "status": "asserted_completed",
-                "completion_mode": "transitional_manual_assertion",
+                "completion_mode": "legacy_manual_assertion",
                 "reason": reason,
                 "repair_basis_path": str(repair_basis_path) if repair_basis_path else None,
                 "repair_package_commit": repair_package_commit,
@@ -488,6 +489,10 @@ def record_follow_on_stage_completion(
     if not normalized_summary:
         raise ValueError(
             f"Repair follow-on stage `{stage}` requires a non-empty summary for recorded execution."
+        )
+    if repair_package_commit == MISSING_PROVENANCE:
+        raise ValueError(
+            f"Repair follow-on stage `{stage}` requires repair_package_commit provenance; received {MISSING_PROVENANCE}."
         )
     if not any(isinstance(path, str) and path.strip() for path in evidence_paths):
         raise ValueError(

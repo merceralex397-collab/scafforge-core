@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -27,8 +28,8 @@ def read_json(path: Path) -> object:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
-def run_json(command: list[str], cwd: Path, *, allow_returncodes: set[int] | None = None) -> dict[str, object]:
-    result = subprocess.run(command, cwd=cwd, check=False, capture_output=True, text=True)
+def run_json(command: list[str], cwd: Path, *, allow_returncodes: set[int] | None = None, env: dict[str, str] | None = None) -> dict[str, object]:
+    result = subprocess.run(command, cwd=cwd, check=False, capture_output=True, text=True, env=env)
     allowed = allow_returncodes or {0}
     if result.returncode not in allowed:
         raise RuntimeError(
@@ -42,8 +43,8 @@ def run_json(command: list[str], cwd: Path, *, allow_returncodes: set[int] | Non
         raise RuntimeError(f"Command did not return valid JSON: {' '.join(command)}\nSTDOUT:\n{result.stdout}") from exc
 
 
-def run(command: list[str], cwd: Path) -> None:
-    result = subprocess.run(command, cwd=cwd, check=False, capture_output=True, text=True)
+def run(command: list[str], cwd: Path, *, env: dict[str, str] | None = None) -> None:
+    result = subprocess.run(command, cwd=cwd, check=False, capture_output=True, text=True, env=env)
     if result.returncode != 0:
         raise RuntimeError(
             f"Command failed: {' '.join(command)}\n"
@@ -225,6 +226,37 @@ def repair_integration(fixtures: dict[str, dict[str, object]], workspace: Path) 
     cycle_id = tracking_state.get("cycle_id")
     if not isinstance(cycle_id, str) or not cycle_id:
         raise RuntimeError("Repair integration expected a non-empty repair cycle id.")
+    provenance_evidence_rel = ".opencode/state/artifacts/history/repair/provenance-probe.md"
+    provenance_evidence_path = dest / provenance_evidence_rel
+    provenance_evidence_path.parent.mkdir(parents=True, exist_ok=True)
+    provenance_evidence_path.write_text("# Provenance probe\n", encoding="utf-8")
+    missing_provenance_env = os.environ.copy()
+    missing_provenance_env["SCAFFORGE_FORCE_MISSING_PROVENANCE"] = "1"
+    missing_provenance_record = subprocess.run(
+        [
+            sys.executable,
+            str(smoke.RECORD_REPAIR_STAGE),
+            str(dest),
+            "--stage",
+            "ticket-pack-builder",
+            "--completed-by",
+            "ticket-pack-builder",
+            "--summary",
+            "This should fail when repair-package provenance is missing.",
+            "--evidence",
+            provenance_evidence_rel,
+        ],
+        cwd=ROOT,
+        check=False,
+        capture_output=True,
+        text=True,
+        env=missing_provenance_env,
+    )
+    if missing_provenance_record.returncode == 0:
+        raise RuntimeError("Repair integration should reject recorded completion when repair-package provenance is missing.")
+    combined_provenance_output = f"{missing_provenance_record.stdout}\n{missing_provenance_record.stderr}"
+    if "requires repair_package_commit provenance" not in combined_provenance_output or "missing_provenance" not in combined_provenance_output:
+        raise RuntimeError("Repair integration should explain missing provenance when recorded completion is rejected.")
     for stage in sorted(expected_required | {"handoff-brief"}):
         write_repair_completion_artifact(dest, stage=stage, cycle_id=cycle_id)
     artifact_recorded = run_json(

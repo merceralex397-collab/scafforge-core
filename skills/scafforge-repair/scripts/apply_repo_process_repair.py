@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -110,6 +111,8 @@ def package_root() -> Path:
 
 
 def current_package_commit() -> str:
+    if os.environ.get("SCAFFORGE_FORCE_MISSING_PROVENANCE") == "1":
+        return "missing_provenance"
     result = subprocess.run(
         ["git", "rev-parse", "HEAD"],
         cwd=package_root(),
@@ -120,8 +123,8 @@ def current_package_commit() -> str:
         errors="replace",
     )
     if result.returncode != 0:
-        return "unknown"
-    return result.stdout.strip() or "unknown"
+        return "missing_provenance"
+    return result.stdout.strip() or "missing_provenance"
 
 
 def bootstrap_script_path() -> Path:
@@ -253,7 +256,7 @@ def initialize_follow_on_tracking_state(
     timestamp = current_iso_timestamp()
     payload = {
         "tracking_mode": "persistent_recorded_state",
-        "assertion_input_mode": "transitional_manual_assertion",
+        "assertion_input_mode": "legacy_manual_assertion",
         "cycle_id": timestamp,
         "created_at": timestamp,
         "last_updated_at": timestamp,
@@ -715,7 +718,8 @@ def update_workflow_state(repo_root: Path, rendered_provenance: dict[str, Any], 
             "required_stages": [],
             "completed_stages": [],
             "asserted_completed_stages": [],
-            "stage_completion_mode": "transitional_manual_assertion",
+            "legacy_asserted_completed_stages": [],
+            "stage_completion_mode": "legacy_manual_assertion",
             "tracking_mode": "persistent_recorded_state",
             "follow_on_state_path": str(FOLLOW_ON_TRACKING_PATH).replace("\\", "/"),
             "blocking_reasons": [

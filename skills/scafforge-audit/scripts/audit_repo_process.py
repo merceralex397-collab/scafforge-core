@@ -618,7 +618,7 @@ def manifest_supporting_logs(manifest: dict[str, Any]) -> list[str]:
 
 def manifest_package_commit(manifest: dict[str, Any]) -> str:
     value = manifest.get("audit_package_commit")
-    return value.strip() if isinstance(value, str) and value.strip() else "unknown"
+    return value.strip() if isinstance(value, str) and value.strip() else "missing_provenance"
 
 
 def manifest_diagnosis_kind(manifest: dict[str, Any]) -> str:
