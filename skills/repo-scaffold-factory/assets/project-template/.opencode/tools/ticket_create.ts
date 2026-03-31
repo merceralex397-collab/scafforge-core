@@ -141,9 +141,12 @@ export default tool({
     }
 
     setPlanApprovedForTicket(workflow, ticket.id, false)
+    const allOtherTicketsClosed = manifest.tickets.every(
+      (t) => t.id === ticket.id || t.status === "done" || t.resolution_state === "superseded"
+    )
     const activateNewTicket = typeof args.activate === "boolean"
       ? args.activate
-      : sourceMode === "split_scope" && sourceTicket?.id === manifest.active_ticket
+      : allOtherTicketsClosed || (sourceMode === "split_scope" && sourceTicket?.id === manifest.active_ticket)
     if (activateNewTicket) {
       manifest.active_ticket = ticket.id
     }

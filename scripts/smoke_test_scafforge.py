@@ -12,6 +12,7 @@ from types import SimpleNamespace
 
 from test_support.repo_seeders import (
     make_stack_skill_non_placeholder,
+    seed_all_tickets_closed,
     seed_bootstrap_command_layout_mismatch,
     seed_closed_ticket_with_new_active_artifact_write,
     seed_failing_pytest_suite,
@@ -5203,6 +5204,38 @@ def main() -> int:
                 "stage": "planning",
             },
         )
+        # Regression test: ticket_create after all tickets closed (Spinner deadlock)
+        # Ensures net_new_scope ticket creation succeeds when active_ticket points to
+        # a closed ticket and no leases exist.
+        all_closed_dest = workspace / "all-tickets-closed-create"
+        shutil.copytree(full_dest, all_closed_dest)
+        seed_all_tickets_closed(all_closed_dest)
+        ticket_create_result = run_generated_tool(
+            all_closed_dest,
+            ".opencode/tools/ticket_create.ts",
+            {
+                "id": "ANDROID-001",
+                "title": "Android export follow-up",
+                "lane": "android-export",
+                "wave": 4,
+                "summary": "Set up Android export pipeline.",
+                "acceptance": ["A valid APK is produced."],
+                "source_mode": "net_new_scope",
+                "activate": True,
+            },
+        )
+        assert ticket_create_result["created_ticket"] == "ANDROID-001"
+        assert ticket_create_result["activated"] is True
+        wf_after = json.loads(
+            (all_closed_dest / ".opencode" / "state" / "workflow-state.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        assert wf_after["active_ticket"] == "ANDROID-001"
+        manifest_after = json.loads(
+            (all_closed_dest / "tickets" / "manifest.json").read_text(encoding="utf-8")
+        )
+        assert any(t["id"] == "ANDROID-001" for t in manifest_after["tickets"])
         executed_reopen_dest = workspace / "executed-ticket-reopen"
         shutil.copytree(full_dest, executed_reopen_dest)
         seed_closed_ticket_needing_explicit_reverification(executed_reopen_dest)

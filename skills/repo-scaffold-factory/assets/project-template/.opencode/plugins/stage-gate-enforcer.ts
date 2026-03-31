@@ -168,7 +168,12 @@ export const StageGateEnforcer: Plugin = async () => {
           throw new Error("process_verification follow-up creation is only available while pending_process_verification is true.")
         }
         if (sourceMode === "net_new_scope") {
-          await ensureTargetTicketWriteLease(workflow.active_ticket)
+          const activeTicket = getTicket(manifest, workflow.active_ticket)
+          const allTicketsClosed = (activeTicket.status === "done" || activeTicket.resolution_state === "superseded")
+            && workflow.lane_leases.length === 0
+          if (!allTicketsClosed) {
+            await ensureTargetTicketWriteLease(workflow.active_ticket)
+          }
         } else if (sourceMode === "split_scope") {
           if (!sourceTicketId) throw new Error("split_scope ticket creation requires source_ticket_id.")
           await ensureTargetTicketWriteLease(sourceTicketId)

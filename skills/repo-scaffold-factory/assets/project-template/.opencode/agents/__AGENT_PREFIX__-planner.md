@@ -27,6 +27,7 @@ permission:
     "isolation-guidance": allow
   task:
     "*": deny
+    "explore": allow
     "__AGENT_PREFIX__-utility-explore": allow
     "__AGENT_PREFIX__-utility-summarize": allow
     "__AGENT_PREFIX__-utility-github-research": allow

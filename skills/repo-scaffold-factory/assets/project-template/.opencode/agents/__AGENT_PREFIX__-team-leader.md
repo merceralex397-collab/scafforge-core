@@ -39,6 +39,7 @@ permission:
     "isolation-guidance": allow
   task:
     "*": deny
+    "explore": allow
     "__AGENT_PREFIX__-planner": allow
     "__AGENT_PREFIX__-plan-review": allow
     "__AGENT_PREFIX__-lane-executor": allow
