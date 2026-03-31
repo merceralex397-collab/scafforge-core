@@ -592,7 +592,8 @@ def seed_closed_ticket_with_new_active_artifact_write(dest: Path) -> None:
             "lane": "feature",
             "owner_agent": "synthetic-team-leader",
             "write_lock": True,
-            "claimed_at": "2026-03-31T20:00:00Z",
+            "claimed_at": "2099-01-01T00:00:00Z",
+            "expires_at": "2099-12-31T23:59:59Z",
             "allowed_paths": [
                 ".opencode/state/plans/",
                 ".opencode/state/implementations/",
@@ -604,68 +605,31 @@ def seed_closed_ticket_with_new_active_artifact_write(dest: Path) -> None:
     write_json(workflow_path, workflow)
 
 
-def seed_closed_ticket_with_new_active_artifact_write(dest: Path) -> None:
-    """Seed a scenario where ticket A is closed, ticket B is active with a lease,
-    and an artifact write for B should succeed. This exercises the stage-gate-enforcer
-    fix that passes the target ticket ID to ensureWriteLease instead of always checking
-    workflow.active_ticket."""
+def seed_all_tickets_closed(dest: Path) -> None:
+    """Seed a scenario where all tickets are closed and active_ticket points to a done
+    ticket with no active leases. This exercises the stage-gate-enforcer fix that
+    allows net_new_scope ticket creation when all tickets are closed."""
     manifest_path = dest / "tickets" / "manifest.json"
     workflow_path = dest / ".opencode" / "state" / "workflow-state.json"
     manifest = read_json(manifest_path)
     workflow = read_json(workflow_path)
 
-    original_active = manifest["active_ticket"]
-
-    # Close the original ticket
+    # Close all existing tickets
     for ticket in manifest["tickets"]:
-        if ticket["id"] == original_active:
-            ticket["stage"] = "closeout"
-            ticket["status"] = "done"
-            ticket["resolution_state"] = "done"
-            ticket["verification_state"] = "trusted"
-            break
+        ticket["stage"] = "closeout"
+        ticket["status"] = "done"
+        ticket["resolution_state"] = "done"
+        ticket["verification_state"] = "trusted"
 
-    # Add a new ticket and make it active
-    new_ticket_id = "TICK-002"
-    manifest["tickets"].append(
-        {
-            "id": new_ticket_id,
-            "title": "New active ticket after closeout",
-            "wave": 2,
-            "lane": "feature",
-            "parallel_safe": False,
-            "overlap_risk": "medium",
-            "stage": "planning",
-            "status": "todo",
-            "depends_on": [],
-            "summary": "Synthetic ticket to test artifact write after closeout.",
-            "acceptance": ["Artifact write succeeds with valid lease."],
-            "decision_blockers": [],
-            "artifacts": [],
-            "resolution_state": "open",
-            "verification_state": "suspect",
-            "follow_up_ticket_ids": [],
-        }
-    )
-    manifest["active_ticket"] = new_ticket_id
+    # Keep active_ticket pointing to the first ticket (now closed)
+    manifest["active_ticket"] = manifest["tickets"][0]["id"]
 
-    # Workflow state: active ticket updated, lease registered for new ticket
-    workflow["active_ticket"] = new_ticket_id
-    workflow["stage"] = "planning"
-    workflow["status"] = "todo"
-    workflow["lane_leases"] = [
-        {
-            "ticket_id": new_ticket_id,
-            "lane": "feature",
-            "owner_agent": "synthetic-team-leader",
-            "write_lock": True,
-            "claimed_at": "2026-03-31T20:00:00Z",
-            "allowed_paths": [
-                ".opencode/state/plans/",
-                ".opencode/state/implementations/",
-            ],
-        }
-    ]
+    # Workflow state: active ticket points to closed ticket, no leases
+    workflow["active_ticket"] = manifest["active_ticket"]
+    workflow["stage"] = "closeout"
+    workflow["status"] = "done"
+    workflow["lane_leases"] = []
 
     write_json(manifest_path, manifest)
     write_json(workflow_path, workflow)
+
