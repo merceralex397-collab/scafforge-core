@@ -273,6 +273,16 @@ def main() -> int:
             rendered_root = Path(temp_dir) / "rendered"
             run_bootstrap_render(rendered_root, metadata, args.stack_label)
             replaced_surfaces = apply_repair(repo_root, rendered_root, args.change_summary)
+        # Sync restart surfaces with the initial managed_blocked workflow state before the
+        # verification audit runs.  Without this early sync the audit sees the pre-repair
+        # START-HERE.md and always fires WFLOW010 as a false positive.  That false positive
+        # cascades into a contract_failure ("restart_surface_drift_after_repair") which forces
+        # managed_blocked even when the only real drift was the transient pre-audit lag.
+        regenerate_restart_surfaces(
+            repo_root,
+            reason=args.change_summary,
+            source="scafforge-repair",
+        )
 
     repair_basis = resolve_repair_basis(repo_root, args.repair_basis_diagnosis)
     repair_basis_path = repair_basis[0] if repair_basis else None
