@@ -36,6 +36,68 @@ from regenerate_restart_surfaces import regenerate_restart_surfaces
 EXECUTION_RECORD_PATH = Path(".opencode/meta/repair-execution.json")
 
 
+def _repair_ticket_graph_contradictions(repo_root: Path) -> list[str]:
+    """Auto-fix WFLOW019: remove deterministic contradictions from the ticket graph.
+
+    Safe repairs only — no intent changes:
+    1. Remove a ticket's own source_ticket_id from its depends_on list (ordering is already
+       encoded by source_ticket_id; having both is always a contradiction).
+    2. Remove a self-referencing source_ticket_id (ticket cannot be its own source).
+    3. Ensure source_ticket.follow_up_ticket_ids contains the follow-up ticket id when the
+       follow-up names it as source_ticket_id (bidirectional sync).
+    """
+    manifest_path = repo_root / "tickets" / "manifest.json"
+    if not manifest_path.exists():
+        return []
+    try:
+        manifest: dict[str, Any] = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except Exception:
+        return []
+    tickets = manifest.get("tickets") if isinstance(manifest, dict) else None
+    if not isinstance(tickets, list):
+        return []
+
+    tickets_by_id: dict[str, dict[str, Any]] = {}
+    for t in tickets:
+        if isinstance(t, dict) and isinstance(t.get("id"), str):
+            tickets_by_id[t["id"]] = t
+
+    changes: list[str] = []
+    for ticket in tickets:
+        if not isinstance(ticket, dict):
+            continue
+        tid = ticket.get("id")
+        source_id = ticket.get("source_ticket_id")
+        if not isinstance(source_id, str) or not source_id:
+            continue
+
+        # Fix 1: self-referencing source_ticket_id
+        if source_id == tid:
+            del ticket["source_ticket_id"]
+            changes.append(f"{tid}: removed self-referencing source_ticket_id")
+            continue
+
+        # Fix 2: source_ticket_id duplicated in depends_on
+        depends_on = ticket.get("depends_on")
+        if isinstance(depends_on, list) and source_id in depends_on:
+            ticket["depends_on"] = [d for d in depends_on if d != source_id]
+            changes.append(
+                f"{tid}: removed {source_id} from depends_on (source_ticket_id already encodes ordering)"
+            )
+
+        # Fix 3: source ticket missing this ticket in follow_up_ticket_ids
+        source_ticket = tickets_by_id.get(source_id)
+        if source_ticket is not None:
+            follow_ups = source_ticket.get("follow_up_ticket_ids")
+            if isinstance(follow_ups, list) and tid not in follow_ups:
+                source_ticket["follow_up_ticket_ids"] = follow_ups + [tid]
+                changes.append(f"{source_id}: added {tid} to follow_up_ticket_ids")
+
+    if changes:
+        manifest_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+    return changes
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Run Scafforge managed repair and emit a fail-closed execution record.")
     parser.add_argument("repo_root", help="Repository root to repair.")
@@ -283,6 +345,14 @@ def main() -> int:
             reason=args.change_summary,
             source="scafforge-repair",
         )
+
+    # Auto-fix deterministic ticket graph contradictions (WFLOW019) before the
+    # verification audit runs.  This is a safe data-only repair: it removes the
+    # source_ticket_id from depends_on when both point at the same parent
+    # (ordering is already encoded by source_ticket_id), removes self-referencing
+    # source_ticket_id fields, and syncs follow_up_ticket_ids bidirectionally.
+    # These are always correct repairs — no intent is changed.
+    _repair_ticket_graph_contradictions(repo_root)
 
     repair_basis = resolve_repair_basis(repo_root, args.repair_basis_diagnosis)
     repair_basis_path = repair_basis[0] if repair_basis else None
