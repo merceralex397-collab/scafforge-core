@@ -21,6 +21,12 @@ Scafforge should be treated as a skill bundle, not as a CLI product.
 3. The agent reads the inputs, asks one batched round of blocking decisions when needed, and routes through the correct skill path.
 4. Output: a complete project repo or an evidence-backed diagnosis and repair path.
 
+## Live testing sandbox
+
+The `livetesting` folder is reserved for in-repo experimentation where Scafforge is used to scaffold and iterate prototypes from inside this repo. Use the integrated IDE terminal plus `opencode` to run the full greenfield chain and inspect generated beams in `.opencode`, `tickets`, and `START-HERE.md`.
+
+The current smoke project is `livetesting/glitch`, a simple Android 2D platformer concept for early stress tests.
+
 ## Default scaffold chain
 
 Greenfield generation is one kickoff run. The default chain is:

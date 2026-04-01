@@ -4,6 +4,8 @@ This file governs work **inside the Scafforge package repository itself**.
 
 Scafforge is not the generated project. It is the generator, template source, orchestration pack, and process contract used by a host agent to build a generated project.
 
+This repository includes a `livetesting` folder for in-place experimentation: run Scafforge greenfield pipeline steps directly in the workspace using the IDE terminal and local opencode surfaces. The first such test project is `glitch` (a simple 2D Android platformer concept), intended for stress-testing Scafforge workflow health and output validity.
+
 ## Mission
 
 Maintain a host-agnostic scaffold package that can turn raw project inputs into a deterministic, signposted, OpenCode-oriented repo operating framework.
