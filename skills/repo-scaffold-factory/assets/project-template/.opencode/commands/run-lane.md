@@ -1,7 +1,7 @@
 ---
 description: Run one bounded write-capable lane through the lease-based workflow
 agent: __AGENT_PREFIX__-team-leader
-model: __PLANNER_MODEL__
+model: __FULL_PLANNER_MODEL__
 ---
 
 Choose one ready ticket lane, claim the required coordinator-owned lease, delegate bounded implementation under that lease, then return control to the team leader for synthesis.

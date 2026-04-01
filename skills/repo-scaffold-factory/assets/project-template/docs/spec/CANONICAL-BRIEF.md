@@ -22,9 +22,9 @@ Replace this section with the normalized project brief.
 ## Tooling and Model Constraints
 
 - Provider: `__MODEL_PROVIDER__`
-- Planner/reviewer model: `__PLANNER_MODEL__`
-- Implementer model: `__IMPLEMENTER_MODEL__`
-- Utility/helper model: `__UTILITY_MODEL__`
+- Planner/reviewer model: `__FULL_PLANNER_MODEL__`
+- Implementer model: `__FULL_IMPLEMENTER_MODEL__`
+- Utility/helper model: `__FULL_UTILITY_MODEL__`
 
 ## Required Outputs
 

@@ -1,6 +1,6 @@
 ---
 description: Visible autonomous team leader for the project ticket lifecycle
-model: __PLANNER_MODEL__
+model: __FULL_PLANNER_MODEL__
 mode: primary
 temperature: 1.0
 top_p: 0.95

@@ -1,6 +1,6 @@
 ---
 description: Hidden shell-oriented inspector for safe read-only command discovery
-model: __UTILITY_MODEL__
+model: __FULL_UTILITY_MODEL__
 mode: subagent
 hidden: true
 temperature: 1.0

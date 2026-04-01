@@ -1,7 +1,7 @@
 ---
 description: Verify and refresh environment bootstrap readiness for the current repo
 agent: __AGENT_PREFIX__-team-leader
-model: __PLANNER_MODEL__
+model: __FULL_PLANNER_MODEL__
 ---
 
 Resolve the current workflow state, inspect bootstrap readiness, and route the environment bootstrap lane if runtime, dependency, or verification prerequisites are missing or stale.

@@ -342,6 +342,11 @@ def main() -> int:
         "__PLANNER_MODEL__": planner_model,
         "__IMPLEMENTER_MODEL__": implementer_model,
         "__UTILITY_MODEL__": utility_model,
+        # Combined provider/model tokens — used in agent and command frontmatter `model:` fields
+        # so that the rendered files contain the full `provider/model` format that OpenCode requires.
+        "__FULL_PLANNER_MODEL__": f"{args.model_provider}/{planner_model}",
+        "__FULL_IMPLEMENTER_MODEL__": f"{args.model_provider}/{implementer_model}",
+        "__FULL_UTILITY_MODEL__": f"{args.model_provider}/{utility_model}",
         "__MODEL_OPERATING_PROFILE_NAME__": model_profile["name"],
         "__MODEL_OPERATING_PROFILE_DESCRIPTION__": model_profile["description"],
         "__MODEL_OPERATING_PROFILE_RULES__": model_profile["rules"],

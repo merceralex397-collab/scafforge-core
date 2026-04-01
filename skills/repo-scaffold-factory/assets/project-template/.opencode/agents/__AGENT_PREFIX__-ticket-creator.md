@@ -1,6 +1,6 @@
 ---
 description: Hidden guarded ticket router for evidence-backed follow-up creation and lineage reconciliation
-model: __PLANNER_MODEL__
+model: __FULL_PLANNER_MODEL__
 mode: subagent
 hidden: true
 temperature: 1.0
