@@ -85,12 +85,12 @@ def derive_required_follow_on_stages(
     prompt_drift = detect_agent_prompt_drift(repo_root)
     finding_codes = {getattr(finding, "code", "") for finding in findings}
 
-    if placeholder_skills or "scaffold-managed .opencode/skills" in replaced_surfaces or any(code.startswith(("SKILL", "MODEL")) for code in finding_codes):
+    if placeholder_skills or any(code.startswith(("SKILL", "MODEL")) for code in finding_codes):
         required.append(
             {
                 **follow_on_stage_metadata("project-skill-bootstrap"),
                 "stage": "project-skill-bootstrap",
-                "reason": "Repo-local skills were replaced or still contain generic placeholder/model drift that must be regenerated with project-specific content.",
+                "reason": "Repo-local skills still contain generic placeholder/model drift that must be regenerated with project-specific content.",
             }
         )
     if prompt_drift or any(code.startswith("WFLOW") for code in finding_codes):

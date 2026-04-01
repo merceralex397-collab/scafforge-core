@@ -494,12 +494,17 @@ def render_start_here(
     pivot_pending = pivot_inputs.get("pivot_in_progress") is True
     active_ticket_needs_reconciliation = ticket_needs_historical_reconciliation(ticket)
     active_ticket_trust_needs_restoration = ticket_needs_trust_restoration(ticket, workflow)
+    # managed_blocked must take priority over trust-restoration short-circuits.
+    # Only return "workflow verification pending" for ticket-level trust issues when
+    # repair follow-on is NOT blocking; otherwise fall through to compute_handoff_status
+    # so the "repair follow-up required" state is correctly reflected.
+    _repair_follow_on_pending = has_pending_repair_follow_on(workflow, verification_passed)
     handoff_status = (
         "pivot follow-up required"
         if pivot_pending
         else
         "workflow verification pending"
-        if active_ticket_needs_reconciliation or active_ticket_trust_needs_restoration
+        if (active_ticket_needs_reconciliation or active_ticket_trust_needs_restoration) and not _repair_follow_on_pending
         else compute_handoff_status(workflow, verification_passed, pivot_inputs=pivot_inputs)
     )
     recommended_action = next_action or default_next_action(
