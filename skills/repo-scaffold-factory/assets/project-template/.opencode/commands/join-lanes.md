@@ -1,7 +1,7 @@
 ---
 description: Reconcile completed parallel lanes into one foreground workflow state
 agent: __AGENT_PREFIX__-team-leader
-model: __PLANNER_MODEL__
+model: __FULL_PLANNER_MODEL__
 ---
 
 Inspect completed lane artifacts, reviews, QA status, and lease state, then fold safe parallel outputs back into one foreground synthesis path.

@@ -1,7 +1,7 @@
 ---
 description: Start the autonomous planning cycle for the current repo state
 agent: __AGENT_PREFIX__-team-leader
-model: __PLANNER_MODEL__
+model: __FULL_PLANNER_MODEL__
 ---
 
 Read the canonical project docs in order, resolve the active ticket from `tickets/manifest.json`, verify bootstrap readiness, and begin the internal lifecycle.

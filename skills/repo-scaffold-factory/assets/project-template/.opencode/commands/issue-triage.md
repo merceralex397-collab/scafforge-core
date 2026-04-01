@@ -1,7 +1,7 @@
 ---
 description: Triage a defect discovered after prior ticket completion
 agent: __AGENT_PREFIX__-team-leader
-model: __PLANNER_MODEL__
+model: __FULL_PLANNER_MODEL__
 ---
 
 Collect the source ticket, evidence artifact, and defect classification, then route the issue through the canonical post-completion defect flow.

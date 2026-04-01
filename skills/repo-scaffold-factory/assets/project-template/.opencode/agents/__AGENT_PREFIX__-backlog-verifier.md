@@ -1,6 +1,6 @@
 ---
 description: Hidden verifier that re-checks completed tickets after a workflow or process upgrade
-model: __UTILITY_MODEL__
+model: __FULL_UTILITY_MODEL__
 mode: subagent
 hidden: true
 temperature: 1.0

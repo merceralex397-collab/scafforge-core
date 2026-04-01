@@ -1,6 +1,6 @@
 ---
 description: Hidden lease-bound executor for bounded parallel implementation lanes
-model: __IMPLEMENTER_MODEL__
+model: __FULL_IMPLEMENTER_MODEL__
 mode: subagent
 hidden: true
 temperature: 1.0
