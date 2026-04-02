@@ -88,7 +88,29 @@ export default tool({
     }
 
     if (targetStage === "implementation" && ticket.stage !== "plan_review") {
-      throw new Error(`Cannot move ${ticket.id} to implementation before it passes through plan_review.`)
+      if (ticket.stage !== "review" && ticket.stage !== "qa") {
+        throw new Error(
+          `Cannot move ${ticket.id} to implementation from ${ticket.stage}. Allowed source stages: plan_review (normal path), review or qa (on FAIL verdict only).`,
+        )
+      }
+      const backwardStage = ticket.stage as "review" | "qa"
+      if (!hasArtifact(ticket, { stage: backwardStage })) {
+        throw new Error(
+          `Cannot route ${ticket.id} back to implementation from ${backwardStage} — no ${backwardStage} artifact exists. Produce an artifact with a blocking verdict before routing backward.`,
+        )
+      }
+      const latestBackwardArtifact = latestArtifact(ticket, { stage: backwardStage, trust_state: "current" })
+      const backwardVerdict = extractArtifactVerdict(await readArtifactContent(latestBackwardArtifact))
+      if (backwardVerdict.verdict_unclear) {
+        throw new Error(
+          `Cannot route ${ticket.id} back to implementation from ${backwardStage} — artifact verdict is unclear. Inspect the artifact manually before routing backward.`,
+        )
+      }
+      if (!isBlockingArtifactVerdict(backwardVerdict.verdict)) {
+        throw new Error(
+          `Cannot route ${ticket.id} back to implementation from ${backwardStage} — latest artifact verdict is ${backwardVerdict.verdict}, not a blocking verdict. Only FAIL verdicts permit backward routing.`,
+        )
+      }
     }
 
     if (targetStage === "review") {

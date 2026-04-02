@@ -722,7 +722,10 @@ def audit_node_execution(root: Path, findings: list[Finding], ctx: ExecutionSurf
 
 def audit_rust_execution(root: Path, findings: list[Finding], ctx: ExecutionSurfaceAuditContext) -> None:
     cargo_toml = root / "Cargo.toml"
-    if not cargo_toml.exists() or not _command_available("cargo"):
+    if not cargo_toml.exists():
+        return
+    if not _command_available("cargo"):
+        _add_execution_finding(findings, ctx, code="AUDIT-SKIP-RUST", severity="warning", problem="Rust toolchain absent — execution audit skipped.", root_cause="Cargo.toml exists but cargo is not available on this host, so execution checks that require the Rust toolchain were not run. Zero findings here does not mean the code compiles.", files=[cargo_toml], safer_pattern="Ensure cargo is installed and on PATH before relying on a clean audit result for Rust repos.", evidence=["cargo not found on system PATH"], root=root)
         return
     rc, output = ctx.run_command(["cargo", "check"], root, 120)
     if rc != 0:
@@ -734,7 +737,10 @@ def audit_rust_execution(root: Path, findings: list[Finding], ctx: ExecutionSurf
 
 def audit_go_execution(root: Path, findings: list[Finding], ctx: ExecutionSurfaceAuditContext) -> None:
     go_mod = root / "go.mod"
-    if not go_mod.exists() or not _command_available("go"):
+    if not go_mod.exists():
+        return
+    if not _command_available("go"):
+        _add_execution_finding(findings, ctx, code="AUDIT-SKIP-GO", severity="warning", problem="Go toolchain absent — execution audit skipped.", root_cause="go.mod exists but go is not available on this host, so execution checks that require the Go toolchain were not run. Zero findings here does not mean the code compiles.", files=[go_mod], safer_pattern="Ensure go is installed and on PATH before relying on a clean audit result for Go repos.", evidence=["go not found on system PATH"], root=root)
         return
     for code, argv, problem, cause, pattern in (
         ("EXEC-GO-001", ["go", "vet", "./..."], "go vet reports issues.", "Static analysis already identifies broken or suspicious Go code paths.", "Require go vet ./... to pass before Go tickets can close."),
@@ -806,6 +812,8 @@ def audit_java_android_execution(root: Path, findings: list[Finding], ctx: Execu
             rc, output = ctx.run_command(["javac", str(sample)], root, 60)
             if rc != 0:
                 _add_execution_finding(findings, ctx, code="EXEC-JAVA-002", severity="error", problem="Sample Java source file fails to compile.", root_cause="The repo contains Java sources that do not compile even in a simple single-file check.", files=[sample], safer_pattern="Compile a representative Java source during audit when no build tool exists, and fail closeout on compile errors.", evidence=_collect_first_error_lines(output), root=root)
+    else:
+        _add_execution_finding(findings, ctx, code="AUDIT-SKIP-JAVA", severity="warning", problem="Java build toolchain absent — execution audit skipped.", root_cause="Java/Android project indicators exist but none of gradlew, mvn, or javac are available on this host, so execution checks were not run. Zero findings here does not mean the code builds.", files=indicators[:1], safer_pattern="Ensure at least one Java build tool (gradlew, mvn, or javac) is available before relying on a clean audit result for Java repos.", evidence=["gradlew: not found", "mvn: not found on PATH", "javac: not found on PATH"], root=root)
 
     combined_text = "\n".join(ctx.read_text(path) for path in indicators)
     if "com.android" in combined_text or (root / "AndroidManifest.xml").exists():
@@ -824,15 +832,22 @@ def audit_cpp_execution(root: Path, findings: list[Finding], ctx: ExecutionSurfa
             rc, output = ctx.run_command(["cmake", "-S", ".", "-B", temp_dir], root, 120)
         if rc != 0:
             _add_execution_finding(findings, ctx, code="EXEC-CPP-001", severity="error", problem="CMake configuration fails.", root_cause="The CMake project cannot even configure a build tree, so the current native build contract is already broken.", files=[cmake_lists], safer_pattern="Run cmake -S . -B <temp-build-dir> during audit and fail native closeout when configuration errors persist.", evidence=_collect_first_error_lines(output), root=root)
+    elif cmake_lists.exists():
+        _add_execution_finding(findings, ctx, code="AUDIT-SKIP-CPP-CMAKE", severity="warning", problem="CMake toolchain absent — CMake execution audit skipped.", root_cause="CMakeLists.txt exists but cmake is not available on this host, so CMake configuration checks were not run. Zero findings here does not mean the project configures cleanly.", files=[cmake_lists], safer_pattern="Ensure cmake is installed and on PATH before relying on a clean audit result for CMake repos.", evidence=["cmake not found on system PATH"], root=root)
     if makefile.exists() and _command_available("make"):
         rc, output = ctx.run_command(["make", "-n"], root, 60)
         if rc != 0:
             _add_execution_finding(findings, ctx, code="EXEC-CPP-002", severity="error", problem="Make dry-run fails.", root_cause="The Make-based native build surface cannot even resolve its dry-run command graph without errors.", files=[makefile], safer_pattern="Require make -n to succeed during audit before treating Make-based repos as buildable.", evidence=_collect_first_error_lines(output), root=root)
+    elif makefile.exists():
+        _add_execution_finding(findings, ctx, code="AUDIT-SKIP-CPP-MAKE", severity="warning", problem="Make toolchain absent — Make execution audit skipped.", root_cause="Makefile exists but make is not available on this host, so Makefile dry-run checks were not run. Zero findings here does not mean the build resolves cleanly.", files=[makefile], safer_pattern="Ensure make is installed and on PATH before relying on a clean audit result for Make-based repos.", evidence=["make not found on system PATH"], root=root)
 
 
 def audit_dotnet_execution(root: Path, findings: list[Finding], ctx: ExecutionSurfaceAuditContext) -> None:
     indicators = list(root.glob("*.csproj")) + list(root.glob("*.fsproj")) + list(root.glob("*.sln"))
-    if not indicators or not _command_available("dotnet"):
+    if not indicators:
+        return
+    if not _command_available("dotnet"):
+        _add_execution_finding(findings, ctx, code="AUDIT-SKIP-DOTNET", severity="warning", problem=".NET toolchain absent — execution audit skipped.", root_cause=".NET project indicators exist but dotnet is not available on this host, so execution checks that require the .NET SDK were not run. Zero findings here does not mean the code builds.", files=indicators[:1], safer_pattern="Ensure the .NET SDK is installed and dotnet is on PATH before relying on a clean audit result for .NET repos.", evidence=["dotnet not found on system PATH"], root=root)
         return
     rc, output = ctx.run_command(["dotnet", "build", "--no-restore"], root, 180)
     if rc != 0:

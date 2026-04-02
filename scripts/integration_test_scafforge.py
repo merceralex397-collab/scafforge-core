@@ -26,6 +26,7 @@ from test_support.scafforge_harness import (
     VERIFY_GENERATED,
     run,
     run_generated_tool,
+    run_generated_tool_error,
     run_json,
 )
 
@@ -924,6 +925,151 @@ def multi_stack_proof_integration(workspace: Path) -> None:
                 )
 
 
+def _register_ticket_artifact(
+    dest: Path,
+    *,
+    ticket_id: str,
+    kind: str,
+    stage: str,
+    relative_path: str,
+    summary: str,
+    content: str,
+) -> None:
+    manifest_path = dest / "tickets" / "manifest.json"
+    registry_path = dest / ".opencode" / "state" / "artifacts" / "registry.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    registry = json.loads(registry_path.read_text(encoding="utf-8"))
+    artifact_path = dest / relative_path
+    artifact_path.parent.mkdir(parents=True, exist_ok=True)
+    artifact_path.write_text(content, encoding="utf-8")
+    artifact = {
+        "kind": kind,
+        "path": relative_path,
+        "stage": stage,
+        "summary": summary,
+        "created_at": "2026-04-02T00:00:00Z",
+        "trust_state": "current",
+    }
+    ticket = next(item for item in manifest["tickets"] if item["id"] == ticket_id)
+    ticket.setdefault("artifacts", []).append(artifact)
+    registry.setdefault("artifacts", []).append({"ticket_id": ticket_id, **artifact})
+    manifest_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+    registry_path.write_text(json.dumps(registry, indent=2) + "\n", encoding="utf-8")
+
+
+def _stage_ticket_and_approve_plan(dest: Path, ticket_id: str, stage: str) -> None:
+    manifest_path = dest / "tickets" / "manifest.json"
+    workflow_path = dest / ".opencode" / "state" / "workflow-state.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    workflow = json.loads(workflow_path.read_text(encoding="utf-8"))
+    ticket = next(item for item in manifest["tickets"] if item["id"] == ticket_id)
+    ticket["stage"] = stage
+    ticket["status"] = stage
+    workflow.setdefault("ticket_state", {}).setdefault(ticket_id, {})["approved_plan"] = True
+    manifest_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+    workflow_path.write_text(json.dumps(workflow, indent=2) + "\n", encoding="utf-8")
+
+
+def backward_transition_integration(workspace: Path) -> None:
+    base = workspace / "backward-transition-base"
+    bootstrap_full(base)
+    manifest = json.loads((base / "tickets" / "manifest.json").read_text(encoding="utf-8"))
+    ticket_id = manifest["tickets"][0]["id"]
+    slug = ticket_id.lower().replace("-", "")
+
+    # --- review FAIL -> implementation: must be ALLOWED ---
+    review_fail_dest = workspace / "backward-review-fail"
+    shutil.copytree(base, review_fail_dest)
+    _stage_ticket_and_approve_plan(review_fail_dest, ticket_id, "review")
+    _register_ticket_artifact(
+        review_fail_dest,
+        ticket_id=ticket_id,
+        kind="review",
+        stage="review",
+        relative_path=f".opencode/state/reviews/{slug}-review.md",
+        summary="FAIL review for backward routing coverage.",
+        content="# Review\n\nVerdict: FAIL\n\nBlocker: implementation defect must be fixed before re-review.\n",
+    )
+    review_fail_result = run_generated_tool(
+        review_fail_dest,
+        ".opencode/tools/ticket_update.ts",
+        {"ticket_id": ticket_id, "stage": "implementation"},
+    )
+    if review_fail_result["updated_ticket"]["stage"] != "implementation":
+        raise RuntimeError(
+            "ticket_update should allow backward routing from review to implementation when latest verdict is FAIL"
+        )
+
+    # --- review PASS -> implementation: must be BLOCKED ---
+    review_pass_dest = workspace / "backward-review-pass"
+    shutil.copytree(base, review_pass_dest)
+    _stage_ticket_and_approve_plan(review_pass_dest, ticket_id, "review")
+    _register_ticket_artifact(
+        review_pass_dest,
+        ticket_id=ticket_id,
+        kind="review",
+        stage="review",
+        relative_path=f".opencode/state/reviews/{slug}-review.md",
+        summary="PASS review — backward routing should be blocked.",
+        content="# Review\n\nVerdict: PASS\n\nAll review criteria satisfied.\n",
+    )
+    review_pass_error = run_generated_tool_error(
+        review_pass_dest,
+        ".opencode/tools/ticket_update.ts",
+        {"ticket_id": ticket_id, "stage": "implementation"},
+    )
+    if "not a blocking verdict" not in review_pass_error:
+        raise RuntimeError(
+            "ticket_update should block backward routing from review to implementation when verdict is PASS"
+        )
+
+    # --- qa BLOCKED -> implementation: must be ALLOWED ---
+    qa_fail_dest = workspace / "backward-qa-fail"
+    shutil.copytree(base, qa_fail_dest)
+    _stage_ticket_and_approve_plan(qa_fail_dest, ticket_id, "qa")
+    _register_ticket_artifact(
+        qa_fail_dest,
+        ticket_id=ticket_id,
+        kind="qa",
+        stage="qa",
+        relative_path=f".opencode/state/qa/{slug}-qa.md",
+        summary="BLOCKED QA verdict for backward routing coverage.",
+        content="# QA\n\nResult: BLOCKED\n\nCommand: pytest tests/\n\n~~~~text\nAssertionError: test failure\n~~~~\n\nBlocker must be fixed before smoke-test.\n",
+    )
+    qa_fail_result = run_generated_tool(
+        qa_fail_dest,
+        ".opencode/tools/ticket_update.ts",
+        {"ticket_id": ticket_id, "stage": "implementation"},
+    )
+    if qa_fail_result["updated_ticket"]["stage"] != "implementation":
+        raise RuntimeError(
+            "ticket_update should allow backward routing from qa to implementation when verdict is BLOCKED"
+        )
+
+    # --- qa PASS -> implementation: must be BLOCKED ---
+    qa_pass_dest = workspace / "backward-qa-pass"
+    shutil.copytree(base, qa_pass_dest)
+    _stage_ticket_and_approve_plan(qa_pass_dest, ticket_id, "qa")
+    _register_ticket_artifact(
+        qa_pass_dest,
+        ticket_id=ticket_id,
+        kind="qa",
+        stage="qa",
+        relative_path=f".opencode/state/qa/{slug}-qa.md",
+        summary="PASS QA verdict — backward routing should be blocked.",
+        content="# QA\n\nResult: PASS\n\nAll QA criteria satisfied.\n",
+    )
+    qa_pass_error = run_generated_tool_error(
+        qa_pass_dest,
+        ".opencode/tools/ticket_update.ts",
+        {"ticket_id": ticket_id, "stage": "implementation"},
+    )
+    if "not a blocking verdict" not in qa_pass_error:
+        raise RuntimeError(
+            "ticket_update should block backward routing from qa to implementation when verdict is PASS"
+        )
+
+
 def main() -> int:
     args = parse_args()
     fixtures = ensure_fixture_index()
@@ -936,6 +1082,7 @@ def main() -> int:
         repair_integration(workspace)
         pivot_integration(workspace)
         multi_stack_proof_integration(workspace)
+        backward_transition_integration(workspace)
         fixture_builder_integration(fixtures, workspace)
     print("Scafforge integration test passed.")
     return 0
