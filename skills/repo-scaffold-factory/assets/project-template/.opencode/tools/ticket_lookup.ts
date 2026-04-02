@@ -6,6 +6,7 @@ import {
   defaultArtifactPath,
   dependentContinuationAction,
   describeAllowedStatusesForStage,
+  extractArtifactVerdict,
   getTicket,
   getTicketWorkflowState,
   getProcessVerificationState,
@@ -14,6 +15,7 @@ import {
   hasReviewArtifact,
   historicalArtifacts,
   isPlanApprovedForTicket,
+  isBlockingArtifactVerdict,
   latestArtifact,
   latestReviewArtifact,
   loadManifest,
@@ -21,6 +23,7 @@ import {
   nextRepairFollowOnStage,
   openSplitScopeChildren,
   repairFollowOnBlockingReason,
+  readArtifactContent,
   ticketNeedsHistoricalReconciliation,
   ticketNeedsTrustRestoration,
   ticketNeedsProcessVerification,
@@ -60,6 +63,11 @@ async function buildTransitionGuidance(ticket: ReturnType<typeof getTicket>, wor
     artifact_kind: null as string | null,
     recommended_action: "",
     recommended_ticket_update: null as Record<string, unknown> | null,
+    recovery_action: null as string | null,
+    warnings: [] as string[],
+    review_verdict: null as string | null,
+    qa_verdict: null as string | null,
+    verdict_unclear: false,
   }
 
   if (bootstrapStatus !== "ready") {
@@ -235,6 +243,43 @@ async function buildTransitionGuidance(ticket: ReturnType<typeof getTicket>, wor
           current_state_blocker: "Review artifact missing.",
         }
       }
+      {
+        const reviewArtifact = latestReviewArtifact(ticket)
+        const reviewVerdictInfo = extractArtifactVerdict(await readArtifactContent(reviewArtifact))
+        if (reviewVerdictInfo.verdict_unclear) {
+          return {
+            ...base,
+            next_allowed_stages: ["review"],
+            required_artifacts: ["review"],
+            next_action_kind: "inspect",
+            next_action_tool: null,
+            delegate_to_agent: null,
+            required_owner: "team-leader",
+            recommended_action: "Review artifact exists but verdict could not be extracted. Inspect the artifact manually before advancing.",
+            warnings: ["Review artifact exists but verdict could not be extracted. Inspect the artifact manually before advancing."],
+            review_verdict: null,
+            verdict_unclear: true,
+            current_state_blocker: "Review verdict is unclear.",
+          }
+        }
+        if (isBlockingArtifactVerdict(reviewVerdictInfo.verdict)) {
+          return {
+            ...base,
+            next_allowed_stages: ["implementation"],
+            required_artifacts: ["review"],
+            next_action_kind: "ticket_update",
+            next_action_tool: "ticket_update",
+            delegate_to_agent: "implementer",
+            required_owner: "team-leader",
+            recommended_action: "Review found blockers. Route back to implementation to address the review findings before advancing.",
+            recommended_ticket_update: { ticket_id: ticket.id, stage: "implementation", activate: true },
+            recovery_action: "Review FAIL: route back to implementation, fix the documented review findings, then return through review before QA.",
+            review_verdict: reviewVerdictInfo.verdict,
+            current_state_blocker: `Latest review verdict is ${reviewVerdictInfo.verdict}.`,
+          }
+        }
+      }
+      const reviewVerdict = extractArtifactVerdict(await readArtifactContent(latestReviewArtifact(ticket))).verdict
       return {
         ...base,
         next_allowed_stages: ["qa"],
@@ -245,6 +290,7 @@ async function buildTransitionGuidance(ticket: ReturnType<typeof getTicket>, wor
         required_owner: "team-leader",
         recommended_action: "Move the ticket into QA after review approval is registered.",
         recommended_ticket_update: { ticket_id: ticket.id, stage: "qa", activate: true },
+        review_verdict: reviewVerdict,
       }
     case "qa": {
       const qaBlocker = await validateQaArtifactEvidence(ticket)
@@ -264,6 +310,40 @@ async function buildTransitionGuidance(ticket: ReturnType<typeof getTicket>, wor
           current_state_blocker: qaBlocker,
         }
       }
+      const latestQaArtifact = latestArtifact(ticket, { stage: "qa", trust_state: "current" }) || currentArtifacts(ticket, { stage: "qa" }).at(-1)
+      const qaVerdictInfo = extractArtifactVerdict(await readArtifactContent(latestQaArtifact))
+      if (qaVerdictInfo.verdict_unclear) {
+        return {
+          ...base,
+          next_allowed_stages: ["qa"],
+          required_artifacts: ["qa"],
+          next_action_kind: "inspect",
+          next_action_tool: null,
+          delegate_to_agent: null,
+          required_owner: "team-leader",
+          recommended_action: "QA artifact exists but verdict could not be extracted. Inspect the artifact manually before advancing.",
+          warnings: ["QA artifact exists but verdict could not be extracted. Inspect the artifact manually before advancing."],
+          qa_verdict: null,
+          verdict_unclear: true,
+          current_state_blocker: "QA verdict is unclear.",
+        }
+      }
+      if (isBlockingArtifactVerdict(qaVerdictInfo.verdict)) {
+        return {
+          ...base,
+          next_allowed_stages: ["implementation"],
+          required_artifacts: ["qa"],
+          next_action_kind: "ticket_update",
+          next_action_tool: "ticket_update",
+          delegate_to_agent: "implementer",
+          required_owner: "team-leader",
+          recommended_action: "QA found issues. Route back to implementation to fix the QA findings.",
+          recommended_ticket_update: { ticket_id: ticket.id, stage: "implementation", activate: true },
+          recovery_action: "QA FAIL: route back to implementation, fix the QA findings, then return through review and QA before smoke-test.",
+          qa_verdict: qaVerdictInfo.verdict,
+          current_state_blocker: `Latest QA verdict is ${qaVerdictInfo.verdict}.`,
+        }
+      }
       return {
         ...base,
         next_allowed_stages: ["smoke-test"],
@@ -274,6 +354,7 @@ async function buildTransitionGuidance(ticket: ReturnType<typeof getTicket>, wor
         required_owner: "team-leader",
         recommended_action: "Advance to smoke-test, return control to the team leader, then use the smoke_test tool. Do not delegate smoke_test to tester-qa or write smoke-test artifacts through artifact_write or artifact_register.",
         recommended_ticket_update: { ticket_id: ticket.id, stage: "smoke-test", activate: true },
+        qa_verdict: qaVerdictInfo.verdict,
       }
     }
     case "smoke-test": {
@@ -386,22 +467,14 @@ export default tool({
     const manifest = await loadManifest()
     const workflow = await loadWorkflowState()
     const ticket = getTicket(manifest, args.ticket_id)
-    const resolvedWorkflow = args.ticket_id
-      ? {
-          ...workflow,
-          active_ticket: ticket.id,
-          stage: ticket.stage,
-          status: ticket.status,
-          approved_plan: isPlanApprovedForTicket(workflow, ticket.id),
-        }
-      : workflow
     const latestPlan = latestArtifact(ticket, { stage: "planning" }) || null
     const latestImplementation = latestArtifact(ticket, { stage: "implementation" }) || null
     const latestReview = latestReviewArtifact(ticket) || null
     const latestBacklogVerification = latestArtifact(ticket, { stage: "review", kind: "backlog-verification" }) || null
     const latestQa = latestArtifact(ticket, { stage: "qa" }) || null
     const latestSmokeTest = latestArtifact(ticket, { stage: "smoke-test" }) || null
-    const transitionGuidance = await buildTransitionGuidance(ticket, resolvedWorkflow)
+    const transitionGuidance = await buildTransitionGuidance(ticket, workflow)
+    const isActive = ticket.id === manifest.active_ticket
 
     const artifactSummary = {
       current_valid_artifacts: currentArtifacts(ticket),
@@ -453,8 +526,10 @@ export default tool({
       {
         project: manifest.project,
         active_ticket: manifest.active_ticket,
-        workflow: resolvedWorkflow,
-        ticket,
+        workflow,
+        is_active: isActive,
+        ticket: { ...ticket, is_active: isActive },
+        requested_ticket: args.ticket_id ? { ...ticket, is_active: isActive } : null,
         artifact_summary: artifactSummary,
         trust: {
           resolution_state: ticket.resolution_state,

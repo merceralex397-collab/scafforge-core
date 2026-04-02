@@ -78,6 +78,8 @@ ARTIFACT_PATH_DRIFT_PATTERNS = (
 DEPRECATED_WORKFLOW_TERMS = ("ready_for_planning", "code_review", "security_review")
 PLACEHOLDER_SKILL_PATTERNS = (
     r"Replace this file with stack-specific rules once the real project stack is known\.",
+    r"When the repo stack is finalized, rewrite this catalog so review and QA agents get the exact build, lint, reference-integrity, and test commands that belong to this project\.",
+    r"When the project stack is confirmed, replace this file's Universal Standards section with stack-specific rules using the `project-skill-bootstrap` skill\.",
     r"__STACK_LABEL__",
 )
 HANDOFF_OVERCLAIM_PATTERNS = (

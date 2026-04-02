@@ -40,6 +40,7 @@ OPENCODE_SCOPE_FILES = {
 PROCESS_CONTRACT_VERSION = 7
 TICKET_CONTRACT_VERSION = 3
 DEFAULT_PARALLEL_MODE = "sequential"
+PLACEHOLDER_PATTERN = re.compile(r"__[A-Z0-9_]+__")
 
 
 def slugify(value: str) -> str:
@@ -60,49 +61,79 @@ def render_relative_path(path: Path, replacements: dict[str, str]) -> Path:
     return Path(*rendered_parts)
 
 
-def build_model_operating_profile(
-    *,
-    model_provider: str,
-    planner_model: str,
-    implementer_model: str,
-    utility_model: str,
-) -> dict[str, str]:
-    combined = " ".join((model_provider, planner_model, implementer_model, utility_model)).lower()
-    if "minimax" in combined:
-        return {
-            "name": "Specific-instruction evidence-first profile",
+def build_model_operating_profile(*, model_tier: str) -> dict[str, str]:
+    profiles = {
+        "weak": {
+            "name": "Weak-tier evidence-first profile",
             "description": (
-                "Apply explicit, example-shaped, bounded instructions for the selected downstream "
-                "models. Prefer direct evidence and concrete task framing over broad summaries."
+                "Use the most explicit prompt density. Include full stop conditions, concrete examples, "
+                "truth-source reminders, and named blocker paths so weaker models have one legal next move."
             ),
+            "prompt_density": "full checklists, explicit examples, and repeated truth-source reminders",
             "rules": "\n".join(
                 (
-                    "- prefer clear and specific instructions",
-                    "- state the purpose or why when it reduces ambiguity",
-                    "- use example-shaped outputs when they make the expected shape concrete",
-                    "- focus on one bounded goal at a time instead of broad parallel asks",
-                    "- prefer direct evidence, command output, and cited repo surfaces over summaries",
+                    "- include explicit stop conditions and escalation triggers in every coordinating prompt",
+                    "- spell out verification checklists instead of implying them",
+                    "- name the canonical truth surfaces before acting on mutable or derived views",
+                    "- use example-shaped outputs when they remove ambiguity",
+                    "- keep each ask focused on one bounded goal at a time",
                     "- stop on blockers instead of guessing or silently filling gaps",
                 )
             ),
-        }
-    return {
-        "name": "Evidence-first bounded-execution profile",
-        "description": (
-            "Apply explicit, scoped instructions for the selected downstream models. Keep tasks "
-            "bounded, tie asks to canonical repo surfaces, and prefer evidence over narrative recap."
-        ),
-        "rules": "\n".join(
-            (
-                "- keep instructions explicit, scoped, and selection-specific",
-                "- point back to canonical repo surfaces before acting on assumptions",
-                "- use short example-shaped outputs when they remove ambiguity",
-                "- keep each task focused on one bounded goal unless the brief proves safe separation",
-                "- prefer concrete evidence and command output over narrative summaries",
-                "- stop and surface blockers instead of guessing",
-            )
-        ),
+        },
+        "standard": {
+            "name": "Standard-tier evidence-first profile",
+            "description": (
+                "Keep prompts explicit and bounded, but use lighter repetition. Preserve stop conditions and "
+                "verification checklists while relying more on linked canonical docs than inline examples."
+            ),
+            "prompt_density": "explicit checklists with selective examples and linked truth sources",
+            "rules": "\n".join(
+                (
+                    "- keep stop conditions and verification checklists explicit",
+                    "- reference canonical truth surfaces directly when they already contain the durable procedure",
+                    "- use examples only where the workflow would otherwise stay ambiguous",
+                    "- keep tasks bounded and evidence-first",
+                    "- surface blockers clearly instead of improvising around them",
+                )
+            ),
+        },
+        "strong": {
+            "name": "Strong-tier evidence-first profile",
+            "description": (
+                "Use concise prompts that still preserve hard safety boundaries. Keep stop conditions explicit, "
+                "link back to local checklists, and avoid unnecessary example density when the model can infer format reliably."
+            ),
+            "prompt_density": "concise prompts with linked checklists and minimal examples",
+            "rules": "\n".join(
+                (
+                    "- keep stop conditions, ownership boundaries, and blocker returns explicit",
+                    "- reference local checklist and truth-source docs instead of repeating them in full",
+                    "- use examples only when a repo-specific shape has proven fragile",
+                    "- preserve bounded asks and evidence-first completion requirements",
+                    "- never trade away verification or escalation rules for brevity",
+                )
+            ),
+        },
     }
+    return profiles[model_tier]
+
+
+def validate_replacement_values(replacements: dict[str, str]) -> None:
+    for placeholder, value in replacements.items():
+        if PLACEHOLDER_PATTERN.search(value):
+            raise SystemExit(
+                f"Replacement for {placeholder} contains placeholder-shaped text ({value!r}). "
+                "Choose values without double-underscore placeholder markers."
+            )
+
+
+def ensure_idempotent_target(dest_root: Path) -> None:
+    if (dest_root / ".opencode").exists():
+        raise SystemExit(
+            f"Refusing to scaffold into {dest_root}: an existing .opencode/ layer was found. "
+            "Use the retrofit or repair flow instead of double-scaffolding an existing repo."
+        )
 
 
 def should_copy(root_name: str, scope: str) -> bool:
@@ -155,9 +186,14 @@ def managed_repo_root() -> Path:
     return Path(__file__).resolve().parents[3]
 
 
-def template_commit() -> str:
+def template_commit() -> dict[str, str | bool | None]:
     if os.environ.get("SCAFFORGE_FORCE_MISSING_PROVENANCE") == "1":
-        return "missing_provenance"
+        return {
+            "success": False,
+            "commit": None,
+            "reason": "missing_provenance",
+            "detail": "SCAFFORGE_FORCE_MISSING_PROVENANCE requested missing provenance for this run.",
+        }
     result = subprocess.run(
         ["git", "rev-parse", "HEAD"],
         cwd=managed_repo_root(),
@@ -168,8 +204,26 @@ def template_commit() -> str:
         errors="replace",
     )
     if result.returncode != 0:
-        return "missing_provenance"
-    return result.stdout.strip() or "missing_provenance"
+        return {
+            "success": False,
+            "commit": None,
+            "reason": "git_failure",
+            "detail": result.stderr.strip() or result.stdout.strip() or "git rev-parse HEAD failed",
+        }
+    commit = result.stdout.strip()
+    if not commit:
+        return {
+            "success": False,
+            "commit": None,
+            "reason": "empty_git_output",
+            "detail": "git rev-parse HEAD returned no commit hash",
+        }
+    return {
+        "success": True,
+        "commit": commit,
+        "reason": None,
+        "detail": None,
+    }
 
 
 def write_bootstrap_provenance(
@@ -179,11 +233,13 @@ def write_bootstrap_provenance(
     project_slug: str,
     agent_prefix: str,
     scope: str,
+    model_tier: str,
     model_provider: str,
     planner_model: str,
     implementer_model: str,
     utility_model: str,
 ) -> None:
+    template_commit_result = template_commit()
     steps = (
         ["repo-scaffold-factory/render-full-scaffold"]
         if scope == "full"
@@ -191,13 +247,15 @@ def write_bootstrap_provenance(
     )
     payload = {
         "managed_repo": str(managed_repo_root()),
-        "template_commit": template_commit(),
+        "template_commit": template_commit_result.get("commit") or "missing_provenance",
+        "template_commit_result": template_commit_result,
         "template_asset_root": "skills/repo-scaffold-factory/assets/project-template",
         "project_name": project_name,
         "project_slug": project_slug,
         "agent_prefix": agent_prefix,
         "generation_scope": scope,
         "runtime_models": {
+            "tier": model_tier,
             "provider": model_provider,
             "planner": planner_model,
             "implementer": implementer_model,
@@ -284,6 +342,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--project-slug", help="Slug used in filenames and defaults")
     parser.add_argument("--agent-prefix", help="OpenCode agent prefix")
     parser.add_argument(
+        "--model-tier",
+        choices=("strong", "standard", "weak"),
+        default="weak",
+        help="Prompt-density tier for generated agent guidance; defaults to the weaker-model-first profile.",
+    )
+    parser.add_argument(
         "--model-provider",
         required=True,
         help="Explicit provider label chosen for this scaffold run",
@@ -322,22 +386,21 @@ def main() -> int:
     dest_root = Path(args.dest).expanduser().resolve()
     template_root = Path(__file__).resolve().parent.parent / "assets" / "project-template"
 
+    if not args.force:
+        ensure_idempotent_target(dest_root)
+
     slug = args.project_slug or slugify(args.project_name)
     agent_prefix = args.agent_prefix or slug
     planner_model = args.planner_model
     implementer_model = args.implementer_model
     utility_model = args.utility_model or planner_model
-    model_profile = build_model_operating_profile(
-        model_provider=args.model_provider,
-        planner_model=planner_model,
-        implementer_model=implementer_model,
-        utility_model=utility_model,
-    )
+    model_profile = build_model_operating_profile(model_tier=args.model_tier)
 
     replacements = {
         "__PROJECT_NAME__": args.project_name,
         "__PROJECT_SLUG__": slug,
         "__AGENT_PREFIX__": agent_prefix,
+        "__MODEL_TIER__": args.model_tier,
         "__MODEL_PROVIDER__": args.model_provider,
         "__PLANNER_MODEL__": planner_model,
         "__IMPLEMENTER_MODEL__": implementer_model,
@@ -349,9 +412,11 @@ def main() -> int:
         "__FULL_UTILITY_MODEL__": f"{args.model_provider}/{utility_model}",
         "__MODEL_OPERATING_PROFILE_NAME__": model_profile["name"],
         "__MODEL_OPERATING_PROFILE_DESCRIPTION__": model_profile["description"],
+        "__MODEL_PROMPT_DENSITY__": model_profile["prompt_density"],
         "__MODEL_OPERATING_PROFILE_RULES__": model_profile["rules"],
         "__STACK_LABEL__": args.stack_label,
     }
+    validate_replacement_values(replacements)
 
     dest_root.mkdir(parents=True, exist_ok=True)
     created = copy_template(template_root, dest_root, replacements, args.scope, args.force)
@@ -362,6 +427,7 @@ def main() -> int:
         project_slug=slug,
         agent_prefix=agent_prefix,
         scope=args.scope,
+        model_tier=args.model_tier,
         model_provider=args.model_provider,
         planner_model=planner_model,
         implementer_model=implementer_model,

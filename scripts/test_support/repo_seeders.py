@@ -20,13 +20,19 @@ def write_json(path: Path, payload: Any) -> None:
 
 def make_stack_skill_non_placeholder(dest: Path) -> None:
     skill_path = dest / ".opencode" / "skills" / "stack-standards" / "SKILL.md"
-    skill_path.write_text(
-        skill_path.read_text(encoding="utf-8").replace(
-            "Replace this file with stack-specific rules once the real project stack is known.",
-            "Use `uv run pytest -q` for validation and keep Python tooling repo-local via `uv`.",
-        ),
-        encoding="utf-8",
+    text = skill_path.read_text(encoding="utf-8")
+    text = text.replace("__STACK_LABEL__", "python-uv")
+    replacements = (
+        "Replace this file with stack-specific rules once the real project stack is known.",
+        "When the repo stack is finalized, rewrite this catalog so review and QA agents get the exact build, lint, reference-integrity, and test commands that belong to this project.",
+        "When the project stack is confirmed, replace this file's Universal Standards section with stack-specific rules using the `project-skill-bootstrap` skill.",
     )
+    for placeholder in replacements:
+        text = text.replace(
+            placeholder,
+            "Use `uv run pytest -q` for validation and keep Python tooling repo-local via `uv`.",
+        )
+    skill_path.write_text(text, encoding="utf-8")
 
 
 def seed_ready_bootstrap(dest: Path) -> None:

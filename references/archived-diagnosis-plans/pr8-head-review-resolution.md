@@ -1,3 +1,5 @@
+> **ARCHIVED:** This document is superseded by the `recovery-plan/` directory.
+
 # PR 8 Head Review Resolution
 
 This document is the final review-resolution record for PR 8 on branch `codex/remediation-proof-repair-pivot`.

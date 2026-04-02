@@ -41,6 +41,7 @@ Produce a canonical brief at `docs/spec/CANONICAL-BRIEF.md` with the required sc
 Before proceeding, present the user with a batched decision packet for blocking ambiguities:
 - project name, slug, and destination path
 - agent prefix for generated agents
+- model tier for generated prompt density
 - model provider and model choices
 - stack or framework choices
 - any other materially divergent decision
@@ -55,9 +56,15 @@ This has two phases:
 - Phase A: run the Python script to generate the template file tree with placeholder substitution
 - Phase B: customize the generated files with project-specific content from the canonical brief
 
+Record the selected `model_tier` during this step. It tunes prompt density only; it does not permit skipping bootstrap, verification, or handoff proof.
+
 ### Step 4: Prove the bootstrap lane before specialization
 
 Before you continue into local-skill generation, run the early greenfield proof layer across the freshly rendered scaffold:
+
+1. Run `environment_bootstrap` inside the generated repo and confirm it returns zero unresolved `blockers`.
+2. If bootstrap reports missing environment prerequisites, stop the greenfield flow and surface those prerequisites to the operator instead of continuing into specialization.
+3. Run the early verifier:
 
 ```sh
 python3 ../repo-scaffold-factory/scripts/verify_generated_scaffold.py <repo-root> --verification-kind bootstrap-lane --format both
@@ -69,8 +76,10 @@ This early gate is narrower than the final handoff gate. It must prove:
 - one valid bootstrap status
 - one bootstrap-first legal move while proof is still missing
 - aligned managed restart, workflow, and tool surfaces for `environment_bootstrap`
+- zero unresolved bootstrap blockers after `environment_bootstrap` runs
 
 Do not continue into project-specific specialization if this bootstrap-lane proof fails.
+If the verifier reports `is_user_action: true`, stop and surface the prerequisite gap to the operator. If it reports `is_user_action: false`, repair the generated repo automatically and rerun the proof before moving on.
 
 ### Step 5: Bootstrap project-local skills
 
@@ -130,9 +139,13 @@ Confirm that they agree on:
 - `smoke_test` as the only producer of smoke-test artifacts
 - explicit ticket acceptance smoke commands as the canonical smoke scope whenever the ticket already defines an executable smoke command
 - one legal first move while bootstrap proof is still missing: `environment_bootstrap`, then a fresh `ticket_lookup`
+- environment bootstrap already ran successfully and left zero unresolved blockers in workflow state
+- stack-specific execution audit produced zero `VERIFY010` critical execution failures
+- reference-integrity audit produced zero `VERIFY011` broken canonical references
 - commands as human entrypoints only, with autonomous work staying inside agents, tools, plugins, and local skills
 
 If these surfaces disagree, fix the contract before handing off the repo.
+If continuation verification fails with `is_user_action: true`, surface the blocker to the user instead of continuing. If the verifier returns `is_user_action: false`, fix the generated repo and rerun verification before handoff.
 
 ### Step 10: Write the handoff surface
 

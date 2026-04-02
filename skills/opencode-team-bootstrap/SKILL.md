@@ -94,6 +94,14 @@ For EVERY agent, rewrite the generic prompt to be project-specific:
 - **Task allowlists**: reference the actual agents that exist (including any new ones)
 - **Bash allowlists**: add project-specific commands (e.g., `cargo test*` for Rust, `flutter test*` for Flutter)
 
+**Inject stack-specific implementation notes:**
+- Rewrite the implementer template's `Stack-specific notes` block so it no longer contains scaffold placeholder text.
+- The rewritten notes must cover: how to build this stack, how to run a basic verification for this stack, common stack pitfalls to avoid, and which configuration files need special care.
+- Synthesize these notes from `docs/spec/CANONICAL-BRIEF.md`, the actual repo layout, and the selected stack rather than pasting generic catalog text.
+- Use the following stacks as a reference catalog when synthesizing project-specific guidance: Godot, Java/Android, C/C++, .NET, Node.js, Python, Rust, and Go.
+- Ensure the team leader's project-specific delegation briefs include stack-aware build and verification commands instead of generic "make sure it works" wording.
+- Keep the generated delegation chain in `docs/AGENT-DELEGATION.md` aligned with the detected stack adapters and their canonical verification commands.
+
 **What NOT to change:**
 - Model assignments (`__PLANNER_MODEL__`, etc. are already substituted by the script)
 - Hidden/visible settings (only team-leader should be visible)
@@ -120,7 +128,19 @@ Verify:
 - The team leader treats bootstrap-not-ready state as a hard gate and routes `environment_bootstrap` before normal lifecycle work
 - The team leader stops on repeated lifecycle-tool contradictions instead of probing alternate stage or status values
 - The team leader does not author planning, implementation, review, QA, or smoke-test artifact bodies on behalf of specialists
+- The team leader prompt includes explicit stop conditions, contradiction-resolution rules, ownership boundaries, and verdict-checking rules that match the generated workflow tools
+- The implementer prompt includes rewritten stack-specific notes instead of leaving scaffold placeholder text behind
 - Agents do not instruct themselves to use slash commands as internal workflow steps
+
+Also generate `docs/AGENT-DELEGATION.md` as a derived project-specific document.
+It must document:
+- the actual generated agent team for this repo
+- the delegation chain from team leader through implementation, review, QA, smoke-test, and closeout
+- what each agent can and cannot do
+- the escalation path when an agent is blocked or tool state contradicts itself
+- the restart procedure: read `START-HERE.md`, run `ticket_lookup`, identify the active ticket, then resume from canonical state
+
+Treat `docs/AGENT-DELEGATION.md` as derived from the actual agent set you created in `.opencode/agents/`, not as a generic boilerplate file.
 
 ### 5. Review project-specific tools
 
@@ -172,6 +192,7 @@ The base scaffold generates:
 - `join-lanes.md` — reconcile completed parallel lanes into one foreground path
 
 Customize these to reference project-specific agents and skills.
+If the generated repo includes stack-specific bootstrap or verification entrypoints, make those references match the detected adapter family instead of a generic default.
 
 ## Output contract
 
@@ -180,6 +201,7 @@ Before leaving this skill, confirm all of these are true:
 - every agent allowlist references only skills and agents that actually exist in the generated repo
 - the team leader owns routing and lease control, while specialists stay within their bounded write or read-only roles
 - commands reference current agents and current workflow surfaces without becoming autonomous internal workflow steps
+- `docs/AGENT-DELEGATION.md` matches the actual generated agent set and restart flow for this repo
 
 ## Repair follow-on artifact
 

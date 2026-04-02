@@ -145,6 +145,63 @@ def audit_ticket_transition_contract(
     )
 
 
+def audit_verdict_aware_transition_contract(
+    root: Path, findings: list[Finding], ctx: LifecycleContractAuditContext
+) -> None:
+    ticket_lookup = root / ".opencode" / "tools" / "ticket_lookup.ts"
+    ticket_update = root / ".opencode" / "tools" / "ticket_update.ts"
+    workflow_tool = root / ".opencode" / "lib" / "workflow.ts"
+    if not ticket_lookup.exists() or not ticket_update.exists() or not workflow_tool.exists():
+        return
+
+    lookup_text = ctx.read_text(ticket_lookup)
+    update_text = ctx.read_text(ticket_update)
+    workflow_text = ctx.read_text(workflow_tool)
+    evidence: list[str] = []
+
+    if "extractArtifactVerdict" not in workflow_text:
+        evidence.append(
+            f"{ctx.normalize_path(workflow_tool, root)} does not expose a shared artifact verdict extractor."
+        )
+    if "Review found blockers. Route back to implementation" not in lookup_text:
+        evidence.append(
+            f"{ctx.normalize_path(ticket_lookup, root)} does not make review FAIL verdicts route back to implementation."
+        )
+    if "QA found issues. Route back to implementation to fix the QA findings." not in lookup_text:
+        evidence.append(
+            f"{ctx.normalize_path(ticket_lookup, root)} does not make QA FAIL verdicts route back to implementation."
+        )
+    if "Cannot advance past review — latest artifact shows FAIL verdict." not in update_text:
+        evidence.append(
+            f"{ctx.normalize_path(ticket_update, root)} does not block review to QA transitions on FAIL verdicts."
+        )
+    if "Cannot advance past qa — latest artifact shows FAIL verdict." not in update_text:
+        evidence.append(
+            f"{ctx.normalize_path(ticket_update, root)} does not block QA to smoke-test transitions on FAIL verdicts."
+        )
+
+    if not evidence:
+        return
+
+    ctx.add_finding(
+        findings,
+        Finding(
+            code="WFLOW023",
+            severity="error",
+            problem="The generated lifecycle contract is not verdict-aware, so FAIL review or QA artifacts can still look advanceable.",
+            root_cause="Transition guidance and transition enforcement must inspect artifact verdicts, not just artifact existence. Otherwise weaker models continue on the happy path after blocker findings.",
+            files=[
+                ctx.normalize_path(ticket_lookup, root),
+                ctx.normalize_path(ticket_update, root),
+                ctx.normalize_path(workflow_tool, root),
+            ],
+            safer_pattern="Extract verdicts from the latest review and QA artifacts, route FAIL or BLOCKED outcomes back to implementation, and reject lifecycle transitions when the latest artifact verdict is blocking or unclear.",
+            evidence=evidence,
+            provenance="script",
+        ),
+    )
+
+
 def audit_reverification_deadlock(
     root: Path, findings: list[Finding], ctx: LifecycleContractAuditContext
 ) -> None:
@@ -549,6 +606,7 @@ def run_lifecycle_contract_audits(
     audit_active_process_verification(root, findings, ctx)
     audit_review_stage_ambiguity(root, findings, ctx)
     audit_ticket_transition_contract(root, findings, ctx)
+    audit_verdict_aware_transition_contract(root, findings, ctx)
     audit_reverification_deadlock(root, findings, ctx)
     audit_smoke_test_artifact_bypass(root, findings, ctx)
     audit_handoff_artifact_ownership_conflict(root, findings, ctx)

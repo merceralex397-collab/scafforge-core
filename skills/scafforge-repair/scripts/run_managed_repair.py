@@ -2,12 +2,16 @@ from __future__ import annotations
 
 import argparse
 import json
+import subprocess
+import sys
 import tempfile
 from pathlib import Path
 from typing import Any
 
 from apply_repo_process_repair import (
     FOLLOW_ON_TRACKING_PATH,
+    REPAIR_ESCALATION_PATH,
+    RepairEscalation,
     apply_repair,
     build_stale_surface_map,
     detect_agent_prompt_drift,
@@ -17,9 +21,15 @@ from apply_repo_process_repair import (
     repair_basis_requires_causal_replay,
     resolve_repair_basis,
     run_bootstrap_render,
+    update_latest_repair_history,
     verification_logs,
 )
-from audit_repo_process import current_package_commit, emit_diagnosis_pack, select_diagnosis_destination
+from audit_repo_process import (
+    current_package_commit,
+    emit_diagnosis_pack,
+    repair_routed_codes_from_manifest,
+    select_diagnosis_destination,
+)
 from follow_on_tracking import (
     auto_record_stage_completion_from_canonical_evidence,
     completed_stage_names,
@@ -115,6 +125,11 @@ def parse_args() -> argparse.Namespace:
         help="Summary stored in workflow-state and repair history.",
     )
     parser.add_argument("--skip-deterministic-refresh", action="store_true", help="Do not rerun the deterministic replacement pass.")
+    parser.add_argument(
+        "--preserve-backups",
+        action="store_true",
+        help="Keep deterministic managed-surface backups under .opencode/state/repair-backups after a successful repair.",
+    )
     parser.add_argument("--skip-verify", action="store_true", help="Skip post-repair verification.")
     parser.add_argument("--supporting-log", action="append", default=[], help="Optional supporting transcript path. May be provided multiple times.")
     parser.add_argument(
@@ -181,6 +196,101 @@ def derive_required_follow_on_stages(
     return required
 
 
+def repair_basis_source_codes(manifest: dict[str, Any]) -> set[str]:
+    source_findings = manifest.get("source_findings") if isinstance(manifest, dict) else None
+    if isinstance(source_findings, list) and source_findings:
+        return {
+            str(item.get("code", "")).strip()
+            for item in source_findings
+            if isinstance(item, dict) and str(item.get("code", "")).strip().startswith(("EXEC", "REF"))
+        }
+    codes: set[str] = set()
+    for item in manifest.get("ticket_recommendations", []):
+        if not isinstance(item, dict):
+            continue
+        code = str(item.get("source_finding_code", "")).strip()
+        if code.startswith(("EXEC", "REF")):
+            codes.add(code)
+    return codes
+
+
+def summarize_source_regressions(findings: list[Any], repair_basis_manifest: dict[str, Any]) -> dict[str, Any]:
+    baseline_codes = repair_basis_source_codes(repair_basis_manifest) if isinstance(repair_basis_manifest, dict) else set()
+    comparison_available = bool(
+        isinstance(repair_basis_manifest, dict)
+        and baseline_codes
+    )
+    pre_existing_codes = baseline_codes if comparison_available else set()
+    post_findings = [
+        finding
+        for finding in findings
+        if getattr(finding, "code", "").startswith(("EXEC", "REF"))
+    ]
+    post_codes = {getattr(finding, "code", "") for finding in post_findings if getattr(finding, "code", "")}
+    introduced_critical_codes = (
+        sorted(
+            {
+                getattr(finding, "code", "")
+                for finding in post_findings
+                if getattr(finding, "code", "") not in pre_existing_codes
+                and (
+                    (getattr(finding, "code", "").startswith("EXEC") and getattr(finding, "severity", "") == "error")
+                    or getattr(finding, "code", "") in {"REF-001", "REF-002"}
+                )
+            }
+        )
+        if comparison_available
+        else []
+    )
+    return {
+        "comparison_available": comparison_available,
+        "pre_existing_codes": sorted(pre_existing_codes),
+        "persistent_codes": sorted(pre_existing_codes & post_codes),
+        "resolved_codes": sorted(pre_existing_codes - post_codes),
+        "introduced_codes": sorted(post_codes - pre_existing_codes),
+        "introduced_critical_codes": introduced_critical_codes,
+    }
+
+
+def remediation_follow_up_script_path() -> Path:
+    return Path(__file__).resolve().parents[2] / "ticket-pack-builder" / "scripts" / "apply_remediation_follow_up.py"
+
+
+def create_remediation_follow_up_tickets(repo_root: Path, diagnosis_manifest_or_dir: str) -> dict[str, Any]:
+    diagnosis_path = Path(diagnosis_manifest_or_dir)
+    manifest_path = diagnosis_path / "manifest.json" if diagnosis_path.is_dir() else diagnosis_path
+    manifest = read_json(manifest_path)
+    if not isinstance(manifest, dict):
+        return {"created_tickets": []}
+    if not any(
+        isinstance(item, dict) and str(item.get("route", "")).strip() == "ticket-pack-builder"
+        for item in manifest.get("ticket_recommendations", [])
+    ):
+        return {"created_tickets": []}
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(remediation_follow_up_script_path()),
+            str(repo_root),
+            "--diagnosis",
+            str(diagnosis_path),
+        ],
+        cwd=repo_root,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        raise SystemExit(
+            "Unable to create repair remediation follow-up tickets.\n"
+            f"STDOUT:\n{result.stdout}\n"
+            f"STDERR:\n{result.stderr}"
+        )
+    payload = json.loads(result.stdout) if result.stdout.strip() else {"created_tickets": []}
+    return payload if isinstance(payload, dict) else {"created_tickets": []}
+
+
 def classify_verification_findings(findings: list[Any]) -> dict[str, list[Any]]:
     managed_blockers: list[Any] = []
     source_follow_up: list[Any] = []
@@ -188,7 +298,7 @@ def classify_verification_findings(findings: list[Any]) -> dict[str, list[Any]]:
     process_state_only: list[Any] = []
     for finding in findings:
         code = getattr(finding, "code", "")
-        if code.startswith("EXEC"):
+        if code.startswith(("EXEC", "REF")):
             source_follow_up.append(finding)
         elif code == "WFLOW008":
             process_state_only.append(finding)
@@ -239,16 +349,22 @@ def summarize_verification(
     *,
     basis_requires_causal_replay: bool,
     repair_basis_path: Path | None,
+    regression_summary: dict[str, list[str]],
 ) -> dict[str, Any]:
     blocking_findings = [*classes["managed_blockers"], *classes["manual_prerequisites"]]
-    managed_repair_verified = performed and not blocking_findings and (not basis_requires_causal_replay or bool(supporting_logs))
+    managed_repair_verified = (
+        performed
+        and not blocking_findings
+        and not regression_summary["introduced_critical_codes"]
+        and (not basis_requires_causal_replay or bool(supporting_logs))
+    )
     current_state_clean = (
         managed_repair_verified
         and not classes["source_follow_up"]
         and not classes["process_state_only"]
         and not pending_process_verification
     )
-    causal_regression_verified = managed_repair_verified
+    causal_regression_verified = managed_repair_verified and not regression_summary["introduced_critical_codes"]
     contract_failures = verification_contract_failures(
         findings,
         performed=performed,
@@ -271,6 +387,7 @@ def summarize_verification(
         "repair_basis_path": str(repair_basis_path) if repair_basis_path else None,
         "current_state_clean": current_state_clean,
         "causal_regression_verified": causal_regression_verified,
+        "source_regression_summary": regression_summary,
         "contract_failures": contract_failures,
         "contract_passed": not contract_failures,
         "verification_passed": causal_regression_verified and not contract_failures,
@@ -334,7 +451,36 @@ def main() -> int:
         with tempfile.TemporaryDirectory(prefix="scafforge-repair-") as temp_dir:
             rendered_root = Path(temp_dir) / "rendered"
             run_bootstrap_render(rendered_root, metadata, args.stack_label)
-            replaced_surfaces = apply_repair(repo_root, rendered_root, args.change_summary)
+            try:
+                repair_result = apply_repair(
+                    repo_root,
+                    rendered_root,
+                    args.change_summary,
+                    preserve_backups=args.preserve_backups,
+                )
+            except RepairEscalation as exc:
+                payload = {
+                    "repair_plan": {
+                        "repo_root": str(repo_root),
+                        "replaced_surfaces": [],
+                        "stale_surface_map": {},
+                    },
+                    "execution_record": {
+                        "repo_root": str(repo_root),
+                        "repair_package_commit": current_package_commit(),
+                        "repair_follow_on_outcome": "managed_blocked",
+                        "blocking_reasons": [
+                            "Managed repair requires operator approval before intent-changing workflow contract changes can be applied."
+                        ],
+                        "handoff_allowed": False,
+                        "repair_escalation_path": str(REPAIR_ESCALATION_PATH).replace("\\", "/"),
+                    },
+                    "repair_escalation": exc.payload,
+                }
+                write_json(repo_root / EXECUTION_RECORD_PATH, payload)
+                print(json.dumps(payload, indent=2))
+                return 2
+            replaced_surfaces = repair_result["replaced_surfaces"]
         # Sync restart surfaces with the initial managed_blocked workflow state before the
         # verification audit runs.  Without this early sync the audit sees the pre-repair
         # START-HERE.md and always fires WFLOW010 as a false positive.  That false positive
@@ -367,6 +513,7 @@ def main() -> int:
     findings = [] if args.skip_verify else audit_repo(repo_root, logs=logs)
     pending_process_verification = load_pending_process_verification(repo_root)
     finding_classes = classify_verification_findings(findings)
+    regression_summary = summarize_source_regressions(findings, repair_basis_manifest)
     verification_status = summarize_verification(
         findings,
         pending_process_verification,
@@ -375,6 +522,7 @@ def main() -> int:
         finding_classes,
         basis_requires_causal_replay=basis_requires_causal_replay,
         repair_basis_path=repair_basis_path,
+        regression_summary=regression_summary,
     )
 
     if not args.skip_verify and basis_requires_causal_replay and not logs:
@@ -463,6 +611,12 @@ def main() -> int:
         blocking_reasons.append("Post-repair verification was skipped; rerun scafforge-audit before handoff.")
     elif basis_requires_causal_replay and not logs:
         blocking_reasons.append("Post-repair verification did not inherit the transcript-backed repair basis; rerun the public repair runner with the causal transcript evidence before handoff.")
+    elif verification_status["source_regression_summary"]["introduced_critical_codes"]:
+        blocking_reasons.append(
+            "Post-repair verification introduced new critical execution or reference findings: "
+            + ", ".join(verification_status["source_regression_summary"]["introduced_critical_codes"])
+            + "."
+        )
     elif verification_status["contract_failures"]:
         blocking_reasons.append(
             "Post-repair verification failed repair-contract consistency checks: "
@@ -497,6 +651,7 @@ def main() -> int:
     )
 
     diagnosis_pack = None
+    remediation_follow_up: dict[str, Any] | None = None
     if not args.skip_verify:
         diagnosis_dir = select_diagnosis_destination(repo_root, args.diagnosis_output_dir, findings)
         diagnosis_pack = emit_diagnosis_pack(
@@ -514,12 +669,39 @@ def main() -> int:
                 "verification_basis": verification_status["verification_basis"],
             },
         )
+        diagnosis_target = diagnosis_pack.get("path") if isinstance(diagnosis_pack, dict) else None
+        if isinstance(diagnosis_target, str) and diagnosis_target.strip():
+            remediation_follow_up = create_remediation_follow_up_tickets(repo_root, diagnosis_target)
+            if remediation_follow_up.get("created_tickets"):
+                regenerate_restart_surfaces(
+                    repo_root,
+                    reason="Refined repair follow-up tickets after managed repair.",
+                    source="scafforge-repair",
+                    verification_passed=verification_status["verification_passed"],
+                )
+
+    if not args.skip_deterministic_refresh:
+        update_latest_repair_history(
+            repo_root,
+            repair_result["repair_id"],
+            {
+                "audit_findings_addressed": sorted(repair_routed_codes_from_manifest(repair_basis_manifest)) if isinstance(repair_basis_manifest, dict) else [],
+                "verification_passed": verification_status["verification_passed"],
+                "verification_findings": verification_status["codes"],
+                "verification_summary": verification_status,
+                "remediation_ticket_ids": (
+                    remediation_follow_up.get("created_tickets", []) if isinstance(remediation_follow_up, dict) else []
+                ),
+            },
+        )
 
     payload = {
         "repair_plan": {
             "repo_root": str(repo_root),
             "required_follow_on_stages": required_follow_on,
             "replaced_surfaces": replaced_surfaces,
+            "diff_summary": repair_result.get("diff_summary", {}) if not args.skip_deterministic_refresh else {},
+            "backup_path": repair_result.get("backup_path") if not args.skip_deterministic_refresh else None,
             "stale_surface_map": stale_surface_map,
         },
         "stage_results": executed_stages + recorded_stage_results + deferred_stages + skipped_stages,
@@ -547,12 +729,20 @@ def main() -> int:
             "repair_follow_on_outcome": repair_follow_on_outcome,
             "verification_status": verification_status,
             "handoff_allowed": handoff_allowed,
+            "diff_summary": repair_result.get("diff_summary", {}) if not args.skip_deterministic_refresh else {},
+            "backup_path": repair_result.get("backup_path") if not args.skip_deterministic_refresh else None,
+            "repair_escalation_path": str(REPAIR_ESCALATION_PATH).replace("\\", "/"),
+            "remediation_ticket_ids": (
+                remediation_follow_up.get("created_tickets", []) if isinstance(remediation_follow_up, dict) else []
+            ),
             "stale_surface_map": stale_surface_map,
         },
         "repair_follow_on_state": repair_follow_on_state,
     }
     if diagnosis_pack:
         payload["diagnosis_pack"] = diagnosis_pack
+    if remediation_follow_up:
+        payload["remediation_follow_up"] = remediation_follow_up
 
     write_json(repo_root / EXECUTION_RECORD_PATH, payload)
     regenerate_restart_surfaces(

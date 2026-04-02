@@ -20,12 +20,23 @@ from shared_verifier import audit_repo
 START_HERE_MANAGED_START = "<!-- SCAFFORGE:START_HERE_BLOCK START -->"
 START_HERE_MANAGED_END = "<!-- SCAFFORGE:START_HERE_BLOCK END -->"
 FOLLOW_ON_TRACKING_PATH = Path(".opencode/meta/repair-follow-on-state.json")
+REPAIR_ESCALATION_PATH = Path(".opencode/state/repair-escalation.json")
 DETERMINISTIC_PROCESS_DOCS = (
     "workflow.md",
     "tooling.md",
     "model-matrix.md",
     "git-capability.md",
 )
+
+
+class RepairFailure(RuntimeError):
+    pass
+
+
+class RepairEscalation(RuntimeError):
+    def __init__(self, message: str, payload: dict[str, Any]):
+        super().__init__(message)
+        self.payload = payload
 
 
 def parse_args() -> argparse.Namespace:
@@ -38,11 +49,21 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--planner-model", help="Override planner model when provenance is missing.")
     parser.add_argument("--implementer-model", help="Override implementer model when provenance is missing.")
     parser.add_argument("--utility-model", help="Override utility model when provenance is missing.")
+    parser.add_argument(
+        "--model-tier",
+        choices=("strong", "standard", "weak"),
+        help="Override prompt-density model tier when provenance is missing.",
+    )
     parser.add_argument("--stack-label", default="framework-agnostic", help="Stack label for regenerated process docs.")
     parser.add_argument(
         "--change-summary",
         default="Deterministic Scafforge managed workflow surfaces refreshed by scafforge-repair.",
         help="Summary stored in workflow-state and repair history.",
+    )
+    parser.add_argument(
+        "--preserve-backups",
+        action="store_true",
+        help="Keep managed-surface backups under .opencode/state/repair-backups after a successful repair.",
     )
     parser.add_argument("--skip-verify", action="store_true", help="Skip the post-repair audit.")
     parser.add_argument("--supporting-log", action="append", default=[], help="Optional supporting session log or transcript path for post-repair verification. May be provided multiple times.")
@@ -81,6 +102,245 @@ def slugify(value: str) -> str:
     value = re.sub(r"[^a-z0-9]+", "-", value)
     value = re.sub(r"-{2,}", "-", value).strip("-")
     return value or "project"
+
+
+def list_relative_file_bytes(path: Path) -> dict[str, bytes]:
+    if not path.exists():
+        return {}
+    if path.is_file():
+        return {"": path.read_bytes()}
+    payload: dict[str, bytes] = {}
+    for candidate in sorted(path.rglob("*")):
+        if candidate.is_file():
+            payload[str(candidate.relative_to(path)).replace("\\", "/")] = candidate.read_bytes()
+    return payload
+
+
+def merge_diff_summaries(*summaries: dict[str, list[str]]) -> dict[str, list[str]]:
+    added: set[str] = set()
+    removed: set[str] = set()
+    modified: set[str] = set()
+    for summary in summaries:
+        added.update(summary.get("files_added", []))
+        removed.update(summary.get("files_removed", []))
+        modified.update(summary.get("files_modified", []))
+    return {
+        "files_added": sorted(added),
+        "files_removed": sorted(removed),
+        "files_modified": sorted(modified),
+    }
+
+
+def diff_surface(source: Path, target: Path, repo_relative: str, *, target_text_override: str | None = None) -> dict[str, list[str]]:
+    if target_text_override is not None:
+        target_exists = target.exists()
+        current_text = read_text(target) if target_exists else ""
+        if not target_exists:
+            return {"files_added": [repo_relative], "files_removed": [], "files_modified": []}
+        if current_text != target_text_override:
+            return {"files_added": [], "files_removed": [], "files_modified": [repo_relative]}
+        return {"files_added": [], "files_removed": [], "files_modified": []}
+
+    source_files = list_relative_file_bytes(source)
+    target_files = list_relative_file_bytes(target)
+    added: list[str] = []
+    removed: list[str] = []
+    modified: list[str] = []
+    all_keys = sorted(set(source_files) | set(target_files))
+    for key in all_keys:
+        repo_path = repo_relative if not key else f"{repo_relative}/{key}"
+        if key not in target_files:
+            added.append(repo_path)
+        elif key not in source_files:
+            removed.append(repo_path)
+        elif source_files[key] != target_files[key]:
+            modified.append(repo_path)
+    return {
+        "files_added": added,
+        "files_removed": removed,
+        "files_modified": modified,
+    }
+
+
+def extract_lifecycle_stages(workflow_text: str) -> set[str]:
+    match = re.search(r"LIFECYCLE_STAGES\s*=\s*new Set\(\[(.*?)\]\)", workflow_text, re.DOTALL)
+    if not match:
+        return set()
+    return {item.strip() for item in re.findall(r'"([^"]+)"', match.group(1)) if item.strip()}
+
+
+def directory_entry_names(path: Path, *, suffix: str) -> set[str]:
+    if not path.exists():
+        return set()
+    return {candidate.name for candidate in path.iterdir() if candidate.is_file() and candidate.name.endswith(suffix)}
+
+
+def build_managed_surface_diff_summary(repo_root: Path, rendered_root: Path) -> dict[str, list[str]]:
+    summaries = [
+        diff_surface(rendered_root / "opencode.jsonc", repo_root / "opencode.jsonc", "opencode.jsonc"),
+        diff_surface(rendered_root / ".opencode" / "tools", repo_root / ".opencode" / "tools", ".opencode/tools"),
+        diff_surface(rendered_root / ".opencode" / "lib", repo_root / ".opencode" / "lib", ".opencode/lib"),
+        diff_surface(rendered_root / ".opencode" / "plugins", repo_root / ".opencode" / "plugins", ".opencode/plugins"),
+        diff_surface(rendered_root / ".opencode" / "commands", repo_root / ".opencode" / "commands", ".opencode/commands"),
+    ]
+    rendered_skills_root = rendered_root / ".opencode" / "skills"
+    target_skills_root = repo_root / ".opencode" / "skills"
+    if rendered_skills_root.exists():
+        for skill_dir in sorted(rendered_skills_root.iterdir()):
+            if not skill_dir.is_dir():
+                continue
+            summaries.append(
+                diff_surface(
+                    skill_dir,
+                    target_skills_root / skill_dir.name,
+                    f".opencode/skills/{skill_dir.name}",
+                )
+            )
+    for filename in DETERMINISTIC_PROCESS_DOCS:
+        summaries.append(
+            diff_surface(
+                rendered_root / "docs" / "process" / filename,
+                repo_root / "docs" / "process" / filename,
+                f"docs/process/{filename}",
+            )
+        )
+    rendered_start_here = read_text(rendered_root / "START-HERE.md")
+    merged_start_here = merge_start_here(read_text(repo_root / "START-HERE.md"), rendered_start_here)
+    summaries.append(
+        diff_surface(
+            rendered_root / "START-HERE.md",
+            repo_root / "START-HERE.md",
+            "START-HERE.md",
+            target_text_override=merged_start_here,
+        )
+    )
+    return merge_diff_summaries(*summaries)
+
+
+def detect_intent_changing_repair(repo_root: Path, rendered_root: Path) -> list[dict[str, Any]]:
+    reasons: list[dict[str, Any]] = []
+
+    current_tool_names = directory_entry_names(repo_root / ".opencode" / "tools", suffix=".ts")
+    rendered_tool_names = directory_entry_names(rendered_root / ".opencode" / "tools", suffix=".ts")
+    added_tools = sorted(rendered_tool_names - current_tool_names)
+    removed_tools = sorted(current_tool_names - rendered_tool_names)
+    if added_tools or removed_tools:
+        reasons.append(
+            {
+                "category": "workflow_tools",
+                "why_intent_changing": "Adding or removing workflow tools changes the executable operating surface for the repo.",
+                "details": {
+                    "added_tools": added_tools,
+                    "removed_tools": removed_tools,
+                },
+                "user_decision": "Approve the workflow tool inventory change or route the repo through kickoff/pivot instead of routine repair.",
+            }
+        )
+
+    current_workflow_text = read_text(repo_root / ".opencode" / "lib" / "workflow.ts")
+    rendered_workflow_text = read_text(rendered_root / ".opencode" / "lib" / "workflow.ts")
+    current_stages = extract_lifecycle_stages(current_workflow_text)
+    rendered_stages = extract_lifecycle_stages(rendered_workflow_text)
+    if current_stages and rendered_stages and current_stages != rendered_stages:
+        reasons.append(
+            {
+                "category": "ticket_lifecycle_stages",
+                "why_intent_changing": "Changing the lifecycle stage set changes the repo's core execution contract.",
+                "details": {
+                    "before": sorted(current_stages),
+                    "after": sorted(rendered_stages),
+                },
+                "user_decision": "Confirm the lifecycle stage change explicitly before applying it through repair.",
+            }
+        )
+
+    current_bootstrap_text = read_text(repo_root / ".opencode" / "tools" / "environment_bootstrap.ts")
+    rendered_bootstrap_text = read_text(rendered_root / ".opencode" / "tools" / "environment_bootstrap.ts")
+    if current_bootstrap_text.strip() and rendered_bootstrap_text.strip() and current_bootstrap_text != rendered_bootstrap_text:
+        reasons.append(
+            {
+                "category": "bootstrap_command_contract",
+                "why_intent_changing": "Changing the managed bootstrap tool can alter the first-run environment contract for the repo.",
+                "details": {
+                    "target": ".opencode/tools/environment_bootstrap.ts",
+                },
+                "user_decision": "Confirm that the bootstrap command contract should change before applying this repair automatically.",
+            }
+        )
+    return reasons
+
+
+def write_repair_escalation(
+    repo_root: Path,
+    *,
+    change_summary: str,
+    reasons: list[dict[str, Any]],
+    diff_summary: dict[str, list[str]],
+) -> dict[str, Any]:
+    payload = {
+        "escalated_at": current_iso_timestamp(),
+        "change_summary": change_summary,
+        "attempted_operation": "deterministic-managed-surface-replacement",
+        "reasons": reasons,
+        "diff_summary": diff_summary,
+        "status": "approval_required",
+    }
+    write_json(repo_root / REPAIR_ESCALATION_PATH, payload)
+    return payload
+
+
+def backup_target(target: Path, backup_root: Path, repo_root: Path) -> dict[str, Any]:
+    relative_target = normalize_path(target, repo_root)
+    backup_path = backup_root / relative_target
+    record = {
+        "target": target,
+        "backup": backup_path,
+        "existed": target.exists(),
+        "is_dir": target.is_dir(),
+    }
+    if target.is_dir():
+        if target.exists():
+            backup_path.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copytree(target, backup_path)
+    elif target.exists():
+        backup_path.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(target, backup_path)
+    return record
+
+
+def restore_backup_records(records: list[dict[str, Any]]) -> None:
+    for record in reversed(records):
+        target = record["target"]
+        backup = record["backup"]
+        if target.exists():
+            if target.is_dir():
+                shutil.rmtree(target)
+            else:
+                target.unlink()
+        if record["existed"]:
+            if not backup.exists():
+                raise RepairFailure(f"Backup for {target} is missing or corrupted at {backup}")
+            backup.parent.mkdir(parents=True, exist_ok=True)
+            if record["is_dir"]:
+                shutil.copytree(backup, target)
+            else:
+                target.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(backup, target)
+
+
+def update_latest_repair_history(repo_root: Path, repair_id: str, updates: dict[str, Any]) -> None:
+    provenance_path = repo_root / ".opencode" / "meta" / "bootstrap-provenance.json"
+    payload = read_json(provenance_path)
+    if not isinstance(payload, dict):
+        return
+    history = payload.get("repair_history")
+    if not isinstance(history, list) or not history:
+        return
+    for entry in reversed(history):
+        if isinstance(entry, dict) and entry.get("repair_id") == repair_id:
+            entry.update(updates)
+            write_json(provenance_path, payload)
+            return
 
 
 def merge_start_here(existing: str, rendered: str) -> str:
@@ -148,6 +408,7 @@ def load_metadata(repo_root: Path, args: argparse.Namespace) -> dict[str, str]:
     planner_model = args.planner_model or runtime.get("planner")
     implementer_model = args.implementer_model or runtime.get("implementer")
     utility_model = args.utility_model or runtime.get("utility") or planner_model
+    model_tier = args.model_tier or runtime.get("tier") or "weak"
 
     if not project_slug and project_name:
         project_slug = slugify(project_name)
@@ -162,6 +423,7 @@ def load_metadata(repo_root: Path, args: argparse.Namespace) -> dict[str, str]:
         "planner_model": planner_model,
         "implementer_model": implementer_model,
         "utility_model": utility_model,
+        "model_tier": model_tier,
     }
     missing = [key for key, value in values.items() if not isinstance(value, str) or not value.strip()]
     if missing:
@@ -187,6 +449,8 @@ def run_bootstrap_render(dest_root: Path, metadata: dict[str, str], stack_label:
         metadata["agent_prefix"],
         "--model-provider",
         metadata["model_provider"],
+        "--model-tier",
+        metadata["model_tier"],
         "--planner-model",
         metadata["planner_model"],
         "--implementer-model",
@@ -752,6 +1016,12 @@ def update_provenance(
     rendered_root: Path,
     replaced_surfaces: list[str],
     change_summary: str,
+    *,
+    repair_id: str,
+    diff_summary: dict[str, list[str]],
+    backup_path: str | None,
+    process_version_before: int | None,
+    process_version_after: int | None,
 ) -> None:
     provenance_path = repo_root / ".opencode" / "meta" / "bootstrap-provenance.json"
     existing = read_json(provenance_path)
@@ -761,11 +1031,22 @@ def update_provenance(
     payload["repair_history"] = [
         *history,
         {
+            "repair_id": repair_id,
             "repaired_at": current_iso_timestamp(),
+            "repair_type": "managed-surface-replacement",
             "repair_kind": "deterministic-workflow-engine-replacement",
             "repair_package_commit": current_package_commit(),
             "summary": change_summary,
+            "surfaces_replaced": replaced_surfaces,
             "replaced_surfaces": replaced_surfaces,
+            "diff_summary": diff_summary,
+            "audit_findings_addressed": [],
+            "verification_passed": False,
+            "verification_findings": [],
+            "remediation_ticket_ids": [],
+            "process_version_before": process_version_before,
+            "process_version_after": process_version_after,
+            "backup_path": backup_path,
             "project_specific_follow_up": (
                 payload.get("managed_surfaces", {}).get("project_specific_follow_up", [])
                 if isinstance(payload.get("managed_surfaces"), dict)
@@ -776,48 +1057,112 @@ def update_provenance(
     write_json(provenance_path, payload)
 
 
-def apply_repair(repo_root: Path, rendered_root: Path, change_summary: str) -> list[str]:
+def apply_repair(repo_root: Path, rendered_root: Path, change_summary: str, *, preserve_backups: bool = False) -> dict[str, Any]:
     replaced_surfaces: list[str] = []
+    diff_summary = build_managed_surface_diff_summary(repo_root, rendered_root)
+    intent_changing_reasons = detect_intent_changing_repair(repo_root, rendered_root)
+    if intent_changing_reasons:
+        escalation = write_repair_escalation(
+            repo_root,
+            change_summary=change_summary,
+            reasons=intent_changing_reasons,
+            diff_summary=diff_summary,
+        )
+        raise RepairEscalation(
+            "Deterministic managed repair would change intent-sensitive workflow contract surfaces.",
+            escalation,
+        )
 
-    replace_file(rendered_root / "opencode.jsonc", repo_root / "opencode.jsonc")
-    replaced_surfaces.append("opencode.jsonc")
-
-    for relative in (".opencode/tools", ".opencode/lib", ".opencode/plugins", ".opencode/commands"):
-        replace_directory(rendered_root / relative, repo_root / relative)
-        replaced_surfaces.append(relative)
-
-    rendered_skills_root = rendered_root / ".opencode" / "skills"
-    target_skills_root = repo_root / ".opencode" / "skills"
-    target_skills_root.mkdir(parents=True, exist_ok=True)
-    for skill_dir in sorted(rendered_skills_root.iterdir()):
-        if not skill_dir.is_dir():
-            continue
-        replace_directory(skill_dir, target_skills_root / skill_dir.name)
-    replaced_surfaces.append("scaffold-managed .opencode/skills")
-
-    for filename in DETERMINISTIC_PROCESS_DOCS:
-        replace_file(rendered_root / "docs" / "process" / filename, repo_root / "docs" / "process" / filename)
-        replaced_surfaces.append(f"docs/process/{filename}")
-
-    rendered_start_here = (rendered_root / "START-HERE.md").read_text(encoding="utf-8")
-    target_start_here_path = repo_root / "START-HERE.md"
-    existing_start_here = target_start_here_path.read_text(encoding="utf-8") if target_start_here_path.exists() else ""
-    target_start_here_path.write_text(merge_start_here(existing_start_here, rendered_start_here), encoding="utf-8")
-    replaced_surfaces.append("START-HERE.md managed block")
-
-    (repo_root / ".opencode" / "state" / "bootstrap").mkdir(parents=True, exist_ok=True)
-
-    update_provenance(repo_root, rendered_root, replaced_surfaces, change_summary)
-    update_workflow_state(repo_root, read_json(rendered_root / ".opencode" / "meta" / "bootstrap-provenance.json"), change_summary)
-    regenerate_restart_surfaces(
-        repo_root,
-        reason=change_summary,
-        source="scafforge-repair",
-        verification_passed=False,
+    workflow_before = read_json(repo_root / ".opencode" / "state" / "workflow-state.json")
+    process_version_before = workflow_before.get("process_version") if isinstance(workflow_before, dict) else None
+    repair_id = current_iso_timestamp()
+    backup_root = (
+        repo_root / ".opencode" / "state" / "repair-backups" / repair_id.replace(":", "-")
+        if preserve_backups
+        else Path(tempfile.mkdtemp(prefix="scafforge-repair-backup-"))
     )
-    replaced_surfaces.append(".opencode/state/context-snapshot.md")
-    replaced_surfaces.append(".opencode/state/latest-handoff.md")
-    return replaced_surfaces
+    processed_records: list[dict[str, Any]] = []
+
+    def replace_file_with_backup(source: Path, target: Path) -> None:
+        processed_records.append(backup_target(target, backup_root, repo_root))
+        replace_file(source, target)
+
+    def replace_directory_with_backup(source: Path, target: Path) -> None:
+        processed_records.append(backup_target(target, backup_root, repo_root))
+        replace_directory(source, target)
+
+    def write_merged_start_here_with_backup(rendered_text: str, target: Path) -> None:
+        processed_records.append(backup_target(target, backup_root, repo_root))
+        existing_text = target.read_text(encoding="utf-8") if target.exists() else ""
+        target.write_text(merge_start_here(existing_text, rendered_text), encoding="utf-8")
+
+    try:
+        replace_file_with_backup(rendered_root / "opencode.jsonc", repo_root / "opencode.jsonc")
+        replaced_surfaces.append("opencode.jsonc")
+
+        for relative in (".opencode/tools", ".opencode/lib", ".opencode/plugins", ".opencode/commands"):
+            replace_directory_with_backup(rendered_root / relative, repo_root / relative)
+            replaced_surfaces.append(relative)
+
+        rendered_skills_root = rendered_root / ".opencode" / "skills"
+        target_skills_root = repo_root / ".opencode" / "skills"
+        target_skills_root.mkdir(parents=True, exist_ok=True)
+        for skill_dir in sorted(rendered_skills_root.iterdir()):
+            if not skill_dir.is_dir():
+                continue
+            replace_directory_with_backup(skill_dir, target_skills_root / skill_dir.name)
+        replaced_surfaces.append("scaffold-managed .opencode/skills")
+
+        for filename in DETERMINISTIC_PROCESS_DOCS:
+            replace_file_with_backup(rendered_root / "docs" / "process" / filename, repo_root / "docs" / "process" / filename)
+            replaced_surfaces.append(f"docs/process/{filename}")
+
+        rendered_start_here = (rendered_root / "START-HERE.md").read_text(encoding="utf-8")
+        target_start_here_path = repo_root / "START-HERE.md"
+        write_merged_start_here_with_backup(rendered_start_here, target_start_here_path)
+        replaced_surfaces.append("START-HERE.md managed block")
+
+        (repo_root / ".opencode" / "state" / "bootstrap").mkdir(parents=True, exist_ok=True)
+
+        update_workflow_state(repo_root, read_json(rendered_root / ".opencode" / "meta" / "bootstrap-provenance.json"), change_summary)
+        process_version_after = None
+        workflow_after = read_json(repo_root / ".opencode" / "state" / "workflow-state.json")
+        if isinstance(workflow_after, dict) and isinstance(workflow_after.get("process_version"), int):
+            process_version_after = workflow_after["process_version"]
+        update_provenance(
+            repo_root,
+            rendered_root,
+            replaced_surfaces,
+            change_summary,
+            repair_id=repair_id,
+            diff_summary=diff_summary,
+            backup_path=(str(backup_root) if preserve_backups else None),
+            process_version_before=process_version_before,
+            process_version_after=process_version_after,
+        )
+        regenerate_restart_surfaces(
+            repo_root,
+            reason=change_summary,
+            source="scafforge-repair",
+            verification_passed=False,
+        )
+        replaced_surfaces.append(".opencode/state/context-snapshot.md")
+        replaced_surfaces.append(".opencode/state/latest-handoff.md")
+        if not preserve_backups:
+            shutil.rmtree(backup_root, ignore_errors=True)
+        return {
+            "replaced_surfaces": replaced_surfaces,
+            "diff_summary": diff_summary,
+            "backup_path": str(backup_root) if preserve_backups else None,
+            "repair_id": repair_id,
+            "process_version_before": process_version_before,
+            "process_version_after": process_version_after,
+        }
+    except Exception as exc:
+        restore_backup_records(processed_records)
+        if not preserve_backups:
+            shutil.rmtree(backup_root, ignore_errors=True)
+        raise RepairFailure(f"Managed surface replacement failed and was restored from backup: {exc}") from exc
 
 
 def main() -> int:
@@ -828,7 +1173,13 @@ def main() -> int:
     with tempfile.TemporaryDirectory(prefix="scafforge-repair-") as temp_dir:
         rendered_root = Path(temp_dir) / "rendered"
         run_bootstrap_render(rendered_root, metadata, args.stack_label)
-        replaced_surfaces = apply_repair(repo_root, rendered_root, args.change_summary)
+        result = apply_repair(
+            repo_root,
+            rendered_root,
+            args.change_summary,
+            preserve_backups=args.preserve_backups,
+        )
+        replaced_surfaces = result["replaced_surfaces"]
 
     repair_basis = resolve_repair_basis(repo_root, args.repair_basis_diagnosis)
     logs = verification_logs(repo_root, args.supporting_log, repair_basis)
@@ -855,6 +1206,9 @@ def main() -> int:
     payload = {
         "repo_root": str(repo_root),
         "replaced_surfaces": replaced_surfaces,
+        "diff_summary": result["diff_summary"],
+        "backup_path": result["backup_path"],
+        "repair_id": result["repair_id"],
         "stale_surface_map": stale_surface_map,
         "verification": {
             "performed": not args.skip_verify,

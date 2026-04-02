@@ -4,10 +4,17 @@ import { appendJsonl, invocationLogPath } from "../lib/workflow"
 export const InvocationTracker: Plugin = async (pluginInput) => {
   const path = invocationLogPath(pluginInput.directory)
   const timestamp = () => new Date().toISOString()
+  const recordEvent = async (payload: Record<string, unknown>) => {
+    try {
+      await appendJsonl(path, payload)
+    } catch (error) {
+      console.warn(`InvocationTracker disabled for this event: ${String(error)}`)
+    }
+  }
 
   return {
     "chat.message": async (input, output) => {
-      await appendJsonl(path, {
+      await recordEvent({
         event: "chat.message",
         timestamp: timestamp(),
         session_id: input.sessionID,
@@ -19,7 +26,7 @@ export const InvocationTracker: Plugin = async (pluginInput) => {
       })
     },
     "command.execute.before": async (input) => {
-      await appendJsonl(path, {
+      await recordEvent({
         event: "command.execute.before",
         timestamp: timestamp(),
         session_id: input.sessionID,
@@ -29,7 +36,7 @@ export const InvocationTracker: Plugin = async (pluginInput) => {
       })
     },
     "tool.execute.before": async (input, output) => {
-      await appendJsonl(path, {
+      await recordEvent({
         event: "tool.execute.before",
         timestamp: timestamp(),
         session_id: input.sessionID,
@@ -40,7 +47,7 @@ export const InvocationTracker: Plugin = async (pluginInput) => {
       })
     },
     "tool.execute.after": async (input, output) => {
-      await appendJsonl(path, {
+      await recordEvent({
         event: "tool.execute.after",
         timestamp: timestamp(),
         session_id: input.sessionID,

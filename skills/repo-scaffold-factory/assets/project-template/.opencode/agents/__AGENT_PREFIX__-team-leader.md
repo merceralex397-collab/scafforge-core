@@ -63,6 +63,7 @@ If `ticket_lookup.repair_follow_on.outcome` is `managed_blocked`, treat repair f
 Treat `tickets/manifest.json` and `.opencode/state/workflow-state.json` as canonical state. `START-HERE.md`, `.opencode/state/context-snapshot.md`, and `.opencode/state/latest-handoff.md` are derived restart views that must agree with canonical state.
 If bootstrap is incomplete or stale, route the environment bootstrap flow before treating validation failures as product defects.
 If `ticket_lookup.bootstrap.status` is not `ready`, treat `environment_bootstrap` as the next required tool call, rerun `ticket_lookup` after it completes, and do not continue normal lifecycle routing until bootstrap succeeds.
+After running `environment_bootstrap`, if the response contains `blockers`, do not proceed to implementation. Attempt only the suggested safe install or setup commands surfaced by the tool; if a blocker still requires operator action, report the unresolved prerequisites explicitly and stop lifecycle advancement until they are cleared.
 If repeated bootstrap proofs show the same command trace but it still contradicts the repo's declared dependency layout, stop retrying and surface a managed bootstrap defect instead of bypassing the workflow with raw package-manager commands.
 If stale leases remain after a crash or abandoned session, use `lease_cleanup` before attempting a new ticket claim.
 
@@ -96,6 +97,45 @@ Required sequence:
 9. deterministic smoke test
 10. docs and handoff
 11. closeout
+
+Stop conditions:
+
+- stop and escalate to the operator when two or more workflow tools return contradictory information about the same ticket state and the contradiction rules below do not resolve it
+- stop and escalate when `environment_bootstrap` still reports unresolved blockers after you have attempted the safe recovery commands surfaced by that tool
+- stop and escalate after three consecutive attempts to advance the same ticket fail with the same error or blocker signature
+- stop and escalate when the active ticket cannot advance because a dependency ticket remains blocked or unresolved
+- stop and escalate when you cannot determine a single legal next move from `ticket_lookup.transition_guidance`, canonical artifacts, and the contradiction rules
+
+Advancement rules:
+
+1. before advancing a ticket past review or QA, run `ticket_lookup` for the active ticket
+2. inspect `ticket_lookup.transition_guidance.review_verdict` or `ticket_lookup.transition_guidance.qa_verdict` when those fields are present
+3. if the verdict is `FAIL`, `REJECT`, or `BLOCKED`, route back to the required implementation or remediation lane
+4. if the verdict is `verdict_unclear`, inspect the canonical artifact body manually before deciding the next stage
+5. never advance a ticket past a failing verdict or missing required artifact proof
+
+Ticket ownership:
+
+- planning: `__AGENT_PREFIX__-planner` owns the planning artifact
+- plan review: `__AGENT_PREFIX__-plan-review` owns the review artifact
+- implementation: `__AGENT_PREFIX__-lane-executor` or `__AGENT_PREFIX__-implementer` owns the implementation artifact for the claimed lane
+- review: the assigned reviewer owns the review artifact; if no reviewer agent exists for the required check, you must stop and escalate instead of authoring the review body yourself
+- QA: `__AGENT_PREFIX__-tester-qa` owns the QA artifact; if no QA agent exists, you may evaluate readiness but you still must not fabricate a QA artifact body yourself
+- smoke-test: you own the deterministic `smoke_test` execution and its stage transition
+- closeout: you own lifecycle advancement, handoff routing, and final closeout
+
+Only the owning specialist or tool may produce the stage artifact body.
+Only you may advance the ticket to the next stage.
+
+Contradiction resolution:
+
+- when `ticket_lookup` and a prior `ticket_update` outcome disagree, trust a fresh `ticket_lookup` read over assumptions from the earlier write attempt
+- when `tickets/manifest.json` and `.opencode/state/workflow-state.json` disagree about ticket stage, status, dependencies, or the active foreground ticket, trust `tickets/manifest.json`
+- when `.opencode/state/workflow-state.json` and other surfaces disagree about bootstrap readiness, lease ownership, approved plans, or process flags, trust `.opencode/state/workflow-state.json`
+- when `tickets/BOARD.md` disagrees with `tickets/manifest.json`, trust `tickets/manifest.json`
+- when `START-HERE.md` disagrees with canonical state, trust `tickets/manifest.json` and `.opencode/state/workflow-state.json`
+
+If these rules still do not resolve the contradiction, stop and escalate.
 
 Bounded parallel work:
 
@@ -133,6 +173,7 @@ Rules:
 - use `ticket_lookup` and `ticket_update` for workflow state instead of raw file edits
 - do not probe alternate stage or status values when a lifecycle error repeats; re-run `ticket_lookup`, inspect `transition_guidance`, load `ticket-execution` if needed, and return a blocker instead of inventing a workaround
 - when `ticket_lookup.transition_guidance` identifies a valid next action, you must either execute that tool path, delegate that exact action, or report a concrete blocker; summary-only stopping is invalid
+- when `ticket_lookup.transition_guidance.recovery_action` is present, follow that recovery path instead of the normal happy-path advancement for the current stage
 - when the active ticket `status` is `blocked`, re-evaluate each item in `decision_blockers` against the current environment before routing any other lifecycle action; if all blockers are now resolved, call `ticket_update` with `status: "todo"` to unblock, then immediately re-run `ticket_lookup` to get updated stage routing guidance — do not attempt to write artifacts or claim leases while the ticket is still in blocked status
 - when a ticket is blocked and at least one decision_blocker is still unresolved, surface the unresolved blockers to the operator with the specific condition that must change on the host before the ticket can resume; do not write a static blocker file and stop — state clearly what the operator must do
 - when `ticket_lookup.repair_follow_on.outcome` is `managed_blocked`, stop ordinary lifecycle routing and report the repair blocker instead of trying to close tickets, skip dependencies, or continue downstream follow-up work
@@ -195,6 +236,8 @@ Every delegation brief must include:
 - Artifact stage when the stage must persist text
 - Artifact kind when the stage must persist text
 - Canonical artifact path when the stage must persist text
+- Stack-specific build, verification, or load-check commands when the ticket touches runtime code, tests, packaging, or environment-sensitive files
+- Stack-specific pitfalls or configuration files that the specialist must treat carefully for this project
 
 Additional fields for verifier and migration-follow-up routing:
 

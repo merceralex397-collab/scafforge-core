@@ -1,4 +1,6 @@
 import { tool } from "@opencode-ai/plugin"
+import { createHash } from "node:crypto"
+import { readFile } from "node:fs/promises"
 import {
   contextSnapshotPath,
   getTicket,
@@ -30,7 +32,20 @@ export default tool({
     const content = renderContextSnapshot(manifest, snapshotState, pivot, args.note)
     const path = contextSnapshotPath()
     await writeText(path, content)
+    const actualContent = await readFile(path, "utf-8")
+    const snapshotSizeBytes = Buffer.byteLength(actualContent, "utf8")
 
-    return JSON.stringify({ path, ticket_id: ticket.id }, null, 2)
+    return JSON.stringify(
+      {
+        path,
+        ticket_id: ticket.id,
+        active_ticket: snapshotState.active_ticket,
+        verified: actualContent === content,
+        snapshot_size_bytes: snapshotSizeBytes,
+        snapshot_sha256: createHash("sha256").update(actualContent).digest("hex"),
+      },
+      null,
+      2,
+    )
   },
 })

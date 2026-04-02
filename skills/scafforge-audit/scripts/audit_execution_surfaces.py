@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import json
 from pathlib import Path
 import re
 import shutil
+import tempfile
 from typing import Any, Callable
 
 from shared_verifier_types import Finding
@@ -268,6 +270,10 @@ def audit_smoke_test_override_contract(root: Path, findings: list[Finding], ctx:
         evidence.append(f"{ctx.normalize_path(tool_path, root)} does not normalize one-item shell-style overrides before execution.")
     if "env_overrides" not in text:
         evidence.append(f"{ctx.normalize_path(tool_path, root)} does not peel leading KEY=VALUE tokens into spawn environment overrides.")
+    if "tokenizeCommandString" not in text:
+        evidence.append(f"{ctx.normalize_path(tool_path, root)} does not tokenize one-item shell-style overrides through a quote-aware parser.")
+    if "syntax_error" not in text:
+        evidence.append(f"{ctx.normalize_path(tool_path, root)} does not classify quote or shell-shape failures as syntax_error instead of generic command failure.")
 
     if not evidence:
         return
@@ -582,6 +588,315 @@ def audit_python_execution(root: Path, findings: list[Finding], ctx: ExecutionSu
             )
 
 
+def _command_available(command: str) -> bool:
+    return shutil.which(command) is not None
+
+
+def _choose_node_manager(root: Path, package_json: dict[str, Any]) -> tuple[str, list[str]]:
+    declared = str(package_json.get("packageManager", "")).lower()
+    if declared.startswith("pnpm") or (root / "pnpm-lock.yaml").exists():
+        return "pnpm", ["pnpm"]
+    if declared.startswith("yarn") or (root / "yarn.lock").exists():
+        return "yarn", ["yarn"]
+    if declared.startswith("bun") or (root / "bun.lock").exists() or (root / "bun.lockb").exists():
+        return "bun", ["bun"]
+    return "npm", ["npm"]
+
+
+def _package_scripts(package_json: dict[str, Any]) -> dict[str, str]:
+    scripts = package_json.get("scripts")
+    return scripts if isinstance(scripts, dict) else {}
+
+
+def _relative_repo_path(path: Path, root: Path) -> str:
+    return str(path.relative_to(root)).replace("\\", "/")
+
+
+def _add_execution_finding(
+    findings: list[Finding],
+    ctx: ExecutionSurfaceAuditContext,
+    *,
+    code: str,
+    severity: str,
+    problem: str,
+    root_cause: str,
+    files: list[Path],
+    safer_pattern: str,
+    evidence: list[str],
+    root: Path,
+) -> None:
+    ctx.add_finding(
+        findings,
+        Finding(
+            code=code,
+            severity=severity,
+            problem=problem,
+            root_cause=root_cause,
+            files=[ctx.normalize_path(path, root) for path in files if path.exists()],
+            safer_pattern=safer_pattern,
+            evidence=evidence[:8],
+            provenance="script",
+        ),
+    )
+
+
+def _collect_first_error_lines(output: str) -> list[str]:
+    lines = [line.strip() for line in output.splitlines() if line.strip()]
+    interesting = [line for line in lines if any(token in line.lower() for token in ("error", "failed", "missing", "cannot", "exception"))]
+    return interesting[:5] or lines[:5]
+
+
+def audit_node_execution(root: Path, findings: list[Finding], ctx: ExecutionSurfaceAuditContext) -> None:
+    package_path = root / "package.json"
+    if not package_path.exists():
+        return
+    package_json = ctx.read_json(package_path)
+    if not isinstance(package_json, dict):
+        return
+    if _command_available("node"):
+        entry_candidates = []
+        for key in ("main",):
+            value = package_json.get(key)
+            if isinstance(value, str) and value.strip():
+                entry_candidates.append(root / value)
+        for candidate in (root / "index.js", root / "src" / "index.js"):
+            if candidate not in entry_candidates:
+                entry_candidates.append(candidate)
+        entry_path = next((candidate for candidate in entry_candidates if candidate.exists()), None)
+        if entry_path is not None:
+            relative = f"./{_relative_repo_path(entry_path, root)}"
+            rc, output = ctx.run_command(["node", "-e", f"require({json.dumps(relative)})"], root, 30)
+            if rc != 0:
+                _add_execution_finding(
+                    findings,
+                    ctx,
+                    code="EXEC-NODE-001",
+                    severity="error",
+                    problem="Node entry point cannot be required successfully.",
+                    root_cause="The generated or current Node entry module throws during load or points at a broken dependency chain, so the project cannot start cleanly.",
+                    files=[package_path, entry_path],
+                    safer_pattern="Keep package.json entry points aligned with real files and require-load the entry module during audit to catch runtime boot failures before handoff.",
+                    evidence=_collect_first_error_lines(output),
+                    root=root,
+                )
+
+    manager, manager_cmd = _choose_node_manager(root, package_json)
+    scripts = _package_scripts(package_json)
+    if "test" in scripts and _command_available(manager_cmd[0]):
+        if manager == "yarn":
+            argv = ["yarn", "test"]
+        elif manager == "bun":
+            argv = ["bun", "test"]
+        else:
+            argv = [manager_cmd[0], "test"]
+        rc, output = ctx.run_command(argv, root, 90)
+        if rc != 0:
+            _add_execution_finding(
+                findings,
+                ctx,
+                code="EXEC-NODE-002",
+                severity="error",
+                problem="Node test command exits non-zero.",
+                root_cause="The repo advertises a test surface, but the managed audit can already reproduce a failing test command or broken test bootstrap.",
+                files=[package_path],
+                safer_pattern="Run the declared package-manager test command during audit and keep tickets blocked until it exits cleanly with executable evidence.",
+                evidence=_collect_first_error_lines(output),
+                root=root,
+            )
+
+    dependencies = package_json.get("dependencies") if isinstance(package_json.get("dependencies"), dict) else {}
+    if dependencies and not (root / "node_modules").exists():
+        _add_execution_finding(
+            findings,
+            ctx,
+            code="EXEC-NODE-003",
+            severity="error",
+            problem="Node dependencies are declared but not installed.",
+            root_cause="package.json lists runtime dependencies, but node_modules is absent, so entry load and test execution cannot reflect the declared runtime.",
+            files=[package_path],
+            safer_pattern="Bootstrap Node dependencies before audit and verify dependency installation with node_modules presence or a clean package-manager dependency listing.",
+            evidence=[f"Declared dependencies: {', '.join(sorted(dependencies.keys())[:8])}", "node_modules directory is missing."],
+            root=root,
+        )
+
+
+def audit_rust_execution(root: Path, findings: list[Finding], ctx: ExecutionSurfaceAuditContext) -> None:
+    cargo_toml = root / "Cargo.toml"
+    if not cargo_toml.exists() or not _command_available("cargo"):
+        return
+    rc, output = ctx.run_command(["cargo", "check"], root, 120)
+    if rc != 0:
+        _add_execution_finding(findings, ctx, code="EXEC-RUST-001", severity="error", problem="cargo check fails for this repo.", root_cause="Rust sources do not currently compile cleanly, so the generated project cannot build the baseline code path.", files=[cargo_toml], safer_pattern="Run cargo check during audit and keep Rust tickets blocked until the crate compiles cleanly.", evidence=_collect_first_error_lines(output), root=root)
+    rc, output = ctx.run_command(["cargo", "test", "--no-run"], root, 120)
+    if rc != 0:
+        _add_execution_finding(findings, ctx, code="EXEC-RUST-002", severity="error", problem="Rust tests do not compile.", root_cause="Test targets fail to compile even before execution, so QA cannot treat the Rust test surface as runnable.", files=[cargo_toml], safer_pattern="Require cargo test --no-run to pass before treating Rust validation as healthy.", evidence=_collect_first_error_lines(output), root=root)
+
+
+def audit_go_execution(root: Path, findings: list[Finding], ctx: ExecutionSurfaceAuditContext) -> None:
+    go_mod = root / "go.mod"
+    if not go_mod.exists() or not _command_available("go"):
+        return
+    for code, argv, problem, cause, pattern in (
+        ("EXEC-GO-001", ["go", "vet", "./..."], "go vet reports issues.", "Static analysis already identifies broken or suspicious Go code paths.", "Require go vet ./... to pass before Go tickets can close."),
+        ("EXEC-GO-002", ["go", "build", "./..."], "go build fails for this repo.", "The Go module does not compile across all packages.", "Require go build ./... to pass before Go implementation is marked complete."),
+        ("EXEC-GO-003", ["go", "test", "-run", "^$", "./..."], "Go test binaries do not compile.", "The repo cannot even compile its test targets without running the tests.", "Require go test -run ^$ ./... to pass as a compile-only QA gate for Go repos."),
+    ):
+        rc, output = ctx.run_command(argv, root, 120)
+        if rc != 0:
+            _add_execution_finding(findings, ctx, code=code, severity="error", problem=problem, root_cause=cause, files=[go_mod], safer_pattern=pattern, evidence=_collect_first_error_lines(output), root=root)
+
+
+def audit_godot_execution(root: Path, findings: list[Finding], ctx: ExecutionSurfaceAuditContext) -> None:
+    project_file = root / "project.godot"
+    if not project_file.exists():
+        return
+    project_text = ctx.read_text(project_file)
+    missing_autoloads: list[str] = []
+    for match in re.finditer(r"^autoload/[^=]+=.*res://([^\n\"]+)", project_text, re.MULTILINE):
+        target = root / match.group(1)
+        if not target.exists():
+            missing_autoloads.append(match.group(1))
+    if missing_autoloads:
+        _add_execution_finding(findings, ctx, code="EXEC-GODOT-001", severity="error", problem="Godot autoload registration references missing scripts.", root_cause="project.godot points at autoload paths that do not exist in the repo, so project startup will fail or load an incomplete runtime graph.", files=[project_file], safer_pattern="Validate every project.godot autoload path against the repo tree before handoff or audit closeout.", evidence=missing_autoloads, root=root)
+
+    broken_scene_refs: list[str] = []
+    for path in list(root.rglob("*.tscn")) + list(root.rglob("*.tres")):
+        text = ctx.read_text(path)
+        for match in re.finditer(r'res://([^"\n]+\.(?:gd|cs|tscn|tres))', text):
+            target = root / match.group(1)
+            if not target.exists():
+                broken_scene_refs.append(f"{ctx.normalize_path(path, root)} -> res://{match.group(1)}")
+    if broken_scene_refs:
+        _add_execution_finding(findings, ctx, code="EXEC-GODOT-002", severity="error", problem="Godot scenes or resources reference missing files.", root_cause="Scene/resource manifests contain res:// links that no longer resolve, so the project cannot load those assets or scripts deterministically.", files=[project_file], safer_pattern="Scan Godot scene and resource manifests for res:// references and fail audit when the target file is missing.", evidence=broken_scene_refs[:8], root=root)
+
+    broken_extends: list[str] = []
+    for path in root.rglob("*.gd"):
+        text = ctx.read_text(path)
+        match = re.search(r'^extends\s+"res://([^"\n]+)"', text, re.MULTILINE)
+        if not match:
+            continue
+        target = root / match.group(1)
+        if not target.exists():
+            broken_extends.append(f"{ctx.normalize_path(path, root)} -> res://{match.group(1)}")
+    if broken_extends:
+        _add_execution_finding(findings, ctx, code="EXEC-GODOT-003", severity="error", problem="GDScript extends declarations reference missing base scripts.", root_cause="At least one GDScript file extends a base script that is not present in the repo, which breaks script inheritance before runtime.", files=[project_file], safer_pattern="Check quoted GDScript extends targets during audit and keep Godot repos blocked until every referenced base script exists.", evidence=broken_extends[:8], root=root)
+
+    godot_cmd = next((candidate for candidate in ("godot4", "godot") if _command_available(candidate)), None)
+    if godot_cmd:
+        rc, output = ctx.run_command([godot_cmd, "--headless", "--path", ".", "--quit"], root, 120)
+        if rc != 0:
+            _add_execution_finding(findings, ctx, code="EXEC-GODOT-004", severity="error", problem="Godot headless validation fails.", root_cause="The project cannot complete a deterministic headless Godot load pass on the current host, indicating broken project configuration or scripts.", files=[project_file], safer_pattern="Run a deterministic `godot --headless --path . --quit` validation during audit and keep the repo blocked until it succeeds or returns an explicit environment blocker instead.", evidence=_collect_first_error_lines(output), root=root)
+
+
+def audit_java_android_execution(root: Path, findings: list[Finding], ctx: ExecutionSurfaceAuditContext) -> None:
+    indicators = [path for path in (root / "build.gradle", root / "build.gradle.kts", root / "pom.xml") if path.exists()]
+    if not indicators:
+        return
+    if (root / "gradlew").exists():
+        rc, output = ctx.run_command(["./gradlew", "check", "--dry-run"], root, 120)
+        if rc != 0:
+            _add_execution_finding(findings, ctx, code="EXEC-JAVA-001", severity="error", problem="Gradle build script fails even under dry-run validation.", root_cause="The Gradle build configuration is invalid or refers to missing build inputs, so Java or Android builds are not trustworthy.", files=indicators, safer_pattern="Dry-run Gradle check during audit and keep Java or Android repos blocked until the build graph resolves cleanly.", evidence=_collect_first_error_lines(output), root=root)
+    elif (root / "pom.xml").exists() and _command_available("mvn"):
+        rc, output = ctx.run_command(["mvn", "-q", "-DskipTests", "validate"], root, 120)
+        if rc != 0:
+            _add_execution_finding(findings, ctx, code="EXEC-JAVA-001", severity="error", problem="Maven project validation fails.", root_cause="The Maven project model is invalid or incomplete, so downstream Java execution is already broken at the build-script level.", files=indicators, safer_pattern="Run a non-mutating Maven validation step during audit before trusting Java handoff state.", evidence=_collect_first_error_lines(output), root=root)
+    elif _command_available("javac"):
+        sample = next((path for path in root.rglob("*.java") if "build" not in path.parts), None)
+        if sample is not None:
+            rc, output = ctx.run_command(["javac", str(sample)], root, 60)
+            if rc != 0:
+                _add_execution_finding(findings, ctx, code="EXEC-JAVA-002", severity="error", problem="Sample Java source file fails to compile.", root_cause="The repo contains Java sources that do not compile even in a simple single-file check.", files=[sample], safer_pattern="Compile a representative Java source during audit when no build tool exists, and fail closeout on compile errors.", evidence=_collect_first_error_lines(output), root=root)
+
+    combined_text = "\n".join(ctx.read_text(path) for path in indicators)
+    if "com.android" in combined_text or (root / "AndroidManifest.xml").exists():
+        local_properties = root / "local.properties"
+        sdk_dir = re.search(r"^sdk\.dir=(.+)$", ctx.read_text(local_properties), re.MULTILINE) if local_properties.exists() else None
+        sdk_path = Path(sdk_dir.group(1).strip()) if sdk_dir else None
+        if sdk_path is None or not sdk_path.exists():
+            _add_execution_finding(findings, ctx, code="EXEC-JAVA-003", severity="error", problem="Android SDK path is missing or invalid.", root_cause="Android build surfaces are present, but local.properties does not point at a valid SDK installation.", files=[local_properties if local_properties.exists() else indicators[0]], safer_pattern="Validate Android sdk.dir or equivalent SDK configuration during audit before treating Android repos as runnable.", evidence=[f"local.properties present: {local_properties.exists()}", f"sdk.dir value: {sdk_dir.group(1).strip() if sdk_dir else 'missing'}"], root=root)
+
+
+def audit_cpp_execution(root: Path, findings: list[Finding], ctx: ExecutionSurfaceAuditContext) -> None:
+    cmake_lists = root / "CMakeLists.txt"
+    makefile = root / "Makefile"
+    if cmake_lists.exists() and _command_available("cmake"):
+        with tempfile.TemporaryDirectory(prefix="scafforge-cmake-check-") as temp_dir:
+            rc, output = ctx.run_command(["cmake", "-S", ".", "-B", temp_dir], root, 120)
+        if rc != 0:
+            _add_execution_finding(findings, ctx, code="EXEC-CPP-001", severity="error", problem="CMake configuration fails.", root_cause="The CMake project cannot even configure a build tree, so the current native build contract is already broken.", files=[cmake_lists], safer_pattern="Run cmake -S . -B <temp-build-dir> during audit and fail native closeout when configuration errors persist.", evidence=_collect_first_error_lines(output), root=root)
+    if makefile.exists() and _command_available("make"):
+        rc, output = ctx.run_command(["make", "-n"], root, 60)
+        if rc != 0:
+            _add_execution_finding(findings, ctx, code="EXEC-CPP-002", severity="error", problem="Make dry-run fails.", root_cause="The Make-based native build surface cannot even resolve its dry-run command graph without errors.", files=[makefile], safer_pattern="Require make -n to succeed during audit before treating Make-based repos as buildable.", evidence=_collect_first_error_lines(output), root=root)
+
+
+def audit_dotnet_execution(root: Path, findings: list[Finding], ctx: ExecutionSurfaceAuditContext) -> None:
+    indicators = list(root.glob("*.csproj")) + list(root.glob("*.fsproj")) + list(root.glob("*.sln"))
+    if not indicators or not _command_available("dotnet"):
+        return
+    rc, output = ctx.run_command(["dotnet", "build", "--no-restore"], root, 180)
+    if rc != 0:
+        _add_execution_finding(findings, ctx, code="EXEC-DOTNET-001", severity="error", problem="dotnet build fails.", root_cause="The .NET solution does not currently compile cleanly even without restore, so the generated code path is not executable.", files=indicators, safer_pattern="Require dotnet build --no-restore during audit once dependencies are bootstrapped.", evidence=_collect_first_error_lines(output), root=root)
+    rc, output = ctx.run_command(["dotnet", "test", "--no-build", "--list-tests"], root, 180)
+    if rc != 0:
+        _add_execution_finding(findings, ctx, code="EXEC-DOTNET-002", severity="error", problem="dotnet test cannot discover tests.", root_cause="The .NET test surface is not currently buildable or discoverable, so QA cannot trust the declared test lane.", files=indicators, safer_pattern="Require dotnet test --no-build --list-tests to succeed during audit when a .NET test surface exists.", evidence=_collect_first_error_lines(output), root=root)
+
+
+def _resolve_relative_import_path(base_file: Path, value: str) -> list[Path]:
+    base = (base_file.parent / value).resolve()
+    candidates = [base]
+    if base.suffix:
+        return candidates
+    for suffix in (".py", ".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs"):
+        candidates.append(Path(f"{base}{suffix}"))
+    candidates.append(base / "__init__.py")
+    candidates.append(base / "index.ts")
+    candidates.append(base / "index.tsx")
+    candidates.append(base / "index.js")
+    return candidates
+
+
+def audit_reference_integrity(root: Path, findings: list[Finding], ctx: ExecutionSurfaceAuditContext) -> None:
+    scene_missing: list[str] = []
+    for path in list(root.rglob("*.tscn")) + list(root.rglob("*.tres")):
+        text = ctx.read_text(path)
+        for match in re.finditer(r'res://([^"\n]+\.(?:gd|cs))', text):
+            target = root / match.group(1)
+            if not target.exists():
+                scene_missing.append(f"{ctx.normalize_path(path, root)} -> res://{match.group(1)}")
+    if scene_missing:
+        _add_execution_finding(findings, ctx, code="REF-001", severity="error", problem="Scene or resource files reference missing script files.", root_cause="Engine-managed scene and resource surfaces contain file references that do not resolve in the repo tree.", files=[root / path.split(" -> ", 1)[0] for path in scene_missing[:1] if " -> " in path], safer_pattern="Audit scene and resource manifests for referenced scripts and fail when the referenced file is absent.", evidence=scene_missing[:8], root=root)
+
+    config_missing: list[str] = []
+    package_json = ctx.read_json(root / "package.json") if (root / "package.json").exists() else None
+    if isinstance(package_json, dict):
+        for key in ("main", "module", "types"):
+            value = package_json.get(key)
+            if isinstance(value, str) and value.strip() and not (root / value).exists():
+                config_missing.append(f"package.json {key} -> {value}")
+    project_text = ctx.read_text(root / "project.godot")
+    for match in re.finditer(r"^autoload/[^=]+=.*res://([^\n\"]+)", project_text, re.MULTILINE):
+        target = root / match.group(1)
+        if not target.exists():
+            config_missing.append(f"project.godot autoload -> res://{match.group(1)}")
+    if config_missing:
+        _add_execution_finding(findings, ctx, code="REF-002", severity="error", problem="Configuration surfaces reference missing code or asset files.", root_cause="A canonical config surface points at files that do not exist, so runtime setup and package entrypoints drift from repo truth.", files=[path for path in (root / "package.json", root / "project.godot") if path.exists()], safer_pattern="Audit config-managed code and asset paths and keep config surfaces aligned with real files before handoff.", evidence=config_missing[:8], root=root)
+
+    import_missing: list[str] = []
+    for path in list(root.rglob("*.py")) + list(root.rglob("*.ts")) + list(root.rglob("*.tsx")) + list(root.rglob("*.js")) + list(root.rglob("*.jsx")):
+        text = ctx.read_text(path)
+        for match in re.finditer(r"(?:from|import)\s+[\"'](\.[^\"']+)[\"']", text):
+            if any(candidate.exists() for candidate in _resolve_relative_import_path(path, match.group(1))):
+                continue
+            import_missing.append(f"{ctx.normalize_path(path, root)} -> {match.group(1)}")
+        for match in re.finditer(r"require\([\"'](\.[^\"']+)[\"']\)", text):
+            if any(candidate.exists() for candidate in _resolve_relative_import_path(path, match.group(1))):
+                continue
+            import_missing.append(f"{ctx.normalize_path(path, root)} -> {match.group(1)}")
+    if import_missing:
+        _add_execution_finding(findings, ctx, code="REF-003", severity="error", problem="Source imports reference missing local modules.", root_cause="At least one local import or require path no longer resolves to a file in the repo, so the runtime graph is internally inconsistent.", files=[root / import_missing[0].split(" -> ", 1)[0]], safer_pattern="Audit local relative import paths and fail when the referenced module file is missing.", evidence=import_missing[:8], root=root)
+
+
 def run_execution_surface_audits(root: Path, findings: list[Finding], ctx: ExecutionSurfaceAuditContext) -> None:
     audit_bootstrap_command_layout_mismatch(root, findings, ctx)
     audit_bootstrap_deadlock(root, findings, ctx)
@@ -590,3 +905,11 @@ def run_execution_surface_audits(root: Path, findings: list[Finding], ctx: Execu
     audit_smoke_test_acceptance_contract(root, findings, ctx)
     audit_environment_prerequisites(root, findings, ctx)
     audit_python_execution(root, findings, ctx)
+    audit_node_execution(root, findings, ctx)
+    audit_rust_execution(root, findings, ctx)
+    audit_go_execution(root, findings, ctx)
+    audit_godot_execution(root, findings, ctx)
+    audit_java_android_execution(root, findings, ctx)
+    audit_cpp_execution(root, findings, ctx)
+    audit_dotnet_execution(root, findings, ctx)
+    audit_reference_integrity(root, findings, ctx)

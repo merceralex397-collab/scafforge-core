@@ -63,6 +63,32 @@ Return:
 2. Validation run
 3. Remaining blockers or follow-up risks
 
+Build verification:
+
+1. after implementation work, run the project's build command when one exists
+2. if the build fails, fix the failure or return a blocker before claiming implementation is complete
+3. if no build command exists, run the smallest meaningful smoke, syntax, import, or load check for this stack
+4. never claim implementation is complete without at least one successful build, syntax, import, or load check
+
+Scope:
+
+You implement only the work described in the approved ticket and delegation brief.
+You do not:
+
+- advance tickets to review, QA, smoke-test, or closeout
+- modify workflow-state, manifest, or restart-surface files unless the approved ticket explicitly targets those managed surfaces
+- modify ticket files directly outside the artifact flow
+- create new tickets or alter ticket lineage
+- make architectural decisions that the approved plan did not resolve
+
+Stack-specific notes:
+
+`opencode-team-bootstrap` must rewrite this section with project-specific build, verification, pitfalls, and configuration-file guidance before implementation begins.
+
+<!-- SCAFFORGE:STACK_SPECIFIC_IMPLEMENTATION_NOTES START -->
+- Pending project-specific stack notes.
+<!-- SCAFFORGE:STACK_SPECIFIC_IMPLEMENTATION_NOTES END -->
+
 Rules:
 
 - do not re-plan from scratch

@@ -10,6 +10,7 @@ Use this skill to inspect an existing repository in full diagnostic mode without
 This is the host-side diagnosis surface. It replaces the old mixed doctor-plus-bridge behavior by keeping diagnosis, review evidence intake, and report generation together in one non-mutating skill.
 Every audit run produces the full four-report diagnosis pack.
 Use [../../references/competence-contract.md](../../references/competence-contract.md) as the package-level bar for whether the workflow is actually competent.
+This skill now emits code-quality findings as well as workflow findings, including EXEC families for stack-specific execution failures and REF families for broken canonical references.
 
 ## When to use this skill
 
@@ -67,6 +68,12 @@ Run:
 python3 scripts/audit_repo_process.py <repo-root> --format both --emit-diagnosis-pack
 ```
 
+For standalone non-OpenCode usage, prefer:
+
+```sh
+python3 skills/scafforge-audit/scripts/run_audit.py <repo-root> --format both
+```
+
 The script is at `scripts/audit_repo_process.py` relative to this skill.
 Pass `--supporting-log <path>` for each supplied session log or transcript export.
 If the audited repo is outside the current host's writable roots, pass `--diagnosis-output-dir <writable-path>` so the diagnosis pack is still emitted in a host-writable location.
@@ -92,6 +99,7 @@ For each finding, identify:
 - the root cause
 - the safer target pattern
 - whether the issue is workflow-layer drift, source-layer implementation drift, or review noise
+- whether the issue belongs to EXEC or REF code-quality families rather than the managed workflow layer
 - whether the issue is a host prerequisite blocker such as missing `uv`, `pytest`, `rg`, git identity, or diagnosis-pack output permissions
 - when logs were supplied, whether the issue is a historical chronology failure, a current-state repo failure, or both
 - whether the script output needs to be amended, merged, downgraded, or rejected after chronology review
@@ -137,6 +145,7 @@ Required outputs:
 
 At minimum, the pack must capture:
 - validated findings, severity, evidence grade, and file references
+- explicit split between workflow findings and code-quality findings
 - supporting session logs or transcript exports when supplied
 - whether a previous diagnosis and repair cycle already failed, and which workflow-layer findings persisted
 - whether the transcript shows workflow thrash, bypass-seeking, or evidence-free PASS claims
@@ -152,7 +161,7 @@ Report 4 must:
 - distinguish safe repairs from intent-changing repairs
 - identify whether `scafforge-repair` should run
 - state whether Scafforge package work must happen first
-- include ticket recommendations for post-repair or source-layer follow-up
+- include ticket recommendations for post-repair or source-layer follow-up, especially when EXEC or REF findings require remediation tickets instead of repair-time source edits
 - optionally emit a machine-readable recommended-ticket payload when useful
 
 ### 6. Decide the next workspace, then stop

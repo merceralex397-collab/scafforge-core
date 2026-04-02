@@ -1,3 +1,5 @@
+> **ARCHIVED:** This document is superseded by the `recovery-plan/` directory.
+
 # Scafforge Deadlock Hardening Plan
 
 ## Diagnosis

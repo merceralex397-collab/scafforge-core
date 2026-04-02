@@ -53,6 +53,8 @@ For each baseline skill in `.opencode/skills/`, rewrite the SKILL.md with actual
 - Actual framework/language conventions (e.g., "Use React functional components with TypeScript")
 - Actual testing commands (e.g., "Run tests with `pnpm test`")
 - Actual linting/formatting rules
+- Actual code-quality gate commands for review and QA (build, lint, type-check, reference-integrity)
+- Stack-specific execution commands surfaced by the generated adapter and environment bootstrap flow
 - Code style preferences from the brief
 - Do not leave placeholder text behind; a baseline skill that still says "Replace this file..." is invalid
 - Pull framework-specific rules from the canonical brief, repo instructions, and current code evidence
@@ -75,14 +77,18 @@ For each baseline skill in `.opencode/skills/`, rewrite the SKILL.md with actual
 - State that if execution or validation cannot run, the agent must return a blocker instead of manufacturing PASS evidence
 - State that missing host prerequisites such as `uv`, `pytest`, `rg`, git identity, or service binaries are blockers that must be classified explicitly instead of worked around
 - Clarify that slash commands are human entrypoints, not internal autonomous workflow tools
+- Add remediation closeout rules: tickets created from audit or review findings must record `finding_source`, rerun the original failing check before closeout, and refuse closure when the finding-specific check still fails
 
 **review-audit-bridge** — Keep this generated skill repo-local and advisory-only, then add project-specific review and QA expectations:
 - Repo-specific review commands, validation commands, and artifact paths
+- Repo-specific code-quality commands for review and QA: build, lint, type-check, reference-integrity, and test-collection or smoke checks
+- Repo-specific rerun guidance for original finding-producing commands when a remediation ticket carries `finding_source`
 - Security-sensitive areas that need explicit attention
 - Approval vs blocker rules for code review, security review, and QA
 - Explicit blocker behavior when required validation commands cannot run
 - Guidance for writing a repo-local process log under `diagnosis/` or the generated repo's chosen review-log path when workflow misuse or weak implementation quality needs to be explained
 - Guidance for recommending remediation or reverification tickets without becoming the canonical ticket owner itself
+- Guidance that review or QA verdicts must be FAIL when required build, lint, or reference-integrity commands fail, and that remediation reviews must rerun the original finding-producing command before approval
 
 **docs-and-handoff** — Add project-specific doc paths and conventions
 
@@ -176,6 +182,7 @@ Continue to `../opencode-team-bootstrap/SKILL.md` as directed by scaffold-kickof
 - In greenfield generation, complete baseline population and required synthesis in one invocation
 - Keep generated review and diagnosis guidance repo-local; do not promote it into a Scafforge core skill
 - Generated workflow skills must agree with the ticket tools and prompts on stage order, artifact ownership, and blocker behavior before generation is complete
+- Generated workflow skills should name stack-specific build and verification commands that match the active adapter evidence instead of falling back to generic Python or Node assumptions
 
 ## References
 

@@ -1,3 +1,5 @@
+> **ARCHIVED:** This document is superseded by the `recovery-plan/` directory.
+
 # Scafforge Blind Verification Pass
 
 Repo: `merceralex397-collab/Scafforge`

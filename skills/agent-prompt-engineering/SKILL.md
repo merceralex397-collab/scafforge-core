@@ -45,6 +45,8 @@ Read `references/anti-patterns.md` and eliminate:
 
 ### 4. Apply model-specific techniques
 
+Before choosing prompt density, read the scaffold's selected model tier from `.opencode/meta/bootstrap-provenance.json` or the generated `.opencode/skills/model-operating-profile/SKILL.md`. If the tier is missing, default to `weak` to preserve the weaker-model-first contract.
+
 Different models have different prompting best practices. When hardening prompts for a specific model:
 
 **Step A: Check package-side model notes**
@@ -64,6 +66,14 @@ Common model-specific differences:
 - Some models benefit from example-led instructions for expected outputs
 - Some models need bounded single-goal asks instead of broad parallel asks
 - Some models have specific tool-use or context-window considerations
+
+**Step C1: Match prompt density to the configured model tier**
+- `weak`: include full stop conditions, explicit verification checklists, concrete truth-source hierarchy, named blocker paths, and short examples for every section that would otherwise be ambiguous
+- `standard`: include stop conditions and verification checklists, link back to canonical truth sources, and use examples only where the repo has historically shown confusion
+- `strong`: keep stop conditions explicit, reference local checklist and truth-source docs instead of repeating them in full, and use minimal examples
+
+Do not let a stronger-model tier remove hard safety boundaries. Tiering changes prompt density, not ownership, artifact, or escalation rules.
+Do not let model-tier tuning remove stack-specific bootstrap guidance or proof requirements either; those stay mandatory across all tiers.
 
 **Step D: Record project-specific adaptations**
 If the generation run discovers project-specific prompt adaptations worth preserving, write them into the generated repo's local notes or skill surfaces. Do not write back into Scafforge package files during project generation.
@@ -100,6 +110,7 @@ Before leaving this skill, confirm all of these are true:
 - specialist prompts describe the same lease-ownership model, artifact ownership model, and blocker behavior as the workflow tools
 - read-only prompts do not tell agents to mutate repo-tracked files
 - slash commands are described only as human entrypoints, not as autonomous workflow tools
+- prompt density matches the configured model tier without weakening stop conditions, escalation paths, or proof requirements
 
 ## Repair follow-on artifact
 

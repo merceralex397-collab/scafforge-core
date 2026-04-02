@@ -55,15 +55,43 @@ Transition contract:
 - `review`:
   - required proof before exit: at least one registered review artifact
   - next legal transition: `ticket_update stage=qa`
+  - latest review verdict must be PASS or APPROVED; FAIL, REJECT, BLOCKED, or an unclear verdict must route back to implementation or manual inspection before QA
 - `qa`:
   - required proof before exit: a registered QA artifact with raw command output
   - next legal transition: `ticket_update stage=smoke-test`
+  - latest QA verdict must be PASS or APPROVED; FAIL, REJECT, BLOCKED, or an unclear verdict must route back to implementation or manual inspection before smoke-test
 - `smoke-test`:
   - required proof before exit: a current smoke-test artifact produced by `smoke_test`
   - next legal transition: `ticket_update stage=closeout`
 - `closeout`:
   - required proof before exit: a passing smoke-test artifact
   - expected final state: `status=done`
+
+Failure recovery paths:
+
+- Review FAIL, REJECT, or BLOCKED: route back to `implementation`, address the review findings, then return to `review`
+- Review verdict unclear: stop progression and inspect the current review artifact manually before any `ticket_update`
+- QA FAIL, REJECT, or BLOCKED: route back to `implementation`, fix the QA findings, then return through `review` and `qa`
+- QA verdict unclear: stop progression and inspect the current QA artifact manually before any `ticket_update`
+- Smoke-test FAIL with `failure_classification: test_failure`: route back to `implementation` and fix the product issue
+- Smoke-test FAIL with `failure_classification: missing_executable` or host-surface `runtime_setup`: run `environment_bootstrap` and treat the failure as an environment blocker first
+- Smoke-test FAIL with `failure_classification: syntax_error` or `configuration_error`: treat the smoke tool surface as the blocker; do not route that failure straight to implementation
+
+Remediation ticket closeout:
+
+- when a ticket carries `finding_source`, treat it as a remediation or reverification ticket
+- identify the original finding code before closeout and rerun the command or check that originally produced that finding
+- include the rerun output and whether the original error signature is gone in the closeout evidence
+- if the finding-specific rerun still fails, do not close the ticket; route back to implementation with the fresh command output
+- if the finding-specific rerun passes, also confirm adjacent quality gates that previously passed still remain green
+
+Verification state semantics:
+
+- `suspect`: normal in-flight state, or a ticket returned to implementation after new findings
+- `smoke_verified`: a passing smoke-test artifact exists, but closeout has not completed yet
+- `trusted`: closeout completed with current passing evidence
+- `reverified`: historical completion was re-proven after drift or process-version change
+- `invalidated`: accepted historical completion was disproven by later defect intake
 
 Parallel rules:
 

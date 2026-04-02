@@ -94,6 +94,8 @@ def infer_surface(finding: Finding) -> str:
     joined = " ".join(finding.files)
     if finding.code.startswith("SESSION"):
         return "scafforge-audit transcript chronology and causal diagnosis surfaces"
+    if finding.code.startswith("REF"):
+        return "generated repo reference integrity and configuration surfaces"
     if finding.code.startswith("BOOT"):
         return "managed bootstrap tool and bootstrap-facing workflow guidance"
     if finding.code.startswith("ENV"):
@@ -198,6 +200,8 @@ def prevention_action(finding: Finding) -> str:
         return "Make repair verification inherit the transcript-backed diagnosis basis automatically, emit the post-repair diagnosis pack from the repair runner, and refuse to call the repo clean on current-state evidence alone."
     if finding.code.startswith("EXEC"):
         return "Tighten generated review and QA guidance so runtime validation and test collection proof exist before closure."
+    if finding.code.startswith("REF"):
+        return "Add reference-integrity checks and keep engine, config, and local-import paths aligned with real repo files before diagnosis or handoff treats the project as runnable."
     if "ticket" in finding.code or "status" in finding.code:
         return "Keep queue state coarse, route remediation through guarded ticket flows, and validate ticket-contract wording in package checks."
     if any(token in " ".join(finding.files) for token in (".opencode/agents/", ".opencode/skills/")):
@@ -224,8 +228,10 @@ def package_has_wflow024_fix(ctx: AuditReportingContext) -> bool:
 def build_ticket_recommendations(findings: list[Finding], ctx: AuditReportingContext) -> list[dict[str, Any]]:
     recommendations: list[dict[str, Any]] = []
     wflow024_package_fix_available = package_has_wflow024_fix(ctx)
-    for index, finding in enumerate(sorted(findings, key=lambda item: (severity_rank(item.severity), item.code)), start=1):
-        if finding.code.startswith("EXEC"):
+    grouped_follow_up: dict[str, list[Finding]] = {}
+    next_index = 1
+    for finding in sorted(findings, key=lambda item: (severity_rank(item.severity), item.code)):
+        if finding.code.startswith(("BOOT", "ENV", "EXEC", "REF", "SESSION")):
             route = "ticket-pack-builder"
             repair_class = "generated-repo remediation ticket"
         elif finding.code == "WFLOW024":
@@ -238,24 +244,55 @@ def build_ticket_recommendations(findings: list[Finding], ctx: AuditReportingCon
         elif finding.code.startswith("CYCLE"):
             route = "manual-prerequisite"
             repair_class = "Scafforge package work required before the next subject-repo run"
-        elif finding.code.startswith("ENV"):
-            route = "manual-prerequisite"
-            repair_class = "host prerequisite or operator follow-up"
         else:
             route = "scafforge-repair"
             repair_class = "safe Scafforge package change"
+
+        if route == "ticket-pack-builder" and finding.severity == "warning":
+            grouped_follow_up.setdefault(infer_surface(finding), []).append(finding)
+            continue
+
+        summary = recommendation_summary_for_finding(finding)
         recommendations.append(
             {
-                "id": f"REMED-{index:03d}",
-                "title": finding.problem.rstrip("."),
+                "id": f"REMED-{next_index:03d}",
+                **summary,
                 "source_finding_code": finding.code,
+                "source_finding_codes": [finding.code],
                 "severity": finding.severity,
                 "route": route,
                 "repair_class": repair_class,
                 "summary": finding.safer_pattern,
                 "source_files": finding.files,
+                "affected_files": summary["affected_files"],
+                "suggested_fix_approach": summary["suggested_fix_approach"],
+                "assignee": summary["assignee"],
+                "description": summary["description"],
             }
         )
+        next_index += 1
+
+    for surface, grouped in sorted(grouped_follow_up.items(), key=lambda item: item[0]):
+        all_files = sorted({path for finding in grouped for path in finding.files})
+        codes = [finding.code for finding in grouped]
+        recommendations.append(
+            {
+                "id": f"REMED-{next_index:03d}",
+                "title": f"Batch remediate {surface}",
+                "description": f"Resolve the related validated warning-level findings for {surface} and rerun the affected quality checks together.",
+                "source_finding_code": codes[0],
+                "source_finding_codes": codes,
+                "severity": "warning",
+                "route": "ticket-pack-builder",
+                "repair_class": "generated-repo remediation ticket",
+                "summary": f"Batch the related warning-level findings for {surface} into one remediation ticket instead of fragmenting the queue.",
+                "source_files": all_files,
+                "affected_files": all_files,
+                "suggested_fix_approach": "Rerun the relevant build, lint, reference-integrity, and verification commands after fixing the grouped findings.",
+                "assignee": "implementer",
+            }
+        )
+        next_index += 1
     return recommendations
 
 
@@ -271,7 +308,7 @@ def package_work_required_first(recommendations: list[dict[str, Any]]) -> bool:
 def recommended_next_step(findings: list[Finding], recommendations: list[dict[str, Any]]) -> str:
     if package_work_required_first(recommendations):
         return "scafforge_package_work"
-    if any(not finding.code.startswith("EXEC") and not finding.code.startswith("ENV") for finding in findings):
+    if any(not finding.code.startswith(("BOOT", "ENV", "EXEC", "REF", "SESSION")) for finding in findings):
         return "subject_repo_repair"
     if findings:
         return "subject_repo_source_follow_up"
@@ -295,6 +332,8 @@ def evidence_grade(finding: Finding) -> str:
 def ownership_classification(finding: Finding) -> str:
     if finding.code.startswith("ENV"):
         return "host prerequisite or package boundary"
+    if finding.code.startswith(("BOOT", "REF")):
+        return "generated repo source and configuration surfaces"
     if finding.code.startswith("EXEC"):
         return "generated repo execution surface"
     if finding.code.startswith(("SKILL", "MODEL")):
@@ -302,6 +341,23 @@ def ownership_classification(finding: Finding) -> str:
     if finding.code.startswith(("SESSION", "CYCLE")):
         return "audit and lifecycle diagnosis surface"
     return "managed workflow contract surface"
+
+
+def recommendation_linked_codes(item: dict[str, Any]) -> str:
+    linked = item.get("source_finding_codes")
+    if isinstance(linked, list) and linked:
+        return ", ".join(str(code) for code in linked)
+    return str(item.get("source_finding_code", "unknown"))
+
+
+def recommendation_summary_for_finding(finding: Finding) -> dict[str, Any]:
+    return {
+        "title": finding.problem.rstrip("."),
+        "description": f"Remediate {finding.code} by correcting the validated issue and rerunning the relevant quality checks.",
+        "affected_files": finding.files,
+        "suggested_fix_approach": finding.safer_pattern,
+        "assignee": "implementer",
+    }
 
 
 def validation_target_for_finding(finding: Finding) -> str:
@@ -317,6 +373,8 @@ def validation_target_for_finding(finding: Finding) -> str:
 def render_report_one(root: Path, findings: list[Finding], generated_at: str, logs: list[Path]) -> str:
     grouped = findings_by_severity(findings)
     result_state = diagnosis_result_state(findings)
+    workflow_findings = [finding for finding in findings if not finding.code.startswith(("EXEC", "REF"))]
+    code_quality_findings = [finding for finding in findings if finding.code.startswith(("EXEC", "REF"))]
     lines = [
         "# Initial Codebase Review",
         "",
@@ -334,7 +392,7 @@ def render_report_one(root: Path, findings: list[Finding], generated_at: str, lo
         f"- errors: {len(grouped.get('error', []))}",
         f"- warnings: {len(grouped.get('warning', []))}",
         "",
-        "## Validated Findings",
+        "## Workflow Findings",
         "",
     ]
     if not findings:
@@ -359,7 +417,9 @@ def render_report_one(root: Path, findings: list[Finding], generated_at: str, lo
             )
         return "\n".join(lines)
 
-    for finding in sorted(findings, key=lambda item: (severity_rank(item.severity), item.code)):
+    if not workflow_findings:
+        lines.extend(["No validated workflow, environment, or managed-process findings were detected.", ""])
+    for finding in sorted(workflow_findings, key=lambda item: (severity_rank(item.severity), item.code)):
         lines.extend(
             [
                 f"### {finding.code}",
@@ -373,6 +433,26 @@ def render_report_one(root: Path, findings: list[Finding], generated_at: str, lo
                 "- evidence:",
                 *([f"  - {item}" for item in finding.evidence] or ["  - No extra evidence lines were recorded beyond the validated repo state."]),
                 "- remaining_verification_gap: None recorded beyond the validated finding scope.",
+                "",
+            ]
+        )
+    lines.extend(["## Code Quality Findings", ""])
+    if not code_quality_findings:
+        lines.extend(["No execution or reference-integrity findings were detected.", ""])
+    for finding in sorted(code_quality_findings, key=lambda item: (severity_rank(item.severity), item.code)):
+        severity_label = "CRITICAL" if finding.code.startswith("EXEC") and finding.severity == "error" else "HIGH" if finding.code.startswith("REF") else finding.severity.upper()
+        lines.extend(
+            [
+                f"### {finding.code}",
+                "",
+                f"- finding_id: {finding.code}",
+                f"- summary: {finding.problem}",
+                f"- severity: {severity_label}",
+                f"- evidence_grade: {evidence_grade(finding)}",
+                f"- affected_files_or_surfaces: {', '.join(finding.files) if finding.files else '(none)'}",
+                f"- observed_or_reproduced: {finding.root_cause}",
+                "- evidence:",
+                *([f"  - {item}" for item in finding.evidence] or ["  - No extra evidence lines were recorded beyond the validated repo state."]),
                 "",
             ]
         )
@@ -502,6 +582,8 @@ def render_report_four(root: Path, findings: list[Finding], recommendations: lis
     safe_repairs = [item for item in recommendations if item["route"] == "scafforge-repair"]
     source_follow_up = [item for item in recommendations if item["route"] == "ticket-pack-builder"]
     manual_prerequisites = [item for item in recommendations if item["route"] == "manual-prerequisite"]
+    package_first = [item for item in recommendations if item["route"] in {"scafforge-repair", "manual-prerequisite"} and "Scafforge package work required" in item.get("repair_class", "")]
+    subject_repo_first = [item for item in recommendations if item["route"] == "ticket-pack-builder"]
     requires_regeneration = any(
         finding.code in {"SKILL001", "SKILL002", "MODEL001"} or any(token in " ".join(finding.files) for token in (".opencode/agents/", ".opencode/skills/"))
         for finding in findings
@@ -516,6 +598,14 @@ def render_report_four(root: Path, findings: list[Finding], recommendations: lis
         "- Audit stayed non-mutating. No repo or product-code edits were made by this diagnosis run.",
         "",
     ]
+    lines.extend([
+        "## Triage Order",
+        "",
+        f"- package_first_count: {len(package_first)}",
+        f"- subject_repo_follow_up_count: {len(subject_repo_first)}",
+        f"- host_or_manual_prerequisite_count: {len(manual_prerequisites)}",
+        "",
+    ])
     if repeated_cycle:
         lines.extend(
             [
@@ -534,7 +624,7 @@ def render_report_four(root: Path, findings: list[Finding], recommendations: lis
                 [
                     f"### {item['id']}",
                     "",
-                    f"- linked_report_id: {item['source_finding_code']}",
+                    f"- linked_report_id: {recommendation_linked_codes(item)}",
                     f"- action_type: {item['repair_class']}",
                     "- requires_scafforge_repair_afterward: no, not until the package or host prerequisite gap is resolved",
                     "- carry_diagnosis_pack_into_scafforge_first: yes",
@@ -556,7 +646,7 @@ def render_report_four(root: Path, findings: list[Finding], recommendations: lis
                 [
                     f"### {item['id']}",
                     "",
-                    f"- linked_report_id: {item['source_finding_code']}",
+                    f"- linked_report_id: {recommendation_linked_codes(item)}",
                     f"- action_type: {item['repair_class']}",
                     "- should_scafforge_repair_run: yes",
                     "- carry_diagnosis_pack_into_scafforge_first: no",
@@ -575,12 +665,14 @@ def render_report_four(root: Path, findings: list[Finding], recommendations: lis
                 [
                     f"### {item['id']}",
                     "",
-                    f"- linked_report_id: {item['source_finding_code']}",
+                    f"- linked_report_id: {recommendation_linked_codes(item)}",
                     "- action_type: generated-repo remediation ticket/process repair",
                     "- should_scafforge_repair_run: only after managed workflow repair converges",
                     "- carry_diagnosis_pack_into_scafforge_first: no",
                     "- target_repo: subject repo",
                     f"- summary: {item['summary']}",
+                    f"- assignee: {item.get('assignee', 'implementer')}",
+                    f"- suggested_fix_approach: {item.get('suggested_fix_approach', item['summary'])}",
                     "",
                 ]
             )
@@ -652,6 +744,15 @@ def emit_diagnosis_pack(
         "generated_at": generated_at,
         "repo_root": str(root),
         "finding_count": len(findings),
+        "finding_codes": sorted({finding.code for finding in findings}),
+        "source_findings": [
+            {
+                "code": finding.code,
+                "severity": finding.severity,
+            }
+            for finding in findings
+            if finding.code.startswith(("EXEC", "REF"))
+        ],
         "result_state": diagnosis_result_state(findings),
         "diagnosis_kind": "initial_diagnosis",
         "evidence_mode": "transcript_backed" if logs else "current_state_only",

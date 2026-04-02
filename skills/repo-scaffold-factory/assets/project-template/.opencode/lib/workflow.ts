@@ -5,8 +5,19 @@ import { createHash } from "node:crypto"
 export type OverlapRisk = "low" | "medium" | "high"
 export type ParallelMode = "parallel-lanes" | "sequential"
 export type BootstrapStatus = "missing" | "ready" | "stale" | "failed"
+export type BootstrapBlocker = {
+  executable: string
+  reason: string
+  install_command: string | null
+}
 export type TicketResolutionState = "open" | "done" | "reopened" | "superseded"
-export type TicketVerificationState = "trusted" | "suspect" | "invalidated" | "reverified"
+export type TicketVerificationState = "trusted" | "suspect" | "invalidated" | "reverified" | "smoke_verified"
+export type ArtifactVerdict = "PASS" | "FAIL" | "REJECT" | "APPROVED" | "BLOCKED"
+export type ArtifactVerdictInspection = {
+  verdict: ArtifactVerdict | null
+  verdict_unclear: boolean
+  matched_line: string | null
+}
 export type ArtifactTrustState = "current" | "superseded" | "invalidated"
 export type DefectOutcome = "no_action" | "follow_up" | "invalidates_done" | "rollback_required"
 export type TicketSourceMode = "process_verification" | "post_completion_issue" | "net_new_scope" | "split_scope"
@@ -42,6 +53,7 @@ export type Ticket = {
   artifacts: Artifact[]
   resolution_state: TicketResolutionState
   verification_state: TicketVerificationState
+  finding_source?: string
   source_ticket_id?: string
   follow_up_ticket_ids: string[]
   source_mode?: TicketSourceMode
@@ -135,6 +147,7 @@ export type WorkflowState = {
   stage: string
   status: string
   approved_plan: boolean
+  bootstrap_blockers: BootstrapBlocker[]
   ticket_state: Record<string, TicketWorkflowState>
   process_version: number
   process_last_changed_at: string | null
@@ -201,6 +214,7 @@ export type NewTicketSpec = {
   decision_blockers?: string[]
   parallel_safe?: boolean
   overlap_risk?: OverlapRisk
+  finding_source?: string
   source_ticket_id?: string
   source_mode?: TicketSourceMode
 }
@@ -319,6 +333,23 @@ function normalizeStringArray(value: unknown): string[] {
   }
   return normalized
 }
+function normalizeBootstrapBlockers(value: unknown): BootstrapBlocker[] {
+  if (!Array.isArray(value)) return []
+  const blockers: BootstrapBlocker[] = []
+  for (const item of value) {
+    if (!item || typeof item !== "object" || Array.isArray(item)) continue
+    const record = item as Record<string, unknown>
+    const executable = normalizeNullableString(record.executable)
+    const reason = normalizeNullableString(record.reason)
+    if (!executable || !reason) continue
+    blockers.push({
+      executable,
+      reason,
+      install_command: normalizeNullableString(record.install_command),
+    })
+  }
+  return blockers
+}
 function pathEscapesRepo(pathValue: string): boolean {
   return pathValue === ".." || pathValue.startsWith("../")
 }
@@ -424,6 +455,16 @@ async function readText(path: string, fallback = ""): Promise<string> { try { re
 export async function writeJson(path: string, value: unknown): Promise<void> { await mkdir(dirname(path), { recursive: true }); await writeFile(path, `${JSON.stringify(value, null, 2)}\n`, "utf-8") }
 export async function appendJsonl(path: string, value: unknown): Promise<void> { await mkdir(dirname(path), { recursive: true }); await appendFile(path, `${JSON.stringify(value)}\n`, "utf-8") }
 export async function writeText(path: string, value: string): Promise<void> { await mkdir(dirname(path), { recursive: true }); await writeFile(path, value, "utf-8") }
+export async function ensureRequiredFile(path: string, label: string): Promise<void> {
+  try {
+    await stat(path)
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+      throw new Error(`${label} not found. Run bootstrap first.`)
+    }
+    throw error
+  }
+}
 export function formatWorkflowBlocker(blocker: WorkflowBlocker): string { return `BLOCKER ${JSON.stringify(blocker)}` }
 export function throwWorkflowBlocker(blocker: WorkflowBlocker): never { throw new Error(formatWorkflowBlocker(blocker)) }
 export function ticketClaimBlockerArgs(ticketId: string, allowedPaths: string[] = []): Record<string, unknown> {
@@ -453,7 +494,13 @@ function normalizeNullableString(value: unknown): string | null { if (typeof val
 function normalizeOverlapRisk(value: unknown): OverlapRisk { return value === "low" || value === "medium" || value === "high" ? value : DEFAULT_OVERLAP_RISK }
 function normalizeParallelMode(value: unknown): ParallelMode { return value === "parallel-lanes" || value === "sequential" ? value : DEFAULT_PARALLEL_MODE }
 function normalizeResolutionState(value: unknown, status: string): TicketResolutionState { return value === "open" || value === "done" || value === "reopened" || value === "superseded" ? value : status === "done" ? "done" : "open" }
-function normalizeVerificationState(value: unknown, status: string): TicketVerificationState { return value === "trusted" || value === "suspect" || value === "invalidated" || value === "reverified" ? value : status === "done" ? "trusted" : "suspect" }
+function normalizeVerificationState(value: unknown, status: string): TicketVerificationState {
+  return value === "trusted" || value === "suspect" || value === "invalidated" || value === "reverified" || value === "smoke_verified"
+    ? value
+    : status === "done"
+      ? "trusted"
+      : "suspect"
+}
 function normalizeArtifactTrustState(value: unknown): ArtifactTrustState { return value === "superseded" || value === "invalidated" ? value : "current" }
 function normalizeTicketWorkflowState(value: unknown): TicketWorkflowState {
   if (!value || typeof value !== "object" || Array.isArray(value)) return { ...DEFAULT_TICKET_WORKFLOW_STATE }
@@ -530,6 +577,7 @@ function migrateTicket(raw: unknown): Ticket {
     artifacts: Array.isArray(ticket.artifacts) ? ticket.artifacts.map((artifact, index) => normalizeArtifact(artifact, index)) : [],
     resolution_state: normalizeResolutionState(ticket.resolution_state, status),
     verification_state: normalizeVerificationState(ticket.verification_state, status),
+    finding_source: normalizeNullableString(ticket.finding_source) ?? undefined,
     source_ticket_id: normalizeNullableString(ticket.source_ticket_id) ?? undefined,
     follow_up_ticket_ids: normalizeStringArray(ticket.follow_up_ticket_ids),
     source_mode:
@@ -660,6 +708,7 @@ function inferLegacyRepairFollowOnOutcome(
 }
 
 export async function loadManifest(root = rootPath()): Promise<Manifest> {
+  await ensureRequiredFile(ticketsManifestPath(root), "tickets/manifest.json")
   const manifest = expectObject(await readJson<unknown>(ticketsManifestPath(root)), "Manifest")
   if (!Array.isArray(manifest.tickets)) throw new Error("tickets/manifest.json is missing a tickets array.")
   return {
@@ -669,10 +718,14 @@ export async function loadManifest(root = rootPath()): Promise<Manifest> {
     tickets: manifest.tickets.map((ticket) => migrateTicket(ticket)),
   }
 }
+export async function readManifest(root = rootPath()): Promise<Manifest> {
+  return loadManifest(root)
+}
 export async function loadArtifactRegistry(root = rootPath()): Promise<ArtifactRegistry> { return readJson<ArtifactRegistry>(artifactRegistryPath(root), { version: 2, artifacts: [] }) }
 export async function loadWorkflowState(root = rootPath()): Promise<WorkflowState> {
+  await ensureRequiredFile(workflowStatePath(root), ".opencode/state/workflow-state.json")
   const fallback: WorkflowState = {
-    active_ticket: "UNKNOWN", stage: "planning", status: "todo", approved_plan: false, ticket_state: {}, process_version: DEFAULT_PROCESS_VERSION,
+    active_ticket: "UNKNOWN", stage: "planning", status: "todo", approved_plan: false, bootstrap_blockers: [], ticket_state: {}, process_version: DEFAULT_PROCESS_VERSION,
     process_last_changed_at: null, process_last_change_summary: null, pending_process_verification: false, parallel_mode: DEFAULT_PARALLEL_MODE,
     repair_follow_on: DEFAULT_REPAIR_FOLLOW_ON_STATE(),
     bootstrap: { ...DEFAULT_BOOTSTRAP_STATE }, lane_leases: [], state_revision: 0,
@@ -708,6 +761,7 @@ export async function loadWorkflowState(root = rootPath()): Promise<WorkflowStat
     stage: typeof state.stage === "string" && state.stage.trim() ? state.stage.trim() : fallback.stage,
     status: typeof state.status === "string" && state.status.trim() ? state.status.trim() : fallback.status,
     approved_plan: ticketState[activeTicket]?.approved_plan ?? legacyApprovedPlan,
+    bootstrap_blockers: normalizeBootstrapBlockers(state.bootstrap_blockers),
     ticket_state: ticketState,
     process_version: processVersion,
     process_last_changed_at: normalizeNullableString(state.process_last_changed_at),
@@ -730,6 +784,9 @@ export async function loadWorkflowState(root = rootPath()): Promise<WorkflowStat
   workflow.bootstrap = await evaluateBootstrapState(workflow.bootstrap, root)
   return workflow
 }
+export async function readWorkflowState(root = rootPath()): Promise<WorkflowState> {
+  return loadWorkflowState(root)
+}
 export async function saveWorkflowState(state: WorkflowState, root = rootPath(), expectedRevision?: number, options: SaveDerivedSurfaceOptions = {}): Promise<void> {
   const current = await readJson<WorkflowState>(workflowStatePath(root), { ...state, state_revision: state.state_revision })
   const currentRevision = typeof current.state_revision === "number" ? current.state_revision : 0
@@ -740,6 +797,9 @@ export async function saveWorkflowState(state: WorkflowState, root = rootPath(),
   if (options.refreshDerivedSurfaces !== false) {
     await refreshRestartSurfaces({ workflow: state, root })
   }
+}
+export async function writeWorkflowState(state: WorkflowState, root = rootPath(), expectedRevision?: number, options: SaveDerivedSurfaceOptions = {}): Promise<void> {
+  await saveWorkflowState(state, root, expectedRevision, options)
 }
 function ensureTicketWorkflowState(workflow: WorkflowState, ticketId: string): TicketWorkflowState {
   if (!workflow.ticket_state[ticketId]) workflow.ticket_state[ticketId] = { ...DEFAULT_TICKET_WORKFLOW_STATE }
@@ -802,6 +862,47 @@ export function hasReviewArtifact(ticket: Ticket): boolean { return latestReview
 export async function readArtifactContent(artifact: Artifact | undefined, root = rootPath()): Promise<string> {
   return artifact ? readText(join(root, normalizeRepoPath(artifact.path))) : ""
 }
+function normalizeArtifactVerdictToken(token: string): ArtifactVerdict | null {
+  const normalized = token.trim().toUpperCase()
+  if (normalized === "PASS") return "PASS"
+  if (normalized === "FAIL") return "FAIL"
+  if (normalized === "REJECT") return "REJECT"
+  if (normalized === "APPROVED" || normalized === "APPROVE") return "APPROVED"
+  if (normalized === "BLOCKED" || normalized === "BLOCKER") return "BLOCKED"
+  return null
+}
+export function extractArtifactVerdict(content: string): ArtifactVerdictInspection {
+  const lines = content.split(/\r?\n/)
+  for (const line of lines) {
+    const trimmed = line.trim()
+    if (!trimmed) continue
+    const labeled = trimmed.match(/^(?:overall(?:\s+result)?|verdict|result|approval\s+signal)\s*:\s*(?:\*\*)?\s*(pass|fail|reject|approved?|blocked?|blocker)\b/i)
+    if (labeled) {
+      const verdict = normalizeArtifactVerdictToken(labeled[1] || "")
+      if (verdict) return { verdict, verdict_unclear: false, matched_line: trimmed }
+    }
+    const failureEmoji = trimmed.match(/[❌✖]\s*(?:[^A-Za-z]*)(pass|fail|reject|approved?|blocked?|blocker)\b/i)
+    if (failureEmoji) {
+      const verdict = normalizeArtifactVerdictToken(failureEmoji[1] || "")
+      if (verdict) return { verdict, verdict_unclear: false, matched_line: trimmed }
+    }
+    const successEmoji = trimmed.match(/[✅✔]\s*(?:[^A-Za-z]*)(pass|fail|reject|approved?|blocked?|blocker)\b/i)
+    if (successEmoji) {
+      const verdict = normalizeArtifactVerdictToken(successEmoji[1] || "")
+      if (verdict) return { verdict, verdict_unclear: false, matched_line: trimmed }
+    }
+  }
+  return { verdict: null, verdict_unclear: content.trim().length > 0, matched_line: null }
+}
+export async function inspectArtifactVerdict(artifact: Artifact | undefined, root = rootPath()): Promise<ArtifactVerdictInspection> {
+  return extractArtifactVerdict(await readArtifactContent(artifact, root))
+}
+export function isBlockingArtifactVerdict(verdict: ArtifactVerdict | null): boolean {
+  return verdict === "FAIL" || verdict === "REJECT" || verdict === "BLOCKED"
+}
+export function isPassingArtifactVerdict(verdict: ArtifactVerdict | null): boolean {
+  return verdict === "PASS" || verdict === "APPROVED"
+}
 function artifactByteLength(content: string): number { return Buffer.byteLength(content, "utf8") }
 function hasExecutionEvidence(content: string): boolean { return EXECUTION_EVIDENCE_PATTERNS.some((pattern) => pattern.test(content)) }
 function claimsInspectionOnly(content: string): boolean { return INSPECTION_ONLY_PATTERNS.some((pattern) => pattern.test(content)) }
@@ -825,7 +926,9 @@ export async function validateSmokeTestArtifactEvidence(ticket: Ticket, root = r
   const content = await readArtifactContent(artifact, root)
   if (artifactByteLength(content) < MIN_EXECUTION_ARTIFACT_BYTES) return `Smoke-test artifact must be at least ${MIN_EXECUTION_ARTIFACT_BYTES} bytes before closeout.`
   if (!hasExecutionEvidence(content)) return "Smoke-test artifact must include raw command output before closeout."
-  return /Overall Result:\s*PASS/i.test(content) ? null : "Smoke-test artifact must record an explicit PASS result before closeout."
+  return isPassingArtifactVerdict(extractArtifactVerdict(content).verdict) || /Overall Result:\s*PASS/i.test(content)
+    ? null
+    : "Smoke-test artifact must record an explicit PASS result before closeout."
 }
 
 export function blockedDependentTickets(manifest: Manifest, ticketId: string): Ticket[] {
@@ -1017,11 +1120,16 @@ export function markTicketDone(ticket: Ticket, workflow: WorkflowState): void {
   ticket.verification_state = state.needs_reverification || state.reopen_count > 0 ? "reverified" : "trusted"
   state.needs_reverification = false
 }
+export function markTicketSmokeVerified(ticket: Ticket): void {
+  if (ticket.status !== "done" && ticket.verification_state !== "invalidated") {
+    ticket.verification_state = "smoke_verified"
+  }
+}
 export function markTicketReopened(ticket: Ticket, workflow: WorkflowState, reason: string): void {
   ticket.status = "todo"
   ticket.stage = "planning"
   ticket.resolution_state = "reopened"
-  ticket.verification_state = "invalidated"
+  ticket.verification_state = "suspect"
   const state = ensureTicketWorkflowState(workflow, ticket.id)
   state.reopen_count += 1
   state.needs_reverification = true
@@ -1065,6 +1173,7 @@ export function createTicketRecord(spec: NewTicketSpec): Ticket {
     artifacts: [],
     resolution_state: "open",
     verification_state: "suspect",
+    finding_source: spec.finding_source?.trim() || undefined,
     source_ticket_id: spec.source_ticket_id?.trim() || undefined,
     follow_up_ticket_ids: [],
     source_mode: spec.source_mode,
@@ -1118,6 +1227,9 @@ export async function saveManifest(manifest: Manifest, root = rootPath(), option
   if (options.refreshDerivedSurfaces !== false) {
     await refreshRestartSurfaces({ manifest, root })
   }
+}
+export async function writeManifest(manifest: Manifest, root = rootPath(), options: SaveDerivedSurfaceOptions = {}): Promise<void> {
+  await saveManifest(manifest, root, options)
 }
 export async function saveArtifactRegistry(registry: ArtifactRegistry, root = rootPath()): Promise<void> {
   registry.version = Math.max(registry.version || 0, 2)
@@ -1238,6 +1350,7 @@ ${ticket.status}
 
 - resolution_state: ${ticket.resolution_state}
 - verification_state: ${ticket.verification_state}
+- finding_source: ${ticket.finding_source || "None"}
 - source_ticket_id: ${ticket.source_ticket_id || "None"}
 - source_mode: ${ticket.source_mode || "None"}
 
@@ -1276,7 +1389,7 @@ export function renderContextSnapshot(manifest: Manifest, workflow: WorkflowStat
   const pivotInputs = pivot.restart_surface_inputs
   const pivotState = pivot.downstream_refresh_state
   const noteBlock = note ? `\n## Note\n\n${note}\n` : ""
-  return `# Context Snapshot\n\n## Project\n\n${manifest.project}\n\n## Active Ticket\n\n- ID: ${ticket.id}\n- Title: ${ticket.title}\n- Stage: ${ticket.stage}\n- Status: ${ticket.status}\n- Resolution: ${ticket.resolution_state}\n- Verification: ${ticket.verification_state}\n- Approved plan: ${workflow.approved_plan ? "yes" : "no"}\n- Needs reverification: ${ticketState.needs_reverification ? "yes" : "no"}\n- Open split children: ${splitChildren.length > 0 ? splitChildren.map((item) => item.id).join(", ") : "none"}\n\n## Bootstrap\n\n- status: ${workflow.bootstrap.status}\n- last_verified_at: ${workflow.bootstrap.last_verified_at || "Not yet verified."}\n- proof_artifact: ${workflow.bootstrap.proof_artifact || "None"}\n\n## Process State\n\n- process_version: ${workflow.process_version}\n- pending_process_verification: ${workflow.pending_process_verification ? "true" : "false"}\n- parallel_mode: ${workflow.parallel_mode}\n- state_revision: ${workflow.state_revision}\n\n## Repair Follow-On\n\n- outcome: ${workflow.repair_follow_on.outcome}\n- required: ${hasPendingRepairFollowOn(workflow) ? "yes" : "no"}\n- next_required_stage: ${repairNextStage}\n- verification_passed: ${workflow.repair_follow_on.verification_passed ? "true" : "false"}\n- last_updated_at: ${workflow.repair_follow_on.last_updated_at || "Not yet recorded."}\n\n## Pivot State\n\n- pivot_in_progress: ${pivotInputs.pivot_in_progress ? "true" : "false"}\n- pivot_class: ${pivotInputs.pivot_class || "none"}\n- pivot_changed_surfaces: ${pivotInputs.pivot_changed_surfaces.length > 0 ? pivotInputs.pivot_changed_surfaces.join(", ") : "none"}\n- pending_downstream_stages: ${pivotInputs.pending_downstream_stages.length > 0 ? pivotInputs.pending_downstream_stages.join(", ") : "none"}\n- completed_downstream_stages: ${pivotInputs.completed_downstream_stages.length > 0 ? pivotInputs.completed_downstream_stages.join(", ") : "none"}\n- pending_ticket_lineage_actions: ${pivotInputs.pending_ticket_lineage_actions.length > 0 ? pivotInputs.pending_ticket_lineage_actions.join(", ") : "none"}\n- completed_ticket_lineage_actions: ${pivotInputs.completed_ticket_lineage_actions.length > 0 ? pivotInputs.completed_ticket_lineage_actions.join(", ") : "none"}\n- post_pivot_verification_passed: ${pivotInputs.post_pivot_verification_passed ? "true" : "false"}\n- pivot_state_path: ${pivot.pivot_state_path || ".opencode/meta/pivot-state.json"}\n- pivot_tracking_mode: ${pivotState?.tracking_mode || "none"}\n\n## Lane Leases\n\n${leases}\n\n## Recent Artifacts\n\n${artifactLines}${noteBlock}`
+  return `# Context Snapshot\n\n## Project\n\n${manifest.project}\n\n## Active Ticket\n\n- ID: ${ticket.id}\n- Title: ${ticket.title}\n- Stage: ${ticket.stage}\n- Status: ${ticket.status}\n- Resolution: ${ticket.resolution_state}\n- Verification: ${ticket.verification_state}\n- Approved plan: ${workflow.approved_plan ? "yes" : "no"}\n- Needs reverification: ${ticketState.needs_reverification ? "yes" : "no"}\n- Open split children: ${splitChildren.length > 0 ? splitChildren.map((item) => item.id).join(", ") : "none"}\n\n## Bootstrap\n\n- status: ${workflow.bootstrap.status}\n- last_verified_at: ${workflow.bootstrap.last_verified_at || "Not yet verified."}\n- proof_artifact: ${workflow.bootstrap.proof_artifact || "None"}\n- blockers: ${workflow.bootstrap_blockers.length > 0 ? workflow.bootstrap_blockers.map((item) => `${item.executable} (${item.reason})`).join(", ") : "none"}\n\n## Process State\n\n- process_version: ${workflow.process_version}\n- pending_process_verification: ${workflow.pending_process_verification ? "true" : "false"}\n- parallel_mode: ${workflow.parallel_mode}\n- state_revision: ${workflow.state_revision}\n\n## Repair Follow-On\n\n- outcome: ${workflow.repair_follow_on.outcome}\n- required: ${hasPendingRepairFollowOn(workflow) ? "yes" : "no"}\n- next_required_stage: ${repairNextStage}\n- verification_passed: ${workflow.repair_follow_on.verification_passed ? "true" : "false"}\n- last_updated_at: ${workflow.repair_follow_on.last_updated_at || "Not yet recorded."}\n\n## Pivot State\n\n- pivot_in_progress: ${pivotInputs.pivot_in_progress ? "true" : "false"}\n- pivot_class: ${pivotInputs.pivot_class || "none"}\n- pivot_changed_surfaces: ${pivotInputs.pivot_changed_surfaces.length > 0 ? pivotInputs.pivot_changed_surfaces.join(", ") : "none"}\n- pending_downstream_stages: ${pivotInputs.pending_downstream_stages.length > 0 ? pivotInputs.pending_downstream_stages.join(", ") : "none"}\n- completed_downstream_stages: ${pivotInputs.completed_downstream_stages.length > 0 ? pivotInputs.completed_downstream_stages.join(", ") : "none"}\n- pending_ticket_lineage_actions: ${pivotInputs.pending_ticket_lineage_actions.length > 0 ? pivotInputs.pending_ticket_lineage_actions.join(", ") : "none"}\n- completed_ticket_lineage_actions: ${pivotInputs.completed_ticket_lineage_actions.length > 0 ? pivotInputs.completed_ticket_lineage_actions.join(", ") : "none"}\n- post_pivot_verification_passed: ${pivotInputs.post_pivot_verification_passed ? "true" : "false"}\n- pivot_state_path: ${pivot.pivot_state_path || ".opencode/meta/pivot-state.json"}\n- pivot_tracking_mode: ${pivotState?.tracking_mode || "none"}\n\n## Lane Leases\n\n${leases}\n\n## Recent Artifacts\n\n${artifactLines}${noteBlock}`
 }
 export function renderStartHere(manifest: Manifest, workflow: WorkflowState, pivot: PivotState, options: StartHereOptions = {}): string {
   const ticket = getTicket(manifest, workflow.active_ticket)
@@ -1345,9 +1458,42 @@ export function renderStartHere(manifest: Manifest, workflow: WorkflowState, piv
     splitChildren.length > 0 ? `- ${ticket.id} is an open split parent; child ticket${splitChildren.length > 1 ? "s" : ""} ${splitChildren.map((item) => item.id).join(", ")} remain the active foreground work.` : null,
     blockedDependents.length > 0 && ticket.status !== "done" ? `- Downstream tickets ${blockedDependents.map((item) => item.id).join(", ")} remain formally blocked until ${ticket.id} reaches done.` : null,
   ].filter((line): line is string => Boolean(line)).join("\n") || "- None recorded."
-  return `# START HERE\n\n${START_HERE_MANAGED_START}\n## What This Repo Is\n\n${manifest.project}\n\n## Current State\n\nThe repo is operating under the managed OpenCode workflow. Use the canonical state files below instead of memory or raw ticket prose.\n\n## Read In This Order\n\n1. README.md\n2. AGENTS.md\n3. docs/spec/CANONICAL-BRIEF.md\n4. docs/process/workflow.md\n5. tickets/manifest.json\n6. tickets/BOARD.md\n\n## Current Or Next Ticket\n\n- ID: ${ticket.id}\n- Title: ${ticket.title}\n- Wave: ${ticket.wave}\n- Lane: ${ticket.lane}\n- Stage: ${ticket.stage}\n- Status: ${ticket.status}\n- Resolution: ${ticket.resolution_state}\n- Verification: ${ticket.verification_state}\n\n## Dependency Status\n\n- current_ticket_done: ${ticket.status === "done" ? "yes" : "no"}\n- dependent_tickets_waiting_on_current: ${summarizeTickets(blockedDependents)}\n- split_child_tickets: ${summarizeTickets(splitChildren)}\n\n## Generation Status\n\n- handoff_status: ${handoffStatus}\n- process_version: ${workflow.process_version}\n- parallel_mode: ${workflow.parallel_mode}\n- pending_process_verification: ${processVerification.pending ? "true" : "false"}\n- repair_follow_on_outcome: ${workflow.repair_follow_on.outcome}\n- repair_follow_on_required: ${repairFollowOnPending ? "true" : "false"}\n- repair_follow_on_next_stage: ${repairNextStage || "none"}\n- repair_follow_on_verification_passed: ${workflow.repair_follow_on.verification_passed ? "true" : "false"}\n- repair_follow_on_updated_at: ${workflow.repair_follow_on.last_updated_at || "Not yet recorded."}\n- pivot_in_progress: ${pivotInputs.pivot_in_progress ? "true" : "false"}\n- pivot_class: ${pivotInputs.pivot_class || "none"}\n- pivot_changed_surfaces: ${pivotInputs.pivot_changed_surfaces.length > 0 ? pivotInputs.pivot_changed_surfaces.join(", ") : "none"}\n- pivot_pending_stages: ${pivotInputs.pending_downstream_stages.length > 0 ? pivotInputs.pending_downstream_stages.join(", ") : "none"}\n- pivot_completed_stages: ${pivotInputs.completed_downstream_stages.length > 0 ? pivotInputs.completed_downstream_stages.join(", ") : "none"}\n- pivot_pending_ticket_lineage_actions: ${pivotInputs.pending_ticket_lineage_actions.length > 0 ? pivotInputs.pending_ticket_lineage_actions.join(", ") : "none"}\n- pivot_completed_ticket_lineage_actions: ${pivotInputs.completed_ticket_lineage_actions.length > 0 ? pivotInputs.completed_ticket_lineage_actions.join(", ") : "none"}\n- post_pivot_verification_passed: ${pivotInputs.post_pivot_verification_passed ? "true" : "false"}\n- bootstrap_status: ${workflow.bootstrap.status}\n- bootstrap_proof: ${workflow.bootstrap.proof_artifact || "None"}\n\n## Post-Generation Audit Status\n\n- audit_or_repair_follow_up: ${pivotPending || repairFollowOnPending || sourceFollowUpPending || reopened.length > 0 || suspectDone.length > 0 || reverification.length > 0 || processVerification.clearable_now ? "follow-up required" : "none recorded"}\n- reopened_tickets: ${summarizeTickets(reopened)}\n- done_but_not_fully_trusted: ${summarizeTickets(suspectDone)}\n- pending_reverification: ${summarizeTickets(reverification)}\n- repair_follow_on_blockers: ${workflow.repair_follow_on.blocking_reasons.length > 0 ? workflow.repair_follow_on.blocking_reasons.join(" | ") : "none"}\n- pivot_pending_stages: ${pivotInputs.pending_downstream_stages.length > 0 ? pivotInputs.pending_downstream_stages.join(", ") : "none"}\n- pivot_pending_ticket_lineage_actions: ${pivotInputs.pending_ticket_lineage_actions.length > 0 ? pivotInputs.pending_ticket_lineage_actions.join(", ") : "none"}\n\n## Known Risks\n\n${riskLines}\n\n## Next Action\n\n${recommendedAction}\n${START_HERE_MANAGED_END}\n`
+  const quality = summarizeCodeQualityStatus(manifest)
+  return `# START HERE\n\n${START_HERE_MANAGED_START}\n## What This Repo Is\n\n${manifest.project}\n\n## Current State\n\nThe repo is operating under the managed OpenCode workflow. Use the canonical state files below instead of memory or raw ticket prose.\n\n## Read In This Order\n\n1. README.md\n2. AGENTS.md\n3. docs/AGENT-DELEGATION.md\n4. docs/spec/CANONICAL-BRIEF.md\n5. docs/process/workflow.md\n6. tickets/manifest.json\n7. tickets/BOARD.md\n\n## Current Or Next Ticket\n\n- ID: ${ticket.id}\n- Title: ${ticket.title}\n- Wave: ${ticket.wave}\n- Lane: ${ticket.lane}\n- Stage: ${ticket.stage}\n- Status: ${ticket.status}\n- Resolution: ${ticket.resolution_state}\n- Verification: ${ticket.verification_state}\n\n## Dependency Status\n\n- current_ticket_done: ${ticket.status === "done" ? "yes" : "no"}\n- dependent_tickets_waiting_on_current: ${summarizeTickets(blockedDependents)}\n- split_child_tickets: ${summarizeTickets(splitChildren)}\n\n## Generation Status\n\n- handoff_status: ${handoffStatus}\n- process_version: ${workflow.process_version}\n- parallel_mode: ${workflow.parallel_mode}\n- pending_process_verification: ${processVerification.pending ? "true" : "false"}\n- repair_follow_on_outcome: ${workflow.repair_follow_on.outcome}\n- repair_follow_on_required: ${repairFollowOnPending ? "true" : "false"}\n- repair_follow_on_next_stage: ${repairNextStage || "none"}\n- repair_follow_on_verification_passed: ${workflow.repair_follow_on.verification_passed ? "true" : "false"}\n- repair_follow_on_updated_at: ${workflow.repair_follow_on.last_updated_at || "Not yet recorded."}\n- pivot_in_progress: ${pivotInputs.pivot_in_progress ? "true" : "false"}\n- pivot_class: ${pivotInputs.pivot_class || "none"}\n- pivot_changed_surfaces: ${pivotInputs.pivot_changed_surfaces.length > 0 ? pivotInputs.pivot_changed_surfaces.join(", ") : "none"}\n- pivot_pending_stages: ${pivotInputs.pending_downstream_stages.length > 0 ? pivotInputs.pending_downstream_stages.join(", ") : "none"}\n- pivot_completed_stages: ${pivotInputs.completed_downstream_stages.length > 0 ? pivotInputs.completed_downstream_stages.join(", ") : "none"}\n- pivot_pending_ticket_lineage_actions: ${pivotInputs.pending_ticket_lineage_actions.length > 0 ? pivotInputs.pending_ticket_lineage_actions.join(", ") : "none"}\n- pivot_completed_ticket_lineage_actions: ${pivotInputs.completed_ticket_lineage_actions.length > 0 ? pivotInputs.completed_ticket_lineage_actions.join(", ") : "none"}\n- post_pivot_verification_passed: ${pivotInputs.post_pivot_verification_passed ? "true" : "false"}\n- bootstrap_status: ${workflow.bootstrap.status}\n- bootstrap_proof: ${workflow.bootstrap.proof_artifact || "None"}\n- bootstrap_blockers: ${workflow.bootstrap_blockers.length > 0 ? workflow.bootstrap_blockers.map((item) => `${item.executable} (${item.reason})`).join(", ") : "none"}\n\n## Post-Generation Audit Status\n\n- audit_or_repair_follow_up: ${pivotPending || repairFollowOnPending || sourceFollowUpPending || reopened.length > 0 || suspectDone.length > 0 || reverification.length > 0 || processVerification.clearable_now ? "follow-up required" : "none recorded"}\n- reopened_tickets: ${summarizeTickets(reopened)}\n- done_but_not_fully_trusted: ${summarizeTickets(suspectDone)}\n- pending_reverification: ${summarizeTickets(reverification)}\n- repair_follow_on_blockers: ${workflow.repair_follow_on.blocking_reasons.length > 0 ? workflow.repair_follow_on.blocking_reasons.join(" | ") : "none"}\n- pivot_pending_stages: ${pivotInputs.pending_downstream_stages.length > 0 ? pivotInputs.pending_downstream_stages.join(", ") : "none"}\n- pivot_pending_ticket_lineage_actions: ${pivotInputs.pending_ticket_lineage_actions.length > 0 ? pivotInputs.pending_ticket_lineage_actions.join(", ") : "none"}\n\n## Code Quality Status\n\n- last_build_result: ${quality.build_result}\n- last_test_run_result: ${quality.test_result}\n- open_remediation_tickets: ${quality.open_remediation_tickets}\n- known_reference_integrity_issues: ${quality.open_reference_integrity_tickets}\n\n## Known Risks\n\n${riskLines}\n\n## Next Action\n\n${recommendedAction}\n${START_HERE_MANAGED_END}\n`
 }
 function escapeRegExp(value: string): string { return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") }
+function inferArtifactSummaryState(summary: string | undefined): "pass" | "fail" | "unknown" {
+  const normalized = (summary || "").toLowerCase()
+  if (normalized.includes("passed") || normalized.includes("approved")) return "pass"
+  if (normalized.includes("failed") || normalized.includes("block") || normalized.includes("reject")) return "fail"
+  return "unknown"
+}
+function latestCurrentArtifactForStages(manifest: Manifest, stages: string[]): Artifact | undefined {
+  const matches = manifest.tickets.flatMap((ticket) =>
+    ticket.artifacts.filter((artifact) => artifact.trust_state === "current" && stages.includes(artifact.stage)),
+  )
+  return matches.sort((left, right) => right.created_at.localeCompare(left.created_at))[0]
+}
+function summarizeCodeQualityStatus(manifest: Manifest): {
+  build_result: string
+  test_result: string
+  open_remediation_tickets: number
+  open_reference_integrity_tickets: number
+} {
+  const latestBuildArtifact = latestCurrentArtifactForStages(manifest, ["implementation", "review", "smoke-test"])
+  const latestTestArtifact = latestCurrentArtifactForStages(manifest, ["qa", "smoke-test"])
+  const openRemediationTickets = manifest.tickets.filter(
+    (ticket) => Boolean(ticket.finding_source) && ticket.status !== "done" && ticket.resolution_state !== "superseded",
+  )
+  const openReferenceTickets = openRemediationTickets.filter((ticket) => ticket.finding_source?.startsWith("REF"))
+  const describe = (artifact: Artifact | undefined) => `${inferArtifactSummaryState(artifact?.summary)} @ ${artifact?.created_at || "Not yet recorded"}`
+  return {
+    build_result: describe(latestBuildArtifact),
+    test_result: describe(latestTestArtifact),
+    open_remediation_tickets: openRemediationTickets.length,
+    open_reference_integrity_tickets: openReferenceTickets.length,
+  }
+}
 export function mergeStartHere(existing: string, rendered: string): string {
   const pattern = new RegExp(`${escapeRegExp(START_HERE_MANAGED_START)}[\\s\\S]*?${escapeRegExp(START_HERE_MANAGED_END)}`, "m")
   const renderedBlock = rendered.match(pattern)

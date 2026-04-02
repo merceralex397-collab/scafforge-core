@@ -1,3 +1,5 @@
+> **ARCHIVED:** This document is superseded by the `recovery-plan/` directory.
+
 # Scafforge Remediation Progress Review
 
 This document is the implementation-status companion to [scafforge-consolidated-remediation-plan.md](/home/rowan/Scafforge/scafforge-consolidated-remediation-plan.md).

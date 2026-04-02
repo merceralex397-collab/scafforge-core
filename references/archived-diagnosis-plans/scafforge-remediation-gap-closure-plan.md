@@ -1,3 +1,5 @@
+> **ARCHIVED:** This document is superseded by the `recovery-plan/` directory.
+
 # Scafforge Remediation Gap-Closure Record
 
 This file began as the remaining-work tracker for the Scafforge remediation effort.

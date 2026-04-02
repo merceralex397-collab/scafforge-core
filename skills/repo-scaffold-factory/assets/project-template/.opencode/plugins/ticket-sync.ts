@@ -16,11 +16,15 @@ export const TicketSync: Plugin = async () => {
       if (!SYNCED_TOOLS.has(input.tool)) {
         return
       }
-      await writeJson(".opencode/state/last-ticket-event.json", {
-        tool: input.tool,
-        args: input.args,
-        timestamp: new Date().toISOString(),
-      })
+      try {
+        await writeJson(".opencode/state/last-ticket-event.json", {
+          tool: input.tool,
+          args: input.args,
+          timestamp: new Date().toISOString(),
+        })
+      } catch (error) {
+        console.warn(`TicketSync disabled its persistence write: ${String(error)}`)
+      }
     },
   }
 }
