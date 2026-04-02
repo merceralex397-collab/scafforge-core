@@ -1,3 +1,5 @@
+> **ARCHIVED:** This document is superseded by the `recovery-plan/` directory.
+
 # Formalize Scafforge Audit and Four-Report Diagnosis Output
 
 This document is a proposed replacement contract only. It describes the intended future architecture and intentionally diverges from the current live package contract until implementation lands.

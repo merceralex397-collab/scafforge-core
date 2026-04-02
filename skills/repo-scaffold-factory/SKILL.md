@@ -35,6 +35,7 @@ python3 scripts/bootstrap_repo_scaffold.py \
 Optional flags:
 - `--project-slug <slug>` — override the auto-generated slug
 - `--agent-prefix <prefix>` — override the agent filename prefix (defaults to slug)
+- `--model-tier <weak|standard|strong>` — tune prompt density for generated guidance without changing workflow fidelity
 - `--utility-model <model>` — set a different model for utility agents (defaults to planner model)
 - `--stack-label <label>` — stack label for generated docs (defaults to "framework-agnostic")
 - `--scope opencode` — generate only the .opencode/ layer (for retrofit)
@@ -47,12 +48,15 @@ The script copies files from `assets/project-template/` and substitutes these pl
 - `__PROJECT_SLUG__` → URL-safe slug
 - `__AGENT_PREFIX__` → prefix for agent filenames
 - `__MODEL_PROVIDER__` → provider label
+- `__MODEL_TIER__` → prompt-density tier
 - `__PLANNER_MODEL__` → planner/reviewer model string
 - `__IMPLEMENTER_MODEL__` → implementer model string
 - `__UTILITY_MODEL__` → utility agent model string
 - `__STACK_LABEL__` → stack/framework label
 
 Output includes: README.md, AGENTS.md, START-HERE.md, docs/, tickets/, opencode.jsonc, .opencode/ (agents, tools, plugins, commands, skills, config, state), and .opencode/meta/bootstrap-provenance.json.
+
+The generated workflow layer includes the stack adapter registry inside `environment_bootstrap`, so generated bootstrap guidance should reflect the detected stack instead of assuming a Python-only repo.
 
 ### Derive script arguments from the canonical brief
 
@@ -107,6 +111,8 @@ python3 scripts/verify_generated_scaffold.py <repo-root> --verification-kind boo
 ```
 
 That early gate must prove one canonical bootstrap ticket, one valid bootstrap status, and one aligned bootstrap-first route across restart, workflow, and tool surfaces before `project-skill-bootstrap` begins.
+
+The final verifier now also rejects placeholder residue, invalid canonical JSON or JSONC, broken generated agent references, and project-name drift across key handoff surfaces.
 
 Then continue to `../project-skill-bootstrap/SKILL.md` for the full greenfield local-skill pass, and later use `scripts/verify_generated_scaffold.py` again with the default verification kind as the final immediate-continuation gate before handoff.
 

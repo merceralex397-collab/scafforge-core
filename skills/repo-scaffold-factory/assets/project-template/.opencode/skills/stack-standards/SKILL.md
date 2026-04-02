@@ -19,6 +19,21 @@ These rules apply to all work in this repository regardless of stack.
 - Every public or exported symbol must have a documentation comment that describes intent, not implementation.
 - Delete dead code instead of commenting it out; use version control to recover removed code.
 
+### Quality Gate Commands
+
+Use the smallest stack-appropriate command set that proves the code still builds, references resolve, and the test surface is callable.
+
+- Python: `ruff check .`, `mypy .` when configured, `pytest --collect-only`
+- Node.js: `npm run lint`, `tsc --noEmit`, `npm test`
+- Rust: `cargo clippy`, `cargo test`
+- Go: `go vet ./...`, `golangci-lint run`, `go test ./...`
+- Godot: `godot --headless --check-only` when available, scene reference checks, autoload validation, project load/import verification
+- C/C++: `cmake --build .`, compiler warning review, and the configured test target when present
+- .NET: `dotnet build`, `dotnet test`
+- Generic make-based repos: `make check` or `make test`
+
+When the repo stack is finalized, rewrite this catalog so review and QA agents get the exact build, lint, reference-integrity, and test commands that belong to this project.
+
 ### Validation
 - All external inputs (API payloads, file reads, environment variables) must be validated at the boundary before use.
 - Assertions and precondition checks belong at the call site, not buried in utility helpers.

@@ -68,6 +68,7 @@ These skills are the current backbone and should remain coherent as a chain:
 
 `scafforge-audit`, `scafforge-repair`, and `scafforge-pivot` remain separate post-generation lifecycle skills.
 Optional extension skills may exist outside this default scaffold spine when they solve later host-side workflow needs without polluting the scaffold chain. These should stay clearly marked as optional.
+The greenfield proof chain around this spine now includes environment bootstrap detection plus stack-specific execution and reference-integrity verification before handoff.
 
 ## Canonical workflow contract
 
@@ -78,13 +79,14 @@ The default route should be:
 1. `scaffold-kickoff` decides this is a greenfield build
 2. `spec-pack-normalizer` produces a canonical brief
 3. `repo-scaffold-factory` renders the base scaffold
-4. the kickoff-owned bootstrap-lane proof confirms one canonical first move before specialization begins
-5. `project-skill-bootstrap` completes the full greenfield local-skill pass
-6. `opencode-team-bootstrap` designs the project-specific agent team
-7. `agent-prompt-engineering` runs the required same-session prompt-hardening pass
-8. `ticket-pack-builder` runs in bootstrap mode
-9. the kickoff-owned immediate-continuation verification gate proves the repo is truthful and immediately runnable
-10. `handoff-brief` refreshes the restart surface
+4. environment bootstrap detection runs and halts the flow with explicit blocker guidance when prerequisites are still missing
+5. the kickoff-owned bootstrap-lane proof confirms one canonical first move before specialization begins, including VERIFY009 bootstrap-blocker persistence and routing
+6. `project-skill-bootstrap` completes the full greenfield local-skill pass
+7. `opencode-team-bootstrap` designs the project-specific agent team
+8. `agent-prompt-engineering` runs the required same-session prompt-hardening pass
+9. `ticket-pack-builder` runs in bootstrap mode
+10. the kickoff-owned immediate-continuation verification gate proves the repo is truthful and immediately runnable, including VERIFY010 execution-surface checks and VERIFY011 reference-integrity checks
+11. `handoff-brief` refreshes the restart surface
 
 A greenfield scaffold allows one batched blocking-decision round and then completes in one uninterrupted same-session pass. No second Scafforge generation pass is required before development begins. Greenfield now has an early bootstrap-lane proof plus the later immediate-continuation proof before handoff publication, not only surface agreement.
 The package still carries one explicit temporary contract smell: `project-skill-bootstrap` and `opencode-team-bootstrap` form a dependency seam, and the current order stays in place until Scafforge introduces a real minimal-operable-versus-specialization split.
@@ -98,12 +100,12 @@ These refinements now govern implementation of the package contract:
 - the default output remains **one full orchestration OpenCode scaffold**
 - `scaffold-kickoff` remains the **single public entrypoint** for greenfield, retrofit, pivot, managed-repair/update, and diagnosis/review flows; downstream skills are routing targets, not user-facing starting points
 - the greenfield path is **one-shot**: one batched blocking-decision round, one uninterrupted same-session generation pass, then direct handoff into development
-- the greenfield handoff must be **immediately continuable**: one legal first move, one named owner, and no bootstrap-first ambiguity across restart, prompt, tool, and workflow surfaces
+- the greenfield handoff must be **immediately continuable**: one legal first move, one named owner, no bootstrap-first ambiguity across restart, prompt, tool, and workflow surfaces, and zero unresolved stack-specific execution or canonical-reference failures
 - the generated repo must have a **structured truth hierarchy** with exact canonical owners for facts, queue state, transient workflow state, artifacts, provenance, and restart surfaces
 - the generated repo must always expose **one legal next move** with one named owner and one blocker return path
 - the initial backlog should be **implementation-ready where decisions are resolved**, while unresolved major choices become explicit blocked or decision tickets instead of fabricated detail
-- `scafforge-audit` should own read-only diagnosis, review validation, and full diagnosis-pack generation on every audit run
-- `scafforge-repair` should consume audit outputs, apply safe repairs, continue into required project-specific regeneration steps, and escalate intent-changing repairs
+- `scafforge-audit` should own read-only diagnosis, review validation, full diagnosis-pack generation, and code-quality finding emission on every audit run
+- `scafforge-repair` should consume audit outputs, apply safe repairs non-destructively, continue into required project-specific regeneration steps, create canonical remediation tickets for source follow-up, and escalate intent-changing repairs
 - `scafforge-pivot` should update canonical truth first, emit a stale-surface map, and route only the affected downstream refresh steps
 - post-repair verification must prove both current-state cleanliness and causal-regression coverage whenever the repair basis was transcript-backed
 - package-level PR evidence intake should be folded into `scafforge-audit` instead of surviving as a separate primary skill
@@ -140,7 +142,7 @@ Use the lighter path when a repo already exists and mainly needs an OpenCode ope
 Use this path when a repo is already Scafforge-managed or otherwise OpenCode-oriented and mainly needs workflow-contract correction, managed-surface replacement, or process-version refresh:
 
 1. `scaffold-kickoff` decides this is managed repair/update work
-2. `scafforge-repair` runs for safe workflow repairs and managed-surface refresh
+2. `scafforge-repair` runs for safe workflow repairs and managed-surface refresh; if code-quality findings are present, it also creates remediation tickets before the flow continues, and it must escalate instead of auto-applying intent-changing workflow changes
 3. `project-skill-bootstrap` repairs local skills if needed
 4. `opencode-team-bootstrap` follows up only if project-specific `.opencode/` drift remains
 5. `agent-prompt-engineering` reruns when regenerated skills or agents changed prompt behavior
@@ -242,11 +244,12 @@ Owns workflow diagnosis, review validation, and diagnosis-pack generation.
 
 It must remain read-only.
 It should validate PR or review evidence against the actual repo before treating anything as a canonical finding.
+It should emit code-quality findings for stack-specific execution and canonical reference-integrity failures, not just workflow-surface drift.
 
 ### `scafforge-repair`
 Owns workflow repair execution and post-audit follow-up.
 
-It should consume audit outputs, apply safe managed-surface repairs, and leave explicit provenance and verification state.
+It should consume audit outputs, apply safe managed-surface repairs, leave explicit provenance and verification state, record backup and diff summaries, and create remediation tickets when source-layer follow-up remains.
 
 ### `scafforge-pivot`
 Owns pivot classification and bounded downstream refresh routing.
@@ -315,6 +318,9 @@ When changing the package:
 - verify the skill chain still makes sense end to end
 - verify `scaffold-kickoff` still describes the real default workflow
 - verify bootstrap-mode ticket generation happens in the full-cycle path
+- verify stack adapter registry and bootstrap guidance still cover the intended Tier 1 stacks
+- verify post-repair verification still uses stack-specific execution and reference-integrity checks where available
+- verify audit still produces code-quality findings for non-Python stacks, not only workflow findings
 - verify project-skill synthesis rules are still conservative and evidence-based
 - verify generated template paths still match current OpenCode conventions
 - verify any runtime assumptions about tools/plugins are still current

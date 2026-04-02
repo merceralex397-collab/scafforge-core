@@ -1,0 +1,59 @@
+; Engine configuration file.
+; It's best edited using the editor UI and not directly,
+; since the parameters that go here are not all obvious.
+;
+; Format:
+;   [section] ; section goes between []
+;   param=value ; assign values to parameters
+
+config_version=2
+
+[application]
+
+config/name="Glitch"
+run/main_scene="res://scenes/Main.tscn"
+config/features=PackedStringArray("4.2", "GLES2")
+
+[autoload]
+
+PlayerState="*res://scripts/autoload/PlayerState.gd"
+GlitchState="*res://scripts/autoload/GlitchState.gd"
+GameState="*res://scripts/autoload/GameState.gd"
+LevelManager="*res://scripts/autoload/LevelManager.gd"
+
+[display]
+
+window/size/width=1280
+window/size/height=720
+window/stretch/mode="2d"
+window/stretch/aspect="keep"
+
+[input]
+
+move_left={
+"deadzone": 0.5,
+"events": [ Object(InputEventKey,"resource_local_to_scene":false,"resource_name":"","device":0,"command_line":"","alt":false,"shift":false,"control":false,"meta":false,"command":false,"pressed":false,"scancode":16777231,"physical_scancode":0,"encoding":0,"echo":false,"script":null)
+ ]
+}
+move_right={
+"deadzone": 0.5,
+"events": [ Object(InputEventKey,"resource_local_to_scene":false,"resource_name":"","device":0,"command_line":"","alt":false,"shift":false,"control":false,"meta":false,"command":false,"pressed":false,"scancode":16777233,"physical_scancode":0,"encoding":0,"echo":false,"script":null)
+ ]
+}
+jump={
+"deadzone": 0.5,
+"events": [ Object(InputEventKey,"resource_local_to_scene":false,"resource_name":"","device":0,"command_line":"","alt":false,"shift":false,"control":false,"meta":false,"command":false,"pressed":false,"scancode":32,"physical_scancode":0,"encoding":0,"echo":false,"script":null)
+ ]
+}
+dash={
+"deadzone": 0.5,
+"events": [ Object(InputEventKey,"resource_local_to_scene":false,"resource_name":"","device":0,"command_line":"","alt":false,"shift":false,"control":false,"meta":false,"command":false,"pressed":false,"scancode":16777238,"physical_scancode":0,"encoding":0,"echo":false,"script":null)
+ ]
+}
+
+[rendering]
+
+quality/driver/driver_name="GLES2"
+vram_compression/import_etc=true
+vram_compression/import_etc2=false
+environment/default_clear_color=Color( 0, 0, 0, 1 )

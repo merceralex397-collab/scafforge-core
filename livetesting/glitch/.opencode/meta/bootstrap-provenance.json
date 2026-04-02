@@ -1,0 +1,71 @@
+{
+  "managed_repo": "/home/pc/.codex",
+  "template_commit": "missing_provenance",
+  "template_asset_root": "skills/repo-scaffold-factory/assets/project-template",
+  "project_name": "Glitch",
+  "project_slug": "glitch",
+  "agent_prefix": "glitch",
+  "generation_scope": "full",
+  "runtime_models": {
+    "tier": "weak",
+    "provider": "minimax-coding-plan",
+    "planner": "MiniMax-M2.7",
+    "implementer": "MiniMax-M2.7",
+    "utility": "MiniMax-M2.7"
+  },
+  "bootstrap_steps": [
+    "repo-scaffold-factory/render-full-scaffold"
+  ],
+  "tracking": {
+    "invocation_log": ".opencode/state/invocation-log.jsonl",
+    "skill_ping_tool": "skill_ping",
+    "tracker_plugin": "invocation-tracker"
+  },
+  "workflow_contract": {
+    "process_version": 7,
+    "ticket_contract_version": 3,
+    "parallel_mode": "sequential",
+    "manager_hierarchy": {
+      "first_class_scaffold_profile": false,
+      "advanced_customization_allowed": true
+    },
+    "post_migration_verification": {
+      "enabled": true,
+      "backlog_verifier_agent": "glitch-backlog-verifier",
+      "ticket_creator_agent": "glitch-ticket-creator"
+    }
+  },
+  "managed_surfaces": {
+    "replace_on_retrofit": [
+      "opencode.jsonc",
+      ".opencode/tools",
+      ".opencode/plugins",
+      ".opencode/commands",
+      "scaffold-managed .opencode/skills",
+      "docs/process/workflow.md",
+      "docs/process/tooling.md",
+      "docs/process/model-matrix.md",
+      "docs/process/git-capability.md",
+      "START-HERE.md managed block"
+    ],
+    "project_specific_follow_up": [
+      ".opencode/skills",
+      ".opencode/agents",
+      "docs/process/agent-catalog.md"
+    ],
+    "preserve_project_sources": [
+      "docs/spec/CANONICAL-BRIEF.md",
+      "tickets/manifest.json",
+      "tickets/*.md",
+      ".opencode/state/artifacts",
+      ".opencode/state/bootstrap",
+      ".opencode/state/plans",
+      ".opencode/state/implementations",
+      ".opencode/state/reviews",
+      ".opencode/state/qa",
+      ".opencode/state/smoke-tests",
+      ".opencode/state/handoffs"
+    ]
+  },
+  "repair_history": []
+}

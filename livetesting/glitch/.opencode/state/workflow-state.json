@@ -1,0 +1,69 @@
+{
+  "active_ticket": "CORE-002",
+  "stage": "qa",
+  "status": "qa",
+  "approved_plan": true,
+  "ticket_state": {
+    "SETUP-001": {
+      "approved_plan": true,
+      "reopen_count": 0,
+      "needs_reverification": false
+    },
+    "SYSTEM-001": {
+      "approved_plan": true,
+      "reopen_count": 0,
+      "needs_reverification": false
+    },
+    "CORE-001": {
+      "approved_plan": true,
+      "reopen_count": 0,
+      "needs_reverification": false
+    },
+    "CORE-002": {
+      "approved_plan": true,
+      "reopen_count": 0,
+      "needs_reverification": false
+    }
+  },
+  "process_version": 7,
+  "process_last_changed_at": null,
+  "process_last_change_summary": null,
+  "pending_process_verification": false,
+  "parallel_mode": "sequential",
+  "repair_follow_on": {
+    "outcome": "clean",
+    "required_stages": [],
+    "completed_stages": [],
+    "blocking_reasons": [],
+    "verification_passed": true,
+    "handoff_allowed": true,
+    "last_updated_at": null,
+    "process_version": 7
+  },
+  "bootstrap": {
+    "status": "ready",
+    "last_verified_at": "2026-04-01T19:46:00.276Z",
+    "environment_fingerprint": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "proof_artifact": ".opencode/state/artifacts/history/setup-001/bootstrap/2026-04-01T19-46-00-274Z-environment-bootstrap.md"
+  },
+  "lane_leases": [
+    {
+      "ticket_id": "CORE-002",
+      "lane": "gameplay-systems",
+      "owner_agent": "glitch-team-leader",
+      "write_lock": true,
+      "claimed_at": "2026-04-01T21:17:07.205Z",
+      "expires_at": "2026-04-01T23:17:07.205Z",
+      "allowed_paths": [
+        ".opencode/state/",
+        "tickets/",
+        "project.godot",
+        "scenes/",
+        "scripts/",
+        "resources/",
+        "assets/"
+      ]
+    }
+  ],
+  "state_revision": 97
+}

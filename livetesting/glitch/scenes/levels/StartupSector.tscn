@@ -1,0 +1,11 @@
+[gd_scene load_steps=1 format=2]
+
+[node name="StartupSector" type="Node2D"]
+
+[node name="Floor" type="StaticBody2D" parent="."]
+position = Vector2( 640, 400 )
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Floor"]
+
+[node name="Sprite" type="Sprite" parent="Floor"]
+modulate = Color( 0.2, 0.2, 0.2, 1 )

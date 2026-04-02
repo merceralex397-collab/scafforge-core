@@ -1,3 +1,5 @@
+> **ARCHIVED:** This document is superseded by the `recovery-plan/` directory.
+
 # Scafforge State Cleanup - 2026-03-27
 
 ## Purpose

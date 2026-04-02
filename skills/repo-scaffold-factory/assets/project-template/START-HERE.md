@@ -13,10 +13,11 @@ The repo is operating under the managed OpenCode workflow. Use the canonical sta
 
 1. README.md
 2. AGENTS.md
-3. docs/spec/CANONICAL-BRIEF.md
-4. docs/process/workflow.md
-5. tickets/manifest.json
-6. tickets/BOARD.md
+3. docs/AGENT-DELEGATION.md
+4. docs/spec/CANONICAL-BRIEF.md
+5. docs/process/workflow.md
+6. tickets/manifest.json
+7. tickets/BOARD.md
 
 ## Current Or Next Ticket
 
@@ -62,6 +63,7 @@ The repo is operating under the managed OpenCode workflow. Use the canonical sta
 
 - Validation can fail for environment reasons until bootstrap proof exists.
 - Historical completion should not be treated as current trust once defects or process drift are discovered.
+- Delegation mistakes can cause lifecycle loops; check `docs/AGENT-DELEGATION.md` before improvising a new handoff path.
 
 ## Next Action
 

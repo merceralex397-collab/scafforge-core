@@ -1,0 +1,212 @@
+{
+  "version": 2,
+  "artifacts": [
+    {
+      "ticket_id": "SETUP-001",
+      "kind": "environment-bootstrap",
+      "path": ".opencode/state/artifacts/history/setup-001/bootstrap/2026-04-01T19-46-00-274Z-environment-bootstrap.md",
+      "stage": "bootstrap",
+      "summary": "Environment bootstrap completed successfully.",
+      "created_at": "2026-04-01T19:46:00.274Z",
+      "trust_state": "current"
+    },
+    {
+      "ticket_id": "SETUP-001",
+      "kind": "plan",
+      "path": ".opencode/state/artifacts/history/setup-001/planning/2026-04-01T19-48-58-694Z-plan.md",
+      "stage": "planning",
+      "summary": "Establishes SETUP-001 verification approach: confirms bootstrap.status is ready, documents Godot runtime and Android prerequisites as UNVERIFIED requiring shell checks, and defines canonical validation commands that cannot run until SYSTEM-001 creates the Godot project.",
+      "created_at": "2026-04-01T19:48:58.694Z",
+      "trust_state": "current"
+    },
+    {
+      "ticket_id": "SETUP-001",
+      "kind": "implementation",
+      "path": ".opencode/state/artifacts/history/setup-001/implementation/2026-04-01T19-54-24-420Z-implementation.md",
+      "stage": "implementation",
+      "summary": "Implementation artifact for SETUP-001: Documents Godot 4.6.2 verification, Android SDK findings, canonical validation commands, and identified blockers for environment readiness.",
+      "created_at": "2026-04-01T19:54:24.420Z",
+      "trust_state": "current"
+    },
+    {
+      "ticket_id": "SETUP-001",
+      "kind": "review",
+      "path": ".opencode/state/artifacts/history/setup-001/review/2026-04-01T19-56-58-524Z-review.md",
+      "stage": "review",
+      "summary": "Review artifact validating SETUP-001 implementation completeness and evidence quality. All acceptance criteria met, evidence verified against shell output, blockers documented correctly. PASS.",
+      "created_at": "2026-04-01T19:56:58.524Z",
+      "trust_state": "current"
+    },
+    {
+      "ticket_id": "SETUP-001",
+      "kind": "qa",
+      "path": ".opencode/state/artifacts/history/setup-001/qa/2026-04-01T19-59-06-320Z-qa.md",
+      "stage": "qa",
+      "summary": "QA artifact for SETUP-001: Bootstrap environment verification with raw shell command outputs for Godot version, Android SDK, sdkmanager, export templates, and bootstrap status. All 5 checks passed.",
+      "created_at": "2026-04-01T19:59:06.320Z",
+      "trust_state": "current"
+    },
+    {
+      "ticket_id": "SETUP-001",
+      "kind": "smoke-test",
+      "path": ".opencode/state/artifacts/history/setup-001/smoke-test/2026-04-01T19-59-42-174Z-smoke-test.md",
+      "stage": "smoke-test",
+      "summary": "Deterministic smoke test passed.",
+      "created_at": "2026-04-01T19:59:42.174Z",
+      "trust_state": "current"
+    },
+    {
+      "ticket_id": "SYSTEM-001",
+      "kind": "plan",
+      "path": ".opencode/state/artifacts/history/system-001/planning/2026-04-01T20-07-03-151Z-plan.md",
+      "stage": "planning",
+      "summary": "Planning artifact for SYSTEM-001 covering Godot project location (repo root), scene tree structure (Main/Player/LevelContainer/UI layers), autoload boundaries (PlayerState/GlitchState/GameState/LevelManager), directory layout (scenes/scripts/resources/assets/), initial scene set, headless validation plan, and architecture expansion pathways. No blockers identified.",
+      "created_at": "2026-04-01T20:07:03.151Z",
+      "trust_state": "current"
+    },
+    {
+      "ticket_id": "SYSTEM-001",
+      "kind": "implementation",
+      "path": ".opencode/state/artifacts/history/system-001/implementation/2026-04-01T20-14-40-402Z-implementation.md",
+      "stage": "implementation",
+      "summary": "Implementation artifact for SYSTEM-001: Created base Godot project structure with project.godot, 4 autoload scripts (PlayerState, GlitchState, GameState, LevelManager), initial scenes (Main, Player, StartupSector, HUD), and validated headless startup. All acceptance criteria met.",
+      "created_at": "2026-04-01T20:14:40.402Z",
+      "trust_state": "current"
+    },
+    {
+      "ticket_id": "SYSTEM-001",
+      "kind": "review",
+      "path": ".opencode/state/artifacts/history/system-001/review/2026-04-01T20-17-02-946Z-review.md",
+      "stage": "review",
+      "summary": "Review artifact for SYSTEM-001 identifying duplicate autoload instances as a blocker",
+      "created_at": "2026-04-01T20:17:02.946Z",
+      "trust_state": "current"
+    },
+    {
+      "ticket_id": "SYSTEM-001",
+      "kind": "implementation",
+      "path": ".opencode/state/artifacts/history/system-001/implementation/2026-04-01T20-19-48-429Z-implementation.md",
+      "stage": "implementation",
+      "summary": "Implementation update fixing duplicate autoload blocker in Main.tscn",
+      "created_at": "2026-04-01T20:19:48.429Z",
+      "trust_state": "current"
+    },
+    {
+      "ticket_id": "SYSTEM-001",
+      "kind": "qa",
+      "path": ".opencode/state/artifacts/history/system-001/qa/2026-04-01T20-21-43-357Z-qa.md",
+      "stage": "qa",
+      "summary": "QA artifact for SYSTEM-001: All 6 checks passed including Godot headless startup, autoload initialization count verification, and scene structure validation.",
+      "created_at": "2026-04-01T20:21:43.357Z",
+      "trust_state": "current"
+    },
+    {
+      "ticket_id": "SYSTEM-001",
+      "kind": "smoke-test",
+      "path": ".opencode/state/artifacts/history/system-001/smoke-test/2026-04-01T20-22-16-789Z-smoke-test.md",
+      "stage": "smoke-test",
+      "summary": "Deterministic smoke test failed.",
+      "created_at": "2026-04-01T20:22:16.789Z",
+      "trust_state": "current"
+    },
+    {
+      "ticket_id": "SYSTEM-001",
+      "kind": "smoke-test",
+      "path": ".opencode/state/artifacts/history/system-001/smoke-test/2026-04-01T20-22-37-359Z-smoke-test.md",
+      "stage": "smoke-test",
+      "summary": "Deterministic smoke test passed.",
+      "created_at": "2026-04-01T20:22:37.359Z",
+      "trust_state": "current"
+    },
+    {
+      "ticket_id": "CORE-001",
+      "kind": "plan",
+      "path": ".opencode/state/artifacts/history/core-001/planning/2026-04-01T20-34-58-689Z-plan.md",
+      "stage": "planning",
+      "summary": "Planning artifact for CORE-001 covering CharacterBody2D movement model, Input action-based input handling, centralized PlayerDefaults resource, state machine with 6 states (IDLE/RUN/JUMP/FALL/WALL_SLIDE/DASH), coyote time (100ms), jump buffering (120ms), wall slide/wall jump, dash without invincibility, and headless validation plan.",
+      "created_at": "2026-04-01T20:34:58.689Z",
+      "trust_state": "current"
+    },
+    {
+      "ticket_id": "CORE-001",
+      "kind": "implementation",
+      "path": ".opencode/state/artifacts/history/core-001/implementation/2026-04-01T20-43-32-779Z-implementation.md",
+      "stage": "implementation",
+      "summary": "Implementation of baseline player controller with CharacterBody2D, state machine (IDLE/RUN/JUMP/FALL/WALL_SLIDE/DASH), coyote time, jump buffering, wall slide, wall jump, and dash mechanics. Creates PlayerDefaults resource for centralized constants.",
+      "created_at": "2026-04-01T20:43:32.779Z",
+      "trust_state": "current"
+    },
+    {
+      "ticket_id": "CORE-001",
+      "kind": "review",
+      "path": ".opencode/state/artifacts/history/core-001/review/2026-04-01T20-46-05-196Z-review.md",
+      "stage": "review",
+      "summary": "Code review for CORE-001: baseline player controller. PASS with medium robustness recommendation on wall detection null check. All acceptance criteria met.",
+      "created_at": "2026-04-01T20:46:05.196Z",
+      "trust_state": "current"
+    },
+    {
+      "ticket_id": "CORE-001",
+      "kind": "qa",
+      "path": ".opencode/state/artifacts/history/core-001/qa/2026-04-01T20-47-59-262Z-qa.md",
+      "stage": "qa",
+      "summary": "QA artifact for CORE-001: All 6 checks passed (file existence, Godot headless startup, headless import, PlayerDefaults resource, state machine enum, coyote time and jump buffer).",
+      "created_at": "2026-04-01T20:47:59.262Z",
+      "trust_state": "current"
+    },
+    {
+      "ticket_id": "CORE-001",
+      "kind": "smoke-test",
+      "path": ".opencode/state/artifacts/history/core-001/smoke-test/2026-04-01T20-48-38-034Z-smoke-test.md",
+      "stage": "smoke-test",
+      "summary": "Deterministic smoke test passed.",
+      "created_at": "2026-04-01T20:48:38.034Z",
+      "trust_state": "current"
+    },
+    {
+      "ticket_id": "CORE-002",
+      "kind": "plan",
+      "path": ".opencode/state/artifacts/history/core-002/planning/2026-04-01T20-53-20-558Z-plan.md",
+      "stage": "planning",
+      "summary": "Planning artifact for CORE-002: Defines three glitch event categories (Physics/Hazard/Room Logic), two-phase telegraph system (warning + active), layered warning surfaces, modifier overlay pattern for separation of concerns, curated room-tagged glitch pools, integration with existing GlitchState autoload via signals, and validation plan covering headless startup, resource load, and modifier separation.",
+      "created_at": "2026-04-01T20:53:20.558Z",
+      "trust_state": "current"
+    },
+    {
+      "ticket_id": "CORE-002",
+      "kind": "implementation",
+      "path": ".opencode/state/artifacts/history/core-002/implementation/2026-04-01T21-01-24-030Z-implementation.md",
+      "stage": "implementation",
+      "summary": "Implemented glitch event system with telegraph phase, modifier overlay pattern, and 11 example events across 3 categories (PHYSICS/HAZARD/ROOM_LOGIC). All classes registered successfully with Godot.",
+      "created_at": "2026-04-01T21:01:24.030Z",
+      "trust_state": "current"
+    },
+    {
+      "ticket_id": "CORE-002",
+      "kind": "review",
+      "path": ".opencode/state/artifacts/history/core-002/review/2026-04-01T21-06-05-655Z-review.md",
+      "stage": "review",
+      "summary": "Review for CORE-002: Two blockers found - modifier integration gap (PlayerController never queries modifiers) and GlitchState.glitch_warning signal never emitted. Implementation creates structure but does not affect gameplay or warn players.",
+      "created_at": "2026-04-01T21:06:05.655Z",
+      "trust_state": "current"
+    },
+    {
+      "ticket_id": "CORE-002",
+      "kind": "review",
+      "path": ".opencode/state/artifacts/history/core-002/review/2026-04-01T21-18-36-460Z-review.md",
+      "stage": "review",
+      "summary": "Updated review for CORE-002: Both blockers resolved. Physics modifier queries verified (25 refs), emit_warning() signal chain complete. PASS.",
+      "created_at": "2026-04-01T21:18:36.460Z",
+      "trust_state": "current"
+    },
+    {
+      "ticket_id": "CORE-002",
+      "kind": "qa",
+      "path": ".opencode/state/artifacts/history/core-002/qa/2026-04-01T21-23-54-304Z-qa.md",
+      "stage": "qa",
+      "summary": "QA artifact for CORE-002: Validation checks completed. FAIL - GlitchEventManager never initialized, GlitchPhysicsModifier not accessible at runtime, telegraph UI not connected.",
+      "created_at": "2026-04-01T21:23:54.304Z",
+      "trust_state": "current"
+    }
+  ]
+}

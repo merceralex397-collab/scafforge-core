@@ -9,6 +9,7 @@ Use this skill to apply safe workflow-contract repairs to an existing repository
 
 This is the host-side repair surface. It consumes diagnosis outputs, especially Report 4 from `scafforge-audit`, applies deterministic managed-surface repairs, continues into any required project-specific regeneration passes, records provenance, and routes follow-up ticketing when workflow repair reveals additional work or current-machine prerequisites still block trusted verification.
 Use [../../references/competence-contract.md](../../references/competence-contract.md) as the bar for whether the repaired workflow is actually competent.
+Managed repair is non-destructive: the deterministic refresh engine must back up managed surfaces, record diff summaries, and escalate intent-changing changes instead of silently applying them.
 
 ## When to use this skill
 
@@ -115,6 +116,7 @@ python3 scripts/apply_repo_process_repair.py <repo-root>
 Use this when the repo needs one deliberate workflow-contract refresh rather than piecemeal edits.
 This deterministic repair flow regenerates `START-HERE.md`, `.opencode/state/context-snapshot.md`, and `.opencode/state/latest-handoff.md` from canonical state, then records the verification outcome before publishing the updated restart narrative.
 It must also emit a machine-readable stale-surface map using the bounded categories `stable`, `replace`, `regenerate`, and `ticket_follow_up`.
+It must replace managed surfaces non-destructively: compute a file-level diff summary first, back up every target surface before replacement, restore from backup on failure, and record the diff summary plus verification results in repair provenance.
 Intent-changing drift is out of scope for routine public repair and must route back through kickoff or pivot instead of being reported as a repair-emitted stale-surface category.
 Treat this command as the internal refresh engine, not as the whole user-facing repair contract. A repair run is still incomplete if required regeneration, ticket follow-up, or post-repair verification did not happen afterward.
 If repair runs after a pivot, preserve the pivot-owned stale-surface and restart-state truth instead of republishing generic ready-state restart surfaces. Managed repair can refresh workflow surfaces, but it must not erase active pivot blockers or pending pivot lineage work from `START-HERE.md`, `.opencode/state/latest-handoff.md`, or `.opencode/state/context-snapshot.md`.
@@ -168,11 +170,26 @@ Safe repair examples:
 - repairing repos where the docs-handoff lane was blocked by a plugin/prompt ownership conflict on optional `handoff` artifacts
 - creating remediation tickets for source bugs discovered by audit rules
 
+When the diagnosis includes source-layer `EXEC*` or `REF*` findings, create the recommended remediation tickets through the repo's canonical ticket flow or ticket-pack-builder follow-up mode. Do not fix product code inside `scafforge-repair`; repair owns workflow and ticket-routing surfaces only.
+
 Intent-changing repair examples that must be escalated:
 - project-scope changes
 - runtime or stack changes
 - provider/model changes when they reflect a newer human decision for this repo rather than removal of deprecated package-managed defaults
 - rewriting curated human decisions
+
+Intent-changing workflow contract changes that must also be escalated instead of auto-applied:
+- adding or removing an agent from the team
+- changing the bootstrap command contract
+- altering the truth hierarchy or canonical ownership between files
+- changing the ticket lifecycle stages
+- adding or removing workflow tools
+- changing agent skill or task allowlists
+
+Escalation mechanism:
+- stop the public repair flow without applying the intent-changing change
+- write `.opencode/state/repair-escalation.json` describing what repair attempted, why it is intent-changing, the diff summary, and the user decision now required
+- surface that escalation in the repair execution record and restart narrative instead of pretending the repo is ready
 
 ### 7. Record provenance and process-version state
 
@@ -181,6 +198,7 @@ Every repair pass must leave explicit state.
 - update `.opencode/meta/bootstrap-provenance.json`
 - update `.opencode/state/workflow-state.json`
 - record what changed and why
+- include the file-level diff summary, addressed audit codes, verification results, and any remediation ticket ids in repair provenance
 - if the process layer materially changed, set `pending_process_verification: true`
 - regenerate the derived restart surfaces and record why they were regenerated
 - do not let repair alone publish a "ready for continued development" restart narrative before audit verification reruns
@@ -190,6 +208,7 @@ Every repair pass must leave explicit state.
 When repair reveals unfinished or source-layer follow-up work:
 
 - route through `../ticket-pack-builder/SKILL.md`
+- use `python3 skills/ticket-pack-builder/scripts/apply_remediation_follow_up.py <repo-root> --diagnosis <diagnosis-dir-or-manifest>` when the diagnosis pack already contains `ticket_recommendations` for source-layer remediation
 - create explicit remediation or decision tickets
 - use `ticket_create(source_mode=split_scope)` for open-parent decomposition instead of encoding that work as net-new or post-completion remediation
 - use `ticket_reconcile` when the existing source/follow-up graph is stale or contradictory to the current evidence

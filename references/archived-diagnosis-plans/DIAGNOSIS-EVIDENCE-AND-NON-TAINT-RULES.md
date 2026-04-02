@@ -1,3 +1,5 @@
+> **ARCHIVED:** This document is superseded by the `recovery-plan/` directory.
+
 # Diagnosis Evidence and Non-Taint Rules
 
 This document is a proposed diagnosis-contract clarification only. It describes how the future audit flow should treat evidence and non-taint, not the current fully implemented package behavior.

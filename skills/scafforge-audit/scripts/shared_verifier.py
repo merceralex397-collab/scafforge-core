@@ -37,7 +37,18 @@ def _normalize(path: Path, root: Path) -> str:
         return str(path).replace("\\", "/")
 
 
-def _finding(*, code: str, problem: str, root_cause: str, files: list[str], safer_pattern: str, evidence: list[str]) -> Finding:
+def _finding(
+    *,
+    code: str,
+    problem: str,
+    root_cause: str,
+    files: list[str],
+    safer_pattern: str,
+    evidence: list[str],
+    remediation_action: str | None = None,
+    remediation_target: str | None = None,
+    is_user_action: bool = False,
+) -> Finding:
     return Finding(
         code=code,
         severity="error",
@@ -47,6 +58,9 @@ def _finding(*, code: str, problem: str, root_cause: str, files: list[str], safe
         safer_pattern=safer_pattern,
         evidence=evidence,
         provenance="script",
+        remediation_action=remediation_action or safer_pattern,
+        remediation_target=remediation_target or (files[0] if files else None),
+        is_user_action=is_user_action,
     )
 
 
@@ -57,7 +71,13 @@ def _placeholder_skill_hits(root: Path) -> list[str]:
     hits: list[str] = []
     for path in sorted(skills_root.rglob("SKILL.md")):
         text = _read_text(path)
-        if "Replace this file" in text or "TODO: replace" in text:
+        if (
+            "Replace this file" in text
+            or "TODO: replace" in text
+            or "__STACK_LABEL__" in text
+            or "When the repo stack is finalized, rewrite this catalog so review and QA agents get the exact build, lint, reference-integrity, and test commands that belong to this project." in text
+            or "When the project stack is confirmed, replace this file's Universal Standards section with stack-specific rules using the `project-skill-bootstrap` skill." in text
+        ):
             hits.append(_normalize(path, root))
     return hits
 
@@ -109,6 +129,7 @@ def verify_greenfield_bootstrap_lane(root: Path) -> list[Finding]:
     bootstrap = workflow.get("bootstrap") if isinstance(workflow.get("bootstrap"), dict) else {}
     bootstrap_status = str(bootstrap.get("status", "")).strip()
     bootstrap_proof = str(bootstrap.get("proof_artifact", "")).strip()
+    bootstrap_blockers = workflow.get("bootstrap_blockers") if isinstance(workflow.get("bootstrap_blockers"), list) else []
     tickets = manifest.get("tickets") if isinstance(manifest.get("tickets"), list) else []
     first_ticket = tickets[0] if tickets and isinstance(tickets[0], dict) else {}
 
@@ -253,6 +274,7 @@ def verify_greenfield_continuation(root: Path) -> list[Finding]:
     bootstrap = workflow.get("bootstrap") if isinstance(workflow.get("bootstrap"), dict) else {}
     bootstrap_status = str(bootstrap.get("status", "")).strip()
     bootstrap_proof = str(bootstrap.get("proof_artifact", "")).strip()
+    bootstrap_blockers = workflow.get("bootstrap_blockers") if isinstance(workflow.get("bootstrap_blockers"), list) else []
     tickets = manifest.get("tickets") if isinstance(manifest.get("tickets"), list) else []
     first_ticket = tickets[0] if tickets and isinstance(tickets[0], dict) else {}
 
@@ -406,6 +428,70 @@ def verify_greenfield_continuation(root: Path) -> list[Finding]:
                 files=contract_alignment_missing,
                 safer_pattern="Keep tooling docs, ticket guidance docs, ticket_update, smoke_test, and handoff_publish aligned on lifecycle gating, canonical smoke ownership, transition guidance, and truthful handoff publication before greenfield handoff.",
                 evidence=[f"missing or drifted contract surfaces: {', '.join(contract_alignment_missing)}"],
+            )
+        )
+
+    if "bootstrap_blockers" not in workflow or not isinstance(bootstrap_blockers, list):
+        findings.append(
+            _finding(
+                code="VERIFY009",
+                problem="The generated repo does not persist bootstrap blockers in canonical workflow state.",
+                root_cause="Greenfield continuation cannot reliably stop on missing host prerequisites when environment bootstrap results are not preserved across sessions.",
+                files=[_normalize(workflow_path, root)],
+                safer_pattern="Persist bootstrap_blockers in workflow-state and require environment_bootstrap to clear them before greenfield handoff succeeds.",
+                evidence=[f"bootstrap_blockers field present: {'bootstrap_blockers' in workflow}", f"bootstrap_blockers value: {bootstrap_blockers!r}"],
+                remediation_action="Regenerate or repair the workflow-state template so it persists bootstrap_blockers, then rerun the greenfield verifier.",
+                remediation_target=_normalize(workflow_path, root),
+            )
+        )
+    elif bootstrap_status == "ready" and bootstrap_blockers:
+        blocker_names = [str(item.get("executable", "unknown")) for item in bootstrap_blockers if isinstance(item, dict)]
+        findings.append(
+            _finding(
+                code="VERIFY009",
+                problem="Environment bootstrap completed with unresolved blockers still recorded in workflow state.",
+                root_cause="Greenfield continuation is not immediately runnable when the host dependency proof claims readiness while unresolved environment prerequisites remain.",
+                files=[_normalize(workflow_path, root)],
+                safer_pattern="Require environment_bootstrap to return zero unresolved blockers before marking bootstrap ready or passing the greenfield continuation gate.",
+                evidence=[
+                    f"bootstrap.status = {bootstrap_status!r}",
+                    f"bootstrap_blockers = {json.dumps(bootstrap_blockers, sort_keys=True)}",
+                    f"unresolved blocker executables = {', '.join(blocker_names) or 'none'}",
+                ],
+                remediation_action=f"Resolve the missing environment dependencies reported by environment_bootstrap: {', '.join(blocker_names) or 'unknown blockers'}, then rerun bootstrap proof.",
+                remediation_target=_normalize(workflow_path, root),
+                is_user_action=True,
+            )
+        )
+
+    audit_findings = audit_repo(root)
+    critical_exec_findings = [finding for finding in audit_findings if finding.code.startswith("EXEC") and finding.severity == "error"]
+    if critical_exec_findings:
+        findings.append(
+            _finding(
+                code="VERIFY010",
+                problem="The generated repo still has critical execution-surface failures after the greenfield continuation gate.",
+                root_cause="Immediate continuation is not truthful when stack-specific execution audit findings already show that the generated repo cannot build, validate, or load cleanly on its declared stack.",
+                files=sorted({path for finding in critical_exec_findings for path in finding.files}),
+                safer_pattern="Run the stack-specific execution audit as part of the greenfield continuation proof and require zero critical EXEC findings before handoff.",
+                evidence=[f"{finding.code}: {finding.problem}" for finding in critical_exec_findings[:6]],
+                remediation_action="Fix the reported build, load, or compile failures in the generated repo, then rerun the continuation verifier.",
+                remediation_target=(critical_exec_findings[0].files[0] if critical_exec_findings and critical_exec_findings[0].files else None),
+            )
+        )
+
+    critical_reference_findings = [finding for finding in audit_findings if finding.code in {"REF-001", "REF-002"}]
+    if critical_reference_findings:
+        findings.append(
+            _finding(
+                code="VERIFY011",
+                problem="The generated repo still has broken reference-integrity findings after the greenfield continuation gate.",
+                root_cause="Immediate continuation is not trustworthy when canonical scene or config surfaces already point at missing files or broken code references in the generated repo.",
+                files=sorted({path for finding in critical_reference_findings for path in finding.files}),
+                safer_pattern="Run reference-integrity audit as part of greenfield verification and require zero REF-001 or REF-002 findings before handoff.",
+                evidence=[f"{finding.code}: {finding.problem}" for finding in critical_reference_findings[:6]],
+                remediation_action="Repair the broken scene, config, or structural file references reported by the reference-integrity audit, then rerun the continuation verifier.",
+                remediation_target=(critical_reference_findings[0].files[0] if critical_reference_findings and critical_reference_findings[0].files else None),
             )
         )
 

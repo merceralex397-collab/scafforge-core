@@ -8,6 +8,17 @@ Weak-model first remains the product bias. The package is designed to make weake
 
 The package competence bar is defined in [references/competence-contract.md](references/competence-contract.md). In practice that means the generated workflow must always expose one legal next move; if the operator is confused about how to proceed, Scafforge should treat that as package evidence, not user error.
 
+## Supported stacks
+
+Scafforge now separates detection, bootstrap, and execution-audit coverage by stack tier.
+
+- Tier 1: full detection, bootstrap guidance, and execution audit for Python, Node, Rust, Go, Godot, Java or Android, C or C++, and .NET.
+- Tier 2: detection and bootstrap guidance for Flutter or Dart, Swift, Zig, and Ruby.
+- Tier 3: detection with explicit blocker reporting for Elixir, PHP, and Haskell.
+- Tier 4: generic fallback detection for Makefile-driven and shell-script repos when no stronger adapter matches.
+
+The adapter contract is documented in [references/stack-adapter-contract.md](references/stack-adapter-contract.md).
+
 ## Installation
 
 Copy or symlink each folder under `skills/` into the host's skill directory. Keep each skill directory intact so its `SKILL.md`, `scripts/`, `assets/`, and `references/` remain together.
@@ -18,8 +29,10 @@ Scafforge should be treated as a skill bundle, not as a CLI product.
 
 1. Open a repo that contains specs, plans, notes, or design docs.
 2. Tell the agent to scaffold, retrofit, pivot, repair, or diagnose the project, or invoke `scaffold-kickoff`.
-3. The agent reads the inputs, asks one batched round of blocking decisions when needed, and routes through the correct skill path.
+3. The agent reads the inputs, asks one batched round of blocking decisions when needed, records the selected `model_tier`, and routes through the correct skill path.
 4. Output: a complete project repo or an evidence-backed diagnosis and repair path.
+
+For implementation details and the hardening sequence behind the current package behavior, see the numbered recovery plans under [recovery-plan](recovery-plan).
 
 ## Live testing sandbox
 
@@ -46,6 +59,8 @@ scaffold-kickoff
 
 This pass allows one batched blocking-decision round and then completes in one uninterrupted same-session generation run. No second Scafforge generation pass is required before development begins. Greenfield now has two proof layers: an early bootstrap-lane proof immediately after scaffold render, and the later immediate-continuation proof before handoff. Greenfield completion requires immediate continuation proof, not only surface agreement. That proof must be completed before handoff publication.
 The current package still carries one temporary contract smell: `project-skill-bootstrap` and `opencode-team-bootstrap` form a dependency seam, so Scafforge keeps the current order until a minimal-operable-versus-specialization split exists.
+
+The one-shot path now also includes environment detection before specialization continues. Missing prerequisites must surface as blocker guidance instead of letting the flow drift into downstream failures.
 
 `scaffold-kickoff` remains the single public entrypoint for:
 - greenfield scaffold
@@ -78,6 +93,13 @@ A full greenfield run produces:
 - `.opencode/meta/bootstrap-provenance.json`
 - `START-HERE.md`
 - root docs such as `README.md` and `AGENTS.md`
+
+The generated workflow also includes:
+
+- environment bootstrap detection and blocker persistence in workflow state
+- stack-specific smoke or execution checks where the detected stack supports them
+- review and QA expectations that fail closed when build, lint, type, reference, or smoke validation cannot run
+- verdict-aware ticket transitions, including remediation follow-up that preserves original finding codes
 
 ## Truth hierarchy
 
@@ -120,7 +142,9 @@ Generation, audit, repair, and pivot are separate lifecycle stages.
 - `scafforge-audit`, `scafforge-repair`, and `scafforge-pivot` are later lifecycle tools, not part of the initial generation cycle.
 
 - `scafforge-audit` is read-only and always validates review evidence, runs the audit script, and emits the four-report diagnosis pack in the subject repo's `diagnosis/` folder.
+- `scafforge-audit` includes code-quality diagnosis as well as workflow-surface diagnosis, using EXEC and REF finding families for execution and reference-integrity failures.
 - `scafforge-repair` is the public repair contract: it must apply safe managed-surface repairs, continue into any required local-skill or agent/prompt/ticket follow-up, record provenance, and route ticket follow-up when needed.
+- `scafforge-repair` replaces managed surfaces non-destructively, records backup and diff provenance, and creates remediation tickets instead of editing product code when audit finds source-layer EXEC or REF issues.
 - `scafforge-pivot` is the public pivot contract: it must update canonical brief truth first, record stale surfaces, route only the affected refresh steps, and verify the repo before handoff.
 - Source-layer `EXEC*` follow-up and visible `pending_process_verification` are not, by themselves, proof that managed repair failed. They remain live repo follow-up after the managed workflow layer is repaired.
 - `skills/scafforge-repair/scripts/run_managed_repair.py` is the public fail-closed repair runner. It emits the machine-readable repair plan, execution record, and post-repair verification diagnosis pack, automatically carries forward transcript-backed audit evidence when that evidence exists, reruns verification, and blocks handoff when required downstream stages still have not run.

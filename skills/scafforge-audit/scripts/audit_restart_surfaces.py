@@ -337,6 +337,54 @@ def audit_lease_claim_guidance_drift(root: Path, findings: list[Finding], ctx: R
     )
 
 
+def audit_restart_tool_verification_metadata(
+    root: Path, findings: list[Finding], ctx: RestartSurfaceAuditContext
+) -> None:
+    handoff_publish = root / ".opencode" / "tools" / "handoff_publish.ts"
+    context_snapshot = root / ".opencode" / "tools" / "context_snapshot.ts"
+    evidence: list[str] = []
+    files: list[str] = []
+
+    if handoff_publish.exists():
+        handoff_text = ctx.read_text(handoff_publish)
+        if "verified" not in handoff_text or "pending_process_verification" not in handoff_text:
+            files.append(ctx.normalize_path(handoff_publish, root))
+            evidence.append(
+                f"{ctx.normalize_path(handoff_publish, root)} does not return verification metadata alongside published restart-surface paths."
+            )
+    else:
+        files.append(ctx.normalize_path(handoff_publish, root))
+        evidence.append("Missing handoff_publish tool, so restart-surface verification metadata cannot be emitted.")
+
+    if context_snapshot.exists():
+        snapshot_text = ctx.read_text(context_snapshot)
+        if "snapshot_size_bytes" not in snapshot_text or "verified" not in snapshot_text:
+            files.append(ctx.normalize_path(context_snapshot, root))
+            evidence.append(
+                f"{ctx.normalize_path(context_snapshot, root)} does not return verification metadata for the written snapshot."
+            )
+    else:
+        files.append(ctx.normalize_path(context_snapshot, root))
+        evidence.append("Missing context_snapshot tool, so snapshot verification metadata cannot be emitted.")
+
+    if not evidence:
+        return
+
+    ctx.add_finding(
+        findings,
+        Finding(
+            code="WFLOW025",
+            severity="error",
+            problem="Restart-surface tools return paths without verifying what they wrote.",
+            root_cause="When handoff and context tools only echo file paths, weaker models cannot tell whether the files were written correctly or still agree with canonical state after publication.",
+            files=list(dict.fromkeys(files)),
+            safer_pattern="Return verified flags plus current workflow metadata for published restart surfaces and include size or hash metadata for snapshots so callers can confirm what was written.",
+            evidence=evidence,
+            provenance="script",
+        ),
+    )
+
+
 def audit_resume_truth_hierarchy(root: Path, findings: list[Finding], ctx: RestartSurfaceAuditContext) -> None:
     resume = root / ".opencode" / "commands" / "resume.md"
     workflow_doc = root / "docs" / "process" / "workflow.md"
@@ -568,6 +616,7 @@ def run_restart_surface_audits(root: Path, findings: list[Finding], ctx: Restart
     audit_restart_surface_drift(root, findings, ctx)
     audit_legacy_repair_gate_leak(root, findings, ctx)
     audit_bootstrap_guidance_drift(root, findings, ctx)
+    audit_restart_tool_verification_metadata(root, findings, ctx)
     audit_lease_claim_guidance_drift(root, findings, ctx)
     audit_resume_truth_hierarchy(root, findings, ctx)
     audit_invocation_log_coordinator_artifact_authorship(root, findings, ctx)

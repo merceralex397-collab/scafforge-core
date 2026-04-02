@@ -1,3 +1,5 @@
+> **ARCHIVED:** This document is superseded by the `recovery-plan/` directory.
+
 # Diagnosis Plan Addendum
 
 This document is a proposed replacement-contract addendum only. It amends the planning docs under `out/` and is not a claim that the live package already behaves this way.

@@ -4,11 +4,13 @@ Default stack label: `__STACK_LABEL__`
 
 These values should come from an explicit user choice during scaffold generation, not from a hidden generator default.
 
+- model tier: `__MODEL_TIER__`
 - provider: `__MODEL_PROVIDER__`
 - team lead / planner / reviewers: `__FULL_PLANNER_MODEL__`
 - implementer: `__FULL_IMPLEMENTER_MODEL__`
 - utilities, docs, and QA helpers: `__FULL_UTILITY_MODEL__`
 - operating profile: `__MODEL_OPERATING_PROFILE_NAME__`
+- prompt density: `__MODEL_PROMPT_DENSITY__`
 - repo-local profile skill: `.opencode/skills/model-operating-profile/SKILL.md`
 
 Profile guidance:

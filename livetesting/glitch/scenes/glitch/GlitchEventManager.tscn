@@ -1,0 +1,18 @@
+[gd_scene load_steps=5 format=3 uid="uid://cxk5t8glitch1"]
+
+[ext_resource type="Script" path="res://scripts/glitch/GlitchEventManager.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/glitch/GlitchPhysicsModifier.gd" id="2"]
+[ext_resource type="Script" path="res://scripts/glitch/GlitchHazardModifier.gd" id="3"]
+[ext_resource type="Script" path="res://scripts/glitch/GlitchRoomModifier.gd" id="4"]
+
+[node name="GlitchEventManager" type="Node"]
+script = ExtResource("1")
+
+[node name="PhysicsModifier" type="Node" parent="."]
+script = ExtResource("2")
+
+[node name="HazardModifier" type="Node" parent="."]
+script = ExtResource("3")
+
+[node name="RoomModifier" type="Node" parent="."]
+script = ExtResource("4")

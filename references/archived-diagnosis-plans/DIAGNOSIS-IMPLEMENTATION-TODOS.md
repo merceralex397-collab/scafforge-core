@@ -1,3 +1,5 @@
+> **ARCHIVED:** This document is superseded by the `recovery-plan/` directory.
+
 # Diagnosis Implementation Todos
 
 This working checklist turns `DIAGNOSIS-4-REPORT-PLAN.md` into staged package work.

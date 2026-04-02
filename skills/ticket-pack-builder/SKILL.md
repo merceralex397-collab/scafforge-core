@@ -68,6 +68,7 @@ For each piece of work, create a ticket with these fields:
 - `source_ticket_id` — source ticket when this is a follow-up or remediation ticket, otherwise `null`
 - `follow_up_ticket_ids` — linked downstream remediation or expansion tickets, initially empty
 - `source_mode` — `process_verification`, `post_completion_issue`, `net_new_scope`, or `split_scope` when the ticket was created from later diagnosis, reverification work, or open-parent decomposition; omit for greenfield bootstrap tickets
+- `finding_source` — original audit, review, QA, or smoke finding code when this ticket exists to remediate a validated issue
 - `summary` — one-paragraph description of what needs to be done
 - `acceptance` — list of specific acceptance criteria tied to finalized repo-local commands, checks, or observable workflow surfaces; these must be scope-isolated to the ticket's own work
 - `artifacts` — empty list (populated during execution)
@@ -165,6 +166,7 @@ Before leaving this skill, confirm all of these are true:
 - every `tickets/<id>.md` file exists for the manifest entries created or changed in this run
 - `.opencode/state/workflow-state.json` names the foreground ticket from the manifest and seeds `bootstrap.status: "missing"` on fresh scaffolds until bootstrap proof exists
 - follow-up tickets preserve `source_ticket_id`, `follow_up_ticket_ids`, and `source_mode` linkage when the work came from diagnosis, repair, or reverification evidence
+- remediation tickets preserve `finding_source` so downstream review, QA, and closeout can rerun the original failing check
 
 ## Refine mode
 
@@ -177,6 +179,12 @@ Use when expanding or normalizing an existing backlog:
 ## Remediation-follow-up mode
 
 Use when audit, diagnosis, review, or repair work already produced concrete findings and the repo needs canonical follow-up tickets.
+
+Public follow-up command when a diagnosis pack already contains ticket recommendations:
+
+```sh
+python3 skills/ticket-pack-builder/scripts/apply_remediation_follow_up.py <repo-root> --diagnosis <diagnosis-dir-or-manifest>
+```
 
 ### 1. Read the source evidence first
 
@@ -200,8 +208,10 @@ For each finding:
 For every remediation or reverification ticket:
 - set `source_ticket_id` when the work came from a prior ticket
 - append the new ticket ID to the source ticket's `follow_up_ticket_ids`
+- set `finding_source` when the follow-up exists to remediate a validated audit, review, QA, or smoke-test finding
 - keep `verification_state: suspect` until current evidence proves the issue resolved
 - record the evidence source in the ticket summary or Notes so downstream agents can trace the follow-up back to the diagnosis, review, or repair artifact
+- ensure the ticket acceptance reruns the original finding-producing command when the repo already has a concrete build, lint, reference, or smoke failure to clear
 
 ### 4. Respect guarded ticket creation
 

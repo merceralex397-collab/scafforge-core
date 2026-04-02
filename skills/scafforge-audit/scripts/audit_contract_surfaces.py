@@ -251,6 +251,52 @@ def audit_artifact_persistence_prompt_contract(root: Path, findings: list[Findin
     )
 
 
+def audit_failure_recovery_contract(root: Path, findings: list[Finding], ctx: ContractSurfaceAuditContext) -> None:
+    ticket_execution = root / ".opencode" / "skills" / "ticket-execution" / "SKILL.md"
+    team_leader = next((path for path in (root / ".opencode" / "agents").glob("*team-leader*.md")), None)
+    files: list[str] = []
+    evidence: list[str] = []
+
+    if not ticket_execution.exists():
+        files.append(ctx.normalize_path(ticket_execution, root))
+        evidence.append("Missing repo-local ticket execution skill, so fail-state routing is undocumented.")
+    else:
+        ticket_execution_text = ctx.read_text(ticket_execution)
+        if "Failure recovery paths:" not in ticket_execution_text:
+            files.append(ctx.normalize_path(ticket_execution, root))
+            evidence.append(
+                f"{ctx.normalize_path(ticket_execution, root)} does not include an explicit Failure recovery paths section."
+            )
+
+    if team_leader is None:
+        files.append(".opencode/agents/*team-leader*.md")
+        evidence.append("Missing team leader prompt, so no coordinator recovery-action routing can be verified.")
+    else:
+        team_leader_text = ctx.read_text(team_leader)
+        if "ticket_lookup.transition_guidance.recovery_action" not in team_leader_text:
+            files.append(ctx.normalize_path(team_leader, root))
+            evidence.append(
+                f"{ctx.normalize_path(team_leader, root)} does not tell the coordinator to follow recovery_action when present."
+            )
+
+    if not evidence:
+        return
+
+    ctx.add_finding(
+        findings,
+        Finding(
+            code="WFLOW024",
+            severity="error",
+            problem="Fail-state routing is still under-specified in generated prompts or workflow skills.",
+            root_cause="Even if the tool contract knows how to route a FAIL verdict, weaker models still stall or advance incorrectly when the repo-local workflow explainer and coordinator prompt omit the recovery path.",
+            files=list(dict.fromkeys(files)),
+            safer_pattern="Document review, QA, smoke-test, and bootstrap failure recovery paths in ticket-execution, and instruct the team leader to follow transition_guidance.recovery_action whenever it is present.",
+            evidence=evidence,
+            provenance="script",
+        ),
+    )
+
+
 def audit_artifact_path_contract_drift(root: Path, findings: list[Finding], ctx: ContractSurfaceAuditContext) -> None:
     offenders: list[str] = []
     evidence: list[str] = []
@@ -824,6 +870,7 @@ def run_contract_surface_audits(root: Path, findings: list[Finding], ctx: Contra
     audit_missing_tool_layer(root, findings, ctx)
     audit_overloaded_artifact_register(root, findings, ctx)
     audit_artifact_persistence_prompt_contract(root, findings, ctx)
+    audit_failure_recovery_contract(root, findings, ctx)
     audit_artifact_path_contract_drift(root, findings, ctx)
     audit_workflow_vocabulary_drift(root, findings, ctx)
     audit_artifact_brief_missing_tuple(root, findings, ctx)

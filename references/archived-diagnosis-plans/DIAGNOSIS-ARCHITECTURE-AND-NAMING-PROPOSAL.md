@@ -1,3 +1,5 @@
+> **ARCHIVED:** This document is superseded by the `recovery-plan/` directory.
+
 # Diagnosis Architecture and Naming Proposal
 
 This document is a proposed replacement contract only. It describes the intended future architecture and naming direction, not the current implemented package state.

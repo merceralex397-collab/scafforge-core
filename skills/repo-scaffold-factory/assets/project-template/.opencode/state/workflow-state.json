@@ -31,6 +31,7 @@
     "environment_fingerprint": null,
     "proof_artifact": null
   },
+  "bootstrap_blockers": [],
   "lane_leases": [],
   "state_revision": 0
 }

@@ -20,6 +20,7 @@ emit_diagnosis_pack = AUDIT_MODULE.emit_diagnosis_pack
 load_latest_previous_diagnosis = AUDIT_MODULE.load_latest_previous_diagnosis
 load_latest_previous_diagnosis_with_supporting_logs = AUDIT_MODULE.load_latest_previous_diagnosis_with_supporting_logs
 manifest_supporting_logs = AUDIT_MODULE.manifest_supporting_logs
+repair_routed_codes_from_manifest = AUDIT_MODULE.repair_routed_codes_from_manifest
 select_diagnosis_destination = AUDIT_MODULE.select_diagnosis_destination
 supporting_log_paths = AUDIT_MODULE.supporting_log_paths
 main = AUDIT_MODULE.main
@@ -31,6 +32,7 @@ __all__ = [
     "load_latest_previous_diagnosis",
     "load_latest_previous_diagnosis_with_supporting_logs",
     "manifest_supporting_logs",
+    "repair_routed_codes_from_manifest",
     "select_diagnosis_destination",
     "supporting_log_paths",
     "main",

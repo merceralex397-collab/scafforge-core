@@ -1750,6 +1750,7 @@ def main() -> int:
             )
         full_dest = workspace / "full"
         opencode_dest = workspace / "opencode"
+        strong_dest = workspace / "strong"
 
         common = [
             sys.executable,
@@ -1775,9 +1776,120 @@ def main() -> int:
 
         run(common + ["--dest", str(full_dest), "--scope", "full"], ROOT)
         run(common + ["--dest", str(opencode_dest), "--scope", "opencode"], ROOT)
+        run(
+            common
+            + ["--dest", str(strong_dest), "--scope", "full", "--model-tier", "strong"],
+            ROOT,
+        )
 
         verify_render(full_dest, expect_full_repo=True)
         verify_render(opencode_dest, expect_full_repo=False)
+        verify_render(strong_dest, expect_full_repo=True)
+
+        provenance = json.loads(
+            (full_dest / ".opencode" / "meta" / "bootstrap-provenance.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        if provenance.get("runtime_models", {}).get("tier") != "weak":
+            raise RuntimeError(
+                "Generated bootstrap provenance should default the runtime model tier to weak"
+            )
+
+        strong_provenance = json.loads(
+            (strong_dest / ".opencode" / "meta" / "bootstrap-provenance.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        if strong_provenance.get("runtime_models", {}).get("tier") != "strong":
+            raise RuntimeError(
+                "Generated bootstrap provenance should record an explicit strong runtime model tier"
+            )
+
+        model_matrix = (full_dest / "docs" / "process" / "model-matrix.md").read_text(
+            encoding="utf-8"
+        )
+        for expected in (
+            "- model tier: `weak`",
+            "- prompt density: `full checklists, explicit examples, and repeated truth-source reminders`",
+        ):
+            if expected not in model_matrix:
+                raise RuntimeError(
+                    f"Generated model-matrix.md is missing required model-tier detail: {expected}"
+                )
+
+        strong_model_matrix = (
+            strong_dest / "docs" / "process" / "model-matrix.md"
+        ).read_text(encoding="utf-8")
+        if "- model tier: `strong`" not in strong_model_matrix:
+            raise RuntimeError(
+                "Generated model-matrix.md should reflect an explicit strong model tier"
+            )
+
+        model_profile_skill = (
+            full_dest / ".opencode" / "skills" / "model-operating-profile" / "SKILL.md"
+        ).read_text(encoding="utf-8")
+        for expected in (
+            "- model tier: `weak`",
+            "- prompt density: `full checklists, explicit examples, and repeated truth-source reminders`",
+        ):
+            if expected not in model_profile_skill:
+                raise RuntimeError(
+                    f"Generated model-operating-profile skill is missing required line: {expected}"
+                )
+
+        team_leader_prompt = next(
+            (full_dest / ".opencode" / "agents").glob("*team-leader*.md")
+        ).read_text(encoding="utf-8")
+        for expected in (
+            "Stop conditions:",
+            "Advancement rules:",
+            "Ticket ownership:",
+            "Contradiction resolution:",
+            "three consecutive attempts to advance the same ticket fail with the same error or blocker signature",
+            "if the verdict is `FAIL`, `REJECT`, or `BLOCKED`",
+            "when `tickets/manifest.json` and `.opencode/state/workflow-state.json` disagree about ticket stage, status, dependencies, or the active foreground ticket, trust `tickets/manifest.json`",
+            "Stack-specific build, verification, or load-check commands",
+        ):
+            if expected not in team_leader_prompt:
+                raise RuntimeError(
+                    f"Generated team leader prompt is missing required hardening section: {expected}"
+                )
+
+        implementer_prompt = next(
+            (full_dest / ".opencode" / "agents").glob("*implementer*.md")
+        ).read_text(encoding="utf-8")
+        for expected in (
+            "Build verification:",
+            "Scope:",
+            "Stack-specific notes:",
+            "SCAFFORGE:STACK_SPECIFIC_IMPLEMENTATION_NOTES START",
+            "modify workflow-state, manifest, or restart-surface files unless the approved ticket explicitly targets those managed surfaces",
+        ):
+            if expected not in implementer_prompt:
+                raise RuntimeError(
+                    f"Generated implementer prompt is missing required hardening section: {expected}"
+                )
+
+        delegation_doc = (full_dest / "docs" / "AGENT-DELEGATION.md").read_text(
+            encoding="utf-8"
+        )
+        for expected in (
+            "# Agent Delegation",
+            "## Delegation Chain",
+            "## Escalation Path",
+            "## Restart Procedure",
+        ):
+            if expected not in delegation_doc:
+                raise RuntimeError(
+                    f"Generated AGENT-DELEGATION.md is missing required section: {expected}"
+                )
+
+        start_here = (full_dest / "START-HERE.md").read_text(encoding="utf-8")
+        if "docs/AGENT-DELEGATION.md" not in start_here:
+            raise RuntimeError(
+                "Generated START-HERE.md should reference docs/AGENT-DELEGATION.md in the startup path"
+            )
 
         generated_ticket_update = (
             full_dest / ".opencode" / "tools" / "ticket_update.ts"
@@ -1827,6 +1939,51 @@ def main() -> int:
                 raise RuntimeError(
                     "Generated environment_bootstrap.ts should classify missing-tool and permission-restriction host failures explicitly"
                 )
+        for expected in (
+            "SAFE_BOOTSTRAP_PATTERNS",
+            'id: "godot"',
+            'id: "java-android"',
+            'id: "c-cpp"',
+            'id: "dotnet"',
+            'id: "flutter-dart"',
+            'id: "swift"',
+            'id: "zig"',
+            'id: "ruby"',
+            'id: "elixir"',
+            'id: "php"',
+            'id: "haskell"',
+            'id: "generic-make"',
+            'id: "generic-shell"',
+            "workflow.bootstrap_blockers = blockers",
+            "blockers,",
+        ):
+            if expected not in generated_bootstrap:
+                raise RuntimeError(
+                    "Generated environment_bootstrap.ts should expose the universal adapter registry and persist bootstrap blockers"
+                )
+        generated_stage_gate = (
+            full_dest / ".opencode" / "plugins" / "stage-gate-enforcer.ts"
+        ).read_text(encoding="utf-8")
+        for expected in (
+            "godot(?:4)?",
+            "dotnet\\s+(?:build|test|run|publish|restore|--info)",
+            "flutter\\s+(?:build|test|analyze|pub\\s+get)",
+            "swift\\s+(?:build|test|run|--version)",
+            "mix\\s+(?:test|compile|run|deps\\.get)",
+        ):
+            if expected not in generated_stage_gate:
+                raise RuntimeError(
+                    "Generated stage-gate-enforcer.ts should allow the expanded multi-stack safe command surface"
+                )
+        generated_workflow_state = json.loads(
+            (full_dest / ".opencode" / "state" / "workflow-state.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        if generated_workflow_state.get("bootstrap_blockers") != []:
+            raise RuntimeError(
+                "Generated workflow-state.json should seed bootstrap_blockers as an empty persisted list"
+            )
         generated_smoke_test = (
             full_dest / ".opencode" / "tools" / "smoke_test.ts"
         ).read_text(encoding="utf-8")
@@ -1842,6 +1999,271 @@ def main() -> int:
             if expected not in generated_smoke_test:
                 raise RuntimeError(
                     "Generated smoke_test.ts should expose scoped smoke inputs and thread them into execution"
+                )
+        for expected in (
+            "godot(?:4)?\\s+--headless",
+            "(?:\\./gradlew|gradle)\\s+test",
+            "dotnet\\s+test",
+            "flutter\\s+test",
+            "swift\\s+test",
+            "zig\\s+test",
+            "mix\\s+test",
+            "cmake\\s+--build",
+        ):
+            if expected not in generated_smoke_test:
+                raise RuntimeError(
+                    "Generated smoke_test.ts should recognize broader cross-stack smoke command patterns"
+                )
+        opencode_team_bootstrap_skill = (
+            ROOT / "skills" / "opencode-team-bootstrap" / "SKILL.md"
+        ).read_text(encoding="utf-8")
+        for expected in (
+            "Inject stack-specific implementation notes:",
+            "docs/AGENT-DELEGATION.md",
+            "The implementer prompt includes rewritten stack-specific notes instead of leaving scaffold placeholder text behind",
+        ):
+            if expected not in opencode_team_bootstrap_skill:
+                raise RuntimeError(
+                    f"opencode-team-bootstrap skill is missing phase 5 requirement: {expected}"
+                )
+
+        agent_prompt_engineering_skill = (
+            ROOT / "skills" / "agent-prompt-engineering" / "SKILL.md"
+        ).read_text(encoding="utf-8")
+        for expected in (
+            "If the tier is missing, default to `weak`",
+            "Step C1: Match prompt density to the configured model tier",
+            "prompt density matches the configured model tier",
+        ):
+            if expected not in agent_prompt_engineering_skill:
+                raise RuntimeError(
+                    f"agent-prompt-engineering skill is missing phase 5 requirement: {expected}"
+                )
+
+        generated_stack_standards = (
+            full_dest / ".opencode" / "skills" / "stack-standards" / "SKILL.md"
+        ).read_text(encoding="utf-8")
+        for expected in (
+            "### Quality Gate Commands",
+            "Python: `ruff check .`, `mypy .` when configured, `pytest --collect-only`",
+            "Node.js: `npm run lint`, `tsc --noEmit`, `npm test`",
+        ):
+            if expected not in generated_stack_standards:
+                raise RuntimeError(
+                    f"Generated stack-standards skill is missing phase 6 quality command guidance: {expected}"
+                )
+
+        generated_review_bridge = (
+            full_dest / ".opencode" / "skills" / "review-audit-bridge" / "SKILL.md"
+        ).read_text(encoding="utf-8")
+        for expected in (
+            "run the repo's build command, lint or type-check command, and reference-integrity checks",
+            "the verdict must be FAIL",
+            "when reviewing or validating a remediation ticket with `finding_source`",
+        ):
+            if expected not in generated_review_bridge:
+                raise RuntimeError(
+                    f"Generated review-audit-bridge skill is missing phase 6 quality-loop guidance: {expected}"
+                )
+
+        generated_ticket_execution = (
+            full_dest / ".opencode" / "skills" / "ticket-execution" / "SKILL.md"
+        ).read_text(encoding="utf-8")
+        for expected in (
+            "Remediation ticket closeout:",
+            "when a ticket carries `finding_source`",
+            "if the finding-specific rerun still fails, do not close the ticket",
+        ):
+            if expected not in generated_ticket_execution:
+                raise RuntimeError(
+                    f"Generated ticket-execution skill is missing phase 6 remediation guidance: {expected}"
+                )
+
+        generated_workflow = (
+            full_dest / ".opencode" / "lib" / "workflow.ts"
+        ).read_text(encoding="utf-8")
+        for expected in (
+            "finding_source?: string",
+            "## Code Quality Status",
+            "open_remediation_tickets",
+            "known_reference_integrity_issues",
+        ):
+            if expected not in generated_workflow:
+                raise RuntimeError(
+                    f"Generated workflow.ts is missing phase 6 quality-loop support: {expected}"
+                )
+
+        generated_ticket_create = (
+            full_dest / ".opencode" / "tools" / "ticket_create.ts"
+        ).read_text(encoding="utf-8")
+        if "finding_source" not in generated_ticket_create:
+            raise RuntimeError(
+                "Generated ticket_create.ts should carry finding_source for remediation tickets"
+            )
+
+        generated_handoff_publish = (
+            full_dest / ".opencode" / "tools" / "handoff_publish.ts"
+        ).read_text(encoding="utf-8")
+        if "code_quality_status" not in generated_handoff_publish:
+            raise RuntimeError(
+                "Generated handoff_publish.ts should expose code quality status counts"
+            )
+
+        generated_smoke_tool = (
+            full_dest / ".opencode" / "tools" / "smoke_test.ts"
+        ).read_text(encoding="utf-8")
+        for expected in (
+            "classifyCommandKind",
+            "failed_command_label",
+            "failed_command_kind",
+            "build or quality gate command",
+        ):
+            if expected not in generated_smoke_tool:
+                raise RuntimeError(
+                    f"Generated smoke_test.ts is missing phase 6 build-failure classification detail: {expected}"
+                )
+
+        audit_reporting_script = (
+            ROOT / "skills" / "scafforge-audit" / "scripts" / "audit_reporting.py"
+        ).read_text(encoding="utf-8")
+        for expected in (
+            "recommendation_linked_codes",
+            "Batch remediate",
+            '"assignee": "implementer"',
+            '"source_findings": [',
+        ):
+            if expected not in audit_reporting_script:
+                raise RuntimeError(
+                    f"audit_reporting.py is missing phase 6 remediation-ticket logic: {expected}"
+                )
+
+        remediation_follow_up_script = (
+            ROOT / "skills" / "ticket-pack-builder" / "scripts" / "apply_remediation_follow_up.py"
+        ).read_text(encoding="utf-8")
+        for expected in (
+            "load_ticket_recommendations",
+            '"finding_source": str(recommendation.get("source_finding_code")',
+            "render_board(manifest)",
+        ):
+            if expected not in remediation_follow_up_script:
+                raise RuntimeError(
+                    f"apply_remediation_follow_up.py is missing required phase 6 follow-up logic: {expected}"
+                )
+
+        repair_engine_script = (
+            ROOT / "skills" / "scafforge-repair" / "scripts" / "apply_repo_process_repair.py"
+        ).read_text(encoding="utf-8")
+        for expected in (
+            "class RepairEscalation",
+            "build_managed_surface_diff_summary",
+            "backup_target",
+            "Backup for {target} is missing or corrupted",
+            '"diff_summary": diff_summary',
+            "REPAIR_ESCALATION_PATH",
+        ):
+            if expected not in repair_engine_script:
+                raise RuntimeError(
+                    f"apply_repo_process_repair.py is missing required phase 7 repair-safety logic: {expected}"
+                )
+
+        public_repair_script = (
+            ROOT / "skills" / "scafforge-repair" / "scripts" / "run_managed_repair.py"
+        ).read_text(encoding="utf-8")
+        for expected in (
+            "summarize_source_regressions",
+            "create_remediation_follow_up_tickets",
+            'code.startswith(("EXEC", "REF"))',
+            '"remediation_ticket_ids":',
+        ):
+            if expected not in public_repair_script:
+                raise RuntimeError(
+                    f"run_managed_repair.py is missing required phase 7 repair-coverage logic: {expected}"
+                )
+
+        scaffold_bootstrap_script = (
+            ROOT / "skills" / "repo-scaffold-factory" / "scripts" / "bootstrap_repo_scaffold.py"
+        ).read_text(encoding="utf-8")
+        for expected in (
+            "ensure_idempotent_target",
+            "validate_replacement_values",
+            '"template_commit_result": template_commit_result',
+        ):
+            if expected not in scaffold_bootstrap_script:
+                raise RuntimeError(
+                    f"bootstrap_repo_scaffold.py is missing required phase 8 template-safety logic: {expected}"
+                )
+
+        generated_scaffold_verifier = (
+            ROOT / "skills" / "repo-scaffold-factory" / "scripts" / "verify_generated_scaffold.py"
+        ).read_text(encoding="utf-8")
+        for expected in (
+            "SCAFFOLD-001",
+            "SCAFFOLD-002",
+            "SCAFFOLD-003",
+            "SCAFFOLD-004",
+            "placeholder_findings",
+            "agent_reference_findings",
+        ):
+            if expected not in generated_scaffold_verifier:
+                raise RuntimeError(
+                    f"verify_generated_scaffold.py is missing required phase 8 scaffold validation logic: {expected}"
+                )
+
+        generated_workflow = (
+            ROOT
+            / "skills"
+            / "repo-scaffold-factory"
+            / "assets"
+            / "project-template"
+            / ".opencode"
+            / "lib"
+            / "workflow.ts"
+        ).read_text(encoding="utf-8")
+        for expected in (
+            "export async function ensureRequiredFile",
+            "tickets/manifest.json not found. Run bootstrap first.",
+            ".opencode/state/workflow-state.json not found. Run bootstrap first.",
+            "export async function readManifest",
+            "export async function writeManifest",
+        ):
+            if expected not in generated_workflow:
+                raise RuntimeError(
+                    f"workflow.ts is missing required phase 8 scaffold utility logic: {expected}"
+                )
+
+        generated_audit_execution = (
+            ROOT
+            / "skills"
+            / "scafforge-audit"
+            / "scripts"
+            / "audit_execution_surfaces.py"
+        ).read_text(encoding="utf-8")
+        for expected in (
+            "def audit_node_execution",
+            "def audit_godot_execution",
+            "def audit_reference_integrity",
+            "EXEC-GODOT-002",
+            'code="REF-002"',
+        ):
+            if expected not in generated_audit_execution:
+                raise RuntimeError(
+                    "Audit execution surfaces should include stack-specific execution checks and reference integrity findings"
+                )
+        generated_audit_reporting = (
+            ROOT
+            / "skills"
+            / "scafforge-audit"
+            / "scripts"
+            / "audit_reporting.py"
+        ).read_text(encoding="utf-8")
+        for expected in (
+            "## Code Quality Findings",
+            'finding.code.startswith(("BOOT", "ENV", "EXEC", "REF", "SESSION"))',
+            "package_first_count",
+        ):
+            if expected not in generated_audit_reporting:
+                raise RuntimeError(
+                    "Audit reporting should route code findings to subject-repo follow-up and render code quality sections"
                 )
         if (
             "multiple shell-style command strings executed in order"
@@ -3025,6 +3447,136 @@ def main() -> int:
             )
             raise RuntimeError(
                 f"A placeholder-free fresh scaffold should pass the shared greenfield continuation verifier, but it emitted: {codes}"
+            )
+        blocked_greenfield_dest = workspace / "greenfield-proof-gate-bootstrap-blocked"
+        shutil.copytree(greenfield_gate_dest, blocked_greenfield_dest)
+        blocked_workflow_path = (
+            blocked_greenfield_dest / ".opencode" / "state" / "workflow-state.json"
+        )
+        blocked_workflow = json.loads(
+            blocked_workflow_path.read_text(encoding="utf-8")
+        )
+        blocked_workflow["bootstrap"] = {
+            "status": "ready",
+            "last_verified_at": "2026-04-01T00:00:00Z",
+            "environment_fingerprint": "synthetic-ready-bootstrap",
+            "proof_artifact": ".opencode/state/bootstrap/synthetic-ready-bootstrap.md",
+        }
+        blocked_workflow["bootstrap_blockers"] = [
+            {
+                "executable": "android-sdk",
+                "reason": "Required by Android export configuration.",
+                "install_command": "sdkmanager --install 'platform-tools'",
+            }
+        ]
+        blocked_workflow_path.write_text(
+            json.dumps(blocked_workflow, indent=2) + "\n", encoding="utf-8"
+        )
+        blocked_greenfield_result = subprocess.run(
+            [
+                sys.executable,
+                str(VERIFY_GENERATED),
+                str(blocked_greenfield_dest),
+                "--format",
+                "json",
+            ],
+            cwd=ROOT,
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        blocked_greenfield_payload = json.loads(blocked_greenfield_result.stdout)
+        blocked_greenfield_codes = {
+            finding["code"]
+            for finding in blocked_greenfield_payload.get("findings", [])
+        }
+        if blocked_greenfield_result.returncode != 2:
+            raise RuntimeError(
+                "Generated scaffold verifier should fail when bootstrap blockers remain unresolved in ready workflow state"
+            )
+        if "VERIFY009" not in blocked_greenfield_codes:
+            raise RuntimeError(
+                "Generated scaffold verifier should emit VERIFY009 when bootstrap blockers remain unresolved"
+            )
+        reference_broken_dest = workspace / "greenfield-proof-gate-reference-broken"
+        shutil.copytree(greenfield_gate_dest, reference_broken_dest)
+        (reference_broken_dest / "package.json").write_text(
+            json.dumps(
+                {"name": "broken-ref", "version": "1.0.0", "main": "missing-entry.js"},
+                indent=2,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        reference_broken_result = subprocess.run(
+            [
+                sys.executable,
+                str(VERIFY_GENERATED),
+                str(reference_broken_dest),
+                "--format",
+                "json",
+            ],
+            cwd=ROOT,
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        reference_broken_payload = json.loads(reference_broken_result.stdout)
+        reference_broken_codes = {
+            finding["code"]
+            for finding in reference_broken_payload.get("findings", [])
+        }
+        if reference_broken_result.returncode != 2:
+            raise RuntimeError(
+                "Generated scaffold verifier should fail when reference-integrity findings remain in the generated repo"
+            )
+        if "VERIFY011" not in reference_broken_codes:
+            raise RuntimeError(
+                "Generated scaffold verifier should emit VERIFY011 when canonical config references point at missing files"
+            )
+        execution_broken_dest = workspace / "greenfield-proof-gate-execution-broken"
+        shutil.copytree(greenfield_gate_dest, execution_broken_dest)
+        (execution_broken_dest / "package.json").write_text(
+            json.dumps(
+                {
+                    "name": "broken-exec",
+                    "version": "1.0.0",
+                    "main": "index.js",
+                },
+                indent=2,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        (execution_broken_dest / "index.js").write_text(
+            "throw new Error('synthetic execution failure for VERIFY010')\n",
+            encoding="utf-8",
+        )
+        execution_broken_result = subprocess.run(
+            [
+                sys.executable,
+                str(VERIFY_GENERATED),
+                str(execution_broken_dest),
+                "--format",
+                "json",
+            ],
+            cwd=ROOT,
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        execution_broken_payload = json.loads(execution_broken_result.stdout)
+        execution_broken_codes = {
+            finding["code"]
+            for finding in execution_broken_payload.get("findings", [])
+        }
+        if execution_broken_result.returncode != 2:
+            raise RuntimeError(
+                "Generated scaffold verifier should fail when critical execution audit findings remain in the generated repo"
+            )
+        if "VERIFY010" not in execution_broken_codes:
+            raise RuntimeError(
+                "Generated scaffold verifier should emit VERIFY010 when a generated entrypoint cannot load"
             )
         manifest = json.loads(
             (ROOT / "skills" / "skill-flow-manifest.json").read_text(encoding="utf-8")
@@ -4997,6 +5549,172 @@ def main() -> int:
             raise RuntimeError(
                 "ticket_update should move an approved ticket into implementation"
             )
+        review_fail_dest = workspace / "executed-review-fail-guidance"
+        shutil.copytree(full_dest, review_fail_dest)
+        seed_ready_bootstrap(review_fail_dest)
+        review_fail_manifest_path = review_fail_dest / "tickets" / "manifest.json"
+        review_fail_manifest = json.loads(
+            review_fail_manifest_path.read_text(encoding="utf-8")
+        )
+        review_fail_ticket = next(
+            ticket for ticket in review_fail_manifest["tickets"] if ticket["id"] == "SETUP-001"
+        )
+        review_fail_ticket["stage"] = "review"
+        review_fail_ticket["status"] = "review"
+        review_fail_manifest_path.write_text(
+            json.dumps(review_fail_manifest, indent=2) + "\n", encoding="utf-8"
+        )
+        review_fail_workflow_path = (
+            review_fail_dest / ".opencode" / "state" / "workflow-state.json"
+        )
+        review_fail_workflow = json.loads(
+            review_fail_workflow_path.read_text(encoding="utf-8")
+        )
+        review_fail_workflow["stage"] = "review"
+        review_fail_workflow["status"] = "review"
+        review_fail_workflow_path.write_text(
+            json.dumps(review_fail_workflow, indent=2) + "\n", encoding="utf-8"
+        )
+        register_current_ticket_artifact(
+            review_fail_dest,
+            ticket_id="SETUP-001",
+            kind="review",
+            stage="review",
+            relative_path=".opencode/state/reviews/setup-001-review-review.md",
+            summary="Synthetic FAIL review artifact for verdict-aware routing coverage.",
+            content="# Review\n\nVerdict: FAIL\n\nBlocker: fix the failing implementation path before QA.\n",
+        )
+        review_fail_lookup = run_generated_tool(
+            review_fail_dest,
+            ".opencode/tools/ticket_lookup.ts",
+            {},
+        )
+        if review_fail_lookup["transition_guidance"]["review_verdict"] != "FAIL":
+            raise RuntimeError(
+                "ticket_lookup should extract FAIL verdicts from the latest review artifact"
+            )
+        if (
+            review_fail_lookup["transition_guidance"]["recommended_ticket_update"][
+                "stage"
+            ]
+            != "implementation"
+        ):
+            raise RuntimeError(
+                "ticket_lookup should route FAIL review verdicts back to implementation"
+            )
+        review_fail_update_error = run_generated_tool_error(
+            review_fail_dest,
+            ".opencode/tools/ticket_update.ts",
+            {"ticket_id": "SETUP-001", "stage": "qa", "activate": True},
+        )
+        if "latest artifact shows FAIL verdict" not in review_fail_update_error:
+            raise RuntimeError(
+                "ticket_update should reject review-to-QA transitions when the latest review verdict is FAIL"
+            )
+        qa_fail_dest = workspace / "executed-qa-fail-guidance"
+        shutil.copytree(full_dest, qa_fail_dest)
+        seed_ready_bootstrap(qa_fail_dest)
+        qa_fail_manifest_path = qa_fail_dest / "tickets" / "manifest.json"
+        qa_fail_manifest = json.loads(qa_fail_manifest_path.read_text(encoding="utf-8"))
+        qa_fail_ticket = next(
+            ticket for ticket in qa_fail_manifest["tickets"] if ticket["id"] == "SETUP-001"
+        )
+        qa_fail_ticket["stage"] = "qa"
+        qa_fail_ticket["status"] = "qa"
+        qa_fail_manifest_path.write_text(
+            json.dumps(qa_fail_manifest, indent=2) + "\n", encoding="utf-8"
+        )
+        qa_fail_workflow_path = qa_fail_dest / ".opencode" / "state" / "workflow-state.json"
+        qa_fail_workflow = json.loads(qa_fail_workflow_path.read_text(encoding="utf-8"))
+        qa_fail_workflow["stage"] = "qa"
+        qa_fail_workflow["status"] = "qa"
+        qa_fail_workflow_path.write_text(
+            json.dumps(qa_fail_workflow, indent=2) + "\n", encoding="utf-8"
+        )
+        register_current_ticket_artifact(
+            qa_fail_dest,
+            ticket_id="SETUP-001",
+            kind="qa",
+            stage="qa",
+            relative_path=".opencode/state/qa/setup-001-qa-qa.md",
+            summary="Synthetic FAIL QA artifact for verdict-aware routing coverage.",
+            content="# QA\n\nResult: BLOCKED\n\nCommand: pytest tests/test_failure.py\n\n~~~~text\n============================= test session starts =============================\ncollected 1 item\n\ntests/test_failure.py F                                                [100%]\n\n================================== FAILURES ==================================\nAssertionError: blocker remains\nexit code: 1\n~~~~\n\nCommand output shows a blocker that must be fixed before smoke-test.\n",
+        )
+        qa_fail_lookup = run_generated_tool(
+            qa_fail_dest,
+            ".opencode/tools/ticket_lookup.ts",
+            {},
+        )
+        if qa_fail_lookup["transition_guidance"]["qa_verdict"] != "BLOCKED":
+            raise RuntimeError(
+                "ticket_lookup should extract BLOCKED verdicts from the latest QA artifact"
+            )
+        if (
+            qa_fail_lookup["transition_guidance"]["recommended_ticket_update"][
+                "stage"
+            ]
+            != "implementation"
+        ):
+            raise RuntimeError(
+                "ticket_lookup should route FAIL or BLOCKED QA verdicts back to implementation"
+            )
+        qa_fail_update_error = run_generated_tool_error(
+            qa_fail_dest,
+            ".opencode/tools/ticket_update.ts",
+            {"ticket_id": "SETUP-001", "stage": "smoke-test", "activate": True},
+        )
+        if "latest artifact shows FAIL verdict" not in qa_fail_update_error:
+            raise RuntimeError(
+                "ticket_update should reject QA-to-smoke-test transitions when the latest QA verdict is blocking"
+            )
+        split_brain_dest = workspace / "ticket-lookup-requested-ticket"
+        shutil.copytree(full_dest, split_brain_dest)
+        split_manifest_path = split_brain_dest / "tickets" / "manifest.json"
+        split_manifest = json.loads(split_manifest_path.read_text(encoding="utf-8"))
+        split_manifest["tickets"].append(
+            {
+                "id": "SYSTEM-001",
+                "title": "Synthetic non-active ticket",
+                "wave": 2,
+                "lane": "system",
+                "parallel_safe": True,
+                "overlap_risk": "low",
+                "stage": "planning",
+                "status": "todo",
+                "depends_on": [],
+                "summary": "Synthetic ticket for requested ticket lookup coverage.",
+                "acceptance": [
+                    "Requested-ticket lookup should not rewrite workflow active_ticket."
+                ],
+                "decision_blockers": [],
+                "artifacts": [],
+                "resolution_state": "open",
+                "verification_state": "suspect",
+                "follow_up_ticket_ids": [],
+            }
+        )
+        split_manifest_path.write_text(
+            json.dumps(split_manifest, indent=2) + "\n", encoding="utf-8"
+        )
+        split_lookup = run_generated_tool(
+            split_brain_dest,
+            ".opencode/tools/ticket_lookup.ts",
+            {"ticket_id": "SYSTEM-001"},
+        )
+        if (
+            split_lookup["active_ticket"] != "SETUP-001"
+            or split_lookup["workflow"]["active_ticket"] != "SETUP-001"
+        ):
+            raise RuntimeError(
+                "ticket_lookup should keep the canonical active_ticket when resolving a requested non-active ticket"
+            )
+        if (
+            split_lookup["is_active"] is not False
+            or split_lookup["requested_ticket"]["is_active"] is not False
+        ):
+            raise RuntimeError(
+                "ticket_lookup should report whether the requested ticket is the active ticket"
+            )
         claim_result = run_generated_tool(
             executed_lifecycle_dest,
             ".opencode/tools/ticket_claim.ts",
@@ -5345,6 +6063,14 @@ def main() -> int:
             raise RuntimeError(
                 "context_snapshot should write the canonical snapshot with the requested note"
             )
+        if (
+            context_snapshot_result["verified"] is not True
+            or context_snapshot_result["active_ticket"] != "SETUP-001"
+            or context_snapshot_result["snapshot_size_bytes"] <= 0
+        ):
+            raise RuntimeError(
+                "context_snapshot should return verification metadata for the written snapshot"
+            )
         handoff_publish_result = run_generated_tool(
             executed_context_handoff_dest,
             ".opencode/tools/handoff_publish.ts",
@@ -5363,6 +6089,15 @@ def main() -> int:
         ):
             raise RuntimeError(
                 "handoff_publish should report the canonical START-HERE path"
+            )
+        if (
+            handoff_publish_result["verified"] is not True
+            or handoff_publish_result["active_ticket"] != "SETUP-001"
+            or handoff_publish_result["bootstrap_status"] != "ready"
+            or handoff_publish_result["pending_process_verification"] is not False
+        ):
+            raise RuntimeError(
+                "handoff_publish should return verification metadata for the published restart surfaces"
             )
         if (
             "Keep SETUP-001 as the foreground ticket and continue its lifecycle from planning."
@@ -5436,6 +6171,14 @@ def main() -> int:
             raise RuntimeError(
                 "environment_bootstrap should persist ready bootstrap state into workflow-state"
             )
+        if bootstrap_result["blockers"] != []:
+            raise RuntimeError(
+                "environment_bootstrap should return zero blockers for a successful bootstrap run"
+            )
+        if bootstrap_workflow.get("bootstrap_blockers") != []:
+            raise RuntimeError(
+                "environment_bootstrap should persist cleared bootstrap_blockers into workflow-state after a successful run"
+            )
 
         executed_smoke_test_dest = workspace / "executed-smoke-test"
         shutil.copytree(full_dest, executed_smoke_test_dest)
@@ -5485,6 +6228,20 @@ def main() -> int:
         ):
             raise RuntimeError(
                 "smoke_test should preserve shell-style KEY=VALUE command_override parsing in the executed command record"
+            )
+        smoke_verified_manifest = json.loads(
+            (executed_smoke_test_dest / "tickets" / "manifest.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        smoke_verified_ticket = next(
+            ticket
+            for ticket in smoke_verified_manifest["tickets"]
+            if ticket["id"] == "SETUP-001"
+        )
+        if smoke_verified_ticket["verification_state"] != "smoke_verified":
+            raise RuntimeError(
+                "smoke_test should mark a passing in-flight ticket as smoke_verified before closeout"
             )
         smoke_test_artifact = executed_smoke_test_dest / str(
             smoke_test_result["smoke_test_artifact"]
@@ -5543,6 +6300,51 @@ def main() -> int:
         ):
             raise RuntimeError(
                 "smoke_test should report the missing explicit smoke executable by name"
+            )
+        quoted_override_dest = workspace / "executed-smoke-test-quoted-override"
+        shutil.copytree(full_dest, quoted_override_dest)
+        seed_ready_bootstrap(quoted_override_dest)
+        register_current_ticket_artifact(
+            quoted_override_dest,
+            ticket_id="SETUP-001",
+            kind="qa",
+            stage="qa",
+            relative_path=".opencode/state/qa/setup-001-qa-quoted.md",
+            summary="Synthetic QA artifact for quoted smoke override coverage.",
+            content="# QA\n\nVerdict: PASS\n\nCommand: python3 -m py_compile scripts/smoke_test_scafforge.py\n\n~~~~text\npython3 -m py_compile scripts/smoke_test_scafforge.py\nexit code: 0\nvalidation passed\n~~~~\n\nQA evidence is current and includes command output.\n",
+        )
+        write_executable(
+            quoted_override_dest / "scripts" / "quoted_args.py",
+            "\n".join(
+                [
+                    "#!/usr/bin/env python3",
+                    "import json",
+                    "import sys",
+                    "print(json.dumps(sys.argv[1:]))",
+                ]
+            )
+            + "\n",
+        )
+        quoted_override_result = run_generated_tool(
+            quoted_override_dest,
+            ".opencode/tools/smoke_test.ts",
+            {
+                "ticket_id": "SETUP-001",
+                "command_override": [
+                    "python3 scripts/quoted_args.py --pattern '(PlayerState|GlitchState).*Initialized'"
+                ],
+            },
+        )
+        if quoted_override_result["passed"] is not True:
+            raise RuntimeError(
+                "smoke_test should keep quoted shell-style override arguments grouped into a single argv token"
+            )
+        quoted_override_artifact = quoted_override_dest / str(
+            quoted_override_result["smoke_test_artifact"]
+        )
+        if "(PlayerState|GlitchState).*Initialized" not in quoted_override_artifact.read_text(encoding="utf-8"):
+            raise RuntimeError(
+                "smoke_test should preserve quoted regex arguments inside the recorded smoke artifact"
             )
 
         hidden_clearable_pending_dest = (
@@ -6321,6 +7123,13 @@ def main() -> int:
         )
         seed_legacy_bootstrap_tool(repair_dest)
         repair_payload = run_json([sys.executable, str(REPAIR), str(repair_dest)], ROOT)
+        repair_diff_summary = repair_payload.get("diff_summary", {})
+        if "docs/process/workflow.md" not in repair_diff_summary.get(
+            "files_modified", []
+        ):
+            raise RuntimeError(
+                "Deterministic repair should emit a file-level diff summary for modified managed surfaces"
+            )
         if repair_payload.get("verification", {}).get("clean") is True:
             raise RuntimeError(
                 "Deterministic repair verification should not report clean while pending process verification or placeholder local-skill follow-up remains"
@@ -6357,6 +7166,19 @@ def main() -> int:
         )
         if not repaired_provenance.get("repair_history"):
             raise RuntimeError("Repair should append repair_history")
+        latest_repair_entry = repaired_provenance["repair_history"][-1]
+        if latest_repair_entry.get("diff_summary", {}).get("files_modified") != repair_diff_summary.get(
+            "files_modified", []
+        ):
+            raise RuntimeError(
+                "Repair provenance should preserve the deterministic managed-surface diff summary"
+            )
+        if latest_repair_entry.get("process_version_before") is None or latest_repair_entry.get(
+            "process_version_after"
+        ) != 7:
+            raise RuntimeError(
+                "Repair provenance should record process version before and after deterministic replacement"
+            )
         managed_surfaces = repaired_provenance.get("managed_surfaces", {})
         replace_on_retrofit = managed_surfaces.get("replace_on_retrofit", [])
         project_specific_follow_up = managed_surfaces.get(
@@ -6835,6 +7657,30 @@ def main() -> int:
             ):
                 raise RuntimeError(
                     "Managed repair should persist machine-readable required stage details into workflow-state"
+                )
+            remediation_ticket_ids = source_follow_up_repair["execution_record"].get(
+                "remediation_ticket_ids", []
+            )
+            if not remediation_ticket_ids:
+                raise RuntimeError(
+                    "Public managed repair runner should create remediation follow-up tickets when EXEC or REF findings remain after repair"
+                )
+            remediation_manifest = json.loads(
+                (
+                    source_follow_up_repair_dest / "tickets" / "manifest.json"
+                ).read_text(encoding="utf-8")
+            )
+            remediation_tickets = {
+                ticket["id"]: ticket
+                for ticket in remediation_manifest.get("tickets", [])
+                if isinstance(ticket, dict)
+            }
+            first_remediation_ticket = remediation_tickets.get(remediation_ticket_ids[0])
+            if not first_remediation_ticket or not str(
+                first_remediation_ticket.get("finding_source", "")
+            ).startswith("EXEC"):
+                raise RuntimeError(
+                    "Auto-created repair remediation tickets should preserve the source finding code"
                 )
             if not source_follow_on_state_path.exists():
                 raise RuntimeError(

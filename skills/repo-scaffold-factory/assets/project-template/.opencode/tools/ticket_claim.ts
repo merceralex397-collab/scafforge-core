@@ -2,6 +2,7 @@ import { tool } from "@opencode-ai/plugin"
 import {
   allowsPreBootstrapWriteClaim,
   claimLaneLease,
+  ensureRequiredFile,
   getTicket,
   getTicketWorkflowState,
   loadManifest,
@@ -9,6 +10,8 @@ import {
   requireBootstrapReady,
   rootPath,
   saveWorkflowState,
+  ticketsManifestPath,
+  workflowStatePath,
 } from "../lib/workflow"
 
 export default tool({
@@ -20,6 +23,8 @@ export default tool({
     write_lock: tool.schema.boolean().describe("Whether this lease authorizes file edits. Defaults to true.").optional(),
   },
   async execute(args) {
+    await ensureRequiredFile(ticketsManifestPath(rootPath()), "tickets/manifest.json")
+    await ensureRequiredFile(workflowStatePath(rootPath()), ".opencode/state/workflow-state.json")
     const manifest = await loadManifest()
     const workflow = await loadWorkflowState()
     const ticket = getTicket(manifest, args.ticket_id)
