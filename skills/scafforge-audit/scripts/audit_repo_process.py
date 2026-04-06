@@ -876,14 +876,25 @@ def next_repair_follow_on_stage_state(workflow: dict[str, Any]) -> str | None:
     return None
 
 
-def expected_handoff_status(workflow: dict[str, Any]) -> str:
+def expected_handoff_status(
+    workflow: dict[str, Any],
+    *,
+    pivot_pending: bool = False,
+    active_ticket_needs_trust_restoration: bool = False,
+    active_ticket_needs_historical_reconciliation: bool = False,
+) -> str:
     bootstrap = workflow.get("bootstrap") if isinstance(workflow.get("bootstrap"), dict) else {}
     if str(bootstrap.get("status", "")).strip() != "ready":
         return "bootstrap recovery required"
+    if pivot_pending:
+        return "pivot follow-up required"
     if has_pending_repair_follow_on_state(workflow):
         return "repair follow-up required"
-    repair_follow_on = load_repair_follow_on_state(workflow)
-    if repair_follow_on["verification_passed"] is False or workflow.get("pending_process_verification") is True:
+    if (
+        workflow.get("pending_process_verification") is True
+        or active_ticket_needs_trust_restoration
+        or active_ticket_needs_historical_reconciliation
+    ):
         return "workflow verification pending"
     return "ready for continued development"
 
@@ -904,7 +915,7 @@ def expected_done_but_not_fully_trusted(manifest: dict[str, Any], workflow: dict
     return ", ".join(values) if values else "none"
 
 
-def expected_restart_surface_state(manifest: dict[str, Any], workflow: dict[str, Any]) -> dict[str, Any] | None:
+def expected_restart_surface_state(root: Path, manifest: dict[str, Any], workflow: dict[str, Any]) -> dict[str, Any] | None:
     active_ticket = _active_ticket(manifest, workflow)
     if not isinstance(active_ticket, dict):
         return None
@@ -912,7 +923,68 @@ def expected_restart_surface_state(manifest: dict[str, Any], workflow: dict[str,
     lane_leases = workflow.get("lane_leases") if isinstance(workflow.get("lane_leases"), list) else []
     proof_artifact = bootstrap.get("proof_artifact") if isinstance(bootstrap, dict) else None
     repair_follow_on = load_repair_follow_on_state(workflow)
-    handoff_status = expected_handoff_status(workflow)
+    pivot_path = root / ".opencode" / "meta" / "pivot-state.json"
+    pivot_payload = read_json(pivot_path)
+    if isinstance(pivot_payload, dict):
+        pivot_inputs_raw = pivot_payload.get("restart_surface_inputs") if isinstance(pivot_payload.get("restart_surface_inputs"), dict) else {}
+        downstream_state = pivot_payload.get("downstream_refresh_state") if isinstance(pivot_payload.get("downstream_refresh_state"), dict) else {}
+        pivot_state_path = str(pivot_payload.get("pivot_state_path", ".opencode/meta/pivot-state.json")).strip() or ".opencode/meta/pivot-state.json"
+        pivot_tracking_mode = str(downstream_state.get("tracking_mode", "")).strip() or "none"
+    else:
+        pivot_inputs_raw = {}
+        pivot_state_path = ".opencode/meta/pivot-state.json"
+        pivot_tracking_mode = "none"
+
+    def normalize_items(value: Any) -> list[str]:
+        if not isinstance(value, list):
+            return []
+        values: list[str] = []
+        seen: set[str] = set()
+        for item in value:
+            if not isinstance(item, str):
+                continue
+            stripped = item.strip()
+            if not stripped or stripped in seen:
+                continue
+            seen.add(stripped)
+            values.append(stripped)
+        return values
+
+    pivot_in_progress = pivot_inputs_raw.get("pivot_in_progress") is True
+    pivot_class = str(pivot_inputs_raw.get("pivot_class", "")).strip() or "none"
+    pivot_changed_surfaces = normalize_items(pivot_inputs_raw.get("pivot_changed_surfaces"))
+    pivot_pending_stages = normalize_items(pivot_inputs_raw.get("pending_downstream_stages"))
+    pivot_completed_stages = normalize_items(pivot_inputs_raw.get("completed_downstream_stages"))
+    pivot_pending_ticket_lineage_actions = normalize_items(pivot_inputs_raw.get("pending_ticket_lineage_actions"))
+    pivot_completed_ticket_lineage_actions = normalize_items(pivot_inputs_raw.get("completed_ticket_lineage_actions"))
+    pivot_post_verification_passed = pivot_inputs_raw.get("post_pivot_verification_passed") is True
+    active_ticket_status = str(active_ticket.get("status", "")).strip()
+    active_ticket_resolution_state = str(active_ticket.get("resolution_state", "")).strip()
+    active_ticket_verification_state = str(active_ticket.get("verification_state", "")).strip()
+    active_ticket_needs_historical_reconciliation = (
+        active_ticket_status == "done"
+        and active_ticket_resolution_state == "superseded"
+        and active_ticket_verification_state == "invalidated"
+    )
+    active_ticket_id = str(active_ticket.get("id", "")).strip()
+    active_ticket_workflow_state = workflow.get("ticket_state") if isinstance(workflow.get("ticket_state"), dict) else {}
+    active_ticket_needs_trust_restoration = (
+        active_ticket_status == "done"
+        and not active_ticket_needs_historical_reconciliation
+        and (
+            ticket_needs_process_verification(active_ticket, workflow)
+            or (
+                isinstance(active_ticket_workflow_state.get(active_ticket_id), dict)
+                and active_ticket_workflow_state[active_ticket_id].get("needs_reverification") is True
+            )
+        )
+    )
+    handoff_status = expected_handoff_status(
+        workflow,
+        pivot_pending=pivot_in_progress,
+        active_ticket_needs_trust_restoration=active_ticket_needs_trust_restoration,
+        active_ticket_needs_historical_reconciliation=active_ticket_needs_historical_reconciliation,
+    )
     split_children = [
         str(ticket.get("id", "")).strip()
         for ticket in manifest.get("tickets", [])
@@ -932,6 +1004,16 @@ def expected_restart_surface_state(manifest: dict[str, Any], workflow: dict[str,
         "bootstrap_proof": str(proof_artifact).strip() if isinstance(proof_artifact, str) and proof_artifact.strip() else "None",
         "handoff_status": handoff_status,
         "pending_process_verification": "true" if workflow.get("pending_process_verification") is True else "false",
+        "pivot_in_progress": "true" if pivot_in_progress else "false",
+        "pivot_class": pivot_class,
+        "pivot_changed_surfaces": ", ".join(pivot_changed_surfaces) if pivot_changed_surfaces else "none",
+        "pivot_pending_stages": ", ".join(pivot_pending_stages) if pivot_pending_stages else "none",
+        "pivot_completed_stages": ", ".join(pivot_completed_stages) if pivot_completed_stages else "none",
+        "pivot_pending_ticket_lineage_actions": ", ".join(pivot_pending_ticket_lineage_actions) if pivot_pending_ticket_lineage_actions else "none",
+        "pivot_completed_ticket_lineage_actions": ", ".join(pivot_completed_ticket_lineage_actions) if pivot_completed_ticket_lineage_actions else "none",
+        "post_pivot_verification_passed": "true" if pivot_post_verification_passed else "false",
+        "pivot_state_path": pivot_state_path,
+        "pivot_tracking_mode": pivot_tracking_mode,
         "repair_follow_on_outcome": repair_follow_on["outcome"],
         "repair_follow_on_required": "true" if has_pending_repair_follow_on_state(workflow) else "false",
         "repair_follow_on_next_stage": next_repair_follow_on_stage_state(workflow) or "none",
@@ -957,6 +1039,14 @@ def parse_start_here_state(text: str) -> dict[str, Any]:
         "bootstrap_status": generation.get("bootstrap_status"),
         "bootstrap_proof": generation.get("bootstrap_proof"),
         "pending_process_verification": generation.get("pending_process_verification"),
+        "pivot_in_progress": generation.get("pivot_in_progress"),
+        "pivot_class": generation.get("pivot_class"),
+        "pivot_changed_surfaces": generation.get("pivot_changed_surfaces"),
+        "pivot_pending_stages": generation.get("pivot_pending_stages"),
+        "pivot_completed_stages": generation.get("pivot_completed_stages"),
+        "pivot_pending_ticket_lineage_actions": generation.get("pivot_pending_ticket_lineage_actions"),
+        "pivot_completed_ticket_lineage_actions": generation.get("pivot_completed_ticket_lineage_actions"),
+        "post_pivot_verification_passed": generation.get("post_pivot_verification_passed"),
         "repair_follow_on_outcome": generation.get("repair_follow_on_outcome"),
         "repair_follow_on_required": generation.get("repair_follow_on_required"),
         "repair_follow_on_next_stage": generation.get("repair_follow_on_next_stage"),
@@ -972,6 +1062,7 @@ def parse_context_snapshot_state(text: str) -> dict[str, Any]:
     bootstrap = extract_bullet_map(text, "Bootstrap")
     process = extract_bullet_map(text, "Process State")
     repair = extract_bullet_map(text, "Repair Follow-On")
+    pivot = extract_bullet_map(text, "Pivot State")
     return {
         "ticket_id": active.get("id"),
         "stage": active.get("stage"),
@@ -980,6 +1071,16 @@ def parse_context_snapshot_state(text: str) -> dict[str, Any]:
         "bootstrap_status": bootstrap.get("status"),
         "bootstrap_proof": bootstrap.get("proof_artifact"),
         "pending_process_verification": process.get("pending_process_verification"),
+        "pivot_in_progress": pivot.get("pivot_in_progress"),
+        "pivot_class": pivot.get("pivot_class"),
+        "pivot_changed_surfaces": pivot.get("pivot_changed_surfaces"),
+        "pivot_pending_stages": pivot.get("pending_downstream_stages"),
+        "pivot_completed_stages": pivot.get("completed_downstream_stages"),
+        "pivot_pending_ticket_lineage_actions": pivot.get("pending_ticket_lineage_actions"),
+        "pivot_completed_ticket_lineage_actions": pivot.get("completed_ticket_lineage_actions"),
+        "post_pivot_verification_passed": pivot.get("post_pivot_verification_passed"),
+        "pivot_state_path": pivot.get("pivot_state_path"),
+        "pivot_tracking_mode": pivot.get("pivot_tracking_mode"),
         "repair_follow_on_outcome": repair.get("outcome"),
         "repair_follow_on_required": "true" if repair.get("required") == "yes" else "false" if repair.get("required") == "no" else None,
         "repair_follow_on_next_stage": repair.get("next_required_stage"),
@@ -1187,11 +1288,11 @@ def audit_repo(root: Path, logs: list[Path] | None = None) -> list[Finding]:
     lifecycle_ctx = lifecycle_contract_audit_context()
     repair_cycle_ctx = repair_cycle_audit_context()
     run_contract_surface_audits(root, findings, contract_ctx)
-    run_repair_cycle_audits(root, findings, repair_cycle_ctx)
     run_execution_surface_audits(root, findings, execution_ctx)
     run_restart_surface_audits(root, findings, restart_ctx)
     run_ticket_graph_audits(root, findings, ticket_graph_ctx)
     run_lifecycle_contract_audits(root, findings, lifecycle_ctx)
+    run_repair_cycle_audits(root, findings, repair_cycle_ctx)
     run_session_transcript_audits(root, findings, logs or [], session_ctx)
     return findings
 

@@ -18,7 +18,7 @@ class RestartSurfaceAuditContext:
     combine_outputs: Callable[..., str]
     active_ticket: Callable[[dict[str, Any], dict[str, Any]], dict[str, Any] | None]
     blocked_dependents: Callable[[dict[str, Any], str], list[str]]
-    expected_restart_surface_state: Callable[[dict[str, Any], dict[str, Any]], dict[str, Any] | None]
+    expected_restart_surface_state: Callable[[Path, dict[str, Any], dict[str, Any]], dict[str, Any] | None]
     normalize_restart_surface_value: Callable[[Any], Any]
     parse_start_here_state: Callable[[str], dict[str, Any]]
     parse_context_snapshot_state: Callable[[str], dict[str, Any]]
@@ -40,6 +40,7 @@ COORDINATOR_ARTIFACT_STAGES = {"planning", "implementation", "review", "qa", "sm
 def audit_restart_surface_drift(root: Path, findings: list[Finding], ctx: RestartSurfaceAuditContext) -> None:
     manifest_path = root / "tickets" / "manifest.json"
     workflow_path = root / ".opencode" / "state" / "workflow-state.json"
+    pivot_state_path = root / ".opencode" / "meta" / "pivot-state.json"
     start_here_path = root / "START-HERE.md"
     context_snapshot_path = root / ".opencode" / "state" / "context-snapshot.md"
     latest_handoff_path = root / ".opencode" / "state" / "latest-handoff.md"
@@ -48,7 +49,7 @@ def audit_restart_surface_drift(root: Path, findings: list[Finding], ctx: Restar
     if not isinstance(manifest, dict) or not isinstance(workflow, dict):
         return
 
-    expected = ctx.expected_restart_surface_state(manifest, workflow)
+    expected = ctx.expected_restart_surface_state(root, manifest, workflow)
     if expected is None:
         return
 
@@ -56,6 +57,7 @@ def audit_restart_surface_drift(root: Path, findings: list[Finding], ctx: Restar
     files = [
         ctx.normalize_path(manifest_path, root),
         ctx.normalize_path(workflow_path, root),
+        ctx.normalize_path(pivot_state_path, root),
     ]
 
     def compare_surface(surface_label: str, observed: dict[str, Any], expected_keys: tuple[str, ...]) -> None:
@@ -79,6 +81,14 @@ def audit_restart_surface_drift(root: Path, findings: list[Finding], ctx: Restar
                 "bootstrap_status",
                 "bootstrap_proof",
                 "pending_process_verification",
+                "pivot_in_progress",
+                "pivot_class",
+                "pivot_changed_surfaces",
+                "pivot_pending_stages",
+                "pivot_completed_stages",
+                "pivot_pending_ticket_lineage_actions",
+                "pivot_completed_ticket_lineage_actions",
+                "post_pivot_verification_passed",
                 "repair_follow_on_outcome",
                 "repair_follow_on_required",
                 "repair_follow_on_next_stage",
@@ -105,6 +115,16 @@ def audit_restart_surface_drift(root: Path, findings: list[Finding], ctx: Restar
                 "bootstrap_status",
                 "bootstrap_proof",
                 "pending_process_verification",
+                "pivot_in_progress",
+                "pivot_class",
+                "pivot_changed_surfaces",
+                "pivot_pending_stages",
+                "pivot_completed_stages",
+                "pivot_pending_ticket_lineage_actions",
+                "pivot_completed_ticket_lineage_actions",
+                "post_pivot_verification_passed",
+                "pivot_state_path",
+                "pivot_tracking_mode",
                 "repair_follow_on_outcome",
                 "repair_follow_on_required",
                 "repair_follow_on_next_stage",
@@ -131,6 +151,14 @@ def audit_restart_surface_drift(root: Path, findings: list[Finding], ctx: Restar
                 "bootstrap_status",
                 "bootstrap_proof",
                 "pending_process_verification",
+                "pivot_in_progress",
+                "pivot_class",
+                "pivot_changed_surfaces",
+                "pivot_pending_stages",
+                "pivot_completed_stages",
+                "pivot_pending_ticket_lineage_actions",
+                "pivot_completed_ticket_lineage_actions",
+                "post_pivot_verification_passed",
                 "repair_follow_on_outcome",
                 "repair_follow_on_required",
                 "repair_follow_on_next_stage",
@@ -153,9 +181,9 @@ def audit_restart_surface_drift(root: Path, findings: list[Finding], ctx: Restar
             code="WFLOW010",
             severity="error",
             problem="Derived restart surfaces disagree with canonical workflow state, so resume guidance can route work from stale or contradictory facts.",
-            root_cause="`START-HERE.md`, `.opencode/state/context-snapshot.md`, and `.opencode/state/latest-handoff.md` are not being regenerated from `tickets/manifest.json` plus `.opencode/state/workflow-state.json` after workflow mutations or managed repair, leaving bootstrap, repair-follow-on, verification, lane-lease, or active-ticket state stale.",
+            root_cause="`START-HERE.md`, `.opencode/state/context-snapshot.md`, and `.opencode/state/latest-handoff.md` are not being regenerated from `tickets/manifest.json`, `.opencode/state/workflow-state.json`, and `.opencode/meta/pivot-state.json` after workflow mutations or managed repair, leaving bootstrap, repair-follow-on, pivot, verification, lane-lease, or active-ticket state stale.",
             files=list(dict.fromkeys(files)),
-            safer_pattern="Regenerate `START-HERE.md`, `.opencode/state/context-snapshot.md`, and `.opencode/state/latest-handoff.md` from canonical manifest/workflow state after every workflow save, compute handoff readiness from bootstrap plus repair-follow-on plus verification state in one shared contract, and fail repair verification if any derived restart surface drifts.",
+            safer_pattern="Regenerate `START-HERE.md`, `.opencode/state/context-snapshot.md`, and `.opencode/state/latest-handoff.md` from canonical manifest, workflow state, and pivot state after every workflow save, compute handoff readiness from bootstrap plus repair-follow-on plus verification state in one shared contract, and fail repair verification if any derived restart surface drifts.",
             evidence=evidence[:10],
             provenance="script",
         ),

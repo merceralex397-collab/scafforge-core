@@ -828,6 +828,9 @@ def main() -> int:
             repair_result["repair_id"],
             {
                 "audit_findings_addressed": sorted(repair_routed_codes_from_manifest(repair_basis_manifest)) if isinstance(repair_basis_manifest, dict) else [],
+                "repair_follow_on_outcome": repair_follow_on_outcome,
+                "handoff_allowed": handoff_allowed,
+                "blocking_reasons": blocking_reasons,
                 "verification_passed": verification_status["verification_passed"],
                 "verification_findings": verification_status["codes"],
                 "verification_summary": verification_status,
