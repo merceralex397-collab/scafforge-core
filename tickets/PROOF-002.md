@@ -77,14 +77,20 @@ None
 
 ## Acceptance Criteria
 
-- [ ] `scafforge_harness.py`, `repo_seeders.py`, and `gpttalker_fixture_builders.py` can seed restart drift, split-scope, pivot-state, migration, and partial-transaction failure cases
-- [ ] The harness can construct the hidden stale-state cases called out in the RFC instead of only happy-path repos
-- [ ] New proof families include interrupted repair or pivot scenarios where stale state would otherwise leak through
-- [ ] The harness remains reusable across smoke, integration, and migration validation surfaces
+- [x] `scafforge_harness.py`, `repo_seeders.py`, and `gpttalker_fixture_builders.py` can seed restart drift, split-scope, pivot-state, migration, and partial-transaction failure cases
+- [x] The harness can construct the hidden stale-state cases called out in the RFC instead of only happy-path repos
+- [x] New proof families include interrupted repair or pivot scenarios where stale state would otherwise leak through
+- [x] The harness remains reusable across smoke, integration, and migration validation surfaces
 
 ## Artifacts
 
-- None yet
+- `scripts/test_support/scafforge_harness.py`
+- `scripts/test_support/repo_seeders.py`
+- `scripts/test_support/gpttalker_fixture_builders.py`
+- `scripts/integration_test_scafforge.py`
+- `scripts/smoke_test_scafforge.py`
+- `npm run validate:smoke`
+- `python3 scripts/integration_test_scafforge.py`
 
 ## Notes
 

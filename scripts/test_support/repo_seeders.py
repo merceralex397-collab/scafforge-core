@@ -435,6 +435,46 @@ def seed_historical_reconciliation_state(dest: Path) -> None:
     write_json(workflow_path, workflow)
 
 
+def seed_pivot_state_drift(dest: Path) -> None:
+    seed_historical_reconciliation_state(dest)
+    manifest_path = dest / "tickets" / "manifest.json"
+    workflow_path = dest / ".opencode" / "state" / "workflow-state.json"
+    pivot_state_path = dest / ".opencode" / "meta" / "pivot-state.json"
+    manifest = read_json(manifest_path)
+    workflow = read_json(workflow_path)
+    active_ticket_id = manifest["active_ticket"]
+    pivot_state = {
+        "pivot_state_path": ".opencode/meta/pivot-state.json",
+        "pivot_class": "history-reconciliation",
+        "requested_change": "Synthetic pivot-state drift fixture",
+        "restart_surface_inputs": {
+            "pivot_in_progress": True,
+            "pivot_changed_surfaces": [
+                "ticket_graph_and_lineage",
+                "restart_surfaces",
+            ],
+            "pending_ticket_lineage_actions": [f"reconcile:{active_ticket_id}"],
+            "pending_downstream_stages": ["ticket-pack-builder"],
+        },
+        "downstream_refresh_state": {
+            "pending_stages": ["ticket-pack-builder"],
+            "completed_stages": [],
+        },
+        "ticket_lineage_plan": {
+            "actions": [
+                {
+                    "action": "reconcile",
+                    "target_ticket_id": active_ticket_id,
+                    "summary": "Synthetic pivot-state reconciliation for stale lineage coverage.",
+                }
+            ]
+        },
+        "restart_surface_publication": {"status": "stale"},
+        "workflow_status": workflow.get("status"),
+    }
+    write_json(pivot_state_path, pivot_state)
+
+
 def seed_legacy_contract_state(
     dest: Path,
     *,

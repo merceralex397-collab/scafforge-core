@@ -77,14 +77,20 @@ None
 
 ## Acceptance Criteria
 
-- [ ] Existing GPTTalker fixture families are preserved and redefined around convergence, publish-safety, and blocker-truth assertions
-- [ ] Fixture contracts stop depending only on `expected_finding_codes` and `expected_coverage`
-- [ ] Repeated lifecycle contradiction, restart drift, and split-scope reconciliation families all assert end-state truth instead of only finding lists
-- [ ] Fixture metadata remains readable enough for package contributors to extend without guessing the new proof contract
+- [x] Existing GPTTalker fixture families are preserved and redefined around convergence, publish-safety, and blocker-truth assertions
+- [x] Fixture contracts stop depending only on `expected_finding_codes` and `expected_coverage`
+- [x] Repeated lifecycle contradiction, restart drift, and split-scope reconciliation families all assert end-state truth instead of only finding lists
+- [x] Fixture metadata remains readable enough for package contributors to extend without guessing the new proof contract
 
 ## Artifacts
 
-- None yet
+- `tests/fixtures/gpttalker/index.json`
+- `scripts/test_support/gpttalker_fixture_builders.py`
+- `scripts/integration_test_scafforge.py`
+- `scripts/validate_scafforge_contract.py`
+- `npm run validate:contract`
+- `npm run validate:smoke`
+- `python3 scripts/integration_test_scafforge.py`
 
 ## Notes
 

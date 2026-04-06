@@ -8,8 +8,10 @@ from typing import Any, Callable
 from test_support.repo_seeders import (
     make_stack_skill_non_placeholder,
     read_json,
+    seed_closed_ticket_with_new_active_artifact_write,
     seed_bootstrap_command_layout_mismatch,
     seed_historical_reconciliation_state,
+    seed_pivot_state_drift,
     seed_ready_bootstrap,
     seed_repeated_diagnosis_churn,
     seed_restart_surface_drift,
@@ -44,6 +46,7 @@ def write_fixture_contract(dest: Path, *, slug: str, family: dict[str, Any], ext
         "invariant_focus": family.get("invariant_focus", []),
         "expected_finding_codes": family.get("expected_finding_codes", []),
         "expected_coverage": family.get("expected_coverage", []),
+        "truth_expectations": family.get("truth_expectations", {}),
         "archive_origin": family.get("archive_origin", []),
         "notes": family.get("notes"),
     }
@@ -98,6 +101,110 @@ def build_split_scope_and_historical_trust_reconciliation(dest: Path, family: di
     make_stack_skill_non_placeholder(dest)
     seed_historical_reconciliation_state(dest)
     return write_fixture_contract(dest, slug="split-scope-and-historical-trust-reconciliation", family=family)
+
+
+def build_partial_transaction_edge_case(dest: Path) -> dict[str, Any]:
+    bootstrap_full(dest)
+    seed_closed_ticket_with_new_active_artifact_write(dest)
+    workflow_path = dest / ".opencode" / "state" / "workflow-state.json"
+    workflow = read_json(workflow_path)
+    workflow["lane_leases"] = []
+    write_json(workflow_path, workflow)
+    family = {
+        "title": "Partial transaction with missing lease evidence",
+        "flow": "repair",
+        "invariant_focus": [
+            "transaction-owned active ticket updates",
+            "lease evidence must not disappear during a staged write",
+        ],
+        "expected_finding_codes": ["WFLOW008", "WFLOW010"],
+        "expected_coverage": [
+            "integration:repair",
+            "smoke:partial-transaction lease evidence",
+        ],
+        "truth_expectations": {
+            "convergence": "partial-transaction",
+            "publish_safety": "lease-evidence-missing",
+            "blocker_truth": "transaction-ownership-not-finalized",
+            "checks": [
+                {
+                    "kind": "json_equals",
+                    "file": "tickets/manifest.json",
+                    "path": "active_ticket",
+                    "value": "TICK-002",
+                },
+                {
+                    "kind": "json_equals",
+                    "file": ".opencode/state/workflow-state.json",
+                    "path": "active_ticket",
+                    "value": "TICK-002",
+                },
+                {
+                    "kind": "json_equals",
+                    "file": ".opencode/state/workflow-state.json",
+                    "path": "lane_leases",
+                    "value": [],
+                },
+            ],
+        },
+        "archive_origin": ["synthetic-partial-transaction"],
+        "notes": "synthetic-partial-transaction/README.md",
+    }
+    return write_fixture_contract(dest, slug="partial-transaction-edge-case", family=family)
+
+
+def build_pivot_state_edge_case(dest: Path) -> dict[str, Any]:
+    bootstrap_full(dest)
+    make_stack_skill_non_placeholder(dest)
+    seed_pivot_state_drift(dest)
+    family = {
+        "title": "Pivot state drift after historical reconciliation",
+        "flow": "pivot",
+        "invariant_focus": [
+            "pivot-state persistence",
+            "restart publication must stay faithful to pivot inputs",
+            "historical reconciliation must stay tied to canonical evidence",
+        ],
+        "expected_finding_codes": ["WFLOW024", "WFLOW010"],
+        "expected_coverage": [
+            "integration:pivot",
+            "smoke:pivot-state drift",
+        ],
+        "truth_expectations": {
+            "convergence": "pivot-state-drift",
+            "publish_safety": "stale-pivot-publication",
+            "blocker_truth": "historical-reconciliation",
+            "checks": [
+                {
+                    "kind": "json_equals",
+                    "file": ".opencode/meta/pivot-state.json",
+                    "path": "pivot_state_path",
+                    "value": ".opencode/meta/pivot-state.json",
+                },
+                {
+                    "kind": "json_equals",
+                    "file": ".opencode/meta/pivot-state.json",
+                    "path": "restart_surface_inputs.pivot_in_progress",
+                    "value": True,
+                },
+                {
+                    "kind": "json_equals",
+                    "file": ".opencode/meta/pivot-state.json",
+                    "path": "restart_surface_publication.status",
+                    "value": "stale",
+                },
+                {
+                    "kind": "json_equals",
+                    "file": ".opencode/meta/pivot-state.json",
+                    "path": "ticket_lineage_plan.actions.0.action",
+                    "value": "reconcile",
+                },
+            ],
+        },
+        "archive_origin": ["synthetic-pivot-state"],
+        "notes": "synthetic-pivot-state/README.md",
+    }
+    return write_fixture_contract(dest, slug="pivot-state-edge-case", family=family)
 
 
 FIXTURE_BUILDERS: dict[str, Callable[[Path, dict[str, Any]], dict[str, Any]]] = {
