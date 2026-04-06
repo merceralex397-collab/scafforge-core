@@ -2171,6 +2171,21 @@ def validate_audit_repair_surfaces(findings: list[Finding]) -> None:
         findings, audit_execution_surfaces, "def audit_environment_prerequisites("
     )
     require_contains(findings, audit_execution_surfaces, "def audit_python_execution(")
+    for audit_function_name in (
+        "audit_node_execution",
+        "audit_rust_execution",
+        "audit_go_execution",
+        "audit_godot_execution",
+        "audit_java_android_execution",
+        "audit_cpp_execution",
+        "audit_dotnet_execution",
+        "audit_reference_integrity",
+    ):
+        require_contains(
+            findings,
+            audit_execution_surfaces,
+            f"def {audit_function_name}(",
+        )
     require_contains(
         findings, audit_lifecycle_contracts, "class LifecycleContractAuditContext"
     )
@@ -3853,6 +3868,20 @@ def validate_curated_fixtures(findings: list[Finding]) -> None:
     require_contains(findings, integration_script, "greenfield_integration")
     require_contains(findings, integration_script, "repair_integration")
     require_contains(findings, integration_script, "pivot_integration")
+    require_contains(findings, integration_script, "multi_stack_proof_integration")
+    require_contains(findings, integration_script, "release_check")
+    require_contains(findings, integration_script, "target.release_check(dest)")
+    for release_check_name in (
+        "python_release_check",
+        "node_release_check",
+        "rust_release_check",
+        "go_release_check",
+        "godot_release_check",
+        "cmake_release_check",
+        "dotnet_release_check",
+        "java_release_check",
+    ):
+        require_contains(findings, integration_script, f"def {release_check_name}(")
     require_not_exists(findings, ROOT / "out" / "scafforge audit archive")
     require_not_exists(findings, ROOT / "scafforgechurnissue")
 

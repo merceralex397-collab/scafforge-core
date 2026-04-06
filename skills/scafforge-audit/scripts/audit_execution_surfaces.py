@@ -663,6 +663,32 @@ def audit_node_execution(root: Path, findings: list[Finding], ctx: ExecutionSurf
     package_json = ctx.read_json(package_path)
     if not isinstance(package_json, dict):
         return
+
+    manager, manager_cmd = _choose_node_manager(root, package_json)
+    node_available = _command_available("node")
+    manager_available = _command_available(manager_cmd[0])
+    if not node_available or not manager_available:
+        evidence = []
+        if not node_available:
+            evidence.append("node not found on system PATH")
+        if not manager_available:
+            evidence.append(f"{manager_cmd[0]} not found on system PATH")
+
+        ctx.add_finding(
+            findings,
+            Finding(
+                code="ENV001",
+                severity="error",
+                problem="Node.js proof host prerequisites are missing.",
+                root_cause="Node repos need Node.js plus the repo-selected package manager to run their release-proof command family, but this host cannot resolve one or more required executables.",
+                files=[ctx.normalize_path(package_path, root)],
+                safer_pattern="Install Node.js and the repo-selected package manager before relying on Node release proof.",
+                evidence=evidence,
+                provenance="script",
+            ),
+        )
+        return
+
     if _command_available("node"):
         entry_candidates = []
         for key in ("main",):
@@ -690,7 +716,6 @@ def audit_node_execution(root: Path, findings: list[Finding], ctx: ExecutionSurf
                     root=root,
                 )
 
-    manager, manager_cmd = _choose_node_manager(root, package_json)
     scripts = _package_scripts(package_json)
     if "test" in scripts and _command_available(manager_cmd[0]):
         if manager == "yarn":
