@@ -5,7 +5,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-from generated_tool_runtime import run_generated_tool
+from shared_generated_tool_runtime import run_generated_tool
 from pivot_tracking import PIVOT_STATE_PATH, current_iso_timestamp, load_pivot_state, persist_pivot_state
 
 
@@ -71,6 +71,7 @@ def publish_pivot_surfaces(repo_root: Path, *, published_by: str, next_action: s
     return {
         "repo_root": str(repo_root),
         "pivot_state_path": str(PIVOT_STATE_PATH).replace("\\", "/"),
+        "pivot_state_owner": payload.get("pivot_state_owner"),
         "publication_result": publication_result,
         "restart_surface_publication": payload.get("restart_surface_publication", {}),
         "restart_surface_inputs": payload.get("restart_surface_inputs", {}),

@@ -47,16 +47,16 @@ restart-surfaces
 
 ## Stage
 
-planning
+complete
 
 ## Status
 
-todo
+done
 
 ## Trust
 
-- resolution_state: open
-- verification_state: suspect
+- resolution_state: completed
+- verification_state: verified
 - finding_source: None
 - source_ticket_id: None
 - source_mode: None
@@ -76,10 +76,10 @@ None
 
 ## Acceptance Criteria
 
-- [ ] `workflow.ts` defines the canonical restart-derivation contract for `START-HERE.md`, `context-snapshot.md`, and `latest-handoff.md`
-- [ ] `handoff_publish.ts` uses that contract as the runtime publication path
-- [ ] The contract explicitly includes manifest, workflow, and pivot inputs and defines when restart publication is legal
-- [ ] Repair and pivot can call the restart contract without inventing local render semantics
+- [x] `workflow.ts` defines the canonical restart-derivation contract for `START-HERE.md`, `context-snapshot.md`, and `latest-handoff.md`
+- [x] `handoff_publish.ts` uses that contract as the runtime publication path
+- [x] The contract explicitly includes manifest, workflow, and pivot inputs and defines when restart publication is legal
+- [x] Repair and pivot can call the restart contract without inventing local render semantics
 
 ## Artifacts
 

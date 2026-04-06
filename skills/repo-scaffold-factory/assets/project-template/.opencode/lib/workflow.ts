@@ -138,6 +138,7 @@ export type PivotState = {
   pivot_class: string | null
   requested_change: string | null
   pivot_state_path: string | null
+  pivot_state_owner: string | null
   downstream_refresh_state: PivotDownstreamRefreshState | null
   restart_surface_inputs: PivotRestartSurfaceInputs
 }
@@ -180,6 +181,7 @@ export type InvocationEvent = {
 
 type StartHereOptions = { nextAction?: string; backlogVerifierAgent?: string; handoffStatus?: string }
 type SaveDerivedSurfaceOptions = { refreshDerivedSurfaces?: boolean }
+type SaveValidationContext = { manifest?: Manifest; workflow?: WorkflowState }
 type RestartSurfaceRenderInputs = {
   manifest?: Manifest
   workflow?: WorkflowState
@@ -223,6 +225,7 @@ const TICKET_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9_-]*$/
 const DEFAULT_PROCESS_VERSION = 7
 const DEFAULT_TICKET_CONTRACT_VERSION = 3
 const DEFAULT_LEASE_TTL_MINUTES = 120
+const DEFAULT_PIVOT_STATE_OWNER = "scafforge-pivot"
 const DEFAULT_BOOTSTRAP_STATE: BootstrapState = { status: "missing", last_verified_at: null, environment_fingerprint: null, proof_artifact: null }
 const DEFAULT_TICKET_WORKFLOW_STATE: TicketWorkflowState = { approved_plan: false, reopen_count: 0, needs_reverification: false }
 const DEFAULT_REPAIR_FOLLOW_ON_STATE = (processVersion = DEFAULT_PROCESS_VERSION): RepairFollowOnState => ({
@@ -648,6 +651,7 @@ function normalizePivotState(value: unknown): PivotState {
       pivot_class: null,
       requested_change: null,
       pivot_state_path: null,
+      pivot_state_owner: DEFAULT_PIVOT_STATE_OWNER,
       downstream_refresh_state: null,
       restart_surface_inputs: fallbackRestartSurfaceInputs,
     }
@@ -671,6 +675,7 @@ function normalizePivotState(value: unknown): PivotState {
     pivot_class: normalizeNullableString(state.pivot_class),
     requested_change: normalizeNullableString(state.requested_change),
     pivot_state_path: normalizeNullableString(state.pivot_state_path),
+    pivot_state_owner: normalizeNullableString(state.pivot_state_owner) || DEFAULT_PIVOT_STATE_OWNER,
     downstream_refresh_state: downstreamRaw
       ? {
           tracking_mode: typeof downstreamRaw.tracking_mode === "string" && downstreamRaw.tracking_mode.trim() ? downstreamRaw.tracking_mode.trim() : "persistent_recorded_state",
@@ -790,7 +795,8 @@ export async function loadWorkflowState(root = rootPath()): Promise<WorkflowStat
 export async function readWorkflowState(root = rootPath()): Promise<WorkflowState> {
   return loadWorkflowState(root)
 }
-export async function saveWorkflowState(state: WorkflowState, root = rootPath(), expectedRevision?: number, options: SaveDerivedSurfaceOptions = {}): Promise<void> {
+export async function saveWorkflowState(state: WorkflowState, root = rootPath(), expectedRevision?: number, options: SaveDerivedSurfaceOptions = {}, validationContext: SaveValidationContext = {}): Promise<void> {
+  await validateWorkflowWriteState(state, root, validationContext)
   const current = await readJson<WorkflowState>(workflowStatePath(root), { ...state, state_revision: state.state_revision })
   const currentRevision = typeof current.state_revision === "number" ? current.state_revision : 0
   const expected = expectedRevision ?? state.state_revision
@@ -824,6 +830,152 @@ export function syncWorkflowSelection(workflow: WorkflowState, manifest: Manifes
   workflow.stage = activeTicket.stage
   workflow.status = activeTicket.status
   workflow.approved_plan = isPlanApprovedForTicket(workflow, activeTicket.id)
+}
+
+function validateTicketLifecycleConsistency(ticket: Ticket): void {
+  const lifecycleBlocker = validateLifecycleStageStatus(ticket.stage, ticket.status)
+  if (lifecycleBlocker) {
+    throw new Error(`Ticket ${ticket.id} has an invalid lifecycle combination: ${lifecycleBlocker}`)
+  }
+  if (ticket.status === "done") {
+    if (ticket.stage !== "closeout") {
+      throw new Error(`Ticket ${ticket.id} is done but still at stage ${ticket.stage}. Done tickets must be at closeout.`)
+    }
+    if (ticket.resolution_state !== "done" && ticket.resolution_state !== "superseded") {
+      throw new Error(`Ticket ${ticket.id} is done but has resolution_state ${ticket.resolution_state}.`)
+    }
+  }
+  if (ticket.status !== "done" && (ticket.resolution_state === "done" || ticket.resolution_state === "superseded")) {
+    throw new Error(`Ticket ${ticket.id} cannot use resolution_state ${ticket.resolution_state} while status is ${ticket.status}.`)
+  }
+}
+
+function validateTicketGraphInvariants(manifest: Manifest): void {
+  const ticketsById = new Map<string, Ticket>()
+  for (const ticket of manifest.tickets) {
+    if (ticketsById.has(ticket.id)) {
+      throw new Error(`Duplicate ticket ID detected: ${ticket.id}`)
+    }
+    ticketsById.set(ticket.id, ticket)
+  }
+  for (const ticket of manifest.tickets) {
+    validateTicketLifecycleConsistency(ticket)
+    const dependsOn = new Set(ticket.depends_on)
+    const followUps = new Set(ticket.follow_up_ticket_ids)
+    if (dependsOn.size !== ticket.depends_on.length) {
+      throw new Error(`Ticket ${ticket.id} contains duplicate depends_on entries.`)
+    }
+    if (followUps.size !== ticket.follow_up_ticket_ids.length) {
+      throw new Error(`Ticket ${ticket.id} contains duplicate follow_up_ticket_ids entries.`)
+    }
+    if (ticket.source_ticket_id) {
+      if (ticket.source_ticket_id === ticket.id) {
+        throw new Error(`Ticket ${ticket.id} cannot be its own source.`)
+      }
+      const sourceTicket = ticketsById.get(ticket.source_ticket_id)
+      if (!sourceTicket) {
+        throw new Error(`Ticket ${ticket.id} references missing source ticket ${ticket.source_ticket_id}.`)
+      }
+      if (ticket.source_mode === "split_scope" && dependsOn.has(ticket.source_ticket_id)) {
+        throw new Error(`Split-scope ticket ${ticket.id} cannot depend on its source ticket ${ticket.source_ticket_id}.`)
+      }
+      if (!sourceTicket.follow_up_ticket_ids.includes(ticket.id)) {
+        throw new Error(`Ticket ${ticket.id} is missing symmetric follow-up linkage from ${sourceTicket.id}.`)
+      }
+      if (ticket.source_mode === "split_scope" && (sourceTicket.status === "done" || sourceTicket.resolution_state === "superseded")) {
+        throw new Error(`Split-scope child ${ticket.id} cannot point at a completed source ticket ${sourceTicket.id}.`)
+      }
+      if (ticket.source_mode === "process_verification" && sourceTicket.status !== "done") {
+        throw new Error(`Process-verification ticket ${ticket.id} must point at a done source ticket.`)
+      }
+      if (ticket.source_mode === "post_completion_issue" && sourceTicket.status !== "done" && sourceTicket.resolution_state !== "superseded") {
+        throw new Error(`Post-completion follow-up ${ticket.id} must point at a completed historical source ticket.`)
+      }
+    }
+    for (const followUpTicketId of followUps) {
+      const followUpTicket = ticketsById.get(followUpTicketId)
+      if (!followUpTicket) {
+        throw new Error(`Ticket ${ticket.id} references missing follow-up ticket ${followUpTicketId}.`)
+      }
+      if (followUpTicket.source_ticket_id !== ticket.id) {
+        throw new Error(`Ticket ${ticket.id} does not have symmetric source ownership for follow-up ticket ${followUpTicketId}.`)
+      }
+    }
+    for (const dependencyId of dependsOn) {
+      if (dependencyId === ticket.id) {
+        throw new Error(`Ticket ${ticket.id} cannot depend on itself.`)
+      }
+      if (!ticketsById.has(dependencyId)) {
+        throw new Error(`Ticket ${ticket.id} depends on missing ticket ${dependencyId}.`)
+      }
+    }
+  }
+
+  const visited = new Set<string>()
+  const visiting = new Set<string>()
+  const visit = (ticket: Ticket, trail: string[]): void => {
+    if (visited.has(ticket.id)) return
+    if (visiting.has(ticket.id)) {
+      throw new Error(`Ticket dependency cycle detected: ${[...trail, ticket.id].join(" -> ")}`)
+    }
+    visiting.add(ticket.id)
+    for (const dependencyId of ticket.depends_on) {
+      const dependency = ticketsById.get(dependencyId)!
+      visit(dependency, [...trail, ticket.id])
+    }
+    visiting.delete(ticket.id)
+    visited.add(ticket.id)
+  }
+  for (const ticket of manifest.tickets) {
+    visit(ticket, [])
+  }
+}
+
+function validateManifestWorkflowConvergence(manifest: Manifest, workflow: WorkflowState): void {
+  const activeTicket = getTicket(manifest, manifest.active_ticket)
+  if (workflow.active_ticket !== activeTicket.id) {
+    throw new Error(`manifest.active_ticket (${manifest.active_ticket}) does not match workflow.active_ticket (${workflow.active_ticket}).`)
+  }
+  if (workflow.stage !== activeTicket.stage || workflow.status !== activeTicket.status) {
+    throw new Error(`Workflow selection for ${activeTicket.id} is out of sync with the manifest ticket state.`)
+  }
+  const activeTicketWorkflowState = workflow.ticket_state[activeTicket.id]
+  if (!activeTicketWorkflowState) {
+    throw new Error(`Workflow state is missing ticket_state for active ticket ${activeTicket.id}.`)
+  }
+  if (workflow.approved_plan !== activeTicketWorkflowState.approved_plan) {
+    throw new Error(`Workflow approved_plan does not converge with the active ticket workflow state for ${activeTicket.id}.`)
+  }
+}
+
+async function validateManifestWriteState(manifest: Manifest, root = rootPath(), context: SaveValidationContext = {}): Promise<void> {
+  validateTicketGraphInvariants(manifest)
+  const workflow = context.workflow ?? await readJson<WorkflowState | null>(workflowStatePath(root), null)
+  if (workflow) {
+    validateManifestWorkflowConvergence(manifest, workflow)
+  }
+}
+
+async function validateWorkflowWriteState(workflow: WorkflowState, root = rootPath(), context: SaveValidationContext = {}): Promise<void> {
+  const manifest = context.manifest ?? await readJson<Manifest | null>(ticketsManifestPath(root), null)
+  if (manifest) {
+    validateTicketGraphInvariants(manifest)
+    validateManifestWorkflowConvergence(manifest, workflow)
+  }
+}
+
+export function validateRestartSurfacePublication(manifest: Manifest, workflow: WorkflowState, pivot: PivotState): string | null {
+  if (!pivot.pivot_state_owner || !pivot.pivot_state_owner.trim()) {
+    return "Pivot state owner is missing; restart surfaces can only publish from a normalized pivot state."
+  }
+  const activeTicket = getTicket(manifest, manifest.active_ticket)
+  if (workflow.active_ticket !== activeTicket.id) {
+    return `Restart surfaces can only publish from converged active state, but manifest.active_ticket=${manifest.active_ticket} and workflow.active_ticket=${workflow.active_ticket}.`
+  }
+  if (workflow.stage !== activeTicket.stage || workflow.status !== activeTicket.status) {
+    return `Restart surfaces can only publish from the verified post-mutation snapshot for ${activeTicket.id}.`
+  }
+  return null
 }
 
 type ArtifactMatcher = { kind?: string; stage?: string; trust_state?: ArtifactTrustState }
@@ -1222,7 +1374,8 @@ export async function syncTicketFile(ticket: Ticket, root = rootPath()): Promise
   const path = ticketFilePath(ticket.id, root)
   await writeText(path, renderTicketDocument(ticket, extractTicketNotes(await readText(path))))
 }
-export async function saveManifest(manifest: Manifest, root = rootPath(), options: SaveDerivedSurfaceOptions = {}): Promise<void> {
+export async function saveManifest(manifest: Manifest, root = rootPath(), options: SaveDerivedSurfaceOptions = {}, validationContext: SaveValidationContext = {}): Promise<void> {
+  await validateManifestWriteState(manifest, root, validationContext)
   manifest.version = Math.max(manifest.version || 0, DEFAULT_TICKET_CONTRACT_VERSION)
   await writeJson(ticketsManifestPath(root), manifest)
   await writeText(ticketsBoardPath(root), renderBoard(manifest))
@@ -1247,8 +1400,8 @@ type SaveWorkflowBundle = {
 }
 export async function saveWorkflowBundle(bundle: SaveWorkflowBundle): Promise<void> {
   const root = bundle.root ?? rootPath()
-  await saveWorkflowState(bundle.workflow, root, bundle.expectedRevision, { refreshDerivedSurfaces: false })
-  if (bundle.manifest) await saveManifest(bundle.manifest, root, { refreshDerivedSurfaces: false })
+  await saveWorkflowState(bundle.workflow, root, bundle.expectedRevision, { refreshDerivedSurfaces: false }, { manifest: bundle.manifest, workflow: bundle.workflow })
+  if (bundle.manifest) await saveManifest(bundle.manifest, root, { refreshDerivedSurfaces: false }, { manifest: bundle.manifest, workflow: bundle.workflow })
   if (bundle.registry) await saveArtifactRegistry(bundle.registry, root)
   await refreshRestartSurfaces({ manifest: bundle.manifest, workflow: bundle.workflow, root })
 }

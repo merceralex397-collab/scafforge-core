@@ -7,6 +7,7 @@ from typing import Any
 
 
 PIVOT_STATE_PATH = Path(".opencode/meta/pivot-state.json")
+DEFAULT_PIVOT_STATE_OWNER = "scafforge-pivot"
 
 PIVOT_STAGE_CATALOG = {
     "project-skill-bootstrap": {
@@ -308,6 +309,7 @@ def normalize_restart_surface_publication(value: Any) -> dict[str, Any]:
 def normalize_pivot_payload(payload: Any) -> dict[str, Any]:
     if not isinstance(payload, dict):
         raise ValueError("Pivot state payload is missing or invalid.")
+    pivot_state_owner = str(payload.get("pivot_state_owner", "")).strip() or DEFAULT_PIVOT_STATE_OWNER
     downstream_state = payload.get("downstream_refresh_state")
     if not isinstance(downstream_state, dict):
         required_details = payload.get("downstream_refresh") if isinstance(payload.get("downstream_refresh"), list) else []
@@ -352,6 +354,7 @@ def normalize_pivot_payload(payload: Any) -> dict[str, Any]:
     downstream_state["pending_stages"] = pending_pivot_stage_names({"downstream_refresh_state": downstream_state})
     downstream_state["history"] = downstream_state.get("history") if isinstance(downstream_state.get("history"), list) else []
     payload["downstream_refresh_state"] = downstream_state
+    payload["pivot_state_owner"] = pivot_state_owner
     payload["ticket_lineage_plan"] = normalize_ticket_lineage_plan(payload.get("ticket_lineage_plan"))
     synchronize_lineage_with_ticket_pack_builder(payload)
     payload["ticket_lineage_plan"] = normalize_ticket_lineage_plan(payload.get("ticket_lineage_plan"))

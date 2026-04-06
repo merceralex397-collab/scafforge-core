@@ -48,16 +48,16 @@ pivot-state
 
 ## Stage
 
-planning
+complete
 
 ## Status
 
-todo
+done
 
 ## Trust
 
-- resolution_state: open
-- verification_state: suspect
+- resolution_state: completed
+- verification_state: verified
 - finding_source: None
 - source_ticket_id: None
 - source_mode: None
@@ -76,10 +76,10 @@ None
 
 ## Acceptance Criteria
 
-- [ ] `.opencode/meta/pivot-state.json` has one explicit persistence owner and documented write contract
-- [ ] `pivot_tracking.py`, `plan_pivot.py`, and related pivot surfaces stop implying that pivot state is an unowned sidecar
-- [ ] Pivot-state fields distinguish canonical pivot truth from derived restart-surface data
-- [ ] The contract documents how restart surfaces may read pivot state without synthesizing it
+- [x] `.opencode/meta/pivot-state.json` has one explicit persistence owner and documented write contract
+- [x] `pivot_tracking.py`, `plan_pivot.py`, and related pivot surfaces stop implying that pivot state is an unowned sidecar
+- [x] Pivot-state fields distinguish canonical pivot truth from derived restart-surface data
+- [x] The contract documents how restart surfaces may read pivot state without synthesizing it
 
 ## Artifacts
 

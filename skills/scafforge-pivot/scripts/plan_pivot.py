@@ -499,6 +499,7 @@ def main() -> int:
         "pivot_history_entry": pivot_entry,
         "canonical_brief_path": str(CANONICAL_BRIEF_PATH).replace("\\", "/"),
         "pivot_state_path": str(PIVOT_STATE_PATH).replace("\\", "/"),
+        "pivot_state_owner": "scafforge-pivot",
     }
     payload["downstream_refresh_state"] = build_downstream_refresh_state(
         downstream_refresh,
