@@ -5,7 +5,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-from generated_tool_runtime import run_generated_tool
+from shared_generated_tool_runtime import run_generated_tool
 from pivot_tracking import (
     PIVOT_STATE_PATH,
     load_pivot_state,
@@ -239,6 +239,7 @@ def main() -> int:
     output = {
         "repo_root": str(repo_root),
         "pivot_state_path": str(PIVOT_STATE_PATH).replace("\\", "/"),
+        "pivot_state_owner": final_payload.get("pivot_state_owner"),
         "applied_actions": applied,
         "skipped_actions": skipped,
         "pending_actions": final_payload["ticket_lineage_plan"]["pending_actions"],

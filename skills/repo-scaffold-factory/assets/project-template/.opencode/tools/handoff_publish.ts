@@ -16,6 +16,7 @@ import {
   startHerePath,
   ticketsManifestPath,
   validateHandoffNextAction,
+  validateRestartSurfacePublication,
   workflowStatePath,
 } from "../lib/workflow"
 
@@ -30,6 +31,10 @@ export default tool({
     const manifest = await loadManifest()
     const workflow = await loadWorkflowState()
     const pivot = await loadPivotState()
+    const publicationBlocker = validateRestartSurfacePublication(manifest, workflow, pivot)
+    if (publicationBlocker) {
+      throw new Error(publicationBlocker)
+    }
     const startHereBefore = await readFile(startHerePath(), "utf-8").catch(() => "")
     const provenance = await readJson<{
       workflow_contract?: {
