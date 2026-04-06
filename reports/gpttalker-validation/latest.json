@@ -1,201 +1,1152 @@
 {
-  "generated_at": "2026-03-31T03:54:00.139516+00:00",
-  "source_repo_path": "/home/rowan/GPTTalker",
-  "source_repo_git_status": "## main...origin/main",
-  "audit": {
-    "finding_count": 2,
-    "codes": [
-      "ENV003",
-      "EXEC001"
-    ],
-    "findings": [
-      {
-        "code": "ENV003",
-        "severity": "warning",
-        "problem": "Git identity is not configured for this host, but the repo's tests or workflow expect commit-producing validation.",
-        "root_cause": "Some repo validations rely on creating commits or reading recent commit history. Without `user.name` and `user.email`, those checks fail for host-environment reasons and can be misread as product regressions.",
-        "files": [
-          "tests/node_agent/test_executor.py"
+  "generated_at": "2026-04-06T15:53:07.073629+00:00",
+  "source_repo_path": "/tmp/scafforge-gpttalker-fixture-6jflp25o/restart-surface-drift-after-repair",
+  "source_repo_git_status": "git status unavailable for /tmp/scafforge-gpttalker-fixture-6jflp25o/restart-surface-drift-after-repair: fatal: not a git repository (or any of the parent directories): .git",
+  "scenarios": [
+    {
+      "scenario": "control",
+      "probe_root": "/tmp/scafforge-gpttalker-validation-control-8___p5e1/restart-surface-drift-after-repair",
+      "audit": {
+        "finding_count": 2,
+        "codes": [
+          "WFLOW010",
+          "WFLOW008"
         ],
-        "safer_pattern": "Configure git identity on the host used for audit or repair, or mark the affected verification as blocked by environment rather than as a clean or source-level result.",
-        "evidence": [
-          "Repo references git-commit validation in tests/node_agent/test_executor.py.",
-          "`git config --get user.name` -> missing",
-          "`git config --get user.email` -> missing"
-        ],
-        "provenance": "script"
+        "findings": [
+          {
+            "code": "WFLOW010",
+            "severity": "error",
+            "problem": "Derived restart surfaces disagree with canonical workflow state, so resume guidance can route work from stale or contradictory facts.",
+            "root_cause": "`START-HERE.md`, `.opencode/state/context-snapshot.md`, and `.opencode/state/latest-handoff.md` are not being regenerated from `tickets/manifest.json`, `.opencode/state/workflow-state.json`, and `.opencode/meta/pivot-state.json` after workflow mutations or managed repair, leaving bootstrap, repair-follow-on, pivot, verification, lane-lease, or active-ticket state stale.",
+            "files": [
+              "tickets/manifest.json",
+              ".opencode/state/workflow-state.json",
+              ".opencode/meta/pivot-state.json",
+              "START-HERE.md",
+              ".opencode/state/context-snapshot.md",
+              ".opencode/state/latest-handoff.md"
+            ],
+            "safer_pattern": "Regenerate `START-HERE.md`, `.opencode/state/context-snapshot.md`, and `.opencode/state/latest-handoff.md` from canonical manifest, workflow state, and pivot state after every workflow save, compute handoff readiness from bootstrap plus repair-follow-on plus verification state in one shared contract, and fail repair verification if any derived restart surface drifts.",
+            "evidence": [
+              "START-HERE.md status drift: expected 'todo' from canonical state, found 'ready'.",
+              "START-HERE.md handoff_status drift: expected 'bootstrap recovery required' from canonical state, found 'ready for continued development'.",
+              "START-HERE.md bootstrap_status drift: expected 'failed' from canonical state, found 'ready'.",
+              "START-HERE.md bootstrap_proof drift: expected '.opencode/state/bootstrap/synthetic-bootstrap-proof.md' from canonical state, found None.",
+              "START-HERE.md pending_process_verification drift: expected 'true' from canonical state, found 'false'.",
+              "START-HERE.md pivot_in_progress drift: expected 'false' from canonical state, found None.",
+              "START-HERE.md post_pivot_verification_passed drift: expected 'false' from canonical state, found None.",
+              "START-HERE.md repair_follow_on_outcome drift: expected 'clean' from canonical state, found None.",
+              "START-HERE.md repair_follow_on_required drift: expected 'false' from canonical state, found None.",
+              "START-HERE.md repair_follow_on_verification_passed drift: expected 'true' from canonical state, found None."
+            ],
+            "provenance": "script",
+            "remediation_action": null,
+            "remediation_target": null,
+            "is_user_action": false
+          },
+          {
+            "code": "WFLOW008",
+            "severity": "warning",
+            "problem": "Post-repair process verification is still pending, but the restart surfaces or legal next move contradict the canonical workflow state.",
+            "root_cause": "The workflow contract changed, but the repo is still hiding, overstating, or deadlocking the pending backlog-verification state. That lets restart surfaces imply readiness before historical trust is restored, or leaves the workflow flag stranded after the affected done-ticket set is already empty.",
+            "files": [
+              ".opencode/state/workflow-state.json",
+              "tickets/manifest.json",
+              "START-HERE.md",
+              ".opencode/state/latest-handoff.md",
+              ".opencode/tools/ticket_lookup.ts",
+              ".opencode/tools/ticket_update.ts",
+              ".opencode/plugins/stage-gate-enforcer.ts"
+            ],
+            "safer_pattern": "Keep `pending_process_verification` visible, route the backlog verifier across the affected done-ticket set, expose `ticket_reverify` as the legal trust-restoration path, and when that affected set is empty leave a direct legal clear path for `pending_process_verification = false` instead of implying the repo is already clean or leaving the flag stranded.",
+            "evidence": [
+              "START-HERE.md does not show pending_process_verification = true while canonical workflow state does.",
+              "START-HERE.md still claims ready-for-development handoff while process verification remains pending.",
+              ".opencode/state/latest-handoff.md does not show pending_process_verification = true while canonical workflow state does.",
+              ".opencode/state/latest-handoff.md still claims ready-for-development handoff while process verification remains pending.",
+              ".opencode/state/workflow-state.json records pending_process_verification = true.",
+              "Current process window started at: None",
+              "Affected done tickets: none; the workflow flag should now be directly clearable."
+            ],
+            "provenance": "script",
+            "remediation_action": null,
+            "remediation_target": null,
+            "is_user_action": false
+          }
+        ]
       },
-      {
-        "code": "EXEC001",
-        "severity": "error",
-        "problem": "One or more Python packages fail to import \u2014 the service cannot start.",
-        "root_cause": "Runtime errors (NameError, FastAPIError, missing dependency, broken DI pattern, etc.) that are invisible to static analysis prevent module load. Common causes: TYPE_CHECKING-guarded names used in runtime annotations, FastAPI dependency functions with non-Pydantic parameter types, circular imports.",
-        "files": [
-          "src"
-        ],
-        "safer_pattern": "Verify every import succeeds: `python -c 'from src.<pkg>.main import app'`. Use string annotations (`-> \"TypeName\"`) for TYPE_CHECKING-only imports. Use `request: Request` (not `app: FastAPI`) in FastAPI dependency functions.",
-        "evidence": [
-          "src.hub: ModuleNotFoundError: No module named 'pydantic'",
-          "src.node_agent: ModuleNotFoundError: No module named 'uvicorn'",
-          "src.shared: ModuleNotFoundError: No module named 'pydantic'"
-        ],
-        "provenance": "script"
-      }
-    ]
-  },
-  "managed_repair": {
-    "repair_package_commit": "9fc2acbf2e99c23bbca8aa91555d08bb70a41343",
-    "repair_basis_path": "diagnosis/20260328-162039",
-    "required_follow_on_stages": [
-      "project-skill-bootstrap",
-      "ticket-pack-builder"
-    ],
-    "required_follow_on_stage_details": [
-      {
-        "stage": "project-skill-bootstrap",
-        "owner": "project-skill-bootstrap",
-        "category": "repo_local_skills",
-        "reason": "Repo-local skills were replaced or still contain generic placeholder/model drift that must be regenerated with project-specific content."
+      "migration": {
+        "before": {
+          "provenance_process_version": 7,
+          "migration_history_count": 0,
+          "repair_history_count": 0,
+          "workflow_process_version": 7,
+          "repair_follow_on_process_version": 7
+        },
+        "after": {
+          "provenance_process_version": 7,
+          "workflow_process_version": 7,
+          "repair_follow_on_process_version": 7,
+          "migration_history_count": 0,
+          "repair_history_count": 1,
+          "migration_history_latest": null,
+          "repair_history_latest": {
+            "repair_id": "2026-04-06T15:53:01Z",
+            "repaired_at": "2026-04-06T15:53:01Z",
+            "repair_type": "managed-surface-replacement",
+            "repair_kind": "deterministic-workflow-engine-replacement",
+            "repair_package_commit": "835edfcaac69701ba792471886af05712485afae",
+            "summary": "Managed Scafforge repair runner refreshed deterministic workflow surfaces and evaluated downstream repair obligations.",
+            "surfaces_replaced": [
+              "opencode.jsonc",
+              ".opencode/tools",
+              ".opencode/lib",
+              ".opencode/plugins",
+              ".opencode/commands",
+              "scaffold-managed .opencode/skills",
+              "docs/process/workflow.md",
+              "docs/process/tooling.md",
+              "docs/process/model-matrix.md",
+              "docs/process/git-capability.md",
+              "START-HERE.md managed block"
+            ],
+            "replaced_surfaces": [
+              "opencode.jsonc",
+              ".opencode/tools",
+              ".opencode/lib",
+              ".opencode/plugins",
+              ".opencode/commands",
+              "scaffold-managed .opencode/skills",
+              "docs/process/workflow.md",
+              "docs/process/tooling.md",
+              "docs/process/model-matrix.md",
+              "docs/process/git-capability.md",
+              "START-HERE.md managed block"
+            ],
+            "diff_summary": {
+              "files_added": [],
+              "files_removed": [],
+              "files_modified": [
+                ".opencode/skills/stack-standards/SKILL.md",
+                "START-HERE.md"
+              ]
+            },
+            "audit_findings_addressed": [],
+            "verification_passed": false,
+            "verification_findings": [
+              "SKILL001"
+            ],
+            "remediation_ticket_ids": [],
+            "process_version_before": 7,
+            "process_version_after": 7,
+            "backup_path": null,
+            "project_specific_follow_up": [
+              ".opencode/skills",
+              ".opencode/agents",
+              "docs/process/agent-catalog.md"
+            ],
+            "repair_follow_on_outcome": "managed_blocked",
+            "handoff_allowed": false,
+            "blocking_reasons": [
+              "project-skill-bootstrap must still run: Repo-local skills still contain generic placeholder/model drift that must be regenerated with project-specific content.",
+              "Post-repair verification failed repair-contract consistency checks: placeholder_local_skills_survived_refresh."
+            ],
+            "verification_summary": {
+              "performed": true,
+              "finding_count": 1,
+              "error_count": 0,
+              "warning_count": 1,
+              "codes": [
+                "SKILL001"
+              ],
+              "blocking_codes": [
+                "SKILL001"
+              ],
+              "source_follow_up_codes": [],
+              "process_state_codes": [],
+              "advisory_codes": [],
+              "pending_process_verification": true,
+              "verification_basis": "current_state_only",
+              "basis_requires_causal_replay": false,
+              "repair_basis_path": null,
+              "current_state_clean": false,
+              "causal_regression_verified": false,
+              "source_regression_summary": {
+                "comparison_available": false,
+                "pre_existing_codes": [],
+                "persistent_codes": [],
+                "resolved_codes": [],
+                "introduced_codes": [],
+                "introduced_critical_codes": []
+              },
+              "contract_failures": [
+                "placeholder_local_skills_survived_refresh"
+              ],
+              "contract_passed": false,
+              "verification_passed": false,
+              "supporting_logs": [],
+              "disposition_shadow_mode": {
+                "bundle_available": false,
+                "bundle_version": null,
+                "bundle_finding_count": null,
+                "delta_count": 0,
+                "deltas": []
+              }
+            },
+            "migration_stage": {
+              "stage": "legacy-contract-migration",
+              "state": "current",
+              "policy": "current",
+              "required": false,
+              "migration_history_count": 0,
+              "from_process_version": 7,
+              "workflow_process_version": 7,
+              "repair_follow_on_process_version": 7,
+              "target_process_version": 7,
+              "compatibility_shim_scope": "package-internal",
+              "compatibility_shim_temporary": true,
+              "reasons": [],
+              "summary": "Repo already uses the current process contract.",
+              "migration_id": null
+            }
+          },
+          "restart_truth": {
+            "start_here_process_version_7": true,
+            "start_here_pending_process_verification": true,
+            "context_process_version_7": true,
+            "context_pending_process_verification": true,
+            "latest_handoff_process_version_7": true,
+            "latest_handoff_pending_process_verification": true
+          }
+        },
+        "stage": {
+          "stage": "legacy-contract-migration",
+          "state": "current",
+          "policy": "current",
+          "required": false,
+          "migration_history_count": 0,
+          "from_process_version": 7,
+          "workflow_process_version": 7,
+          "repair_follow_on_process_version": 7,
+          "target_process_version": 7,
+          "compatibility_shim_scope": "package-internal",
+          "compatibility_shim_temporary": true,
+          "reasons": [],
+          "summary": "Repo already uses the current process contract.",
+          "migration_id": null
+        },
+        "repair_escalation": null
       },
-      {
-        "stage": "ticket-pack-builder",
-        "owner": "ticket-pack-builder",
-        "category": "ticket_follow_up",
-        "reason": "Repair left remediation or reverification follow-up that must be routed into the repo ticket system."
+      "managed_repair": {
+        "repair_package_commit": "835edfcaac69701ba792471886af05712485afae",
+        "repair_basis_path": null,
+        "required_follow_on_stages": [
+          "project-skill-bootstrap"
+        ],
+        "required_follow_on_stage_details": [
+          {
+            "stage": "project-skill-bootstrap",
+            "owner": "project-skill-bootstrap",
+            "category": "repo_local_skills",
+            "reason": "Repo-local skills still contain generic placeholder/model drift that must be regenerated with project-specific content."
+          }
+        ],
+        "blocking_reasons": [
+          "project-skill-bootstrap must still run: Repo-local skills still contain generic placeholder/model drift that must be regenerated with project-specific content.",
+          "Post-repair verification failed repair-contract consistency checks: placeholder_local_skills_survived_refresh."
+        ],
+        "repair_follow_on_outcome": "managed_blocked",
+        "handoff_allowed": false,
+        "verification_status": {
+          "performed": true,
+          "finding_count": 1,
+          "error_count": 0,
+          "warning_count": 1,
+          "codes": [
+            "SKILL001"
+          ],
+          "blocking_codes": [
+            "SKILL001"
+          ],
+          "source_follow_up_codes": [],
+          "process_state_codes": [],
+          "advisory_codes": [],
+          "pending_process_verification": true,
+          "verification_basis": "current_state_only",
+          "basis_requires_causal_replay": false,
+          "repair_basis_path": null,
+          "current_state_clean": false,
+          "causal_regression_verified": false,
+          "source_regression_summary": {
+            "comparison_available": false,
+            "pre_existing_codes": [],
+            "persistent_codes": [],
+            "resolved_codes": [],
+            "introduced_codes": [],
+            "introduced_critical_codes": []
+          },
+          "contract_failures": [
+            "placeholder_local_skills_survived_refresh"
+          ],
+          "contract_passed": false,
+          "verification_passed": false,
+          "supporting_logs": [],
+          "disposition_shadow_mode": {
+            "bundle_available": false,
+            "bundle_version": null,
+            "bundle_finding_count": null,
+            "delta_count": 0,
+            "deltas": []
+          }
+        },
+        "migration_stage": {
+          "stage": "legacy-contract-migration",
+          "state": "current",
+          "policy": "current",
+          "required": false,
+          "migration_history_count": 0,
+          "from_process_version": 7,
+          "workflow_process_version": 7,
+          "repair_follow_on_process_version": 7,
+          "target_process_version": 7,
+          "compatibility_shim_scope": "package-internal",
+          "compatibility_shim_temporary": true,
+          "reasons": [],
+          "summary": "Repo already uses the current process contract.",
+          "migration_id": null
+        },
+        "stale_surface_map": {
+          "workflow_tools_and_prompts": {
+            "status": "replace",
+            "surfaces": [
+              ".opencode/commands",
+              ".opencode/lib",
+              ".opencode/plugins",
+              ".opencode/tools",
+              "docs/process/git-capability.md",
+              "docs/process/model-matrix.md",
+              "docs/process/tooling.md",
+              "docs/process/workflow.md",
+              "opencode.jsonc"
+            ],
+            "reason": "Managed workflow tools, prompts, and process docs were refreshed or still show workflow drift."
+          },
+          "repo_local_skills": {
+            "status": "regenerate",
+            "surfaces": [
+              "scaffold-managed .opencode/skills"
+            ],
+            "reason": "Repo-local skills need regeneration when scaffold-managed skills were replaced or placeholder/model drift remains.",
+            "finding_codes": [
+              "SKILL001"
+            ]
+          },
+          "agent_team_and_prompts": {
+            "status": "stable",
+            "surfaces": [],
+            "reason": "Agent-team prompts stay stable unless drift remains after managed repair."
+          },
+          "ticket_graph_and_follow_up": {
+            "status": "stable",
+            "surfaces": [],
+            "reason": "Bare pending_process_verification remains workflow-state truth, but does not by itself force repair-side ticket follow-up."
+          },
+          "restart_surfaces": {
+            "status": "replace",
+            "surfaces": [
+              ".opencode/state/context-snapshot.md",
+              ".opencode/state/latest-handoff.md",
+              "START-HERE.md managed block"
+            ],
+            "reason": "Restart surfaces are derived and must be regenerated whenever managed repair changes workflow state."
+          },
+          "canonical_project_decisions": {
+            "status": "stable",
+            "surfaces": [],
+            "reason": "Managed repair preserves accepted project-scope decisions. Intent-changing drift must route outside routine public repair."
+          }
+        },
+        "ticket_recommendations": [
+          {
+            "id": "REMED-001",
+            "title": "One or more repo-local skills still contain generic placeholder text instead of project-specific guidance",
+            "description": "Remediate SKILL001 by correcting the validated issue and rerunning the relevant quality checks.",
+            "affected_files": [
+              ".opencode/skills/stack-standards/SKILL.md"
+            ],
+            "suggested_fix_approach": "Populate every baseline local skill with concrete repo-specific rules and validation commands; generated `.opencode/skills/` files must not retain template filler.",
+            "assignee": "implementer",
+            "source_finding_code": "SKILL001",
+            "source_finding_codes": [
+              "SKILL001"
+            ],
+            "severity": "warning",
+            "route": "scafforge-repair",
+            "repair_class": "safe Scafforge package change",
+            "summary": "Populate every baseline local skill with concrete repo-specific rules and validation commands; generated `.opencode/skills/` files must not retain template filler.",
+            "source_files": [
+              ".opencode/skills/stack-standards/SKILL.md"
+            ]
+          }
+        ]
       }
-    ],
-    "blocking_reasons": [
-      "project-skill-bootstrap must still run: Repo-local skills were replaced or still contain generic placeholder/model drift that must be regenerated with project-specific content.",
-      "ticket-pack-builder must still run: Repair left remediation or reverification follow-up that must be routed into the repo ticket system.",
-      "Post-repair verification failed repair-contract consistency checks: placeholder_local_skills_survived_refresh."
-    ],
-    "repair_follow_on_outcome": "managed_blocked",
-    "handoff_allowed": false,
-    "verification_status": {
-      "performed": true,
-      "finding_count": 3,
-      "error_count": 1,
-      "warning_count": 2,
-      "codes": [
-        "SKILL001",
-        "ENV003",
-        "EXEC001"
-      ],
-      "blocking_codes": [
-        "SKILL001",
-        "ENV003"
-      ],
-      "source_follow_up_codes": [
-        "EXEC001"
-      ],
-      "process_state_codes": [],
-      "pending_process_verification": true,
-      "verification_basis": "transcript_backed",
-      "basis_requires_causal_replay": true,
-      "repair_basis_path": "diagnosis/20260328-162039",
-      "current_state_clean": false,
-      "causal_regression_verified": false,
-      "contract_failures": [
-        "placeholder_local_skills_survived_refresh"
-      ],
-      "contract_passed": false,
-      "verification_passed": false,
-      "supporting_logs": [
-        "session4.md"
-      ]
     },
-    "stale_surface_map": {
-      "workflow_tools_and_prompts": {
-        "status": "replace",
-        "surfaces": [
-          ".opencode/commands",
-          ".opencode/lib",
-          ".opencode/plugins",
-          ".opencode/tools",
-          "docs/process/git-capability.md",
-          "docs/process/model-matrix.md",
-          "docs/process/tooling.md",
-          "docs/process/workflow.md",
-          "opencode.jsonc"
+    {
+      "scenario": "safe-legacy-upgrade",
+      "probe_root": "/tmp/scafforge-gpttalker-validation-safe-legacy-upgrade-oo0r55av/restart-surface-drift-after-repair",
+      "audit": {
+        "finding_count": 1,
+        "codes": [
+          "WFLOW010"
         ],
-        "reason": "Managed workflow tools, prompts, and process docs were refreshed or still show workflow drift."
-      },
-      "repo_local_skills": {
-        "status": "regenerate",
-        "surfaces": [
-          ".opencode/skills/stack-standards/SKILL.md",
-          "scaffold-managed .opencode/skills"
-        ],
-        "reason": "Repo-local skills need regeneration when scaffold-managed skills were replaced or placeholder/model drift remains.",
-        "finding_codes": [
-          "SKILL001"
+        "findings": [
+          {
+            "code": "WFLOW010",
+            "severity": "error",
+            "problem": "Derived restart surfaces disagree with canonical workflow state, so resume guidance can route work from stale or contradictory facts.",
+            "root_cause": "`START-HERE.md`, `.opencode/state/context-snapshot.md`, and `.opencode/state/latest-handoff.md` are not being regenerated from `tickets/manifest.json`, `.opencode/state/workflow-state.json`, and `.opencode/meta/pivot-state.json` after workflow mutations or managed repair, leaving bootstrap, repair-follow-on, pivot, verification, lane-lease, or active-ticket state stale.",
+            "files": [
+              "tickets/manifest.json",
+              ".opencode/state/workflow-state.json",
+              ".opencode/meta/pivot-state.json",
+              "START-HERE.md",
+              ".opencode/state/context-snapshot.md",
+              ".opencode/state/latest-handoff.md"
+            ],
+            "safer_pattern": "Regenerate `START-HERE.md`, `.opencode/state/context-snapshot.md`, and `.opencode/state/latest-handoff.md` from canonical manifest, workflow state, and pivot state after every workflow save, compute handoff readiness from bootstrap plus repair-follow-on plus verification state in one shared contract, and fail repair verification if any derived restart surface drifts.",
+            "evidence": [
+              "START-HERE.md status drift: expected 'todo' from canonical state, found 'ready'.",
+              "START-HERE.md handoff_status drift: expected 'bootstrap recovery required' from canonical state, found 'ready for continued development'.",
+              "START-HERE.md bootstrap_status drift: expected 'failed' from canonical state, found 'ready'.",
+              "START-HERE.md bootstrap_proof drift: expected '.opencode/state/bootstrap/synthetic-bootstrap-proof.md' from canonical state, found None.",
+              "START-HERE.md pivot_in_progress drift: expected 'false' from canonical state, found None.",
+              "START-HERE.md post_pivot_verification_passed drift: expected 'false' from canonical state, found None.",
+              "START-HERE.md repair_follow_on_outcome drift: expected 'clean' from canonical state, found None.",
+              "START-HERE.md repair_follow_on_required drift: expected 'false' from canonical state, found None.",
+              "START-HERE.md repair_follow_on_verification_passed drift: expected 'true' from canonical state, found None.",
+              ".opencode/state/context-snapshot.md status drift: expected 'todo' from canonical state, found 'ready'."
+            ],
+            "provenance": "script",
+            "remediation_action": null,
+            "remediation_target": null,
+            "is_user_action": false
+          }
         ]
       },
-      "agent_team_and_prompts": {
-        "status": "stable",
-        "surfaces": [],
-        "reason": "Agent-team prompts stay stable unless drift remains after managed repair."
+      "migration": {
+        "before": {
+          "provenance_process_version": 6,
+          "migration_history_count": 0,
+          "repair_history_count": 0,
+          "workflow_process_version": 6,
+          "repair_follow_on_process_version": 6
+        },
+        "after": {
+          "provenance_process_version": 7,
+          "workflow_process_version": 7,
+          "repair_follow_on_process_version": 7,
+          "migration_history_count": 1,
+          "repair_history_count": 1,
+          "migration_history_latest": {
+            "stage": "legacy-contract-migration",
+            "state": "migrated",
+            "policy": "safe_auto_upgrade",
+            "required": true,
+            "migration_history_count": 0,
+            "from_process_version": 6,
+            "workflow_process_version": 6,
+            "repair_follow_on_process_version": 6,
+            "target_process_version": 7,
+            "compatibility_shim_scope": "package-internal",
+            "compatibility_shim_temporary": true,
+            "reasons": [],
+            "summary": "Recent legacy repo can auto-upgrade safely through the dedicated migration stage.",
+            "migration_id": "2026-04-06T15:53:03Z",
+            "repair_id": "2026-04-06T15:53:04Z",
+            "migrated_at": "2026-04-06T15:53:05Z",
+            "migration_history_recorded": true,
+            "repair_follow_on_outcome": "managed_blocked",
+            "handoff_allowed": false,
+            "verification_passed": false,
+            "current_state_clean": false,
+            "causal_regression_verified": false,
+            "verification_summary": {
+              "performed": true,
+              "finding_count": 1,
+              "error_count": 0,
+              "warning_count": 1,
+              "codes": [
+                "SKILL001"
+              ],
+              "blocking_codes": [
+                "SKILL001"
+              ],
+              "source_follow_up_codes": [],
+              "process_state_codes": [],
+              "advisory_codes": [],
+              "pending_process_verification": true,
+              "verification_basis": "current_state_only",
+              "basis_requires_causal_replay": false,
+              "repair_basis_path": null,
+              "current_state_clean": false,
+              "causal_regression_verified": false,
+              "source_regression_summary": {
+                "comparison_available": false,
+                "pre_existing_codes": [],
+                "persistent_codes": [],
+                "resolved_codes": [],
+                "introduced_codes": [],
+                "introduced_critical_codes": []
+              },
+              "contract_failures": [
+                "placeholder_local_skills_survived_refresh"
+              ],
+              "contract_passed": false,
+              "verification_passed": false,
+              "supporting_logs": [],
+              "disposition_shadow_mode": {
+                "bundle_available": false,
+                "bundle_version": null,
+                "bundle_finding_count": null,
+                "delta_count": 0,
+                "deltas": []
+              }
+            },
+            "process_version_before": 6,
+            "process_version_after": 7
+          },
+          "repair_history_latest": {
+            "repair_id": "2026-04-06T15:53:04Z",
+            "repaired_at": "2026-04-06T15:53:04Z",
+            "repair_type": "managed-surface-replacement",
+            "repair_kind": "deterministic-workflow-engine-replacement",
+            "repair_package_commit": "835edfcaac69701ba792471886af05712485afae",
+            "summary": "Managed Scafforge repair runner refreshed deterministic workflow surfaces and evaluated downstream repair obligations.",
+            "surfaces_replaced": [
+              "opencode.jsonc",
+              ".opencode/tools",
+              ".opencode/lib",
+              ".opencode/plugins",
+              ".opencode/commands",
+              "scaffold-managed .opencode/skills",
+              "docs/process/workflow.md",
+              "docs/process/tooling.md",
+              "docs/process/model-matrix.md",
+              "docs/process/git-capability.md",
+              "START-HERE.md managed block"
+            ],
+            "replaced_surfaces": [
+              "opencode.jsonc",
+              ".opencode/tools",
+              ".opencode/lib",
+              ".opencode/plugins",
+              ".opencode/commands",
+              "scaffold-managed .opencode/skills",
+              "docs/process/workflow.md",
+              "docs/process/tooling.md",
+              "docs/process/model-matrix.md",
+              "docs/process/git-capability.md",
+              "START-HERE.md managed block"
+            ],
+            "diff_summary": {
+              "files_added": [],
+              "files_removed": [],
+              "files_modified": [
+                ".opencode/skills/stack-standards/SKILL.md",
+                "START-HERE.md"
+              ]
+            },
+            "audit_findings_addressed": [],
+            "verification_passed": false,
+            "verification_findings": [
+              "SKILL001"
+            ],
+            "remediation_ticket_ids": [],
+            "process_version_before": 6,
+            "process_version_after": 7,
+            "backup_path": null,
+            "project_specific_follow_up": [
+              ".opencode/skills",
+              ".opencode/agents",
+              "docs/process/agent-catalog.md"
+            ],
+            "repair_follow_on_outcome": "managed_blocked",
+            "handoff_allowed": false,
+            "blocking_reasons": [
+              "project-skill-bootstrap must still run: Repo-local skills still contain generic placeholder/model drift that must be regenerated with project-specific content.",
+              "Post-repair verification failed repair-contract consistency checks: placeholder_local_skills_survived_refresh."
+            ],
+            "verification_summary": {
+              "performed": true,
+              "finding_count": 1,
+              "error_count": 0,
+              "warning_count": 1,
+              "codes": [
+                "SKILL001"
+              ],
+              "blocking_codes": [
+                "SKILL001"
+              ],
+              "source_follow_up_codes": [],
+              "process_state_codes": [],
+              "advisory_codes": [],
+              "pending_process_verification": true,
+              "verification_basis": "current_state_only",
+              "basis_requires_causal_replay": false,
+              "repair_basis_path": null,
+              "current_state_clean": false,
+              "causal_regression_verified": false,
+              "source_regression_summary": {
+                "comparison_available": false,
+                "pre_existing_codes": [],
+                "persistent_codes": [],
+                "resolved_codes": [],
+                "introduced_codes": [],
+                "introduced_critical_codes": []
+              },
+              "contract_failures": [
+                "placeholder_local_skills_survived_refresh"
+              ],
+              "contract_passed": false,
+              "verification_passed": false,
+              "supporting_logs": [],
+              "disposition_shadow_mode": {
+                "bundle_available": false,
+                "bundle_version": null,
+                "bundle_finding_count": null,
+                "delta_count": 0,
+                "deltas": []
+              }
+            },
+            "migration_stage": {
+              "stage": "legacy-contract-migration",
+              "state": "migrated",
+              "policy": "safe_auto_upgrade",
+              "required": true,
+              "migration_history_count": 0,
+              "from_process_version": 6,
+              "workflow_process_version": 6,
+              "repair_follow_on_process_version": 6,
+              "target_process_version": 7,
+              "compatibility_shim_scope": "package-internal",
+              "compatibility_shim_temporary": true,
+              "reasons": [],
+              "summary": "Recent legacy repo can auto-upgrade safely through the dedicated migration stage.",
+              "migration_id": "2026-04-06T15:53:03Z",
+              "repair_id": "2026-04-06T15:53:04Z",
+              "migrated_at": "2026-04-06T15:53:05Z",
+              "migration_history_recorded": true,
+              "repair_follow_on_outcome": "managed_blocked",
+              "handoff_allowed": false,
+              "verification_passed": false,
+              "current_state_clean": false,
+              "causal_regression_verified": false
+            }
+          },
+          "restart_truth": {
+            "start_here_process_version_7": true,
+            "start_here_pending_process_verification": true,
+            "context_process_version_7": true,
+            "context_pending_process_verification": true,
+            "latest_handoff_process_version_7": true,
+            "latest_handoff_pending_process_verification": true
+          }
+        },
+        "stage": {
+          "stage": "legacy-contract-migration",
+          "state": "migrated",
+          "policy": "safe_auto_upgrade",
+          "required": true,
+          "migration_history_count": 0,
+          "from_process_version": 6,
+          "workflow_process_version": 6,
+          "repair_follow_on_process_version": 6,
+          "target_process_version": 7,
+          "compatibility_shim_scope": "package-internal",
+          "compatibility_shim_temporary": true,
+          "reasons": [],
+          "summary": "Recent legacy repo can auto-upgrade safely through the dedicated migration stage.",
+          "migration_id": "2026-04-06T15:53:03Z",
+          "repair_id": "2026-04-06T15:53:04Z",
+          "migrated_at": "2026-04-06T15:53:05Z",
+          "migration_history_recorded": true,
+          "repair_follow_on_outcome": "managed_blocked",
+          "handoff_allowed": false,
+          "verification_passed": false,
+          "current_state_clean": false,
+          "causal_regression_verified": false
+        },
+        "repair_escalation": null
       },
-      "ticket_graph_and_follow_up": {
-        "status": "ticket_follow_up",
-        "surfaces": [],
-        "reason": "Ticket follow-up is required when source findings still need explicit routing through ticket-pack-builder.",
-        "finding_codes": [
-          "EXEC001"
-        ]
-      },
-      "restart_surfaces": {
-        "status": "replace",
-        "surfaces": [
-          ".opencode/state/context-snapshot.md",
-          ".opencode/state/latest-handoff.md",
-          "START-HERE.md managed block"
+      "managed_repair": {
+        "repair_package_commit": "835edfcaac69701ba792471886af05712485afae",
+        "repair_basis_path": null,
+        "required_follow_on_stages": [
+          "project-skill-bootstrap"
         ],
-        "reason": "Restart surfaces are derived and must be regenerated whenever managed repair changes workflow state."
-      },
-      "canonical_project_decisions": {
-        "status": "stable",
-        "surfaces": [],
-        "reason": "Managed repair preserves accepted project-scope decisions. Intent-changing drift must route outside routine public repair."
+        "required_follow_on_stage_details": [
+          {
+            "stage": "project-skill-bootstrap",
+            "owner": "project-skill-bootstrap",
+            "category": "repo_local_skills",
+            "reason": "Repo-local skills still contain generic placeholder/model drift that must be regenerated with project-specific content."
+          }
+        ],
+        "blocking_reasons": [
+          "project-skill-bootstrap must still run: Repo-local skills still contain generic placeholder/model drift that must be regenerated with project-specific content.",
+          "Post-repair verification failed repair-contract consistency checks: placeholder_local_skills_survived_refresh."
+        ],
+        "repair_follow_on_outcome": "managed_blocked",
+        "handoff_allowed": false,
+        "verification_status": {
+          "performed": true,
+          "finding_count": 1,
+          "error_count": 0,
+          "warning_count": 1,
+          "codes": [
+            "SKILL001"
+          ],
+          "blocking_codes": [
+            "SKILL001"
+          ],
+          "source_follow_up_codes": [],
+          "process_state_codes": [],
+          "advisory_codes": [],
+          "pending_process_verification": true,
+          "verification_basis": "current_state_only",
+          "basis_requires_causal_replay": false,
+          "repair_basis_path": null,
+          "current_state_clean": false,
+          "causal_regression_verified": false,
+          "source_regression_summary": {
+            "comparison_available": false,
+            "pre_existing_codes": [],
+            "persistent_codes": [],
+            "resolved_codes": [],
+            "introduced_codes": [],
+            "introduced_critical_codes": []
+          },
+          "contract_failures": [
+            "placeholder_local_skills_survived_refresh"
+          ],
+          "contract_passed": false,
+          "verification_passed": false,
+          "supporting_logs": [],
+          "disposition_shadow_mode": {
+            "bundle_available": false,
+            "bundle_version": null,
+            "bundle_finding_count": null,
+            "delta_count": 0,
+            "deltas": []
+          }
+        },
+        "migration_stage": {
+          "stage": "legacy-contract-migration",
+          "state": "migrated",
+          "policy": "safe_auto_upgrade",
+          "required": true,
+          "migration_history_count": 0,
+          "from_process_version": 6,
+          "workflow_process_version": 6,
+          "repair_follow_on_process_version": 6,
+          "target_process_version": 7,
+          "compatibility_shim_scope": "package-internal",
+          "compatibility_shim_temporary": true,
+          "reasons": [],
+          "summary": "Recent legacy repo can auto-upgrade safely through the dedicated migration stage.",
+          "migration_id": "2026-04-06T15:53:03Z",
+          "repair_id": "2026-04-06T15:53:04Z",
+          "migrated_at": "2026-04-06T15:53:05Z",
+          "migration_history_recorded": true,
+          "repair_follow_on_outcome": "managed_blocked",
+          "handoff_allowed": false,
+          "verification_passed": false,
+          "current_state_clean": false,
+          "causal_regression_verified": false
+        },
+        "stale_surface_map": {
+          "workflow_tools_and_prompts": {
+            "status": "replace",
+            "surfaces": [
+              ".opencode/commands",
+              ".opencode/lib",
+              ".opencode/plugins",
+              ".opencode/tools",
+              "docs/process/git-capability.md",
+              "docs/process/model-matrix.md",
+              "docs/process/tooling.md",
+              "docs/process/workflow.md",
+              "opencode.jsonc"
+            ],
+            "reason": "Managed workflow tools, prompts, and process docs were refreshed or still show workflow drift."
+          },
+          "repo_local_skills": {
+            "status": "regenerate",
+            "surfaces": [
+              "scaffold-managed .opencode/skills"
+            ],
+            "reason": "Repo-local skills need regeneration when scaffold-managed skills were replaced or placeholder/model drift remains.",
+            "finding_codes": [
+              "SKILL001"
+            ]
+          },
+          "agent_team_and_prompts": {
+            "status": "stable",
+            "surfaces": [],
+            "reason": "Agent-team prompts stay stable unless drift remains after managed repair."
+          },
+          "ticket_graph_and_follow_up": {
+            "status": "stable",
+            "surfaces": [],
+            "reason": "Bare pending_process_verification remains workflow-state truth, but does not by itself force repair-side ticket follow-up."
+          },
+          "restart_surfaces": {
+            "status": "replace",
+            "surfaces": [
+              ".opencode/state/context-snapshot.md",
+              ".opencode/state/latest-handoff.md",
+              "START-HERE.md managed block"
+            ],
+            "reason": "Restart surfaces are derived and must be regenerated whenever managed repair changes workflow state."
+          },
+          "canonical_project_decisions": {
+            "status": "stable",
+            "surfaces": [],
+            "reason": "Managed repair preserves accepted project-scope decisions. Intent-changing drift must route outside routine public repair."
+          }
+        },
+        "ticket_recommendations": [
+          {
+            "id": "REMED-001",
+            "title": "One or more repo-local skills still contain generic placeholder text instead of project-specific guidance",
+            "description": "Remediate SKILL001 by correcting the validated issue and rerunning the relevant quality checks.",
+            "affected_files": [
+              ".opencode/skills/stack-standards/SKILL.md"
+            ],
+            "suggested_fix_approach": "Populate every baseline local skill with concrete repo-specific rules and validation commands; generated `.opencode/skills/` files must not retain template filler.",
+            "assignee": "implementer",
+            "source_finding_code": "SKILL001",
+            "source_finding_codes": [
+              "SKILL001"
+            ],
+            "severity": "warning",
+            "route": "scafforge-repair",
+            "repair_class": "safe Scafforge package change",
+            "summary": "Populate every baseline local skill with concrete repo-specific rules and validation commands; generated `.opencode/skills/` files must not retain template filler.",
+            "source_files": [
+              ".opencode/skills/stack-standards/SKILL.md"
+            ]
+          }
+        ]
       }
     },
-    "ticket_recommendations": [
-      {
-        "id": "REMED-001",
-        "title": "One or more Python packages fail to import \u2014 the service cannot start",
-        "source_finding_code": "EXEC001",
-        "severity": "error",
-        "route": "ticket-pack-builder",
-        "repair_class": "generated-repo remediation ticket",
-        "summary": "Verify every import succeeds: `python -c 'from src.<pkg>.main import app'`. Use string annotations (`-> \"TypeName\"`) for TYPE_CHECKING-only imports. Use `request: Request` (not `app: FastAPI`) in FastAPI dependency functions.",
-        "source_files": [
-          "src"
+    {
+      "scenario": "too-old-escalation",
+      "probe_root": "/tmp/scafforge-gpttalker-validation-too-old-escalation-twuci94o/restart-surface-drift-after-repair",
+      "audit": {
+        "finding_count": 1,
+        "codes": [
+          "WFLOW010"
+        ],
+        "findings": [
+          {
+            "code": "WFLOW010",
+            "severity": "error",
+            "problem": "Derived restart surfaces disagree with canonical workflow state, so resume guidance can route work from stale or contradictory facts.",
+            "root_cause": "`START-HERE.md`, `.opencode/state/context-snapshot.md`, and `.opencode/state/latest-handoff.md` are not being regenerated from `tickets/manifest.json`, `.opencode/state/workflow-state.json`, and `.opencode/meta/pivot-state.json` after workflow mutations or managed repair, leaving bootstrap, repair-follow-on, pivot, verification, lane-lease, or active-ticket state stale.",
+            "files": [
+              "tickets/manifest.json",
+              ".opencode/state/workflow-state.json",
+              ".opencode/meta/pivot-state.json",
+              "START-HERE.md",
+              ".opencode/state/context-snapshot.md",
+              ".opencode/state/latest-handoff.md"
+            ],
+            "safer_pattern": "Regenerate `START-HERE.md`, `.opencode/state/context-snapshot.md`, and `.opencode/state/latest-handoff.md` from canonical manifest, workflow state, and pivot state after every workflow save, compute handoff readiness from bootstrap plus repair-follow-on plus verification state in one shared contract, and fail repair verification if any derived restart surface drifts.",
+            "evidence": [
+              "START-HERE.md status drift: expected 'todo' from canonical state, found 'ready'.",
+              "START-HERE.md handoff_status drift: expected 'bootstrap recovery required' from canonical state, found 'ready for continued development'.",
+              "START-HERE.md bootstrap_status drift: expected 'failed' from canonical state, found 'ready'.",
+              "START-HERE.md bootstrap_proof drift: expected '.opencode/state/bootstrap/synthetic-bootstrap-proof.md' from canonical state, found None.",
+              "START-HERE.md pivot_in_progress drift: expected 'false' from canonical state, found None.",
+              "START-HERE.md post_pivot_verification_passed drift: expected 'false' from canonical state, found None.",
+              "START-HERE.md repair_follow_on_outcome drift: expected 'clean' from canonical state, found None.",
+              "START-HERE.md repair_follow_on_required drift: expected 'false' from canonical state, found None.",
+              "START-HERE.md repair_follow_on_verification_passed drift: expected 'true' from canonical state, found None.",
+              ".opencode/state/context-snapshot.md status drift: expected 'todo' from canonical state, found 'ready'."
+            ],
+            "provenance": "script",
+            "remediation_action": null,
+            "remediation_target": null,
+            "is_user_action": false
+          }
         ]
       },
-      {
-        "id": "REMED-002",
-        "title": "Git identity is not configured for this host, but the repo's tests or workflow expect commit-producing validation",
-        "source_finding_code": "ENV003",
-        "severity": "warning",
-        "route": "manual-prerequisite",
-        "repair_class": "host prerequisite or operator follow-up",
-        "summary": "Configure git identity on the host used for audit or repair, or mark the affected verification as blocked by environment rather than as a clean or source-level result.",
-        "source_files": [
-          "tests/node_agent/test_executor.py"
-        ]
+      "migration": {
+        "before": {
+          "provenance_process_version": 5,
+          "migration_history_count": 0,
+          "repair_history_count": 0,
+          "workflow_process_version": 5,
+          "repair_follow_on_process_version": 5
+        },
+        "after": {
+          "provenance_process_version": 5,
+          "workflow_process_version": 5,
+          "repair_follow_on_process_version": 5,
+          "migration_history_count": 0,
+          "repair_history_count": 0,
+          "migration_history_latest": null,
+          "repair_history_latest": null,
+          "restart_truth": {
+            "start_here_process_version_7": true,
+            "start_here_pending_process_verification": false,
+            "context_process_version_7": true,
+            "context_pending_process_verification": false,
+            "latest_handoff_process_version_7": true,
+            "latest_handoff_pending_process_verification": false
+          }
+        },
+        "stage": {
+          "stage": "legacy-contract-migration",
+          "state": "blocked",
+          "policy": "too_old",
+          "required": false,
+          "migration_history_count": 0,
+          "from_process_version": 5,
+          "workflow_process_version": 5,
+          "repair_follow_on_process_version": 5,
+          "target_process_version": 7,
+          "compatibility_shim_scope": "package-internal",
+          "compatibility_shim_temporary": true,
+          "reasons": [
+            "process_version 5 is too old for the safe migration window (minimum supported legacy version is 6)."
+          ],
+          "summary": "process_version 5 is too old for the safe migration window (minimum supported legacy version is 6).",
+          "migration_id": null
+        },
+        "repair_escalation": {
+          "escalated_at": "2026-04-06T15:53:06Z",
+          "change_summary": "Managed Scafforge repair runner refreshed deterministic workflow surfaces and evaluated downstream repair obligations.",
+          "attempted_operation": "legacy-contract-migration",
+          "status": "approval_required",
+          "reasons": [
+            "process_version 5 is too old for the safe migration window (minimum supported legacy version is 6)."
+          ],
+          "migration_stage": {
+            "stage": "legacy-contract-migration",
+            "state": "blocked",
+            "policy": "too_old",
+            "required": false,
+            "migration_history_count": 0,
+            "from_process_version": 5,
+            "workflow_process_version": 5,
+            "repair_follow_on_process_version": 5,
+            "target_process_version": 7,
+            "compatibility_shim_scope": "package-internal",
+            "compatibility_shim_temporary": true,
+            "reasons": [
+              "process_version 5 is too old for the safe migration window (minimum supported legacy version is 6)."
+            ],
+            "summary": "process_version 5 is too old for the safe migration window (minimum supported legacy version is 6).",
+            "migration_id": null
+          },
+          "diff_summary": {
+            "files_added": [],
+            "files_removed": [],
+            "files_modified": []
+          }
+        }
       },
-      {
-        "id": "REMED-003",
-        "title": "One or more repo-local skills still contain generic placeholder text instead of project-specific guidance",
-        "source_finding_code": "SKILL001",
-        "severity": "warning",
-        "route": "scafforge-repair",
-        "repair_class": "safe Scafforge package change",
-        "summary": "Populate every baseline local skill with concrete repo-specific rules and validation commands; generated `.opencode/skills/` files must not retain template filler.",
-        "source_files": [
-          ".opencode/skills/stack-standards/SKILL.md"
-        ]
+      "managed_repair": {
+        "repair_package_commit": "835edfcaac69701ba792471886af05712485afae",
+        "repair_basis_path": null,
+        "required_follow_on_stages": [],
+        "required_follow_on_stage_details": [],
+        "blocking_reasons": [
+          "Legacy contract migration requires operator approval before an unsafe or structurally inconsistent repo can be mutated."
+        ],
+        "repair_follow_on_outcome": "managed_blocked",
+        "handoff_allowed": false,
+        "verification_status": {
+          "repair_basis_path": null,
+          "supporting_logs": []
+        },
+        "migration_stage": {
+          "stage": "legacy-contract-migration",
+          "state": "blocked",
+          "policy": "too_old",
+          "required": false,
+          "migration_history_count": 0,
+          "from_process_version": 5,
+          "workflow_process_version": 5,
+          "repair_follow_on_process_version": 5,
+          "target_process_version": 7,
+          "compatibility_shim_scope": "package-internal",
+          "compatibility_shim_temporary": true,
+          "reasons": [
+            "process_version 5 is too old for the safe migration window (minimum supported legacy version is 6)."
+          ],
+          "summary": "process_version 5 is too old for the safe migration window (minimum supported legacy version is 6).",
+          "migration_id": null
+        },
+        "stale_surface_map": {},
+        "ticket_recommendations": []
       }
-    ]
-  }
+    },
+    {
+      "scenario": "structural-mismatch-escalation",
+      "probe_root": "/tmp/scafforge-gpttalker-validation-structural-mismatch-escalation-11h1rk6l/restart-surface-drift-after-repair",
+      "audit": {
+        "finding_count": 1,
+        "codes": [
+          "WFLOW010"
+        ],
+        "findings": [
+          {
+            "code": "WFLOW010",
+            "severity": "error",
+            "problem": "Derived restart surfaces disagree with canonical workflow state, so resume guidance can route work from stale or contradictory facts.",
+            "root_cause": "`START-HERE.md`, `.opencode/state/context-snapshot.md`, and `.opencode/state/latest-handoff.md` are not being regenerated from `tickets/manifest.json`, `.opencode/state/workflow-state.json`, and `.opencode/meta/pivot-state.json` after workflow mutations or managed repair, leaving bootstrap, repair-follow-on, pivot, verification, lane-lease, or active-ticket state stale.",
+            "files": [
+              "tickets/manifest.json",
+              ".opencode/state/workflow-state.json",
+              ".opencode/meta/pivot-state.json",
+              "START-HERE.md",
+              ".opencode/state/context-snapshot.md",
+              ".opencode/state/latest-handoff.md"
+            ],
+            "safer_pattern": "Regenerate `START-HERE.md`, `.opencode/state/context-snapshot.md`, and `.opencode/state/latest-handoff.md` from canonical manifest, workflow state, and pivot state after every workflow save, compute handoff readiness from bootstrap plus repair-follow-on plus verification state in one shared contract, and fail repair verification if any derived restart surface drifts.",
+            "evidence": [
+              "START-HERE.md status drift: expected 'todo' from canonical state, found 'ready'.",
+              "START-HERE.md handoff_status drift: expected 'bootstrap recovery required' from canonical state, found 'ready for continued development'.",
+              "START-HERE.md bootstrap_status drift: expected 'failed' from canonical state, found 'ready'.",
+              "START-HERE.md bootstrap_proof drift: expected '.opencode/state/bootstrap/synthetic-bootstrap-proof.md' from canonical state, found None.",
+              "START-HERE.md pivot_in_progress drift: expected 'false' from canonical state, found None.",
+              "START-HERE.md post_pivot_verification_passed drift: expected 'false' from canonical state, found None.",
+              "START-HERE.md repair_follow_on_outcome drift: expected 'clean' from canonical state, found None.",
+              "START-HERE.md repair_follow_on_required drift: expected 'false' from canonical state, found None.",
+              "START-HERE.md repair_follow_on_verification_passed drift: expected 'true' from canonical state, found None.",
+              ".opencode/state/context-snapshot.md status drift: expected 'todo' from canonical state, found 'ready'."
+            ],
+            "provenance": "script",
+            "remediation_action": null,
+            "remediation_target": null,
+            "is_user_action": false
+          }
+        ]
+      },
+      "migration": {
+        "before": {
+          "provenance_process_version": 6,
+          "migration_history_count": 0,
+          "repair_history_count": 0,
+          "workflow_process_version": 6,
+          "repair_follow_on_process_version": 5
+        },
+        "after": {
+          "provenance_process_version": 6,
+          "workflow_process_version": 6,
+          "repair_follow_on_process_version": 5,
+          "migration_history_count": 0,
+          "repair_history_count": 0,
+          "migration_history_latest": null,
+          "repair_history_latest": null,
+          "restart_truth": {
+            "start_here_process_version_7": true,
+            "start_here_pending_process_verification": false,
+            "context_process_version_7": true,
+            "context_pending_process_verification": false,
+            "latest_handoff_process_version_7": true,
+            "latest_handoff_pending_process_verification": false
+          }
+        },
+        "stage": {
+          "stage": "legacy-contract-migration",
+          "state": "blocked",
+          "policy": "structurally_unsafe",
+          "required": false,
+          "migration_history_count": 0,
+          "from_process_version": 6,
+          "workflow_process_version": 6,
+          "repair_follow_on_process_version": 5,
+          "target_process_version": 7,
+          "compatibility_shim_scope": "package-internal",
+          "compatibility_shim_temporary": true,
+          "reasons": [
+            "workflow state and repair_follow_on disagree on process_version"
+          ],
+          "summary": "workflow state and repair_follow_on disagree on process_version",
+          "migration_id": null
+        },
+        "repair_escalation": {
+          "escalated_at": "2026-04-06T15:53:07Z",
+          "change_summary": "Managed Scafforge repair runner refreshed deterministic workflow surfaces and evaluated downstream repair obligations.",
+          "attempted_operation": "legacy-contract-migration",
+          "status": "approval_required",
+          "reasons": [
+            "workflow state and repair_follow_on disagree on process_version"
+          ],
+          "migration_stage": {
+            "stage": "legacy-contract-migration",
+            "state": "blocked",
+            "policy": "structurally_unsafe",
+            "required": false,
+            "migration_history_count": 0,
+            "from_process_version": 6,
+            "workflow_process_version": 6,
+            "repair_follow_on_process_version": 5,
+            "target_process_version": 7,
+            "compatibility_shim_scope": "package-internal",
+            "compatibility_shim_temporary": true,
+            "reasons": [
+              "workflow state and repair_follow_on disagree on process_version"
+            ],
+            "summary": "workflow state and repair_follow_on disagree on process_version",
+            "migration_id": null
+          },
+          "diff_summary": {
+            "files_added": [],
+            "files_removed": [],
+            "files_modified": []
+          }
+        }
+      },
+      "managed_repair": {
+        "repair_package_commit": "835edfcaac69701ba792471886af05712485afae",
+        "repair_basis_path": null,
+        "required_follow_on_stages": [],
+        "required_follow_on_stage_details": [],
+        "blocking_reasons": [
+          "Legacy contract migration requires operator approval before an unsafe or structurally inconsistent repo can be mutated."
+        ],
+        "repair_follow_on_outcome": "managed_blocked",
+        "handoff_allowed": false,
+        "verification_status": {
+          "repair_basis_path": null,
+          "supporting_logs": []
+        },
+        "migration_stage": {
+          "stage": "legacy-contract-migration",
+          "state": "blocked",
+          "policy": "structurally_unsafe",
+          "required": false,
+          "migration_history_count": 0,
+          "from_process_version": 6,
+          "workflow_process_version": 6,
+          "repair_follow_on_process_version": 5,
+          "target_process_version": 7,
+          "compatibility_shim_scope": "package-internal",
+          "compatibility_shim_temporary": true,
+          "reasons": [
+            "workflow state and repair_follow_on disagree on process_version"
+          ],
+          "summary": "workflow state and repair_follow_on disagree on process_version",
+          "migration_id": null
+        },
+        "stale_surface_map": {},
+        "ticket_recommendations": []
+      }
+    }
+  ]
 }

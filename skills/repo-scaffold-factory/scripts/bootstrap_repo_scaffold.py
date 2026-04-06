@@ -315,6 +315,7 @@ def write_bootstrap_provenance(
                 ".opencode/state/handoffs",
             ],
         },
+        "migration_history": [],
         "repair_history": [],
     }
 

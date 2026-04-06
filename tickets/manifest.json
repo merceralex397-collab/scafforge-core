@@ -2,7 +2,7 @@
   "version": 3,
   "project": "Scafforge",
   "tracking_mode": "package-backlog",
-  "current_focus_ticket": "LEG-001",
+  "current_focus_ticket": "PROOF-001",
   "tickets": [
     {
       "id": "SETUP-001",
@@ -550,10 +550,10 @@
       "lane": "legacy-migration",
       "parallel_safe": false,
       "overlap_risk": "high",
-      "stage": "planning",
-      "status": "todo",
-      "resolution_state": "open",
-      "verification_state": "suspect",
+      "stage": "complete",
+      "status": "done",
+      "resolution_state": "completed",
+      "verification_state": "verified",
       "depends_on": [
         "ARCH-001",
         "REPAIR-001"
@@ -568,7 +568,16 @@
         "Any package-internal compatibility shim remains bounded and does not leak into generated output behavior"
       ],
       "decision_blockers": [],
-      "artifacts": []
+      "artifacts": [
+        {
+          "kind": "implementation",
+          "path": "reports/gpttalker-validation/latest.md",
+          "stage": "implementation",
+          "summary": "Legacy migration stage implementation passed validation.",
+          "created_at": "2026-04-06T15:09:08.636587+00:00",
+          "trust_state": "current"
+        }
+      ]
     },
     {
       "id": "LEG-002",
@@ -577,10 +586,10 @@
       "lane": "migration-proof",
       "parallel_safe": true,
       "overlap_risk": "medium",
-      "stage": "planning",
-      "status": "todo",
-      "resolution_state": "open",
-      "verification_state": "suspect",
+      "stage": "complete",
+      "status": "done",
+      "resolution_state": "completed",
+      "verification_state": "verified",
       "depends_on": [
         "LEG-001"
       ],
@@ -594,7 +603,16 @@
         "The package can distinguish a migrated repo from an untouched legacy repo during later repair runs"
       ],
       "decision_blockers": [],
-      "artifacts": []
+      "artifacts": [
+        {
+          "kind": "qa",
+          "path": "reports/gpttalker-validation/latest.md",
+          "stage": "qa",
+          "summary": "Legacy migration proof passed validation across safe-upgrade and fail-closed escalation scenarios.",
+          "created_at": "2026-04-06T15:09:08.636587+00:00",
+          "trust_state": "current"
+        }
+      ]
     },
     {
       "id": "PROOF-001",

@@ -1,33 +1,102 @@
 # GPTTalker Migration Validation
 
-- generated_at: `2026-03-31T03:54:00.139516+00:00`
-- source_repo_path: `/home/rowan/GPTTalker`
+- generated_at: `2026-04-06T15:53:07.073629+00:00`
+- source_repo_path: `/tmp/scafforge-gpttalker-fixture-6jflp25o/restart-surface-drift-after-repair`
 
 ## Source Repo State
 
 ```text
-## main...origin/main
+git status unavailable for /tmp/scafforge-gpttalker-fixture-6jflp25o/restart-surface-drift-after-repair: fatal: not a git repository (or any of the parent directories): .git
 ```
 
-## Audit Findings
+## Scenario: control
 
-- finding_count: `2`
-- codes: `ENV003, EXEC001`
-
-## Managed Repair Outcome
-
+- migration_policy: `current`
+- migration_state: `current`
 - repair_follow_on_outcome: `managed_blocked`
 - handoff_allowed: `False`
-- required_follow_on_stages: `project-skill-bootstrap, ticket-pack-builder`
+- migration_history_count_before: `0`
+- migration_history_count_after: `0`
+- repair_history_count_before: `0`
+- repair_history_count_after: `1`
+- provenance_process_version_after: `7`
+- workflow_process_version_after: `7`
+- pending_process_verification_after: `True`
+- restart_surface_truth: `start_here_process_version_7=True, start_here_pending_process_verification=True, context_process_version_7=True, context_pending_process_verification=True, latest_handoff_process_version_7=True, latest_handoff_pending_process_verification=True`
+- audit_codes: `WFLOW010, WFLOW008`
 
-## Blocking Reasons
-
-- project-skill-bootstrap must still run: Repo-local skills were replaced or still contain generic placeholder/model drift that must be regenerated with project-specific content.
-- ticket-pack-builder must still run: Repair left remediation or reverification follow-up that must be routed into the repo ticket system.
+### Blocking Reasons
+- project-skill-bootstrap must still run: Repo-local skills still contain generic placeholder/model drift that must be regenerated with project-specific content.
 - Post-repair verification failed repair-contract consistency checks: placeholder_local_skills_survived_refresh.
+
+## Scenario: safe-legacy-upgrade
+
+- migration_policy: `safe_auto_upgrade`
+- migration_state: `migrated`
+- repair_follow_on_outcome: `managed_blocked`
+- handoff_allowed: `False`
+- migration_history_count_before: `0`
+- migration_history_count_after: `1`
+- repair_history_count_before: `0`
+- repair_history_count_after: `1`
+- provenance_process_version_after: `7`
+- workflow_process_version_after: `7`
+- pending_process_verification_after: `True`
+- restart_surface_truth: `start_here_process_version_7=True, start_here_pending_process_verification=True, context_process_version_7=True, context_pending_process_verification=True, latest_handoff_process_version_7=True, latest_handoff_pending_process_verification=True`
+- audit_codes: `WFLOW010`
+
+### Blocking Reasons
+- project-skill-bootstrap must still run: Repo-local skills still contain generic placeholder/model drift that must be regenerated with project-specific content.
+- Post-repair verification failed repair-contract consistency checks: placeholder_local_skills_survived_refresh.
+
+## Scenario: too-old-escalation
+
+- migration_policy: `too_old`
+- migration_state: `blocked`
+- repair_follow_on_outcome: `managed_blocked`
+- handoff_allowed: `False`
+- migration_history_count_before: `0`
+- migration_history_count_after: `0`
+- repair_history_count_before: `0`
+- repair_history_count_after: `0`
+- provenance_process_version_after: `5`
+- workflow_process_version_after: `5`
+- pending_process_verification_after: `False`
+- restart_surface_truth: `start_here_process_version_7=True, start_here_pending_process_verification=False, context_process_version_7=True, context_pending_process_verification=False, latest_handoff_process_version_7=True, latest_handoff_pending_process_verification=False`
+- audit_codes: `WFLOW010`
+
+### Blocking Reasons
+- Legacy contract migration requires operator approval before an unsafe or structurally inconsistent repo can be mutated.
+
+### Escalation
+- attempted_operation: `legacy-contract-migration`
+- process_version 5 is too old for the safe migration window (minimum supported legacy version is 6).
+
+## Scenario: structural-mismatch-escalation
+
+- migration_policy: `structurally_unsafe`
+- migration_state: `blocked`
+- repair_follow_on_outcome: `managed_blocked`
+- handoff_allowed: `False`
+- migration_history_count_before: `0`
+- migration_history_count_after: `0`
+- repair_history_count_before: `0`
+- repair_history_count_after: `0`
+- provenance_process_version_after: `6`
+- workflow_process_version_after: `6`
+- pending_process_verification_after: `False`
+- restart_surface_truth: `start_here_process_version_7=True, start_here_pending_process_verification=False, context_process_version_7=True, context_pending_process_verification=False, latest_handoff_process_version_7=True, latest_handoff_pending_process_verification=False`
+- audit_codes: `WFLOW010`
+
+### Blocking Reasons
+- Legacy contract migration requires operator approval before an unsafe or structurally inconsistent repo can be mutated.
+
+### Escalation
+- attempted_operation: `legacy-contract-migration`
+- workflow state and repair_follow_on disagree on process_version
 
 ## Interpretation
 
-- The live GPTTalker repo does not validate cleanly yet.
-- The current Scafforge package does route the repo into bounded, explicit follow-on instead of a silent deadlock.
-- The remaining blockers are truthful and actionable: repo-local skill regeneration, ticket follow-up for live EXEC failures, and host git identity.
+- Control and safe-legacy scenarios validate the current migration path and the upgrade proof trail.
+- Blocked scenarios demonstrate that too-old or structurally inconsistent legacy repos fail closed before ordinary repair mutation.
+- Safe upgrades record migration history separately from repair history so later repair runs can distinguish migrated repos from untouched legacy ones.

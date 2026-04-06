@@ -13,10 +13,12 @@ from apply_repo_process_repair import (
     FOLLOW_ON_TRACKING_PATH,
     REPAIR_ESCALATION_PATH,
     RepairEscalation,
+    append_migration_history,
     apply_repair,
     build_stale_surface_map,
     detect_agent_prompt_drift,
     find_placeholder_skills,
+    current_iso_timestamp,
     load_metadata,
     load_pending_process_verification,
     repair_basis_requires_causal_replay,
@@ -49,6 +51,10 @@ from regenerate_restart_surfaces import regenerate_restart_surfaces
 
 
 EXECUTION_RECORD_PATH = Path(".opencode/meta/repair-execution.json")
+CURRENT_PROCESS_VERSION = 7
+RECENT_LEGACY_PROCESS_VERSION = 6
+LEGACY_MIGRATION_STAGE = "legacy-contract-migration"
+LEGACY_COMPATIBILITY_SHIM_SCOPE = "package-internal"
 
 
 def _repair_ticket_graph_contradictions(repo_root: Path) -> list[str]:
@@ -111,6 +117,103 @@ def _repair_ticket_graph_contradictions(repo_root: Path) -> list[str]:
     if changes:
         manifest_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
     return changes
+
+
+def read_json_file(path: Path) -> Any:
+    if not path.exists():
+        return None
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def normalize_optional_process_version(value: Any) -> int | None:
+    return value if isinstance(value, int) and value > 0 else None
+
+
+def classify_legacy_migration(repo_root: Path) -> dict[str, Any]:
+    provenance = read_json_file(repo_root / ".opencode" / "meta" / "bootstrap-provenance.json")
+    workflow = read_json_file(repo_root / ".opencode" / "state" / "workflow-state.json")
+    workflow_contract = provenance.get("workflow_contract") if isinstance(provenance, dict) and isinstance(provenance.get("workflow_contract"), dict) else {}
+    repair_follow_on = workflow.get("repair_follow_on") if isinstance(workflow, dict) and isinstance(workflow.get("repair_follow_on"), dict) else {}
+
+    provenance_version = normalize_optional_process_version(workflow_contract.get("process_version"))
+    workflow_version = normalize_optional_process_version(workflow.get("process_version"))
+    repair_follow_on_version = normalize_optional_process_version(repair_follow_on.get("process_version"))
+    migration_history = provenance.get("migration_history") if isinstance(provenance, dict) and isinstance(provenance.get("migration_history"), list) else []
+    migration_history_count = len(migration_history)
+
+    reasons: list[str] = []
+    if not isinstance(provenance, dict):
+        reasons.append("bootstrap provenance is missing or malformed")
+    if not isinstance(workflow, dict):
+        reasons.append("workflow state is missing or malformed")
+    if provenance_version is None:
+        reasons.append("bootstrap provenance is missing workflow_contract.process_version")
+    if workflow_version is None:
+        reasons.append("workflow state is missing process_version")
+    if repair_follow_on_version is None:
+        reasons.append("workflow state is missing repair_follow_on.process_version")
+    if provenance_version is not None and workflow_version is not None and provenance_version != workflow_version:
+        reasons.append("workflow state and bootstrap provenance disagree on process_version")
+    if workflow_version is not None and repair_follow_on_version is not None and workflow_version != repair_follow_on_version:
+        reasons.append("workflow state and repair_follow_on disagree on process_version")
+    if migration_history_count > 0 and provenance_version is not None and provenance_version < CURRENT_PROCESS_VERSION:
+        reasons.append("migration history exists even though the repo still reports a legacy process version")
+
+    policy: str
+    state: str
+    required = False
+    if reasons:
+        policy = (
+            "future_version"
+            if provenance_version is not None and provenance_version > CURRENT_PROCESS_VERSION
+            else "too_old"
+            if provenance_version is not None and provenance_version < RECENT_LEGACY_PROCESS_VERSION
+            else "structurally_unsafe"
+        )
+        state = "blocked"
+    elif provenance_version == CURRENT_PROCESS_VERSION:
+        policy = "current"
+        state = "migrated" if migration_history_count > 0 else "current"
+    elif provenance_version == RECENT_LEGACY_PROCESS_VERSION:
+        policy = "safe_auto_upgrade"
+        state = "ready"
+        required = True
+    elif provenance_version is not None and provenance_version < RECENT_LEGACY_PROCESS_VERSION:
+        policy = "too_old"
+        state = "blocked"
+        reasons.append(
+            f"process_version {provenance_version} is too old for the safe migration window (minimum supported legacy version is {RECENT_LEGACY_PROCESS_VERSION})."
+        )
+    else:
+        policy = "structurally_unsafe"
+        state = "blocked"
+
+    summary = (
+        "Repo already uses the current process contract."
+        if state == "current"
+        else "Repo already carries a recorded migration history."
+        if state == "migrated"
+        else "Recent legacy repo can auto-upgrade safely through the dedicated migration stage."
+        if state == "ready"
+        else "; ".join(reasons) if reasons else "Legacy contract migration is blocked."
+    )
+
+    return {
+        "stage": LEGACY_MIGRATION_STAGE,
+        "state": state,
+        "policy": policy,
+        "required": required,
+        "migration_history_count": migration_history_count,
+        "from_process_version": provenance_version,
+        "workflow_process_version": workflow_version,
+        "repair_follow_on_process_version": repair_follow_on_version,
+        "target_process_version": CURRENT_PROCESS_VERSION,
+        "compatibility_shim_scope": LEGACY_COMPATIBILITY_SHIM_SCOPE,
+        "compatibility_shim_temporary": True,
+        "reasons": reasons,
+        "summary": summary,
+        "migration_id": current_iso_timestamp() if required else None,
+    }
 
 
 def parse_args() -> argparse.Namespace:
@@ -519,9 +622,60 @@ def main() -> int:
     repo_root = Path(args.repo_root).expanduser().resolve()
     replaced_surfaces: list[str] = []
     repair_result: dict[str, Any] = {}
+    migration_stage: dict[str, Any] = {
+        "stage": LEGACY_MIGRATION_STAGE,
+        "state": "skipped" if args.skip_deterministic_refresh else "current",
+        "policy": "current",
+        "required": False,
+        "migration_history_count": 0,
+        "from_process_version": None,
+        "workflow_process_version": None,
+        "repair_follow_on_process_version": None,
+        "target_process_version": CURRENT_PROCESS_VERSION,
+        "compatibility_shim_scope": LEGACY_COMPATIBILITY_SHIM_SCOPE,
+        "compatibility_shim_temporary": True,
+        "reasons": [],
+        "summary": "Deterministic refresh was skipped; legacy migration did not run." if args.skip_deterministic_refresh else "Current process contract detected.",
+        "migration_id": None,
+    }
 
     if not args.skip_deterministic_refresh:
         metadata = load_metadata(repo_root, args)
+        migration_stage = classify_legacy_migration(repo_root)
+        if migration_stage["state"] == "blocked":
+            escalation_payload = {
+                "escalated_at": current_iso_timestamp(),
+                "change_summary": args.change_summary,
+                "attempted_operation": LEGACY_MIGRATION_STAGE,
+                "status": "approval_required",
+                "reasons": migration_stage["reasons"],
+                "migration_stage": migration_stage,
+                "diff_summary": {"files_added": [], "files_removed": [], "files_modified": []},
+            }
+            write_json(repo_root / REPAIR_ESCALATION_PATH, escalation_payload)
+            payload = {
+                "repair_plan": {
+                    "repo_root": str(repo_root),
+                    "replaced_surfaces": [],
+                    "stale_surface_map": {},
+                    "migration_stage": migration_stage,
+                },
+                "execution_record": {
+                    "repo_root": str(repo_root),
+                    "repair_package_commit": current_package_commit(),
+                    "repair_follow_on_outcome": "managed_blocked",
+                    "blocking_reasons": [
+                        "Legacy contract migration requires operator approval before an unsafe or structurally inconsistent repo can be mutated."
+                    ],
+                    "handoff_allowed": False,
+                    "repair_escalation_path": str(REPAIR_ESCALATION_PATH).replace("\\", "/"),
+                    "migration_stage": migration_stage,
+                },
+                "repair_escalation": escalation_payload,
+            }
+            write_json(repo_root / EXECUTION_RECORD_PATH, payload)
+            print(json.dumps(payload, indent=2))
+            return 2
         with tempfile.TemporaryDirectory(prefix="scafforge-repair-") as temp_dir:
             rendered_root = Path(temp_dir) / "rendered"
             run_bootstrap_render(rendered_root, metadata, args.stack_label)
@@ -538,6 +692,7 @@ def main() -> int:
                         "repo_root": str(repo_root),
                         "replaced_surfaces": [],
                         "stale_surface_map": {},
+                        "migration_stage": migration_stage,
                     },
                     "execution_record": {
                         "repo_root": str(repo_root),
@@ -548,6 +703,7 @@ def main() -> int:
                         ],
                         "handoff_allowed": False,
                         "repair_escalation_path": str(REPAIR_ESCALATION_PATH).replace("\\", "/"),
+                        "migration_stage": migration_stage,
                     },
                     "repair_escalation": exc.payload,
                 }
@@ -797,6 +953,37 @@ def main() -> int:
     published_logs = verification_logs(repo_root, args.supporting_log, repair_basis)
     verification_status["supporting_logs"] = [str(path) for path in published_logs]
 
+    migration_stage_record = migration_stage
+    if not args.skip_deterministic_refresh and migration_stage["state"] == "ready":
+        migration_stage_record = {
+            **migration_stage,
+            "state": "migrated",
+            "repair_id": repair_result["repair_id"],
+            "migrated_at": current_iso_timestamp(),
+            "migration_history_recorded": True,
+            "repair_follow_on_outcome": repair_follow_on_outcome,
+            "handoff_allowed": handoff_allowed,
+            "verification_passed": verification_status["verification_passed"],
+            "current_state_clean": verification_status["current_state_clean"],
+            "causal_regression_verified": verification_status["causal_regression_verified"],
+        }
+        append_migration_history(
+            repo_root,
+            {
+                **migration_stage_record,
+                "migration_id": migration_stage["migration_id"],
+                "repair_id": repair_result["repair_id"],
+                "migrated_at": migration_stage_record["migrated_at"],
+                "migration_history_recorded": True,
+                "repair_follow_on_outcome": repair_follow_on_outcome,
+                "handoff_allowed": handoff_allowed,
+                "verification_passed": verification_status["verification_passed"],
+                "verification_summary": verification_status,
+                "process_version_before": migration_stage["from_process_version"],
+                "process_version_after": migration_stage["target_process_version"],
+            },
+        )
+
     if not args.skip_verify:
         diagnosis_dir = select_diagnosis_destination(repo_root, args.diagnosis_output_dir, findings)
         diagnosis_pack = emit_diagnosis_pack(
@@ -834,6 +1021,7 @@ def main() -> int:
                 "verification_passed": verification_status["verification_passed"],
                 "verification_findings": verification_status["codes"],
                 "verification_summary": verification_status,
+                "migration_stage": migration_stage_record,
                 "remediation_ticket_ids": (
                     remediation_follow_up.get("created_tickets", []) if isinstance(remediation_follow_up, dict) else []
                 ),
@@ -848,11 +1036,14 @@ def main() -> int:
             "diff_summary": repair_result.get("diff_summary", {}) if not args.skip_deterministic_refresh else {},
             "backup_path": repair_result.get("backup_path") if not args.skip_deterministic_refresh else None,
             "stale_surface_map": stale_surface_map,
+            "migration_stage": migration_stage_record,
+            "repair_id": repair_result.get("repair_id") if not args.skip_deterministic_refresh else None,
         },
         "stage_results": executed_stages + recorded_stage_results + deferred_stages + skipped_stages,
         "execution_record": {
             "repo_root": str(repo_root),
             "repair_package_commit": current_package_commit(),
+            "repair_id": repair_result.get("repair_id") if not args.skip_deterministic_refresh else None,
             "repair_basis_path": str(repair_basis_path) if repair_basis_path else None,
             "required_follow_on_stages": required_stage_names,
             "required_follow_on_stage_details": required_follow_on,
@@ -872,6 +1063,7 @@ def main() -> int:
             "skipped_stages": skipped_stages,
             "blocking_reasons": blocking_reasons,
             "repair_follow_on_outcome": repair_follow_on_outcome,
+            "migration_stage": migration_stage_record,
             "verification_status": verification_status,
             "disposition_shadow_mode": disposition_shadow_mode,
             "handoff_allowed": handoff_allowed,

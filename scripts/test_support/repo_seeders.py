@@ -435,6 +435,40 @@ def seed_historical_reconciliation_state(dest: Path) -> None:
     write_json(workflow_path, workflow)
 
 
+def seed_legacy_contract_state(
+    dest: Path,
+    *,
+    process_version: int,
+    repair_follow_on_process_version: int | None = None,
+) -> None:
+    provenance_path = dest / ".opencode" / "meta" / "bootstrap-provenance.json"
+    workflow_path = dest / ".opencode" / "state" / "workflow-state.json"
+    provenance = read_json(provenance_path)
+    workflow = read_json(workflow_path)
+    if not isinstance(provenance, dict):
+        raise RuntimeError("Cannot seed legacy process state without bootstrap provenance.")
+    if not isinstance(workflow, dict):
+        raise RuntimeError("Cannot seed legacy process state without workflow state.")
+
+    workflow_contract = provenance.setdefault("workflow_contract", {})
+    if not isinstance(workflow_contract, dict):
+        raise RuntimeError("Bootstrap provenance workflow_contract must be an object.")
+    workflow_contract["process_version"] = process_version
+    provenance["migration_history"] = []
+
+    workflow["process_version"] = process_version
+    workflow["process_last_change_summary"] = f"Legacy contract seeded at process_version {process_version}."
+    repair_follow_on = workflow.get("repair_follow_on")
+    if isinstance(repair_follow_on, dict):
+        repair_follow_on["process_version"] = (
+            repair_follow_on_process_version if repair_follow_on_process_version is not None else process_version
+        )
+    workflow["pending_process_verification"] = False
+
+    write_json(provenance_path, provenance)
+    write_json(workflow_path, workflow)
+
+
 def write_python_wrapper(path: Path, *, allow_pytest: bool) -> None:
     real_python = sys.executable
     path.parent.mkdir(parents=True, exist_ok=True)

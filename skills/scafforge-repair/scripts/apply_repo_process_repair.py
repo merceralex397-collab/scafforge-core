@@ -26,6 +26,13 @@ START_HERE_MANAGED_START = "<!-- SCAFFORGE:START_HERE_BLOCK START -->"
 START_HERE_MANAGED_END = "<!-- SCAFFORGE:START_HERE_BLOCK END -->"
 FOLLOW_ON_TRACKING_PATH = Path(".opencode/meta/repair-follow-on-state.json")
 REPAIR_ESCALATION_PATH = Path(".opencode/state/repair-escalation.json")
+TRANSACTION_STATE_SURFACES = (
+    Path(".opencode/state/workflow-state.json"),
+    FOLLOW_ON_TRACKING_PATH,
+    Path(".opencode/meta/bootstrap-provenance.json"),
+    Path(".opencode/state/context-snapshot.md"),
+    Path(".opencode/state/latest-handoff.md"),
+)
 DETERMINISTIC_PROCESS_DOCS = (
     "workflow.md",
     "tooling.md",
@@ -333,6 +340,18 @@ def update_latest_repair_history(repo_root: Path, repair_id: str, updates: dict[
             entry.update(updates)
             write_json(provenance_path, payload)
             return
+
+
+def append_migration_history(repo_root: Path, migration_entry: dict[str, Any]) -> None:
+    provenance_path = repo_root / ".opencode" / "meta" / "bootstrap-provenance.json"
+    payload = read_json(provenance_path)
+    if not isinstance(payload, dict):
+        return
+    history = payload.get("migration_history")
+    if not isinstance(history, list):
+        history = []
+    payload["migration_history"] = [*history, migration_entry]
+    write_json(provenance_path, payload)
 
 
 def merge_start_here(existing: str, rendered: str) -> str:
@@ -966,6 +985,8 @@ def update_provenance(
     existing = read_json(provenance_path)
     rendered = read_json(rendered_root / ".opencode" / "meta" / "bootstrap-provenance.json")
     payload = rendered if isinstance(rendered, dict) else {}
+    existing_migration_history = existing.get("migration_history") if isinstance(existing, dict) and isinstance(existing.get("migration_history"), list) else []
+    rendered_migration_history = rendered.get("migration_history") if isinstance(rendered, dict) and isinstance(rendered.get("migration_history"), list) else []
     history = existing.get("repair_history") if isinstance(existing, dict) and isinstance(existing.get("repair_history"), list) else []
     payload["repair_history"] = [
         *history,
@@ -993,6 +1014,7 @@ def update_provenance(
             ),
         },
     ]
+    payload["migration_history"] = existing_migration_history or rendered_migration_history
     write_json(provenance_path, payload)
 
 
@@ -1062,6 +1084,9 @@ def apply_repair(repo_root: Path, rendered_root: Path, change_summary: str, *, p
         replaced_surfaces.append("START-HERE.md managed block")
 
         (repo_root / ".opencode" / "state" / "bootstrap").mkdir(parents=True, exist_ok=True)
+
+        for relative in TRANSACTION_STATE_SURFACES:
+            processed_records.append(backup_target(repo_root / relative, backup_root, repo_root))
 
         update_workflow_state(repo_root, read_json(rendered_root / ".opencode" / "meta" / "bootstrap-provenance.json"), change_summary)
         process_version_after = None
