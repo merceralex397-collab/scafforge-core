@@ -1142,6 +1142,39 @@ def main() -> int:
     source_findings = [finding for finding in findings if finding.code.startswith("EXEC")]
     process_follow_up_findings = [finding for finding in findings if finding.code in {"WFLOW008", "WFLOW009"}]
     stale_surface_map = build_stale_surface_map(repo_root, replaced_surfaces, findings, pending_process_verification)
+    workflow_after = read_json(repo_root / ".opencode" / "state" / "workflow-state.json")
+    repair_follow_on_state = workflow_after.get("repair_follow_on") if isinstance(workflow_after, dict) and isinstance(workflow_after.get("repair_follow_on"), dict) else {}
+    repair_follow_on_outcome = str(repair_follow_on_state.get("outcome", "")).strip() or "managed_blocked"
+    handoff_allowed = repair_follow_on_state.get("handoff_allowed") is True
+    blocking_reasons = [
+        str(item).strip()
+        for item in repair_follow_on_state.get("blocking_reasons", [])
+        if isinstance(item, str) and str(item).strip()
+    ]
+    verification_basis = "transcript_backed" if logs else "current_state_only"
+    verification_status = {
+        "verification_passed": verification_passed,
+        "current_state_clean": not findings and not pending_process_verification,
+        "causal_regression_verified": verification_passed,
+        "verification_basis": verification_basis,
+        "codes": [finding.code for finding in findings],
+        "supporting_logs": [str(path) for path in logs],
+    }
+    provenance_path = repo_root / ".opencode" / "meta" / "bootstrap-provenance.json"
+    provenance = read_json(provenance_path)
+    if isinstance(provenance, dict):
+        repair_history = provenance.get("repair_history") if isinstance(provenance.get("repair_history"), list) else []
+        if repair_history and isinstance(repair_history[-1], dict):
+            repair_history[-1].update(
+                {
+                    "repair_follow_on_outcome": repair_follow_on_outcome,
+                    "handoff_allowed": handoff_allowed,
+                    "blocking_reasons": blocking_reasons,
+                    "verification_passed": verification_passed,
+                    "verification_summary": verification_status,
+                }
+            )
+            write_json(provenance_path, provenance)
     payload = {
         "repo_root": str(repo_root),
         "replaced_surfaces": replaced_surfaces,
@@ -1149,6 +1182,17 @@ def main() -> int:
         "backup_path": result["backup_path"],
         "repair_id": result["repair_id"],
         "stale_surface_map": stale_surface_map,
+        "execution_record": {
+            "repo_root": str(repo_root),
+            "repair_id": result["repair_id"],
+            "repair_follow_on_outcome": repair_follow_on_outcome,
+            "handoff_allowed": handoff_allowed,
+            "blocking_reasons": blocking_reasons,
+            "verification_status": verification_status,
+            "diff_summary": result["diff_summary"],
+            "backup_path": result["backup_path"],
+            "stale_surface_map": stale_surface_map,
+        },
         "verification": {
             "performed": not args.skip_verify,
             "finding_count": len(findings),
