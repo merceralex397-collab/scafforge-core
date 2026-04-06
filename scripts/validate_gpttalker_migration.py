@@ -9,20 +9,25 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable
 
+from test_support.gpttalker_fixture_builders import build_fixture_family
 from test_support.scafforge_harness import AUDIT, PUBLIC_REPAIR, ROOT, run_json
 from test_support.repo_seeders import seed_legacy_contract_state
 
 
-DEFAULT_SOURCE_REPO = Path("/home/rowan/GPTTalker")
+DEFAULT_FIXTURE_SLUG = "restart-surface-drift-after-repair"
 DEFAULT_OUTPUT_DIR = ROOT / "reports" / "gpttalker-validation"
 LEGACY_MIGRATION_STAGE = "legacy-contract-migration"
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Validate Scafforge migration behavior against the live GPTTalker repo using a disposable temp copy."
+        description="Validate Scafforge migration behavior against a disposable GPTTalker fixture or an explicit source repo."
     )
-    parser.add_argument("--source-repo", type=Path, default=DEFAULT_SOURCE_REPO, help="Path to the live GPTTalker repo.")
+    parser.add_argument(
+        "--source-repo",
+        type=Path,
+        help="Optional path to a GPTTalker-style source repo. Defaults to a freshly built curated fixture.",
+    )
     parser.add_argument(
         "--output-dir",
         type=Path,
@@ -165,6 +170,19 @@ def run_validation_cycle(
             "audit": audit_payload,
             "repair": repair_payload,
         }
+
+
+def resolve_source_repo(source_repo: Path | None) -> tuple[Path, tempfile.TemporaryDirectory[str] | None]:
+    if source_repo is not None:
+        resolved = source_repo.resolve()
+        if not resolved.exists():
+            raise RuntimeError(f"Source repo does not exist: {resolved}")
+        return resolved, None
+
+    fixture_workspace = tempfile.TemporaryDirectory(prefix="scafforge-gpttalker-fixture-")
+    fixture_root = Path(fixture_workspace.name) / DEFAULT_FIXTURE_SLUG
+    build_fixture_family(DEFAULT_FIXTURE_SLUG, fixture_root)
+    return fixture_root, fixture_workspace
 
 
 def validate_invariants(audit_payload: dict[str, Any], repair_payload: dict[str, Any]) -> list[str]:
@@ -426,46 +444,47 @@ def write_summary_report(output_dir: Path, summary: dict[str, Any]) -> None:
 
 def main() -> int:
     args = parse_args()
-    source_repo = args.source_repo.resolve()
-    if not source_repo.exists():
-        raise RuntimeError(f"Source repo does not exist: {source_repo}")
+    source_repo, fixture_workspace = resolve_source_repo(args.source_repo)
+    try:
+        control_result = run_validation_cycle(source_repo, "control")
+        safe_legacy_result = run_validation_cycle(
+            source_repo,
+            "safe-legacy-upgrade",
+            mutate=lambda repo_root: seed_legacy_contract_state(repo_root, process_version=6),
+        )
+        too_old_result = run_validation_cycle(
+            source_repo,
+            "too-old-escalation",
+            mutate=lambda repo_root: seed_legacy_contract_state(repo_root, process_version=5),
+            allow_returncodes={2},
+        )
+        structural_mismatch_result = run_validation_cycle(
+            source_repo,
+            "structural-mismatch-escalation",
+            mutate=lambda repo_root: seed_legacy_contract_state(
+                repo_root,
+                process_version=6,
+                repair_follow_on_process_version=5,
+            ),
+            allow_returncodes={2},
+        )
 
-    control_result = run_validation_cycle(source_repo, "control")
-    safe_legacy_result = run_validation_cycle(
-        source_repo,
-        "safe-legacy-upgrade",
-        mutate=lambda repo_root: seed_legacy_contract_state(repo_root, process_version=6),
-    )
-    too_old_result = run_validation_cycle(
-        source_repo,
-        "too-old-escalation",
-        mutate=lambda repo_root: seed_legacy_contract_state(repo_root, process_version=5),
-        allow_returncodes={2},
-    )
-    structural_mismatch_result = run_validation_cycle(
-        source_repo,
-        "structural-mismatch-escalation",
-        mutate=lambda repo_root: seed_legacy_contract_state(
-            repo_root,
-            process_version=6,
-            repair_follow_on_process_version=5,
-        ),
-        allow_returncodes={2},
-    )
+        issues: list[str] = []
+        issues.extend(validate_control_scenario(control_result))
+        issues.extend(validate_safe_upgrade_scenario(safe_legacy_result))
+        issues.extend(validate_blocked_scenario(too_old_result, expected_policy="too_old"))
+        issues.extend(validate_blocked_scenario(structural_mismatch_result, expected_policy="structurally_unsafe"))
+        if issues:
+            raise RuntimeError("GPTTalker migration validation invariants failed:\n- " + "\n- ".join(issues))
 
-    issues: list[str] = []
-    issues.extend(validate_control_scenario(control_result))
-    issues.extend(validate_safe_upgrade_scenario(safe_legacy_result))
-    issues.extend(validate_blocked_scenario(too_old_result, expected_policy="too_old"))
-    issues.extend(validate_blocked_scenario(structural_mismatch_result, expected_policy="structurally_unsafe"))
-    if issues:
-        raise RuntimeError("GPTTalker migration validation invariants failed:\n- " + "\n- ".join(issues))
-
-    summary = build_summary(source_repo, [control_result, safe_legacy_result, too_old_result, structural_mismatch_result])
-    write_json(args.output_dir / "latest.json", summary)
-    write_summary_report(args.output_dir, summary)
-    print(json.dumps(summary, indent=2))
-    return 0
+        summary = build_summary(source_repo, [control_result, safe_legacy_result, too_old_result, structural_mismatch_result])
+        write_json(args.output_dir / "latest.json", summary)
+        write_summary_report(args.output_dir, summary)
+        print(json.dumps(summary, indent=2))
+        return 0
+    finally:
+        if fixture_workspace is not None:
+            fixture_workspace.cleanup()
 
 
 if __name__ == "__main__":

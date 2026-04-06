@@ -26,6 +26,13 @@ START_HERE_MANAGED_START = "<!-- SCAFFORGE:START_HERE_BLOCK START -->"
 START_HERE_MANAGED_END = "<!-- SCAFFORGE:START_HERE_BLOCK END -->"
 FOLLOW_ON_TRACKING_PATH = Path(".opencode/meta/repair-follow-on-state.json")
 REPAIR_ESCALATION_PATH = Path(".opencode/state/repair-escalation.json")
+TRANSACTION_STATE_SURFACES = (
+    Path(".opencode/state/workflow-state.json"),
+    FOLLOW_ON_TRACKING_PATH,
+    Path(".opencode/meta/bootstrap-provenance.json"),
+    Path(".opencode/state/context-snapshot.md"),
+    Path(".opencode/state/latest-handoff.md"),
+)
 DETERMINISTIC_PROCESS_DOCS = (
     "workflow.md",
     "tooling.md",
@@ -1077,6 +1084,9 @@ def apply_repair(repo_root: Path, rendered_root: Path, change_summary: str, *, p
         replaced_surfaces.append("START-HERE.md managed block")
 
         (repo_root / ".opencode" / "state" / "bootstrap").mkdir(parents=True, exist_ok=True)
+
+        for relative in TRANSACTION_STATE_SURFACES:
+            processed_records.append(backup_target(repo_root / relative, backup_root, repo_root))
 
         update_workflow_state(repo_root, read_json(rendered_root / ".opencode" / "meta" / "bootstrap-provenance.json"), change_summary)
         process_version_after = None
