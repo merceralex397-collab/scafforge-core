@@ -1064,21 +1064,7 @@ def fixture_builder_integration(
             raise RuntimeError(
                 f"Fixture `{slug}` should produce actionable audit findings, not a no-op repo."
             )
-        audit_codes = {
-            str(item.get("code", "")).strip()
-            for item in audit_payload.get("findings", [])
-            if isinstance(item, dict) and str(item.get("code", "")).strip()
-        }
-        missing_codes = [
-            code
-            for code in expected_finding_codes
-            if isinstance(code, str) and code not in audit_codes
-        ]
-        if missing_codes:
-            raise RuntimeError(
-                f"Fixture `{slug}` did not trigger its declared invariant finding codes. Missing: {', '.join(missing_codes)}; "
-                f"observed: {', '.join(sorted(audit_codes)) or 'none'}"
-            )
+        assert_expected_audit_codes(slug, expected_finding_codes, audit_payload)
         truth_expectations = contract.get("truth_expectations")
         if not isinstance(truth_expectations, dict):
             raise RuntimeError(
@@ -1120,11 +1106,15 @@ def _check_json_equals(dest: Path, slug: str, check: dict[str, Any]) -> None:
     """Verify a JSON value at a dotted path equals the expected value."""
     file_path = check.get("file")
     dotted_path = check.get("path")
-    expected = check.get("value")
-    if not isinstance(file_path, str) or not isinstance(dotted_path, str):
+    if (
+        not isinstance(file_path, str)
+        or not isinstance(dotted_path, str)
+        or "value" not in check
+    ):
         raise RuntimeError(
-            f"Fixture `{slug}` json_equals checks must define file and path."
+            f"Fixture `{slug}` json_equals checks must define file, path, and value."
         )
+    expected = check["value"]
     try:
         observed = read_repo_json_value(dest, file_path, dotted_path)
     except RuntimeError as exc:
@@ -1134,6 +1124,33 @@ def _check_json_equals(dest: Path, slug: str, check: dict[str, Any]) -> None:
     if observed != expected:
         raise RuntimeError(
             f"Fixture `{slug}` expected {file_path}:{dotted_path} to equal {expected!r}, observed {observed!r}."
+        )
+
+
+def extract_audit_codes(audit_payload: dict[str, Any]) -> set[str]:
+    findings = audit_payload.get("findings")
+    if not isinstance(findings, list):
+        return set()
+    return {
+        str(item.get("code", "")).strip()
+        for item in findings
+        if isinstance(item, dict) and str(item.get("code", "")).strip()
+    }
+
+
+def assert_expected_audit_codes(
+    slug: str, expected_finding_codes: list[Any], audit_payload: dict[str, Any]
+) -> None:
+    audit_codes = extract_audit_codes(audit_payload)
+    missing_codes = [
+        code
+        for code in expected_finding_codes
+        if isinstance(code, str) and code not in audit_codes
+    ]
+    if missing_codes:
+        raise RuntimeError(
+            f"Fixture `{slug}` did not trigger its declared invariant finding codes. Missing: {', '.join(missing_codes)}; "
+            f"observed: {', '.join(sorted(audit_codes)) or 'none'}"
         )
 
 
@@ -1179,6 +1196,30 @@ def synthetic_edge_case_integration(workspace: Path) -> None:
         partial_contract["slug"],
         partial_contract["truth_expectations"],
     )
+    partial_expected_finding_codes = partial_contract.get("expected_finding_codes")
+    if (
+        not isinstance(partial_expected_finding_codes, list)
+        or not partial_expected_finding_codes
+    ):
+        raise RuntimeError(
+            "Partial-transaction synthetic fixture should persist expected_finding_codes."
+        )
+    partial_audit = run_json(
+        [
+            sys.executable,
+            str(AUDIT),
+            str(partial_transaction_dest),
+            "--format",
+            "json",
+            "--no-diagnosis-pack",
+        ],
+        ROOT,
+    )
+    assert_expected_audit_codes(
+        partial_contract["slug"],
+        partial_expected_finding_codes,
+        partial_audit,
+    )
 
     pivot_state_dest = workspace / "pivot-state-edge-case"
     pivot_contract = build_pivot_state_edge_case(pivot_state_dest)
@@ -1187,6 +1228,11 @@ def synthetic_edge_case_integration(workspace: Path) -> None:
         pivot_contract["slug"],
         pivot_contract["truth_expectations"],
     )
+    pivot_expected_finding_codes = pivot_contract.get("expected_finding_codes")
+    if not isinstance(pivot_expected_finding_codes, list) or not pivot_expected_finding_codes:
+        raise RuntimeError(
+            "Pivot-state synthetic fixture should persist expected_finding_codes."
+        )
     pivot_audit = run_json(
         [
             sys.executable,
@@ -1198,11 +1244,11 @@ def synthetic_edge_case_integration(workspace: Path) -> None:
         ],
         ROOT,
     )
-    pivot_audit_codes = {finding["code"] for finding in pivot_audit.get("findings", [])}
-    if "WFLOW024" not in pivot_audit_codes:
-        raise RuntimeError(
-            "Pivot-state drift should surface historical reconciliation deadlock WFLOW024."
-        )
+    assert_expected_audit_codes(
+        pivot_contract["slug"],
+        pivot_expected_finding_codes,
+        pivot_audit,
+    )
 
 
 def multi_stack_proof_integration(workspace: Path) -> None:
