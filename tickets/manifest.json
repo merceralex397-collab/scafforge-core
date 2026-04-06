@@ -755,12 +755,12 @@
       ],
       "source_ticket_id": null,
       "follow_up_ticket_ids": [],
-      "summary": "Update README and the affected skill docs so package contributors can follow the cutover from split authority to runtime-owned mutation, understand the shadow-validation period, and stop relying on stale documentation.",
+      "summary": "After implementation tickets land, rewrite the root package docs and contract markdowns so AGENTS.md, README.md, contract references, skill docs, and related markdown surfaces describe the shipped package behavior rather than the planned rewrite.",
       "acceptance": [
-        "README and affected skill docs describe greenfield as the product path and audit or repair as lifecycle or support tooling",
+        "Root AGENTS.md, root README.md, affected references/*.md, and affected skills/*/SKILL.md files describe the shipped package behavior rather than the planned rewrite",
         "Docs remove stale dual-authority language around repair-side restart rendering, mutation ownership, and blocker semantics",
-        "A transition guide exists for package developers during shadow-validation and cutover",
-        "Contributors can trace from the docs to the authority ADR, invariant catalog, and validation entrypoints without ambiguity"
+        "Any transition-guide docs created during implementation are either updated to final state or explicitly archived",
+        "npm run validate:contract passes after the final documentation reconciliation"
       ],
       "decision_blockers": [],
       "artifacts": []
