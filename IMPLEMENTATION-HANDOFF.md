@@ -6,7 +6,7 @@ Current state:
 - package backlog cleanup is complete
 - package-root generated-repo runtime state has been removed
 - `SETUP-001`, `ARCH-001`, `ARCH-002`, `STACK-001`, `DIAG-001`, `DIAG-002`, `MUT-001`, `MUT-002`, `PIVOT-001`, `REPAIR-001`, `RESTART-001`, `RESTART-002`, `INV-001`, and `INV-002` are complete
-- the next implementation focus is `REPAIR-002`
+- the `PR-05` bundle is complete and the next implementation focus is `AUDIT-001`
 
 ## Non-Negotiable Rules
 

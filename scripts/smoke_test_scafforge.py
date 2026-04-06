@@ -3040,6 +3040,9 @@ def main() -> int:
         regenerated_pivot_latest_handoff = (
             pivot_dest / ".opencode" / "state" / "latest-handoff.md"
         ).read_text(encoding="utf-8")
+        regenerated_pivot_context_snapshot = (
+            pivot_dest / ".opencode" / "state" / "context-snapshot.md"
+        ).read_text(encoding="utf-8")
         if (
             "- handoff_status: pivot follow-up required"
             not in regenerated_pivot_start_here
@@ -3078,6 +3081,10 @@ def main() -> int:
             ],
             ROOT,
         )
+        if "publication" in record_payload:
+            raise RuntimeError(
+                "Pivot stage recording should not publish restart surfaces directly"
+            )
         if "scafforge-repair" not in record_payload["completed_stage_names"]:
             raise RuntimeError(
                 "Pivot stage recording should mark the completed downstream stage"
@@ -3085,10 +3092,6 @@ def main() -> int:
         if "scafforge-repair" in record_payload["pending_stage_names"]:
             raise RuntimeError(
                 "Pivot stage recording should remove the completed stage from pending downstream work"
-            )
-        if record_payload["restart_surface_inputs"]["pivot_in_progress"] is not True:
-            raise RuntimeError(
-                "Pivot stage recording should keep pivot_in_progress true while other downstream stages remain pending"
             )
         refreshed_pivot_state = json.loads(pivot_state_path.read_text(encoding="utf-8"))
         repair_stage_record = refreshed_pivot_state["downstream_refresh_state"][
@@ -3112,48 +3115,17 @@ def main() -> int:
         pivot_context_snapshot = (
             pivot_dest / ".opencode" / "state" / "context-snapshot.md"
         ).read_text(encoding="utf-8")
-        if "- handoff_status: pivot follow-up required" not in pivot_start_here:
+        if pivot_start_here != regenerated_pivot_start_here:
             raise RuntimeError(
-                "Post-pivot handoff should publish pivot follow-up required while downstream pivot work remains"
+                "Pivot stage recording should not republish START-HERE on its own"
             )
-        if (
-            "- pivot_in_progress: true" not in pivot_start_here
-            or "- pivot_class: architecture-change" not in pivot_start_here
-        ):
+        if pivot_latest_handoff != regenerated_pivot_latest_handoff:
             raise RuntimeError(
-                "Post-pivot START-HERE should expose truthful pivot state"
+                "Pivot stage recording should not republish latest-handoff on its own"
             )
-        if (
-            "- pivot_pending_stages: project-skill-bootstrap, opencode-team-bootstrap, agent-prompt-engineering, ticket-pack-builder"
-            not in pivot_start_here
-        ):
+        if pivot_context_snapshot != regenerated_pivot_context_snapshot:
             raise RuntimeError(
-                "Post-pivot START-HERE should list the remaining pivot stages after recorded managed refresh"
-            )
-        if (
-            "- pivot_pending_ticket_lineage_actions: reconcile:SETUP-001, create_follow_up:Reconcile historical tickets that still assume the old monolith execution path."
-            not in pivot_start_here
-        ):
-            raise RuntimeError(
-                "Post-pivot START-HERE should expose pending pivot ticket lineage actions"
-            )
-        if "- pivot_in_progress: true" not in pivot_latest_handoff:
-            raise RuntimeError(
-                "latest-handoff should stay aligned with START-HERE for pivot state"
-            )
-        if (
-            "- pivot_changed_surfaces: agent_team_and_prompts, canonical_brief_and_truth_docs, managed_workflow_tools_and_prompts, repo_local_skills, restart_surfaces, ticket_graph_and_lineage"
-            not in pivot_context_snapshot
-        ):
-            raise RuntimeError(
-                "context snapshot should expose the pivot changed surfaces for restart review"
-            )
-        if (
-            "- pending_ticket_lineage_actions: reconcile:SETUP-001, create_follow_up:Reconcile historical tickets that still assume the old monolith execution path."
-            not in pivot_context_snapshot
-        ):
-            raise RuntimeError(
-                "context snapshot should expose pending pivot ticket lineage actions for restart review"
+                "Pivot stage recording should not republish context snapshot on its own"
             )
         pivot_provenance = json.loads(
             (pivot_dest / ".opencode" / "meta" / "bootstrap-provenance.json").read_text(
@@ -8570,6 +8542,28 @@ def main() -> int:
                 "- Refined repair follow-up tickets after managed repair.\n",
                 encoding="utf-8",
             )
+            recorded_workflow_before_stage = json.loads(
+                (
+                    recorded_follow_on_dest
+                    / ".opencode"
+                    / "state"
+                    / "workflow-state.json"
+                ).read_text(encoding="utf-8")
+            )
+            recorded_execution_before_stage = json.loads(
+                (
+                    recorded_follow_on_dest
+                    / ".opencode"
+                    / "meta"
+                    / "repair-execution.json"
+                ).read_text(encoding="utf-8")
+            )
+            recorded_start_here_before_stage = (
+                recorded_follow_on_dest / "START-HERE.md"
+            ).read_text(encoding="utf-8")
+            recorded_latest_handoff_before_stage = (
+                recorded_follow_on_dest / ".opencode" / "state" / "latest-handoff.md"
+            ).read_text(encoding="utf-8")
             recorded_stage_payload = run_json(
                 [
                     sys.executable,
@@ -8603,6 +8597,10 @@ def main() -> int:
                 raise RuntimeError(
                     "record_repair_stage_completion should preserve the recorded evidence paths"
                 )
+            if "publication" in recorded_stage_payload:
+                raise RuntimeError(
+                    "record_repair_stage_completion should not publish restart surfaces directly"
+                )
             recorded_workflow_after_stage = json.loads(
                 (
                     recorded_follow_on_dest
@@ -8611,20 +8609,9 @@ def main() -> int:
                     / "workflow-state.json"
                 ).read_text(encoding="utf-8")
             )
-            recorded_repair_follow_on = recorded_workflow_after_stage.get(
-                "repair_follow_on", {}
-            )
-            if recorded_repair_follow_on.get("outcome") != "source_follow_up":
+            if recorded_workflow_after_stage != recorded_workflow_before_stage:
                 raise RuntimeError(
-                    "record_repair_stage_completion should recompute repair_follow_on.outcome when the last required stage completes"
-                )
-            if recorded_repair_follow_on.get("blocking_reasons"):
-                raise RuntimeError(
-                    "record_repair_stage_completion should clear repair_follow_on.blocking_reasons once the last required stage completes"
-                )
-            if recorded_repair_follow_on.get("handoff_allowed") is not True:
-                raise RuntimeError(
-                    "record_repair_stage_completion should recompute repair_follow_on.handoff_allowed when the last required stage completes"
+                    "record_repair_stage_completion should not rewrite workflow-state.json while recording completion"
                 )
             recorded_execution_after_stage = json.loads(
                 (
@@ -8634,18 +8621,9 @@ def main() -> int:
                     / "repair-execution.json"
                 ).read_text(encoding="utf-8")
             )
-            if (
-                recorded_execution_after_stage["execution_record"][
-                    "repair_follow_on_outcome"
-                ]
-                != "source_follow_up"
-            ):
+            if recorded_execution_after_stage != recorded_execution_before_stage:
                 raise RuntimeError(
-                    "record_repair_stage_completion should sync repair-execution.json with the recomputed follow-on outcome"
-                )
-            if recorded_execution_after_stage["execution_record"]["blocking_reasons"]:
-                raise RuntimeError(
-                    "record_repair_stage_completion should sync repair-execution.json with the cleared follow-on blockers"
+                    "record_repair_stage_completion should not rewrite repair-execution.json while recording completion"
                 )
             recorded_start_here_after_stage = (
                 recorded_follow_on_dest / "START-HERE.md"
@@ -8653,14 +8631,13 @@ def main() -> int:
             recorded_latest_handoff_after_stage = (
                 recorded_follow_on_dest / ".opencode" / "state" / "latest-handoff.md"
             ).read_text(encoding="utf-8")
-            if (
-                "- handoff_status: repair follow-up required"
-                in recorded_start_here_after_stage
-                or "- handoff_status: repair follow-up required"
-                in recorded_latest_handoff_after_stage
-            ):
+            if recorded_start_here_after_stage != recorded_start_here_before_stage:
                 raise RuntimeError(
-                    "record_repair_stage_completion should immediately republish restart surfaces after the last required repair stage completes"
+                    "record_repair_stage_completion should not republish START-HERE while recording completion"
+                )
+            if recorded_latest_handoff_after_stage != recorded_latest_handoff_before_stage:
+                raise RuntimeError(
+                    "record_repair_stage_completion should not republish latest-handoff while recording completion"
                 )
             recorded_follow_on_reuse = run_json(
                 [
