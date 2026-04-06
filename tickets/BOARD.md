@@ -2,7 +2,7 @@
 
 Package backlog only. This board is a tracker, not runtime workflow state.
 
-Current focus: `PROOF-001`
+Current focus: `STACK-002`
 
 | Wave | ID | Title | Lane | Stage | Status | Resolution | Verification | Parallel Safe | Overlap Risk | Depends On | Follow-ups |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -28,8 +28,8 @@ Current focus: `PROOF-001`
 | 3 | CYCLE-001 | Align repair-cycle auditing with transaction outcomes and churn rules | repair-cycles | complete | done | completed | verified | yes | low | DIAG-002, REPAIR-002, AUDIT-001 | - |
 | 3 | LEG-001 | Implement the legacy workflow contract migration stage and escalation rules | legacy-migration | complete | done | completed | verified | no | high | ARCH-001, REPAIR-001 | [reports/gpttalker-validation/latest.md](reports/gpttalker-validation/latest.md) |
 | 4 | LEG-002 | Record migration provenance and validate legacy upgrade flows | migration-proof | complete | done | completed | verified | yes | medium | LEG-001 | [reports/gpttalker-validation/latest.md](reports/gpttalker-validation/latest.md) |
-| 4 | PROOF-001 | Upgrade existing GPTTalker fixture contracts to convergence assertions | fixture-proof | planning | todo | open | suspect | yes | medium | REPAIR-002, BLOCK-001, CYCLE-001 | - |
-| 4 | PROOF-002 | Extend the harness and fixture builders for stale-state edge cases | validation-harness | planning | todo | open | suspect | yes | medium | PROOF-001, LEG-002, PIVOT-002 | - |
+| 4 | PROOF-001 | Upgrade existing GPTTalker fixture contracts to convergence assertions | fixture-proof | complete | done | completed | verified | yes | medium | REPAIR-002, BLOCK-001, CYCLE-001 | - |
+| 4 | PROOF-002 | Extend the harness and fixture builders for stale-state edge cases | validation-harness | complete | done | completed | verified | yes | medium | PROOF-001, LEG-002, PIVOT-002 | - |
 | 4 | STACK-002 | Add Tier 1 full-toolchain execution proof coverage and audit alignment | execution-proof | planning | todo | open | suspect | no | medium | STACK-001, AUDIT-001, PROOF-002 | - |
 | 4 | CONTRACT-001 | Extend contract, smoke, and integration validation to enforce the new architecture | contract-validation | planning | todo | open | suspect | yes | medium | ARCH-002, PROOF-001, PROOF-002, BLOCK-001 | - |
 | 5 | GREEN-001 | Add weak-model greenfield self-sufficiency proof without duplicating the greenfield gate | greenfield-proof | planning | todo | open | suspect | no | high | STACK-002, CONTRACT-001, RESTART-001, AUDIT-001 | - |

@@ -12,7 +12,12 @@ import tempfile
 from pathlib import Path
 from typing import Any, Callable
 
-from test_support.gpttalker_fixture_builders import build_fixture_family, fixture_index_by_slug
+from test_support.gpttalker_fixture_builders import (
+    build_fixture_family,
+    build_partial_transaction_edge_case,
+    build_pivot_state_edge_case,
+    fixture_index_by_slug,
+)
 from test_support.repo_seeders import make_stack_skill_non_placeholder, read_json, seed_failing_pytest_suite, seed_ready_bootstrap
 from test_support.scafforge_harness import (
     AUDIT,
@@ -24,6 +29,7 @@ from test_support.scafforge_harness import (
     RECORD_REPAIR_STAGE,
     ROOT,
     VERIFY_GENERATED,
+    read_repo_json_value,
     run,
     run_generated_tool,
     run_generated_tool_error,
@@ -867,6 +873,81 @@ def fixture_builder_integration(fixtures: dict[str, dict[str, Any]], workspace: 
                 f"Fixture `{slug}` did not trigger its declared invariant finding codes. Missing: {', '.join(missing_codes)}; "
                 f"observed: {', '.join(sorted(audit_codes)) or 'none'}"
             )
+        truth_expectations = contract.get("truth_expectations")
+        if not isinstance(truth_expectations, dict):
+            raise RuntimeError(f"Fixture `{slug}` should persist truth_expectations in its contract payload.")
+        assert_fixture_truth_checks(dest, slug, truth_expectations)
+
+
+def assert_fixture_truth_checks(dest: Path, slug: str, truth_expectations: dict[str, Any]) -> None:
+    checks = truth_expectations.get("checks")
+    if not isinstance(checks, list) or not checks:
+        raise RuntimeError(f"Fixture `{slug}` must define truth_expectations.checks.")
+    for check in checks:
+        if not isinstance(check, dict):
+            raise RuntimeError(f"Fixture `{slug}` truth check entries must be objects.")
+        kind = check.get("kind")
+        if kind == "json_equals":
+            file_path = check.get("file")
+            dotted_path = check.get("path")
+            expected = check.get("value")
+            if not isinstance(file_path, str) or not isinstance(dotted_path, str):
+                raise RuntimeError(f"Fixture `{slug}` json_equals checks must define file and path.")
+            observed = read_repo_json_value(dest, file_path, dotted_path)
+            if observed != expected:
+                raise RuntimeError(
+                    f"Fixture `{slug}` expected {file_path}:{dotted_path} to equal {expected!r}, observed {observed!r}."
+                )
+        elif kind == "file_contains":
+            file_path = check.get("file")
+            needle = check.get("needle")
+            if not isinstance(file_path, str) or not isinstance(needle, str):
+                raise RuntimeError(f"Fixture `{slug}` file_contains checks must define file and needle.")
+            text = (dest / file_path).read_text(encoding="utf-8")
+            if needle not in text:
+                raise RuntimeError(f"Fixture `{slug}` expected {file_path} to contain {needle!r}.")
+        elif kind == "file_exists":
+            file_path = check.get("file")
+            if not isinstance(file_path, str):
+                raise RuntimeError(f"Fixture `{slug}` file_exists checks must define file.")
+            if not (dest / file_path).exists():
+                raise RuntimeError(f"Fixture `{slug}` expected file to exist: {file_path}.")
+        else:
+            raise RuntimeError(f"Fixture `{slug}` has unsupported truth check kind: {kind!r}.")
+
+
+def synthetic_edge_case_integration(workspace: Path) -> None:
+    partial_transaction_dest = workspace / "partial-transaction-edge-case"
+    partial_contract = build_partial_transaction_edge_case(partial_transaction_dest)
+    assert_fixture_truth_checks(
+        partial_transaction_dest,
+        partial_contract["slug"],
+        partial_contract["truth_expectations"],
+    )
+
+    pivot_state_dest = workspace / "pivot-state-edge-case"
+    pivot_contract = build_pivot_state_edge_case(pivot_state_dest)
+    assert_fixture_truth_checks(
+        pivot_state_dest,
+        pivot_contract["slug"],
+        pivot_contract["truth_expectations"],
+    )
+    pivot_audit = run_json(
+        [
+            sys.executable,
+            str(AUDIT),
+            str(pivot_state_dest),
+            "--format",
+            "json",
+            "--no-diagnosis-pack",
+        ],
+        ROOT,
+    )
+    pivot_audit_codes = {
+        finding["code"] for finding in pivot_audit.get("findings", [])
+    }
+    if "WFLOW024" not in pivot_audit_codes:
+        raise RuntimeError("Pivot-state drift should surface historical reconciliation deadlock WFLOW024.")
 
 
 def multi_stack_proof_integration(workspace: Path) -> None:
@@ -1084,6 +1165,7 @@ def main() -> int:
         multi_stack_proof_integration(workspace)
         backward_transition_integration(workspace)
         fixture_builder_integration(fixtures, workspace)
+        synthetic_edge_case_integration(workspace)
     print("Scafforge integration test passed.")
     return 0
 

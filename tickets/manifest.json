@@ -2,7 +2,7 @@
   "version": 3,
   "project": "Scafforge",
   "tracking_mode": "package-backlog",
-  "current_focus_ticket": "PROOF-001",
+  "current_focus_ticket": "STACK-002",
   "tickets": [
     {
       "id": "SETUP-001",
@@ -621,10 +621,10 @@
       "lane": "fixture-proof",
       "parallel_safe": true,
       "overlap_risk": "medium",
-      "stage": "planning",
-      "status": "todo",
-      "resolution_state": "open",
-      "verification_state": "suspect",
+      "stage": "complete",
+      "status": "done",
+      "resolution_state": "completed",
+      "verification_state": "verified",
       "depends_on": [
         "REPAIR-002",
         "BLOCK-001",
@@ -649,10 +649,10 @@
       "lane": "validation-harness",
       "parallel_safe": true,
       "overlap_risk": "medium",
-      "stage": "planning",
-      "status": "todo",
-      "resolution_state": "open",
-      "verification_state": "suspect",
+      "stage": "complete",
+      "status": "done",
+      "resolution_state": "completed",
+      "verification_state": "verified",
       "depends_on": [
         "PROOF-001",
         "LEG-002",

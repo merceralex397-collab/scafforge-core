@@ -119,6 +119,27 @@ def write_runner(path: Path, lines: list[str]) -> None:
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
+def read_repo_json_value(repo_root: Path, relative_path: str, dotted_path: str) -> Any:
+    payload = json.loads((repo_root / relative_path).read_text(encoding="utf-8"))
+    current: Any = payload
+    for segment in dotted_path.split("."):
+        if isinstance(current, list):
+            if not segment.isdigit():
+                raise RuntimeError(
+                    f"Cannot descend into list with non-numeric path segment `{segment}` in `{dotted_path}`."
+                )
+            index = int(segment)
+            try:
+                current = current[index]
+            except IndexError as exc:
+                raise RuntimeError(f"Path `{dotted_path}` is out of range for `{relative_path}`.") from exc
+            continue
+        if not isinstance(current, dict) or segment not in current:
+            raise RuntimeError(f"Path `{dotted_path}` does not exist in `{relative_path}`.")
+        current = current[segment]
+    return current
+
+
 def tool_runner_lines() -> list[str]:
     return [
         'import { pathToFileURL } from "node:url"',

@@ -3918,6 +3918,32 @@ def validate_curated_fixtures(findings: list[Finding]) -> None:
                     "error", f"Fixture family `{slug}` must declare expected coverage"
                 )
             )
+        truth_expectations = item.get("truth_expectations")
+        if not isinstance(truth_expectations, dict):
+            findings.append(
+                Finding(
+                    "error",
+                    f"Fixture family `{slug}` must declare truth_expectations",
+                )
+            )
+        else:
+            for field in ("convergence", "publish_safety", "blocker_truth"):
+                value = truth_expectations.get(field)
+                if not isinstance(value, str) or not value.strip():
+                    findings.append(
+                        Finding(
+                            "error",
+                            f"Fixture family `{slug}` must declare truth_expectations.{field}",
+                        )
+                    )
+            truth_checks = truth_expectations.get("checks")
+            if not isinstance(truth_checks, list) or not truth_checks:
+                findings.append(
+                    Finding(
+                        "error",
+                        f"Fixture family `{slug}` must declare truth_expectations.checks",
+                    )
+                )
         expected_codes = item.get("expected_finding_codes")
         if not isinstance(expected_codes, list) or not expected_codes:
             findings.append(

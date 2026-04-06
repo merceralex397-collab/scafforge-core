@@ -18,6 +18,29 @@
         "integration:greenfield",
         "smoke:seed_bootstrap_command_layout_mismatch"
       ],
+      "truth_expectations": {
+        "convergence": "bootstrap-blocked",
+        "publish_safety": "stale-bootstrap-publication",
+        "blocker_truth": "host-dependency-layout",
+        "checks": [
+          {
+            "kind": "json_equals",
+            "file": ".opencode/state/workflow-state.json",
+            "path": "bootstrap.status",
+            "value": "failed"
+          },
+          {
+            "kind": "json_equals",
+            "file": ".opencode/state/workflow-state.json",
+            "path": "bootstrap.environment_fingerprint",
+            "value": "synthetic-bootstrap-command-mismatch"
+          },
+          {
+            "kind": "file_exists",
+            "file": ".opencode/state/artifacts/history/exec-014/bootstrap/2026-03-27T13-23-09-710Z-environment-bootstrap.md"
+          }
+        ]
+      },
       "archive_origin": [
         "out/scafforge audit archive/GPTTalker Logs and Audits/gpttalker agent logs/bootstrapfail.md",
         "out/scafforge audit archive/GPTTalker Logs and Audits/gpttalker agent logs/smoketestbroken.md"
@@ -45,6 +68,29 @@
         "integration:greenfield",
         "smoke:seed_workflow_overclaim"
       ],
+      "truth_expectations": {
+        "convergence": "host-blocked",
+        "publish_safety": "blocked-by-host-surface",
+        "blocker_truth": "permission-or-tool-mismatch",
+        "checks": [
+          {
+            "kind": "json_equals",
+            "file": ".opencode/state/workflow-state.json",
+            "path": "bootstrap.status",
+            "value": "ready"
+          },
+          {
+            "kind": "file_contains",
+            "file": "session-log.md",
+            "needle": "tool/env mismatch, not a code defect. EXEC-002 is now unblocked."
+          },
+          {
+            "kind": "file_contains",
+            "file": "tickets/manifest.json",
+            "needle": "WFLOW-DEP"
+          }
+        ]
+      },
       "archive_origin": [
         "scafforgechurnissue/GPTTalkerAgentLogs/session4.md",
         "scafforgechurnissue/CodexLogs/28/rollout-2026-03-28T12-58-06-019d3485-f083-7c91-938c-37a0230badbb.jsonl"
@@ -67,6 +113,33 @@
         "integration:repair",
         "smoke:seed_repeated_diagnosis_churn"
       ],
+      "truth_expectations": {
+        "convergence": "non-convergent",
+        "publish_safety": "follow-on-required",
+        "blocker_truth": "repeat-diagnosis-truthful",
+        "checks": [
+          {
+            "kind": "file_exists",
+            "file": "diagnosis/20260327-002513/manifest.json"
+          },
+          {
+            "kind": "file_exists",
+            "file": "diagnosis/20260327-014404/manifest.json"
+          },
+          {
+            "kind": "json_equals",
+            "file": "diagnosis/20260327-002513/manifest.json",
+            "path": "generated_at",
+            "value": "2026-03-27T00:25:13Z"
+          },
+          {
+            "kind": "json_equals",
+            "file": "diagnosis/20260327-014404/manifest.json",
+            "path": "generated_at",
+            "value": "2026-03-27T01:44:04Z"
+          }
+        ]
+      },
       "archive_origin": [
         "scafforgechurnissue/plan.md",
         "scafforgechurnissue/GPTTalkerAgentLogs/session4.md"
@@ -89,6 +162,34 @@
         "integration:repair",
         "smoke:restart-surface drift after repair assertions"
       ],
+      "truth_expectations": {
+        "convergence": "restart-drift",
+        "publish_safety": "canonical-republish-required",
+        "blocker_truth": "repair-owned",
+        "checks": [
+          {
+            "kind": "json_equals",
+            "file": ".opencode/state/workflow-state.json",
+            "path": "pending_process_verification",
+            "value": true
+          },
+          {
+            "kind": "file_contains",
+            "file": "START-HERE.md",
+            "needle": "- pending_process_verification: false"
+          },
+          {
+            "kind": "file_contains",
+            "file": ".opencode/state/context-snapshot.md",
+            "needle": "- pending_process_verification: false"
+          },
+          {
+            "kind": "file_contains",
+            "file": ".opencode/state/latest-handoff.md",
+            "needle": "- pending_process_verification: false"
+          }
+        ]
+      },
       "archive_origin": [
         "scafforgechurnissue/ScafforgeAudits/20260328-131434/manifest.json",
         "scafforgechurnissue/ScafforgeAudits/20260328-135857/manifest.json"
@@ -110,6 +211,23 @@
         "integration:repair",
         "smoke:placeholder local skill survival checks"
       ],
+      "truth_expectations": {
+        "convergence": "placeholder-drift",
+        "publish_safety": "skill-refresh-required",
+        "blocker_truth": "repo-local-skill-regeneration",
+        "checks": [
+          {
+            "kind": "file_contains",
+            "file": ".opencode/skills/stack-standards/SKILL.md",
+            "needle": "Current scaffold mode: `framework-agnostic`"
+          },
+          {
+            "kind": "file_contains",
+            "file": ".opencode/skills/stack-standards/SKILL.md",
+            "needle": "When the repo stack is finalized, rewrite this catalog so review and QA agents get the exact build, lint, reference-integrity, and test commands that belong to this project."
+          }
+        ]
+      },
       "archive_origin": [
         "scafforgechurnissue/ScafforgeAudits/20260328-115024/manifest.json",
         "out/scafforge audit archive/GPTTalker Logs and Audits/GPTTalkerChurnlogs/20260327-014404/07-scafforge-repair-gap-analysis.md"
@@ -133,6 +251,37 @@
         "integration:pivot",
         "smoke:pivot lineage execution"
       ],
+      "truth_expectations": {
+        "convergence": "historical-trust-reconciled",
+        "publish_safety": "lineage-publication-truthful",
+        "blocker_truth": "split-scope-reconciled",
+        "checks": [
+          {
+            "kind": "json_equals",
+            "file": "tickets/manifest.json",
+            "path": "active_ticket",
+            "value": "EXEC-099"
+          },
+          {
+            "kind": "json_equals",
+            "file": ".opencode/state/workflow-state.json",
+            "path": "active_ticket",
+            "value": "EXEC-099"
+          },
+          {
+            "kind": "json_equals",
+            "file": ".opencode/state/workflow-state.json",
+            "path": "stage",
+            "value": "closeout"
+          },
+          {
+            "kind": "json_equals",
+            "file": ".opencode/state/workflow-state.json",
+            "path": "status",
+            "value": "done"
+          }
+        ]
+      },
       "archive_origin": [
         "scafforgechurnissue/GPTTalkerAgentLogs/session01.md",
         "scafforgechurnissue/GPTTalkerAgentLogs/session3.md",
