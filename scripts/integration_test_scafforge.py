@@ -53,7 +53,7 @@ class ProofTarget:
     adapter_id: str
     smoke_snippets: tuple[str, ...]
     seed: Callable[[Path], None]
-    runtime_check: Callable[[Path], None] | None = None
+    release_check: Callable[[Path], None] | None = None
 
 
 def parse_args() -> argparse.Namespace:
@@ -588,54 +588,50 @@ def seed_java_gradle_target(dest: Path) -> None:
     )
 
 
-def python_runtime_check(dest: Path) -> None:
-    python = command_exists("python3", "python")
-    if python:
-        run_checked([python, "-m", "src.proof_python_cli", "--help"], dest)
+def python_release_check(dest: Path) -> None:
+    run_checked([sys.executable, "-m", "pytest", "-q"], dest)
 
 
-def node_runtime_check(dest: Path) -> None:
-    if command_exists("node"):
-        run_checked(["node", "dist/index.js", "--help"], dest)
+def node_release_check(dest: Path) -> None:
+    if command_exists("npm"):
+        run_checked(["npm", "test"], dest)
 
 
-def rust_runtime_check(dest: Path) -> None:
+def rust_release_check(dest: Path) -> None:
     if command_exists("cargo"):
-        run_checked(["cargo", "build"], dest, timeout=180)
+        run_checked(["cargo", "test"], dest, timeout=180)
 
 
-def go_runtime_check(dest: Path) -> None:
+def go_release_check(dest: Path) -> None:
     if command_exists("go"):
-        run_checked(["go", "build", "."], dest, timeout=180)
+        run_checked(["go", "test", "./..."], dest, timeout=180)
 
 
-def godot_runtime_check(dest: Path) -> None:
+def godot_release_check(dest: Path) -> None:
     godot = command_exists("godot4", "godot")
     if godot:
-        run_checked(
-            [godot, "--headless", "--script", "res://check.gd", "--quit"],
-            dest,
-            timeout=180,
-        )
+        run_checked([godot, "--headless", "--quit", "--path", "."], dest, timeout=180)
 
 
-def cmake_runtime_check(dest: Path) -> None:
+def cmake_release_check(dest: Path) -> None:
     if command_exists("cmake"):
         build_dir = dest / "build"
         run_checked(["cmake", "-S", ".", "-B", str(build_dir)], dest, timeout=180)
         run_checked(["cmake", "--build", str(build_dir)], dest, timeout=180)
 
 
-def dotnet_runtime_check(dest: Path) -> None:
+def dotnet_release_check(dest: Path) -> None:
     if command_exists("dotnet"):
-        run_checked(["dotnet", "run", "--no-build"], dest, timeout=180)
+        run_checked(["dotnet", "build"], dest, timeout=180)
 
 
-def java_runtime_check(dest: Path) -> None:
+def java_release_check(dest: Path) -> None:
     if (dest / "gradlew").exists():
         run_checked(["./gradlew", "build"], dest, timeout=180)
     elif command_exists("gradle"):
         run_checked(["gradle", "build"], dest, timeout=180)
+    elif command_exists("javac"):
+        run_checked(["javac", str(dest / "src" / "main" / "java" / "Main.java")], dest, timeout=180)
 
 
 def multi_stack_targets() -> list[ProofTarget]:
@@ -647,7 +643,7 @@ def multi_stack_targets() -> list[ProofTarget]:
             "python",
             ("pytest",),
             seed_python_cli_target,
-            python_runtime_check,
+            python_release_check,
         ),
         ProofTarget(
             "proof-node-api",
@@ -656,7 +652,7 @@ def multi_stack_targets() -> list[ProofTarget]:
             "node",
             ("npm", "test"),
             seed_node_api_target,
-            node_runtime_check,
+            node_release_check,
         ),
         ProofTarget(
             "proof-rust-cli",
@@ -665,7 +661,7 @@ def multi_stack_targets() -> list[ProofTarget]:
             "rust",
             ("cargo test",),
             seed_rust_cli_target,
-            rust_runtime_check,
+            rust_release_check,
         ),
         ProofTarget(
             "proof-go-http",
@@ -674,7 +670,7 @@ def multi_stack_targets() -> list[ProofTarget]:
             "go",
             ("go test",),
             seed_go_http_target,
-            go_runtime_check,
+            go_release_check,
         ),
         ProofTarget(
             "proof-godot",
@@ -683,7 +679,7 @@ def multi_stack_targets() -> list[ProofTarget]:
             "godot",
             ("godot", "headless"),
             seed_godot_target,
-            godot_runtime_check,
+            godot_release_check,
         ),
         ProofTarget(
             "proof-cmake",
@@ -692,7 +688,7 @@ def multi_stack_targets() -> list[ProofTarget]:
             "c-cpp",
             ("cmake",),
             seed_cmake_target,
-            cmake_runtime_check,
+            cmake_release_check,
         ),
         ProofTarget(
             "proof-dotnet",
@@ -701,7 +697,7 @@ def multi_stack_targets() -> list[ProofTarget]:
             "dotnet",
             ("dotnet", "test\\b"),
             seed_dotnet_target,
-            dotnet_runtime_check,
+            dotnet_release_check,
         ),
         ProofTarget(
             "proof-java",
@@ -710,7 +706,7 @@ def multi_stack_targets() -> list[ProofTarget]:
             "java-android",
             ("gradle",),
             seed_java_gradle_target,
-            java_runtime_check,
+            java_release_check,
         ),
     ]
 
@@ -1297,6 +1293,36 @@ def multi_stack_proof_integration(workspace: Path) -> None:
         )
 
         if bootstrap_status == "ready":
+            if target.slug == "proof-node-api":
+                with tempfile.TemporaryDirectory(prefix="scafforge-node-missing-") as tool_dir:
+                    tool_path = Path(tool_dir)
+                    git_path = shutil.which("git")
+                    if git_path is not None:
+                        (tool_path / "git").symlink_to(git_path)
+                    node_missing_env = os.environ.copy()
+                    node_missing_env["PATH"] = str(tool_path)
+                    node_missing_audit = run_json(
+                        [
+                            sys.executable,
+                            str(AUDIT),
+                            str(dest),
+                            "--format",
+                            "json",
+                            "--no-diagnosis-pack",
+                        ],
+                        ROOT,
+                        env=node_missing_env,
+                    )
+                    node_missing_findings = [
+                        item
+                        for item in node_missing_audit.get("findings", [])
+                        if isinstance(item, dict)
+                    ]
+                    if not any(item.get("code") == "ENV001" for item in node_missing_findings):
+                        raise RuntimeError(
+                            f"Proof target `{target.slug}` should report a truthful environment blocker when Node.js is missing from PATH."
+                        )
+
             audit_payload = run_json(
                 [
                     sys.executable,
@@ -1332,8 +1358,8 @@ def multi_stack_proof_integration(workspace: Path) -> None:
                 raise RuntimeError(
                     f"Proof target `{target.slug}` should not emit EXEC/REF findings on a clean minimal target; observed {', '.join(str(item.get('code')) for item in code_quality_findings)}."
                 )
-            if target.runtime_check is not None:
-                target.runtime_check(dest)
+            if target.release_check is not None:
+                target.release_check(dest)
         else:
             if not blockers and not missing:
                 raise RuntimeError(
