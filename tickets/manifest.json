@@ -2,7 +2,7 @@
   "version": 3,
   "project": "Scafforge",
   "tracking_mode": "package-backlog",
-  "current_focus_ticket": "REPAIR-002",
+  "current_focus_ticket": "AUDIT-001",
   "tickets": [
     {
       "id": "SETUP-001",
@@ -408,10 +408,10 @@
       "lane": "repair-engine",
       "parallel_safe": false,
       "overlap_risk": "high",
-      "stage": "planning",
-      "status": "todo",
-      "resolution_state": "open",
-      "verification_state": "suspect",
+      "stage": "complete",
+      "status": "done",
+      "resolution_state": "completed",
+      "verification_state": "verified",
       "depends_on": [
         "DIAG-002",
         "REPAIR-001",
@@ -438,10 +438,10 @@
       "lane": "pivot-orchestration",
       "parallel_safe": true,
       "overlap_risk": "medium",
-      "stage": "planning",
-      "status": "todo",
-      "resolution_state": "open",
-      "verification_state": "suspect",
+      "stage": "complete",
+      "status": "done",
+      "resolution_state": "completed",
+      "verification_state": "verified",
       "depends_on": [
         "PIVOT-001",
         "RESTART-001",
@@ -466,10 +466,10 @@
       "lane": "stage-tracking",
       "parallel_safe": true,
       "overlap_risk": "low",
-      "stage": "planning",
-      "status": "todo",
-      "resolution_state": "open",
-      "verification_state": "suspect",
+      "stage": "complete",
+      "status": "done",
+      "resolution_state": "completed",
+      "verification_state": "verified",
       "depends_on": [
         "REPAIR-002",
         "PIVOT-002"

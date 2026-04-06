@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -424,6 +425,49 @@ def summarize_verification(
     }
 
 
+def evaluate_repair_verification(
+    verification_root: Path,
+    *,
+    skip_verify: bool,
+    explicit_logs: list[str],
+    repair_basis: tuple[Path, dict[str, Any]] | None,
+    repair_basis_manifest: dict[str, Any],
+    repair_basis_path: Path | None,
+    basis_requires_causal_replay: bool,
+) -> dict[str, Any]:
+    logs = verification_logs(verification_root, explicit_logs, repair_basis)
+    findings = [] if skip_verify else audit_repo(verification_root, logs=logs)
+    pending_process_verification = load_pending_process_verification(verification_root)
+    finding_classes = classify_verification_findings(findings)
+    regression_summary = summarize_source_regressions(findings, repair_basis_manifest)
+    disposition_shadow_mode = summarize_disposition_shadow_mode(repair_basis_manifest)
+    verification_status = summarize_verification(
+        findings,
+        pending_process_verification,
+        not skip_verify,
+        logs,
+        finding_classes,
+        basis_requires_causal_replay=basis_requires_causal_replay,
+        repair_basis_path=repair_basis_path,
+        regression_summary=regression_summary,
+    )
+    verification_status["disposition_shadow_mode"] = disposition_shadow_mode
+
+    if not skip_verify and basis_requires_causal_replay and not logs:
+        verification_status["verification_passed"] = False
+        verification_status["causal_regression_verified"] = False
+
+    return {
+        "logs": logs,
+        "findings": findings,
+        "pending_process_verification": pending_process_verification,
+        "finding_classes": finding_classes,
+        "regression_summary": regression_summary,
+        "disposition_shadow_mode": disposition_shadow_mode,
+        "verification_status": verification_status,
+    }
+
+
 def update_repair_follow_on_state(
     repo_root: Path,
     *,
@@ -474,6 +518,7 @@ def main() -> int:
     args = parse_args()
     repo_root = Path(args.repo_root).expanduser().resolve()
     replaced_surfaces: list[str] = []
+    repair_result: dict[str, Any] = {}
 
     if not args.skip_deterministic_refresh:
         metadata = load_metadata(repo_root, args)
@@ -510,24 +555,6 @@ def main() -> int:
                 print(json.dumps(payload, indent=2))
                 return 2
             replaced_surfaces = repair_result["replaced_surfaces"]
-        # Sync restart surfaces with the initial managed_blocked workflow state before the
-        # verification audit runs.  Without this early sync the audit sees the pre-repair
-        # START-HERE.md and always fires WFLOW010 as a false positive.  That false positive
-        # cascades into a contract_failure ("restart_surface_drift_after_repair") which forces
-        # managed_blocked even when the only real drift was the transient pre-audit lag.
-        regenerate_restart_surfaces(
-            repo_root,
-            reason=args.change_summary,
-            source="scafforge-repair",
-        )
-
-    # Auto-fix deterministic ticket graph contradictions (WFLOW019) before the
-    # verification audit runs.  This is a safe data-only repair: it removes the
-    # source_ticket_id from depends_on when both point at the same parent
-    # (ordering is already encoded by source_ticket_id), removes self-referencing
-    # source_ticket_id fields, and syncs follow_up_ticket_ids bidirectionally.
-    # These are always correct repairs — no intent is changed.
-    _repair_ticket_graph_contradictions(repo_root)
 
     repair_basis = resolve_repair_basis(repo_root, args.repair_basis_diagnosis)
     repair_basis_path = repair_basis[0] if repair_basis else None
@@ -538,158 +565,245 @@ def main() -> int:
             "Run one fresh post-package revalidation audit after the package changes land, then repair from that diagnosis pack."
         )
     basis_requires_causal_replay = repair_basis_requires_causal_replay(repo_root, args.supporting_log, repair_basis)
-    logs = verification_logs(repo_root, args.supporting_log, repair_basis)
-    findings = [] if args.skip_verify else audit_repo(repo_root, logs=logs)
-    pending_process_verification = load_pending_process_verification(repo_root)
-    finding_classes = classify_verification_findings(findings)
-    regression_summary = summarize_source_regressions(findings, repair_basis_manifest)
-    disposition_shadow_mode = summarize_disposition_shadow_mode(repair_basis_manifest)
-    verification_status = summarize_verification(
-        findings,
-        pending_process_verification,
-        not args.skip_verify,
-        logs,
-        finding_classes,
-        basis_requires_causal_replay=basis_requires_causal_replay,
-        repair_basis_path=repair_basis_path,
-        regression_summary=regression_summary,
-    )
-    verification_status["disposition_shadow_mode"] = disposition_shadow_mode
-
-    if not args.skip_verify and basis_requires_causal_replay and not logs:
-        verification_status["verification_passed"] = False
-        verification_status["causal_regression_verified"] = False
-
-    try:
-        required_follow_on = derive_required_follow_on_stages(repo_root, findings, replaced_surfaces, pending_process_verification)
-        required_follow_on = [
-            {
-                **item,
-                "stage": normalize_follow_on_stage_names([item["stage"]])[0],
-            }
-            for item in required_follow_on
-        ]
-    except ValueError as exc:
-        raise SystemExit(str(exc)) from exc
-    required_stage_names = [item["stage"] for item in required_follow_on]
-    stale_surface_map = build_stale_surface_map(
-        repo_root,
-        replaced_surfaces,
-        findings,
-        pending_process_verification,
-        required_stage_names=set(required_stage_names),
-    )
-    try:
-        requested_stage_names = normalize_follow_on_stage_names(args.stage_complete)
-    except ValueError as exc:
-        raise SystemExit(str(exc)) from exc
-    asserted_stage_names = sorted(set(requested_stage_names))
-    tracking_state = update_follow_on_tracking_state(
-        repo_root,
-        required_follow_on=required_follow_on,
-        asserted_stage_names=asserted_stage_names,
-        repair_basis_path=repair_basis_path,
-        repair_package_commit=current_package_commit(),
-    )
-    tracking_state, auto_detected_recorded_stage_names = auto_record_stage_completion_from_canonical_evidence(
-        repo_root,
-        tracking_state,
-        required_stage_names=required_stage_names,
-        repair_package_commit=current_package_commit(),
-    )
-    persisted_completed_stage_names = completed_stage_names(tracking_state)
-    recorded_execution_stage_list = recorded_execution_stage_names(tracking_state)
-    invalidated_recorded_stage_list = invalidated_recorded_stage_names(tracking_state)
-    completed_stage_name_set = set(persisted_completed_stage_names)
-    if not args.skip_deterministic_refresh:
-        completed_stage_name_set.add("deterministic-refresh")
-
-    executed_stages = [{"stage": "deterministic-refresh", "status": "completed"}] if not args.skip_deterministic_refresh else []
-    for stage in requested_stage_names:
-        executed_stages.append({"stage": stage, "status": "asserted_completed", "completion_mode": "legacy_manual_assertion"})
-
-    recorded_stage_results = []
-    for stage in persisted_completed_stage_names:
-        if stage in asserted_stage_names:
-            continue
-        record = tracking_state.get("stage_records", {}).get(stage, {})
-        recorded_stage_results.append(
-            {
-                "stage": stage,
-                "status": "recorded_completed",
-                "completion_mode": record.get("completion_mode", "legacy_manual_assertion"),
-                "recorded_at": record.get("last_recorded_at"),
-            }
-        )
-
-    skipped_stages = []
-    for item in required_follow_on:
-        stage = item["stage"]
-        if stage == "handoff-brief":
-            continue
-        if stage in completed_stage_name_set:
-            continue
-        skipped_stages.append(
-            {
-                "stage": stage,
-                "status": "required_not_run",
-                "reason": item["reason"],
-            }
-        )
-
-    blocking_reasons = [f"{item['stage']} must still run: {item['reason']}" for item in skipped_stages]
-    if args.skip_verify:
-        blocking_reasons.append("Post-repair verification was skipped; rerun scafforge-audit before handoff.")
-    elif basis_requires_causal_replay and not logs:
-        blocking_reasons.append("Post-repair verification did not inherit the transcript-backed repair basis; rerun the public repair runner with the causal transcript evidence before handoff.")
-    elif verification_status["source_regression_summary"]["introduced_critical_codes"]:
-        blocking_reasons.append(
-            "Post-repair verification introduced new critical execution or reference findings: "
-            + ", ".join(verification_status["source_regression_summary"]["introduced_critical_codes"])
-            + "."
-        )
-    elif verification_status["contract_failures"]:
-        blocking_reasons.append(
-            "Post-repair verification failed repair-contract consistency checks: "
-            + ", ".join(verification_status["contract_failures"])
-            + "."
-        )
-    elif finding_classes["managed_blockers"] or finding_classes["manual_prerequisites"]:
-        blocking_reasons.append("Post-repair verification still reports managed workflow or environment findings; handoff must remain blocked until they are resolved.")
-
-    deferred_stages = []
-    repair_follow_on_outcome = (
-        "managed_blocked"
-        if blocking_reasons or not verification_status["verification_passed"]
-        else "source_follow_up"
-        if verification_status["source_follow_up_codes"] or verification_status["process_state_codes"] or pending_process_verification
-        else "clean"
-    )
-    handoff_allowed = verification_status["verification_passed"] and not blocking_reasons
-    repair_follow_on_state = update_repair_follow_on_state(
-        repo_root,
-        outcome=repair_follow_on_outcome,
-        required_stage_details=required_follow_on,
-        required_stage_names=required_stage_names,
-        completed_stage_names=sorted(completed_stage_name_set),
-        asserted_stage_names=asserted_stage_names,
-        tracking_state=tracking_state,
-        blocking_reasons=blocking_reasons,
-        verification_passed=verification_status["verification_passed"],
-        handoff_allowed=handoff_allowed,
-        current_state_clean=verification_status["current_state_clean"],
-        causal_regression_verified=verification_status["causal_regression_verified"],
-    )
-
-    diagnosis_pack = None
+    findings: list[Any] = []
+    pending_process_verification = False
+    finding_classes: dict[str, list[Any]] = {}
+    regression_summary: dict[str, Any] = {}
+    disposition_shadow_mode: dict[str, Any] = {}
+    verification_status: dict[str, Any] = {}
+    published_logs: list[Path] = []
+    required_follow_on: list[dict[str, Any]] = []
+    required_stage_names: list[str] = []
+    asserted_stage_names: list[str] = []
+    tracking_state: dict[str, Any] = {}
+    auto_detected_recorded_stage_names: list[str] = []
+    persisted_completed_stage_names: list[str] = []
+    recorded_execution_stage_list: list[str] = []
+    invalidated_recorded_stage_list: list[str] = []
+    stale_surface_map: dict[str, dict[str, Any]] = {}
+    blocked_reasons: list[str] = []
+    deferred_stages: list[dict[str, Any]] = []
     remediation_follow_up: dict[str, Any] | None = None
+    diagnosis_pack = None
+    repair_follow_on_state: dict[str, Any] = {}
+
+    with tempfile.TemporaryDirectory(prefix="scafforge-repair-candidate-") as candidate_dir:
+        candidate_root = Path(candidate_dir) / "candidate"
+        shutil.copytree(
+            repo_root,
+            candidate_root,
+            ignore=shutil.ignore_patterns(".git"),
+        )
+
+        # Auto-fix deterministic ticket graph contradictions (WFLOW019) inside the staged
+        # candidate before any verification or publication occurs.
+        _repair_ticket_graph_contradictions(candidate_root)
+        regenerate_restart_surfaces(
+            candidate_root,
+            reason=args.change_summary,
+            source="scafforge-repair",
+        )
+
+        initial_verification = evaluate_repair_verification(
+            candidate_root,
+            skip_verify=args.skip_verify,
+            explicit_logs=args.supporting_log,
+            repair_basis=repair_basis,
+            repair_basis_manifest=repair_basis_manifest,
+            repair_basis_path=repair_basis_path,
+            basis_requires_causal_replay=basis_requires_causal_replay,
+        )
+
+        if not args.skip_verify:
+            with tempfile.TemporaryDirectory(prefix="scafforge-repair-diagnosis-") as diagnosis_tempdir:
+                staged_diagnosis_dir = Path(diagnosis_tempdir) / "diagnosis"
+                staged_diagnosis_pack = emit_diagnosis_pack(
+                    candidate_root,
+                    initial_verification["findings"],
+                    staged_diagnosis_dir,
+                    initial_verification["logs"],
+                    manifest_overrides={
+                        "verification_kind": "post_repair",
+                        "diagnosis_kind": "post_repair_verification",
+                        "repair_package_commit": current_package_commit(),
+                        "repair_basis_path": str(repair_basis_path) if repair_basis_path else None,
+                        "current_state_clean": initial_verification["verification_status"]["current_state_clean"],
+                        "causal_regression_verified": initial_verification["verification_status"]["causal_regression_verified"],
+                        "verification_basis": initial_verification["verification_status"]["verification_basis"],
+                    },
+                )
+                diagnosis_target = staged_diagnosis_pack.get("path") if isinstance(staged_diagnosis_pack, dict) else None
+                if isinstance(diagnosis_target, str) and diagnosis_target.strip():
+                    remediation_follow_up = create_remediation_follow_up_tickets(candidate_root, diagnosis_target)
+                    if remediation_follow_up.get("created_tickets"):
+                        regenerate_restart_surfaces(
+                            candidate_root,
+                            reason="Refined repair follow-up tickets after managed repair.",
+                            source="scafforge-repair",
+                            verification_passed=initial_verification["verification_status"]["verification_passed"],
+                        )
+
+        final_verification = evaluate_repair_verification(
+            candidate_root,
+            skip_verify=args.skip_verify,
+            explicit_logs=args.supporting_log,
+            repair_basis=repair_basis,
+            repair_basis_manifest=repair_basis_manifest,
+            repair_basis_path=repair_basis_path,
+            basis_requires_causal_replay=basis_requires_causal_replay,
+        )
+        findings = final_verification["findings"]
+        pending_process_verification = final_verification["pending_process_verification"]
+        finding_classes = final_verification["finding_classes"]
+        regression_summary = final_verification["regression_summary"]
+        disposition_shadow_mode = final_verification["disposition_shadow_mode"]
+        verification_status = final_verification["verification_status"]
+
+        try:
+            required_follow_on = derive_required_follow_on_stages(
+                candidate_root,
+                findings,
+                replaced_surfaces,
+                pending_process_verification,
+            )
+            required_follow_on = [
+                {
+                    **item,
+                    "stage": normalize_follow_on_stage_names([item["stage"]])[0],
+                }
+                for item in required_follow_on
+            ]
+        except ValueError as exc:
+            raise SystemExit(str(exc)) from exc
+
+        required_stage_names = [item["stage"] for item in required_follow_on]
+        stale_surface_map = build_stale_surface_map(
+            candidate_root,
+            replaced_surfaces,
+            findings,
+            pending_process_verification,
+            required_stage_names=set(required_stage_names),
+        )
+        try:
+            requested_stage_names = normalize_follow_on_stage_names(args.stage_complete)
+        except ValueError as exc:
+            raise SystemExit(str(exc)) from exc
+        asserted_stage_names = sorted(set(requested_stage_names))
+        tracking_state = update_follow_on_tracking_state(
+            candidate_root,
+            required_follow_on=required_follow_on,
+            asserted_stage_names=asserted_stage_names,
+            repair_basis_path=repair_basis_path,
+            repair_package_commit=current_package_commit(),
+        )
+        tracking_state, auto_detected_recorded_stage_names = auto_record_stage_completion_from_canonical_evidence(
+            candidate_root,
+            tracking_state,
+            required_stage_names=required_stage_names,
+            repair_package_commit=current_package_commit(),
+        )
+        persisted_completed_stage_names = completed_stage_names(tracking_state)
+        recorded_execution_stage_list = recorded_execution_stage_names(tracking_state)
+        invalidated_recorded_stage_list = invalidated_recorded_stage_names(tracking_state)
+        completed_stage_name_set = set(persisted_completed_stage_names)
+        if not args.skip_deterministic_refresh:
+            completed_stage_name_set.add("deterministic-refresh")
+
+        executed_stages = [{"stage": "deterministic-refresh", "status": "completed"}] if not args.skip_deterministic_refresh else []
+        for stage in requested_stage_names:
+            executed_stages.append({"stage": stage, "status": "asserted_completed", "completion_mode": "legacy_manual_assertion"})
+
+        recorded_stage_results = []
+        for stage in persisted_completed_stage_names:
+            if stage in asserted_stage_names:
+                continue
+            record = tracking_state.get("stage_records", {}).get(stage, {})
+            recorded_stage_results.append(
+                {
+                    "stage": stage,
+                    "status": "recorded_completed",
+                    "completion_mode": record.get("completion_mode", "legacy_manual_assertion"),
+                    "recorded_at": record.get("last_recorded_at"),
+                }
+            )
+
+        skipped_stages = []
+        for item in required_follow_on:
+            stage = item["stage"]
+            if stage == "handoff-brief":
+                continue
+            if stage in completed_stage_name_set:
+                continue
+            skipped_stages.append(
+                {
+                    "stage": stage,
+                    "status": "required_not_run",
+                    "reason": item["reason"],
+                }
+            )
+
+        blocking_reasons = [f"{item['stage']} must still run: {item['reason']}" for item in skipped_stages]
+        if args.skip_verify:
+            blocking_reasons.append("Post-repair verification was skipped; rerun scafforge-audit before handoff.")
+        elif basis_requires_causal_replay and not final_verification["logs"]:
+            blocking_reasons.append("Post-repair verification did not inherit the transcript-backed repair basis; rerun the public repair runner with the causal transcript evidence before handoff.")
+        elif verification_status["source_regression_summary"]["introduced_critical_codes"]:
+            blocking_reasons.append(
+                "Post-repair verification introduced new critical execution or reference findings: "
+                + ", ".join(verification_status["source_regression_summary"]["introduced_critical_codes"])
+                + "."
+            )
+        elif verification_status["contract_failures"]:
+            blocking_reasons.append(
+                "Post-repair verification failed repair-contract consistency checks: "
+                + ", ".join(verification_status["contract_failures"])
+                + "."
+            )
+        elif finding_classes["managed_blockers"] or finding_classes["manual_prerequisites"]:
+            blocking_reasons.append("Post-repair verification still reports managed workflow or environment findings; handoff must remain blocked until they are resolved.")
+
+        repair_follow_on_outcome = (
+            "managed_blocked"
+            if blocking_reasons or not verification_status["verification_passed"]
+            else "source_follow_up"
+            if verification_status["source_follow_up_codes"] or verification_status["process_state_codes"] or pending_process_verification
+            else "clean"
+        )
+        handoff_allowed = verification_status["verification_passed"] and not blocking_reasons
+        repair_follow_on_state = update_repair_follow_on_state(
+            candidate_root,
+            outcome=repair_follow_on_outcome,
+            required_stage_details=required_follow_on,
+            required_stage_names=required_stage_names,
+            completed_stage_names=sorted(completed_stage_name_set),
+            asserted_stage_names=asserted_stage_names,
+            tracking_state=tracking_state,
+            blocking_reasons=blocking_reasons,
+            verification_passed=verification_status["verification_passed"],
+            handoff_allowed=handoff_allowed,
+            current_state_clean=verification_status["current_state_clean"],
+            causal_regression_verified=verification_status["causal_regression_verified"],
+        )
+        regenerate_restart_surfaces(
+            candidate_root,
+            reason=args.change_summary,
+            source="scafforge-repair",
+            next_action=blocking_reasons[0] if blocking_reasons else None,
+            verification_passed=verification_status["verification_passed"],
+        )
+
+        shutil.copytree(candidate_root, repo_root, dirs_exist_ok=True)
+
+    published_logs = verification_logs(repo_root, args.supporting_log, repair_basis)
+    verification_status["supporting_logs"] = [str(path) for path in published_logs]
+
     if not args.skip_verify:
         diagnosis_dir = select_diagnosis_destination(repo_root, args.diagnosis_output_dir, findings)
         diagnosis_pack = emit_diagnosis_pack(
             repo_root,
             findings,
             diagnosis_dir,
-            logs,
+            published_logs,
             manifest_overrides={
                 "verification_kind": "post_repair",
                 "diagnosis_kind": "post_repair_verification",
@@ -700,16 +814,13 @@ def main() -> int:
                 "verification_basis": verification_status["verification_basis"],
             },
         )
-        diagnosis_target = diagnosis_pack.get("path") if isinstance(diagnosis_pack, dict) else None
-        if isinstance(diagnosis_target, str) and diagnosis_target.strip():
-            remediation_follow_up = create_remediation_follow_up_tickets(repo_root, diagnosis_target)
-            if remediation_follow_up.get("created_tickets"):
-                regenerate_restart_surfaces(
-                    repo_root,
-                    reason="Refined repair follow-up tickets after managed repair.",
-                    source="scafforge-repair",
-                    verification_passed=verification_status["verification_passed"],
-                )
+        if isinstance(remediation_follow_up, dict) and isinstance(diagnosis_pack, dict):
+            diagnosis_manifest = Path(diagnosis_pack["path"]) / "manifest.json"
+            remediation_follow_up["diagnosis_manifest"] = (
+                str(diagnosis_manifest.relative_to(repo_root)).replace("\\", "/")
+                if diagnosis_manifest.is_relative_to(repo_root)
+                else str(diagnosis_manifest)
+            )
 
     if not args.skip_deterministic_refresh:
         update_latest_repair_history(
@@ -777,13 +888,6 @@ def main() -> int:
         payload["remediation_follow_up"] = remediation_follow_up
 
     write_json(repo_root / EXECUTION_RECORD_PATH, payload)
-    regenerate_restart_surfaces(
-        repo_root,
-        reason=args.change_summary,
-        source="scafforge-repair",
-        next_action=blocking_reasons[0] if blocking_reasons else None,
-        verification_passed=verification_status["verification_passed"],
-    )
 
     print(json.dumps(payload, indent=2))
 

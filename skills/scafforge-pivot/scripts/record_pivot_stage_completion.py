@@ -11,7 +11,6 @@ from pivot_tracking import (
     record_pivot_stage_completion,
     validate_pivot_stage_name,
 )
-from publish_pivot_surfaces import publish_pivot_surfaces
 
 
 def parse_args() -> argparse.Namespace:
@@ -28,7 +27,7 @@ def parse_args() -> argparse.Namespace:
         default=[],
         help="Repo-relative evidence path supporting completion. May be provided multiple times.",
     )
-    parser.add_argument("--skip-publish", action="store_true", help="Do not republish pivot restart surfaces after recording the stage completion.")
+    parser.add_argument("--skip-publish", action="store_true", help="Retained for compatibility; publish_pivot_surfaces is owned by the publish-gate path.")
     return parser.parse_args()
 
 
@@ -78,8 +77,6 @@ def main() -> int:
         "restart_surface_inputs": payload.get("restart_surface_inputs", {}),
         "recorded_stage": downstream_state["stage_records"][stage],
     }
-    if not args.skip_publish:
-        result["publication"] = publish_pivot_surfaces(repo_root, published_by=args.completed_by.strip())
     print(json.dumps(result, indent=2))
     return 0
 
