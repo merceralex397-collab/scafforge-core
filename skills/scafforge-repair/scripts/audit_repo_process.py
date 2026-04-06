@@ -20,6 +20,11 @@ emit_diagnosis_pack = AUDIT_MODULE.emit_diagnosis_pack
 load_latest_previous_diagnosis = AUDIT_MODULE.load_latest_previous_diagnosis
 load_latest_previous_diagnosis_with_supporting_logs = AUDIT_MODULE.load_latest_previous_diagnosis_with_supporting_logs
 manifest_supporting_logs = AUDIT_MODULE.manifest_supporting_logs
+bundle_source_follow_up_codes = AUDIT_MODULE.bundle_source_follow_up_codes
+bundle_shadow_mode_deltas = AUDIT_MODULE.bundle_shadow_mode_deltas
+disposition_class_for_finding = AUDIT_MODULE.disposition_class_for_finding
+legacy_disposition_class_for_finding = AUDIT_MODULE.legacy_disposition_class_for_finding
+load_disposition_bundle = AUDIT_MODULE.load_disposition_bundle
 repair_routed_codes_from_manifest = AUDIT_MODULE.repair_routed_codes_from_manifest
 select_diagnosis_destination = AUDIT_MODULE.select_diagnosis_destination
 supporting_log_paths = AUDIT_MODULE.supporting_log_paths
@@ -28,7 +33,12 @@ main = AUDIT_MODULE.main
 __all__ = [
     "audit_repo",
     "current_package_commit",
+    "bundle_source_follow_up_codes",
+    "bundle_shadow_mode_deltas",
     "emit_diagnosis_pack",
+    "disposition_class_for_finding",
+    "legacy_disposition_class_for_finding",
+    "load_disposition_bundle",
     "load_latest_previous_diagnosis",
     "load_latest_previous_diagnosis_with_supporting_logs",
     "manifest_supporting_logs",
