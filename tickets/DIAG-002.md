@@ -47,16 +47,16 @@ repair-disposition
 
 ## Stage
 
-planning
+complete
 
 ## Status
 
-todo
+done
 
 ## Trust
 
-- resolution_state: open
-- verification_state: suspect
+- resolution_state: completed
+- verification_state: verified
 - finding_source: None
 - source_ticket_id: None
 - source_mode: None
@@ -75,10 +75,10 @@ None
 
 ## Acceptance Criteria
 
-- [ ] `run_managed_repair.py` reads the diagnosis disposition bundle instead of re-deriving ownership from finding prefixes
-- [ ] Shadow-mode comparison reports any legacy-versus-authoritative classification delta before full cutover
-- [ ] `repair_follow_on` outcome derivation no longer depends on silent local reclassification heuristics
-- [ ] Repair output records any explicit reconcile reason when a later phase must disagree with diagnosis
+- [x] `run_managed_repair.py` reads the diagnosis disposition bundle instead of re-deriving ownership from finding prefixes
+- [x] Shadow-mode comparison reports any legacy-versus-authoritative classification delta before full cutover
+- [x] `repair_follow_on` outcome derivation no longer depends on silent local reclassification heuristics
+- [x] Repair output records any explicit reconcile reason when a later phase must disagree with diagnosis
 
 ## Artifacts
 

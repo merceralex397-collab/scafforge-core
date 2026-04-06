@@ -25,9 +25,13 @@ from apply_repo_process_repair import (
     verification_logs,
 )
 from audit_repo_process import (
+    bundle_shadow_mode_deltas,
+    bundle_source_follow_up_codes,
     current_package_commit,
     emit_diagnosis_pack,
+    disposition_class_for_finding,
     repair_routed_codes_from_manifest,
+    load_disposition_bundle,
     select_diagnosis_destination,
 )
 from follow_on_tracking import (
@@ -207,6 +211,10 @@ def derive_required_follow_on_stages(
 
 
 def repair_basis_source_codes(manifest: dict[str, Any]) -> set[str]:
+    bundle = load_disposition_bundle(manifest) if isinstance(manifest, dict) else None
+    bundle_codes = bundle_source_follow_up_codes(bundle)
+    if bundle_codes:
+        return bundle_codes
     source_findings = manifest.get("source_findings") if isinstance(manifest, dict) else None
     if isinstance(source_findings, list) and source_findings:
         return {
@@ -262,6 +270,18 @@ def summarize_source_regressions(findings: list[Any], repair_basis_manifest: dic
     }
 
 
+def summarize_disposition_shadow_mode(repair_basis_manifest: dict[str, Any]) -> dict[str, Any]:
+    bundle = load_disposition_bundle(repair_basis_manifest) if isinstance(repair_basis_manifest, dict) else None
+    deltas = bundle_shadow_mode_deltas(bundle)
+    return {
+        "bundle_available": bundle is not None,
+        "bundle_version": bundle.get("version") if isinstance(bundle, dict) else None,
+        "bundle_finding_count": bundle.get("finding_count") if isinstance(bundle, dict) else None,
+        "delta_count": len(deltas),
+        "deltas": deltas,
+    }
+
+
 def remediation_follow_up_script_path() -> Path:
     return Path(__file__).resolve().parents[2] / "ticket-pack-builder" / "scripts" / "apply_remediation_follow_up.py"
 
@@ -302,12 +322,12 @@ def classify_verification_findings(findings: list[Any]) -> dict[str, list[Any]]:
     manual_prerequisites: list[Any] = []
     process_state_only: list[Any] = []
     for finding in findings:
-        code = getattr(finding, "code", "")
-        if code.startswith(("EXEC", "REF")):
+        disposition_class = disposition_class_for_finding(finding)
+        if disposition_class == "source_follow_up":
             source_follow_up.append(finding)
-        elif code == "WFLOW008":
+        elif disposition_class == "process_state_only":
             process_state_only.append(finding)
-        elif code.startswith("ENV"):
+        elif disposition_class == "manual_prerequisite_blocker":
             manual_prerequisites.append(finding)
         else:
             managed_blockers.append(finding)
@@ -519,6 +539,7 @@ def main() -> int:
     pending_process_verification = load_pending_process_verification(repo_root)
     finding_classes = classify_verification_findings(findings)
     regression_summary = summarize_source_regressions(findings, repair_basis_manifest)
+    disposition_shadow_mode = summarize_disposition_shadow_mode(repair_basis_manifest)
     verification_status = summarize_verification(
         findings,
         pending_process_verification,
@@ -529,6 +550,7 @@ def main() -> int:
         repair_basis_path=repair_basis_path,
         regression_summary=regression_summary,
     )
+    verification_status["disposition_shadow_mode"] = disposition_shadow_mode
 
     if not args.skip_verify and basis_requires_causal_replay and not logs:
         verification_status["verification_passed"] = False
@@ -733,6 +755,7 @@ def main() -> int:
             "blocking_reasons": blocking_reasons,
             "repair_follow_on_outcome": repair_follow_on_outcome,
             "verification_status": verification_status,
+            "disposition_shadow_mode": disposition_shadow_mode,
             "handoff_allowed": handoff_allowed,
             "diff_summary": repair_result.get("diff_summary", {}) if not args.skip_deterministic_refresh else {},
             "backup_path": repair_result.get("backup_path") if not args.skip_deterministic_refresh else None,
