@@ -18,7 +18,12 @@ from test_support.gpttalker_fixture_builders import (
     build_pivot_state_edge_case,
     fixture_index_by_slug,
 )
-from test_support.repo_seeders import make_stack_skill_non_placeholder, read_json, seed_failing_pytest_suite, seed_ready_bootstrap
+from test_support.repo_seeders import (
+    make_stack_skill_non_placeholder,
+    read_json,
+    seed_failing_pytest_suite,
+    seed_ready_bootstrap,
+)
 from test_support.scafforge_harness import (
     AUDIT,
     BOOTSTRAP,
@@ -55,7 +60,11 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Run focused end-to-end Scafforge integration coverage for greenfield, repair, pivot, and GPTTalker fixture families."
     )
-    parser.add_argument("--list-fixtures", action="store_true", help="Print the curated GPTTalker fixture slugs and exit.")
+    parser.add_argument(
+        "--list-fixtures",
+        action="store_true",
+        help="Print the curated GPTTalker fixture slugs and exit.",
+    )
     return parser.parse_args()
 
 
@@ -76,12 +85,20 @@ def ensure_fixture_index() -> dict[str, dict[str, Any]]:
         "split-scope-and-historical-trust-reconciliation",
     }
     if set(indexed) != expected:
-        raise RuntimeError(f"Fixture index slugs do not match the curated GPTTalker family set: {sorted(indexed)}")
+        raise RuntimeError(
+            f"Fixture index slugs do not match the curated GPTTalker family set: {sorted(indexed)}"
+        )
     return indexed
 
 
 def bootstrap_full(dest: Path) -> None:
-    bootstrap_scaffold(dest, project_name="Integration Probe", project_slug="integration-probe", agent_prefix="integration-probe", stack_label="framework-agnostic")
+    bootstrap_scaffold(
+        dest,
+        project_name="Integration Probe",
+        project_slug="integration-probe",
+        agent_prefix="integration-probe",
+        stack_label="framework-agnostic",
+    )
 
 
 def bootstrap_scaffold(
@@ -125,7 +142,9 @@ def bootstrap_scaffold(
 def require_host_prerequisite(name: str, *, context: str) -> str:
     path = shutil.which(name)
     if not path:
-        raise RuntimeError(f"{context} requires `{name}` to be available on the current host.")
+        raise RuntimeError(
+            f"{context} requires `{name}` to be available on the current host."
+        )
     return path
 
 
@@ -135,7 +154,7 @@ def write_text(path: Path, content: str) -> None:
 
 
 def write_executable_wrapper(path: Path, target: str) -> None:
-    write_text(path, f"#!/usr/bin/env sh\nexec {target} \"$@\"\n")
+    write_text(path, f'#!/usr/bin/env sh\nexec {target} "$@"\n')
     path.chmod(path.stat().st_mode | 0o111)
 
 
@@ -183,7 +202,9 @@ def command_exists(*candidates: str) -> str | None:
 
 
 def run_checked(command: list[str], cwd: Path, *, timeout: int = 120) -> None:
-    result = subprocess.run(command, cwd=cwd, check=False, capture_output=True, text=True, timeout=timeout)
+    result = subprocess.run(
+        command, cwd=cwd, check=False, capture_output=True, text=True, timeout=timeout
+    )
     if result.returncode != 0:
         raise RuntimeError(
             f"Command failed: {' '.join(command)}\nSTDOUT:\n{result.stdout}\nSTDERR:\n{result.stderr}"
@@ -191,7 +212,10 @@ def run_checked(command: list[str], cwd: Path, *, timeout: int = 120) -> None:
 
 
 def seed_python_cli_target(dest: Path) -> None:
-    replace_stack_skill_placeholder(dest, "Use repo-local Python execution and validate with `python -m pytest -q` before closeout.")
+    replace_stack_skill_placeholder(
+        dest,
+        "Use repo-local Python execution and validate with `python -m pytest -q` before closeout.",
+    )
     write_executable_wrapper(dest / ".venv" / "bin" / "python", sys.executable)
     write_text(
         dest / "pyproject.toml",
@@ -212,11 +236,14 @@ def seed_python_cli_target(dest: Path) -> None:
         )
         + "\n",
     )
-    write_text(dest / "requirements.txt", "# Proof target requirements are provided by pyproject.toml\n")
+    write_text(
+        dest / "requirements.txt",
+        "# Proof target requirements are provided by pyproject.toml\n",
+    )
     write_text(dest / "src" / "__init__.py", "")
     write_text(
         dest / "src" / "proof_python_cli" / "__init__.py",
-        "def format_message(name: str) -> str:\n    return f\"Hello, {name}!\"\n",
+        'def format_message(name: str) -> str:\n    return f"Hello, {name}!"\n',
     )
     write_text(
         dest / "src" / "proof_python_cli" / "__main__.py",
@@ -228,7 +255,7 @@ def seed_python_cli_target(dest: Path) -> None:
                 "",
                 "",
                 "def main() -> int:",
-                "    parser = argparse.ArgumentParser(description=\"Python CLI proof target\")",
+                '    parser = argparse.ArgumentParser(description="Python CLI proof target")',
                 "    parser.add_argument('name', nargs='?', default='world')",
                 "    args = parser.parse_args()",
                 "    print(format_message(args.name))",
@@ -248,7 +275,10 @@ def seed_python_cli_target(dest: Path) -> None:
 
 
 def seed_node_api_target(dest: Path) -> None:
-    replace_stack_skill_placeholder(dest, "Use `npm test` for validation and keep the generated HTTP entry point loadable through `node`.")
+    replace_stack_skill_placeholder(
+        dest,
+        "Use `npm test` for validation and keep the generated HTTP entry point loadable through `node`.",
+    )
     write_text(
         dest / "package.json",
         json.dumps(
@@ -355,7 +385,10 @@ def seed_node_api_target(dest: Path) -> None:
 
 
 def seed_rust_cli_target(dest: Path) -> None:
-    replace_stack_skill_placeholder(dest, "Use `cargo test` and `cargo build` as the canonical Rust validation commands.")
+    replace_stack_skill_placeholder(
+        dest,
+        "Use `cargo test` and `cargo build` as the canonical Rust validation commands.",
+    )
     write_text(
         dest / "Cargo.toml",
         "\n".join(
@@ -372,17 +405,17 @@ def seed_rust_cli_target(dest: Path) -> None:
         dest / "src" / "main.rs",
         "\n".join(
             [
-                'use std::io::{self, Read};',
+                "use std::io::{self, Read};",
                 "",
                 "fn main() {",
                 "    let args: Vec<String> = std::env::args().collect();",
-                "    if args.iter().any(|arg| arg == \"--help\") {",
-                "        println!(\"usage: proof_rust_cli [--help]\");",
+                '    if args.iter().any(|arg| arg == "--help") {',
+                '        println!("usage: proof_rust_cli [--help]");',
                 "        return;",
                 "    }",
                 "    let mut input = String::new();",
                 "    io::stdin().read_to_string(&mut input).unwrap();",
-                "    println!(\"{}\", input.trim().to_uppercase());",
+                '    println!("{}", input.trim().to_uppercase());',
                 "}",
             ]
         )
@@ -391,7 +424,10 @@ def seed_rust_cli_target(dest: Path) -> None:
 
 
 def seed_go_http_target(dest: Path) -> None:
-    replace_stack_skill_placeholder(dest, "Use `go vet ./...`, `go test ./...`, and `go build ./...` as the Go proof commands.")
+    replace_stack_skill_placeholder(
+        dest,
+        "Use `go vet ./...`, `go test ./...`, and `go build ./...` as the Go proof commands.",
+    )
     write_text(dest / "go.mod", "module example.com/proof-go-http\n\ngo 1.22\n")
     write_text(
         dest / "main.go",
@@ -399,7 +435,7 @@ def seed_go_http_target(dest: Path) -> None:
             [
                 "package main",
                 "",
-                'import (',
+                "import (",
                 '    "fmt"',
                 '    "net/http"',
                 '    "os"',
@@ -424,7 +460,10 @@ def seed_go_http_target(dest: Path) -> None:
 
 
 def seed_godot_target(dest: Path) -> None:
-    replace_stack_skill_placeholder(dest, "Use `godot --headless --check-only` and `godot --headless --script res://check.gd --quit` when Godot is available.")
+    replace_stack_skill_placeholder(
+        dest,
+        "Use `godot --headless --check-only` and `godot --headless --script res://check.gd --quit` when Godot is available.",
+    )
     write_text(
         dest / "project.godot",
         "\n".join(
@@ -450,10 +489,10 @@ def seed_godot_target(dest: Path) -> None:
             [
                 "[gd_scene load_steps=2 format=3]",
                 "",
-                "[ext_resource type=\"Script\" path=\"res://scripts/main.gd\" id=\"1\"]",
+                '[ext_resource type="Script" path="res://scripts/main.gd" id="1"]',
                 "",
-                "[node name=\"Main\" type=\"Node2D\"]",
-                "script = ExtResource(\"1\")",
+                '[node name="Main" type="Node2D"]',
+                'script = ExtResource("1")',
             ]
         )
         + "\n",
@@ -462,7 +501,10 @@ def seed_godot_target(dest: Path) -> None:
 
 
 def seed_cmake_target(dest: Path) -> None:
-    replace_stack_skill_placeholder(dest, "Use `cmake -S . -B build` and `cmake --build build` as the canonical native proof commands.")
+    replace_stack_skill_placeholder(
+        dest,
+        "Use `cmake -S . -B build` and `cmake --build build` as the canonical native proof commands.",
+    )
     write_text(
         dest / "CMakeLists.txt",
         "\n".join(
@@ -478,7 +520,10 @@ def seed_cmake_target(dest: Path) -> None:
         + "\n",
     )
     write_text(dest / "include" / "lib.h", "int add(int left, int right);\n")
-    write_text(dest / "src" / "lib.c", '#include "lib.h"\n\nint add(int left, int right) { return left + right; }\n')
+    write_text(
+        dest / "src" / "lib.c",
+        '#include "lib.h"\n\nint add(int left, int right) { return left + right; }\n',
+    )
     write_text(
         dest / "test" / "test_lib.c",
         '#include "lib.h"\n\nint main(void) { return add(1, 1) == 2 ? 0 : 1; }\n',
@@ -486,31 +531,37 @@ def seed_cmake_target(dest: Path) -> None:
 
 
 def seed_dotnet_target(dest: Path) -> None:
-    replace_stack_skill_placeholder(dest, "Use `dotnet build --no-restore`, `dotnet test --no-build --list-tests`, and `dotnet run --no-build` for .NET validation.")
+    replace_stack_skill_placeholder(
+        dest,
+        "Use `dotnet build --no-restore`, `dotnet test --no-build --list-tests`, and `dotnet run --no-build` for .NET validation.",
+    )
     write_text(
         dest / "ProofConsole.csproj",
         "\n".join(
             [
                 '<Project Sdk="Microsoft.NET.Sdk">',
-                '  <PropertyGroup>',
-                '    <OutputType>Exe</OutputType>',
-                '    <TargetFramework>net8.0</TargetFramework>',
-                '    <ImplicitUsings>enable</ImplicitUsings>',
-                '    <Nullable>enable</Nullable>',
-                '  </PropertyGroup>',
-                '</Project>',
+                "  <PropertyGroup>",
+                "    <OutputType>Exe</OutputType>",
+                "    <TargetFramework>net8.0</TargetFramework>",
+                "    <ImplicitUsings>enable</ImplicitUsings>",
+                "    <Nullable>enable</Nullable>",
+                "  </PropertyGroup>",
+                "</Project>",
             ]
         )
         + "\n",
     )
     write_text(
         dest / "Program.cs",
-        "using System;\n\nif (args.Length > 0 && args[0] == \"--help\")\n{\n    Console.WriteLine(\"usage: dotnet run --no-build [--help]\");\n    return;\n}\n\nConsole.WriteLine(\"proof-dotnet-ready\");\n",
+        'using System;\n\nif (args.Length > 0 && args[0] == "--help")\n{\n    Console.WriteLine("usage: dotnet run --no-build [--help]");\n    return;\n}\n\nConsole.WriteLine("proof-dotnet-ready");\n',
     )
 
 
 def seed_java_gradle_target(dest: Path) -> None:
-    replace_stack_skill_placeholder(dest, "Use Gradle dry-run and build checks as the canonical Java proof commands.")
+    replace_stack_skill_placeholder(
+        dest,
+        "Use Gradle dry-run and build checks as the canonical Java proof commands.",
+    )
     write_text(dest / "settings.gradle", "rootProject.name = 'proof-java-cli'\n")
     write_text(
         dest / "build.gradle",
@@ -533,7 +584,7 @@ def seed_java_gradle_target(dest: Path) -> None:
     )
     write_text(
         dest / "src" / "main" / "java" / "Main.java",
-        "public class Main {\n    public static void main(String[] args) {\n        if (args.length > 0 && \"--help\".equals(args[0])) {\n            System.out.println(\"usage: gradle run --args=--help\");\n            return;\n        }\n        System.out.println(\"proof-java-ready\");\n    }\n}\n",
+        'public class Main {\n    public static void main(String[] args) {\n        if (args.length > 0 && "--help".equals(args[0])) {\n            System.out.println("usage: gradle run --args=--help");\n            return;\n        }\n        System.out.println("proof-java-ready");\n    }\n}\n',
     )
 
 
@@ -561,7 +612,11 @@ def go_runtime_check(dest: Path) -> None:
 def godot_runtime_check(dest: Path) -> None:
     godot = command_exists("godot4", "godot")
     if godot:
-        run_checked([godot, "--headless", "--script", "res://check.gd", "--quit"], dest, timeout=180)
+        run_checked(
+            [godot, "--headless", "--script", "res://check.gd", "--quit"],
+            dest,
+            timeout=180,
+        )
 
 
 def cmake_runtime_check(dest: Path) -> None:
@@ -585,14 +640,78 @@ def java_runtime_check(dest: Path) -> None:
 
 def multi_stack_targets() -> list[ProofTarget]:
     return [
-        ProofTarget("proof-python-cli", "Proof Python CLI", "python-cli", "python", ("pytest",), seed_python_cli_target, python_runtime_check),
-        ProofTarget("proof-node-api", "Proof Node API", "node-api", "node", ("npm", "test"), seed_node_api_target, node_runtime_check),
-        ProofTarget("proof-rust-cli", "Proof Rust CLI", "rust-cli", "rust", ("cargo test",), seed_rust_cli_target, rust_runtime_check),
-        ProofTarget("proof-go-http", "Proof Go HTTP", "go-http", "go", ("go test",), seed_go_http_target, go_runtime_check),
-        ProofTarget("proof-godot", "Proof Godot", "godot", "godot", ("godot", "headless"), seed_godot_target, godot_runtime_check),
-        ProofTarget("proof-cmake", "Proof CMake", "c-cpp", "c-cpp", ("cmake",), seed_cmake_target, cmake_runtime_check),
-        ProofTarget("proof-dotnet", "Proof Dotnet", "dotnet", "dotnet", ("dotnet", "test\\b"), seed_dotnet_target, dotnet_runtime_check),
-        ProofTarget("proof-java", "Proof Java", "java-gradle", "java-android", ("gradle",), seed_java_gradle_target, java_runtime_check),
+        ProofTarget(
+            "proof-python-cli",
+            "Proof Python CLI",
+            "python-cli",
+            "python",
+            ("pytest",),
+            seed_python_cli_target,
+            python_runtime_check,
+        ),
+        ProofTarget(
+            "proof-node-api",
+            "Proof Node API",
+            "node-api",
+            "node",
+            ("npm", "test"),
+            seed_node_api_target,
+            node_runtime_check,
+        ),
+        ProofTarget(
+            "proof-rust-cli",
+            "Proof Rust CLI",
+            "rust-cli",
+            "rust",
+            ("cargo test",),
+            seed_rust_cli_target,
+            rust_runtime_check,
+        ),
+        ProofTarget(
+            "proof-go-http",
+            "Proof Go HTTP",
+            "go-http",
+            "go",
+            ("go test",),
+            seed_go_http_target,
+            go_runtime_check,
+        ),
+        ProofTarget(
+            "proof-godot",
+            "Proof Godot",
+            "godot",
+            "godot",
+            ("godot", "headless"),
+            seed_godot_target,
+            godot_runtime_check,
+        ),
+        ProofTarget(
+            "proof-cmake",
+            "Proof CMake",
+            "c-cpp",
+            "c-cpp",
+            ("cmake",),
+            seed_cmake_target,
+            cmake_runtime_check,
+        ),
+        ProofTarget(
+            "proof-dotnet",
+            "Proof Dotnet",
+            "dotnet",
+            "dotnet",
+            ("dotnet", "test\\b"),
+            seed_dotnet_target,
+            dotnet_runtime_check,
+        ),
+        ProofTarget(
+            "proof-java",
+            "Proof Java",
+            "java-gradle",
+            "java-android",
+            ("gradle",),
+            seed_java_gradle_target,
+            java_runtime_check,
+        ),
     ]
 
 
@@ -600,7 +719,9 @@ def seed_prompt_drift(dest: Path) -> None:
     team_leader = next((dest / ".opencode" / "agents").glob("*team-leader*.md"))
     text = team_leader.read_text(encoding="utf-8")
     text = text.replace("next_action_tool", "legacy_next_action_tool")
-    text = text.replace("summary-only stopping is invalid", "summary-only stopping may happen")
+    text = text.replace(
+        "summary-only stopping is invalid", "summary-only stopping may happen"
+    )
     team_leader.write_text(text, encoding="utf-8")
 
 
@@ -640,9 +761,13 @@ def greenfield_integration(workspace: Path) -> None:
         ROOT,
     )
     if bootstrap_lane.get("verification_kind") != "greenfield_bootstrap_lane":
-        raise RuntimeError("Greenfield integration should run the bootstrap-lane verifier before specialization.")
+        raise RuntimeError(
+            "Greenfield integration should run the bootstrap-lane verifier before specialization."
+        )
     if bootstrap_lane.get("bootstrap_lane_valid") is not True:
-        raise RuntimeError("Greenfield integration should preserve one valid bootstrap lane immediately after scaffold render.")
+        raise RuntimeError(
+            "Greenfield integration should preserve one valid bootstrap lane immediately after scaffold render."
+        )
     make_stack_skill_non_placeholder(dest)
     payload = run_json(
         [
@@ -655,9 +780,16 @@ def greenfield_integration(workspace: Path) -> None:
         ROOT,
     )
     if payload.get("verification_kind") != "greenfield_continuation":
-        raise RuntimeError("Greenfield integration should run the continuation verifier.")
-    if payload.get("immediately_continuable") is not True or payload.get("finding_count") != 0:
-        raise RuntimeError("Greenfield integration should prove the generated repo is immediately continuable once placeholder drift is removed.")
+        raise RuntimeError(
+            "Greenfield integration should run the continuation verifier."
+        )
+    if (
+        payload.get("immediately_continuable") is not True
+        or payload.get("finding_count") != 0
+    ):
+        raise RuntimeError(
+            "Greenfield integration should prove the generated repo is immediately continuable once placeholder drift is removed."
+        )
 
 
 def repair_integration(workspace: Path) -> None:
@@ -687,15 +819,21 @@ def repair_integration(workspace: Path) -> None:
         "ticket-pack-builder",
     }
     if required != expected_required:
-        raise RuntimeError(f"Repair integration expected follow-on stages {sorted(expected_required)}, found {sorted(required)}")
+        raise RuntimeError(
+            f"Repair integration expected follow-on stages {sorted(expected_required)}, found {sorted(required)}"
+        )
     tracking_path = dest / ".opencode" / "meta" / "repair-follow-on-state.json"
     tracking_state = read_json(tracking_path)
     if not isinstance(tracking_state, dict):
-        raise RuntimeError("Repair integration expected persistent follow-on tracking state.")
+        raise RuntimeError(
+            "Repair integration expected persistent follow-on tracking state."
+        )
     cycle_id = tracking_state.get("cycle_id")
     if not isinstance(cycle_id, str) or not cycle_id:
         raise RuntimeError("Repair integration expected a non-empty repair cycle id.")
-    provenance_evidence_rel = ".opencode/state/artifacts/history/repair/provenance-probe.md"
+    provenance_evidence_rel = (
+        ".opencode/state/artifacts/history/repair/provenance-probe.md"
+    )
     provenance_evidence_path = dest / provenance_evidence_rel
     provenance_evidence_path.parent.mkdir(parents=True, exist_ok=True)
     provenance_evidence_path.write_text("# Provenance probe\n", encoding="utf-8")
@@ -722,10 +860,19 @@ def repair_integration(workspace: Path) -> None:
         env=missing_provenance_env,
     )
     if missing_provenance_record.returncode == 0:
-        raise RuntimeError("Repair integration should reject recorded completion when repair-package provenance is missing.")
-    combined_provenance_output = f"{missing_provenance_record.stdout}\n{missing_provenance_record.stderr}"
-    if "requires repair_package_commit provenance" not in combined_provenance_output or "missing_provenance" not in combined_provenance_output:
-        raise RuntimeError("Repair integration should explain missing provenance when recorded completion is rejected.")
+        raise RuntimeError(
+            "Repair integration should reject recorded completion when repair-package provenance is missing."
+        )
+    combined_provenance_output = (
+        f"{missing_provenance_record.stdout}\n{missing_provenance_record.stderr}"
+    )
+    if (
+        "requires repair_package_commit provenance" not in combined_provenance_output
+        or "missing_provenance" not in combined_provenance_output
+    ):
+        raise RuntimeError(
+            "Repair integration should explain missing provenance when recorded completion is rejected."
+        )
     for stage in sorted(expected_required | {"handoff-brief"}):
         write_repair_completion_artifact(dest, stage=stage, cycle_id=cycle_id)
     artifact_recorded = run_json(
@@ -738,12 +885,18 @@ def repair_integration(workspace: Path) -> None:
         ROOT,
         allow_returncodes={0, 3},
     )
-    recorded_before_fix = set(artifact_recorded["execution_record"]["recorded_execution_completed_stages"])
+    recorded_before_fix = set(
+        artifact_recorded["execution_record"]["recorded_execution_completed_stages"]
+    )
     expected_recorded = expected_required | {"handoff-brief"}
     if recorded_before_fix != expected_recorded:
-        raise RuntimeError(f"Repair integration expected recorded completion for {sorted(expected_recorded)}, found {sorted(recorded_before_fix)}")
+        raise RuntimeError(
+            f"Repair integration expected recorded completion for {sorted(expected_recorded)}, found {sorted(recorded_before_fix)}"
+        )
     if not artifact_recorded["execution_record"]["blocking_reasons"]:
-        raise RuntimeError("Repair integration should stay managed-blocked while placeholder skill and prompt drift still exist.")
+        raise RuntimeError(
+            "Repair integration should stay managed-blocked while placeholder skill and prompt drift still exist."
+        )
     make_stack_skill_non_placeholder(dest)
     restore_prompt_surface(dest, original_team_leader)
     converged = run_json(
@@ -756,17 +909,28 @@ def repair_integration(workspace: Path) -> None:
         ROOT,
         allow_returncodes={0, 3},
     )
-    if set(converged["execution_record"]["recorded_execution_completed_stages"]) != expected_recorded:
-        raise RuntimeError("Repair integration should preserve recorded completion for all routed follow-on stages.")
+    if (
+        set(converged["execution_record"]["recorded_execution_completed_stages"])
+        != expected_recorded
+    ):
+        raise RuntimeError(
+            "Repair integration should preserve recorded completion for all routed follow-on stages."
+        )
     outcome = converged["execution_record"]["repair_follow_on_outcome"]
     if outcome not in {"managed_blocked", "source_follow_up"}:
-        raise RuntimeError(f"Repair integration should classify the post-follow-on state truthfully; observed unexpected outcome `{outcome}`.")
+        raise RuntimeError(
+            f"Repair integration should classify the post-follow-on state truthfully; observed unexpected outcome `{outcome}`."
+        )
     if outcome == "source_follow_up":
         if converged["execution_record"]["handoff_allowed"] is not True:
-            raise RuntimeError("Repair integration should allow handoff once only source follow-up remains.")
+            raise RuntimeError(
+                "Repair integration should allow handoff once only source follow-up remains."
+            )
     else:
         if not converged["execution_record"]["blocking_reasons"]:
-            raise RuntimeError("Repair integration should preserve managed-blocked reasons when workflow findings still remain after recorded follow-on completion.")
+            raise RuntimeError(
+                "Repair integration should preserve managed-blocked reasons when workflow findings still remain after recorded follow-on completion."
+            )
 
 
 def pivot_integration(workspace: Path) -> None:
@@ -792,7 +956,9 @@ def pivot_integration(workspace: Path) -> None:
         ROOT,
     )
     if payload["verification_status"]["verification_passed"] is not True:
-        raise RuntimeError("Pivot integration should pass the post-pivot verification gate on a clean generated repo.")
+        raise RuntimeError(
+            "Pivot integration should pass the post-pivot verification gate on a clean generated repo."
+        )
     pending = payload["downstream_refresh_state"]["pending_stages"]
     if not isinstance(pending, list) or not pending:
         raise RuntimeError("Pivot integration expected routed downstream stages.")
@@ -828,31 +994,62 @@ def pivot_integration(workspace: Path) -> None:
         ROOT,
     )
     state = read_json(dest / ".opencode" / "meta" / "pivot-state.json")
-    restart_inputs = state.get("restart_surface_inputs") if isinstance(state, dict) else None
-    if not isinstance(restart_inputs, dict) or restart_inputs.get("pivot_in_progress") is not False:
-        raise RuntimeError("Pivot integration should clear pivot_in_progress once all routed downstream stages are completed.")
+    restart_inputs = (
+        state.get("restart_surface_inputs") if isinstance(state, dict) else None
+    )
+    if (
+        not isinstance(restart_inputs, dict)
+        or restart_inputs.get("pivot_in_progress") is not False
+    ):
+        raise RuntimeError(
+            "Pivot integration should clear pivot_in_progress once all routed downstream stages are completed."
+        )
     if restart_inputs.get("pending_downstream_stages") not in ([], None):
-        raise RuntimeError("Pivot integration should not leave pending downstream stages after all recorded completions.")
+        raise RuntimeError(
+            "Pivot integration should not leave pending downstream stages after all recorded completions."
+        )
     if published["restart_surface_publication"]["status"] != "published":
-        raise RuntimeError("Pivot integration should republish restart surfaces after pivot completion.")
+        raise RuntimeError(
+            "Pivot integration should republish restart surfaces after pivot completion."
+        )
 
 
-def fixture_builder_integration(fixtures: dict[str, dict[str, Any]], workspace: Path) -> None:
+def fixture_builder_integration(
+    fixtures: dict[str, dict[str, Any]], workspace: Path
+) -> None:
     fixture_root = workspace / "gpttalker-fixtures"
     for slug in sorted(fixtures):
         dest = fixture_root / slug
         contract = build_fixture_family(slug, dest)
         if contract.get("slug") != slug:
-            raise RuntimeError(f"Fixture builder should persist the canonical slug for `{slug}`.")
-        if not isinstance(contract.get("expected_coverage"), list) or not contract["expected_coverage"]:
-            raise RuntimeError(f"Fixture builder should persist expected coverage for `{slug}`.")
+            raise RuntimeError(
+                f"Fixture builder should persist the canonical slug for `{slug}`."
+            )
+        if (
+            not isinstance(contract.get("expected_coverage"), list)
+            or not contract["expected_coverage"]
+        ):
+            raise RuntimeError(
+                f"Fixture builder should persist expected coverage for `{slug}`."
+            )
         contract_path = dest / ".opencode" / "meta" / "gpttalker-fixture.json"
         if not contract_path.exists():
-            raise RuntimeError(f"Fixture builder should emit .opencode/meta/gpttalker-fixture.json for `{slug}`.")
+            raise RuntimeError(
+                f"Fixture builder should emit .opencode/meta/gpttalker-fixture.json for `{slug}`."
+            )
         expected_finding_codes = contract.get("expected_finding_codes")
         if not isinstance(expected_finding_codes, list) or not expected_finding_codes:
-            raise RuntimeError(f"Fixture builder should persist expected_finding_codes for `{slug}`.")
-        command = [sys.executable, str(AUDIT), str(dest), "--format", "json", "--no-diagnosis-pack"]
+            raise RuntimeError(
+                f"Fixture builder should persist expected_finding_codes for `{slug}`."
+            )
+        command = [
+            sys.executable,
+            str(AUDIT),
+            str(dest),
+            "--format",
+            "json",
+            "--no-diagnosis-pack",
+        ]
         supporting_log = contract.get("supporting_log")
         if isinstance(supporting_log, str) and supporting_log.strip():
             command.extend(["--supporting-log", str(dest / supporting_log)])
@@ -860,14 +1057,23 @@ def fixture_builder_integration(fixtures: dict[str, dict[str, Any]], workspace: 
             command,
             ROOT,
         )
-        if not isinstance(audit_payload.get("findings"), list) or audit_payload.get("finding_count", 0) <= 0:
-            raise RuntimeError(f"Fixture `{slug}` should produce actionable audit findings, not a no-op repo.")
+        if (
+            not isinstance(audit_payload.get("findings"), list)
+            or audit_payload.get("finding_count", 0) <= 0
+        ):
+            raise RuntimeError(
+                f"Fixture `{slug}` should produce actionable audit findings, not a no-op repo."
+            )
         audit_codes = {
             str(item.get("code", "")).strip()
             for item in audit_payload.get("findings", [])
             if isinstance(item, dict) and str(item.get("code", "")).strip()
         }
-        missing_codes = [code for code in expected_finding_codes if isinstance(code, str) and code not in audit_codes]
+        missing_codes = [
+            code
+            for code in expected_finding_codes
+            if isinstance(code, str) and code not in audit_codes
+        ]
         if missing_codes:
             raise RuntimeError(
                 f"Fixture `{slug}` did not trigger its declared invariant finding codes. Missing: {', '.join(missing_codes)}; "
@@ -875,45 +1081,94 @@ def fixture_builder_integration(fixtures: dict[str, dict[str, Any]], workspace: 
             )
         truth_expectations = contract.get("truth_expectations")
         if not isinstance(truth_expectations, dict):
-            raise RuntimeError(f"Fixture `{slug}` should persist truth_expectations in its contract payload.")
+            raise RuntimeError(
+                f"Fixture `{slug}` should persist truth_expectations in its contract payload."
+            )
         assert_fixture_truth_checks(dest, slug, truth_expectations)
 
 
-def assert_fixture_truth_checks(dest: Path, slug: str, truth_expectations: dict[str, Any]) -> None:
+def assert_fixture_truth_checks(
+    dest: Path, slug: str, truth_expectations: dict[str, Any]
+) -> None:
+    """Assert fixture truth expectations using a dispatcher pattern for maintainability."""
     checks = truth_expectations.get("checks")
     if not isinstance(checks, list) or not checks:
         raise RuntimeError(f"Fixture `{slug}` must define truth_expectations.checks.")
+
+    # Dispatcher pattern: map check kinds to their handler functions
+    check_handlers: dict[str, Callable[[Path, str, dict[str, Any]], None]] = {
+        "json_equals": _check_json_equals,
+        "file_contains": _check_file_contains,
+        "file_exists": _check_file_exists,
+    }
+
     for check in checks:
         if not isinstance(check, dict):
             raise RuntimeError(f"Fixture `{slug}` truth check entries must be objects.")
         kind = check.get("kind")
-        if kind == "json_equals":
-            file_path = check.get("file")
-            dotted_path = check.get("path")
-            expected = check.get("value")
-            if not isinstance(file_path, str) or not isinstance(dotted_path, str):
-                raise RuntimeError(f"Fixture `{slug}` json_equals checks must define file and path.")
-            observed = read_repo_json_value(dest, file_path, dotted_path)
-            if observed != expected:
-                raise RuntimeError(
-                    f"Fixture `{slug}` expected {file_path}:{dotted_path} to equal {expected!r}, observed {observed!r}."
-                )
-        elif kind == "file_contains":
-            file_path = check.get("file")
-            needle = check.get("needle")
-            if not isinstance(file_path, str) or not isinstance(needle, str):
-                raise RuntimeError(f"Fixture `{slug}` file_contains checks must define file and needle.")
-            text = (dest / file_path).read_text(encoding="utf-8")
-            if needle not in text:
-                raise RuntimeError(f"Fixture `{slug}` expected {file_path} to contain {needle!r}.")
-        elif kind == "file_exists":
-            file_path = check.get("file")
-            if not isinstance(file_path, str):
-                raise RuntimeError(f"Fixture `{slug}` file_exists checks must define file.")
-            if not (dest / file_path).exists():
-                raise RuntimeError(f"Fixture `{slug}` expected file to exist: {file_path}.")
-        else:
-            raise RuntimeError(f"Fixture `{slug}` has unsupported truth check kind: {kind!r}.")
+        handler = check_handlers.get(kind)
+        if handler is None:
+            supported = ", ".join(sorted(check_handlers.keys()))
+            raise RuntimeError(
+                f"Fixture `{slug}` has unsupported truth check kind: {kind!r}. "
+                f"Supported kinds: {supported}."
+            )
+        handler(dest, slug, check)
+
+
+def _check_json_equals(dest: Path, slug: str, check: dict[str, Any]) -> None:
+    """Verify a JSON value at a dotted path equals the expected value."""
+    file_path = check.get("file")
+    dotted_path = check.get("path")
+    expected = check.get("value")
+    if not isinstance(file_path, str) or not isinstance(dotted_path, str):
+        raise RuntimeError(
+            f"Fixture `{slug}` json_equals checks must define file and path."
+        )
+    try:
+        observed = read_repo_json_value(dest, file_path, dotted_path)
+    except RuntimeError as exc:
+        raise RuntimeError(
+            f"Fixture `{slug}` failed to read JSON value at {file_path}:{dotted_path}: {exc}"
+        ) from exc
+    if observed != expected:
+        raise RuntimeError(
+            f"Fixture `{slug}` expected {file_path}:{dotted_path} to equal {expected!r}, observed {observed!r}."
+        )
+
+
+def _check_file_contains(dest: Path, slug: str, check: dict[str, Any]) -> None:
+    """Verify a file contains the expected string."""
+    file_path = check.get("file")
+    needle = check.get("needle")
+    if not isinstance(file_path, str) or not isinstance(needle, str):
+        raise RuntimeError(
+            f"Fixture `{slug}` file_contains checks must define file and needle."
+        )
+    full_path = dest / file_path
+    try:
+        text = full_path.read_text(encoding="utf-8")
+    except FileNotFoundError as exc:
+        raise RuntimeError(
+            f"Fixture `{slug}` expected file to exist for file_contains check: {file_path}."
+        ) from exc
+    except UnicodeDecodeError as exc:
+        raise RuntimeError(
+            f"Fixture `{slug}` file {file_path} could not be read as UTF-8 text."
+        ) from exc
+    if needle not in text:
+        raise RuntimeError(
+            f"Fixture `{slug}` expected {file_path} to contain {needle!r}."
+        )
+
+
+def _check_file_exists(dest: Path, slug: str, check: dict[str, Any]) -> None:
+    """Verify a file exists."""
+    file_path = check.get("file")
+    if not isinstance(file_path, str):
+        raise RuntimeError(f"Fixture `{slug}` file_exists checks must define file.")
+    if not (dest / file_path).exists():
+        raise RuntimeError(f"Fixture `{slug}` expected file to exist: {file_path}.")
 
 
 def synthetic_edge_case_integration(workspace: Path) -> None:
@@ -943,11 +1198,11 @@ def synthetic_edge_case_integration(workspace: Path) -> None:
         ],
         ROOT,
     )
-    pivot_audit_codes = {
-        finding["code"] for finding in pivot_audit.get("findings", [])
-    }
+    pivot_audit_codes = {finding["code"] for finding in pivot_audit.get("findings", [])}
     if "WFLOW024" not in pivot_audit_codes:
-        raise RuntimeError("Pivot-state drift should surface historical reconciliation deadlock WFLOW024.")
+        raise RuntimeError(
+            "Pivot-state drift should surface historical reconciliation deadlock WFLOW024."
+        )
 
 
 def multi_stack_proof_integration(workspace: Path) -> None:
@@ -963,23 +1218,48 @@ def multi_stack_proof_integration(workspace: Path) -> None:
         )
         target.seed(dest)
 
-        smoke_test_text = (dest / ".opencode" / "tools" / "smoke_test.ts").read_text(encoding="utf-8")
+        smoke_test_text = (dest / ".opencode" / "tools" / "smoke_test.ts").read_text(
+            encoding="utf-8"
+        )
         for snippet in target.smoke_snippets:
             if snippet not in smoke_test_text:
-                raise RuntimeError(f"Proof target `{target.slug}` expected smoke_test.ts to reference `{snippet}`.")
+                raise RuntimeError(
+                    f"Proof target `{target.slug}` expected smoke_test.ts to reference `{snippet}`."
+                )
 
-        bootstrap_result = run_generated_tool(dest, ".opencode/tools/environment_bootstrap.ts", {})
+        bootstrap_result = run_generated_tool(
+            dest, ".opencode/tools/environment_bootstrap.ts", {}
+        )
         detections = bootstrap_result.get("detections")
-        if not isinstance(detections, list) or target.adapter_id not in {item.get("adapter_id") for item in detections if isinstance(item, dict)}:
-            raise RuntimeError(f"Proof target `{target.slug}` should detect adapter `{target.adapter_id}` during environment bootstrap.")
+        if not isinstance(detections, list) or target.adapter_id not in {
+            item.get("adapter_id") for item in detections if isinstance(item, dict)
+        }:
+            raise RuntimeError(
+                f"Proof target `{target.slug}` should detect adapter `{target.adapter_id}` during environment bootstrap."
+            )
 
         bootstrap_status = bootstrap_result.get("bootstrap_status")
-        blockers = bootstrap_result.get("blockers") if isinstance(bootstrap_result.get("blockers"), list) else []
-        missing = bootstrap_result.get("missing_prerequisites") if isinstance(bootstrap_result.get("missing_prerequisites"), list) else []
+        blockers = (
+            bootstrap_result.get("blockers")
+            if isinstance(bootstrap_result.get("blockers"), list)
+            else []
+        )
+        missing = (
+            bootstrap_result.get("missing_prerequisites")
+            if isinstance(bootstrap_result.get("missing_prerequisites"), list)
+            else []
+        )
 
         if bootstrap_status == "ready":
             audit_payload = run_json(
-                [sys.executable, str(AUDIT), str(dest), "--format", "json", "--no-diagnosis-pack"],
+                [
+                    sys.executable,
+                    str(AUDIT),
+                    str(dest),
+                    "--format",
+                    "json",
+                    "--no-diagnosis-pack",
+                ],
                 ROOT,
             )
             verify_payload = run_json(
@@ -989,10 +1269,19 @@ def multi_stack_proof_integration(workspace: Path) -> None:
             code_quality_findings = [
                 item
                 for item in audit_payload.get("findings", [])
-                if isinstance(item, dict) and (str(item.get("code", "")).startswith("EXEC") or str(item.get("code", "")).startswith("REF"))
+                if isinstance(item, dict)
+                and (
+                    str(item.get("code", "")).startswith("EXEC")
+                    or str(item.get("code", "")).startswith("REF")
+                )
             ]
-            if verify_payload.get("verification_passed") is not True or verify_payload.get("finding_count") != 0:
-                raise RuntimeError(f"Proof target `{target.slug}` should pass greenfield verification after successful bootstrap.")
+            if (
+                verify_payload.get("verification_passed") is not True
+                or verify_payload.get("finding_count") != 0
+            ):
+                raise RuntimeError(
+                    f"Proof target `{target.slug}` should pass greenfield verification after successful bootstrap."
+                )
             if code_quality_findings:
                 raise RuntimeError(
                     f"Proof target `{target.slug}` should not emit EXEC/REF findings on a clean minimal target; observed {', '.join(str(item.get('code')) for item in code_quality_findings)}."
@@ -1046,7 +1335,9 @@ def _stage_ticket_and_approve_plan(dest: Path, ticket_id: str, stage: str) -> No
     ticket = next(item for item in manifest["tickets"] if item["id"] == ticket_id)
     ticket["stage"] = stage
     ticket["status"] = stage
-    workflow.setdefault("ticket_state", {}).setdefault(ticket_id, {})["approved_plan"] = True
+    workflow.setdefault("ticket_state", {}).setdefault(ticket_id, {})[
+        "approved_plan"
+    ] = True
     manifest_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
     workflow_path.write_text(json.dumps(workflow, indent=2) + "\n", encoding="utf-8")
 
@@ -1054,7 +1345,9 @@ def _stage_ticket_and_approve_plan(dest: Path, ticket_id: str, stage: str) -> No
 def backward_transition_integration(workspace: Path) -> None:
     base = workspace / "backward-transition-base"
     bootstrap_full(base)
-    manifest = json.loads((base / "tickets" / "manifest.json").read_text(encoding="utf-8"))
+    manifest = json.loads(
+        (base / "tickets" / "manifest.json").read_text(encoding="utf-8")
+    )
     ticket_id = manifest["tickets"][0]["id"]
     slug = ticket_id.lower().replace("-", "")
 
