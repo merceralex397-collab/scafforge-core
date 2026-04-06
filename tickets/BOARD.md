@@ -2,7 +2,7 @@
 
 Package backlog only. This board is a tracker, not runtime workflow state.
 
-Current focus: `REPAIR-002`
+Current focus: `AUDIT-001`
 
 | Wave | ID | Title | Lane | Stage | Status | Resolution | Verification | Parallel Safe | Overlap Risk | Depends On | Follow-ups |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -21,9 +21,9 @@ Current focus: `REPAIR-002`
 | 2 | RESTART-002 | Retire regenerate_restart_surfaces as an independent renderer | restart-surfaces | complete | done | completed | verified | no | high | REPAIR-001, RESTART-001 | - |
 | 2 | INV-002 | Extend stage-gate and pivot-state enforcement to the new invariant contract | mutation-invariants | complete | done | completed | verified | yes | medium | INV-001, PIVOT-001, MUT-001 | - |
 | 2 | AUDIT-001 | Align audit modules to the runtime invariant and restart contract | audit-contract | planning | todo | open | suspect | yes | medium | INV-001, INV-002, RESTART-002 | - |
-| 3 | REPAIR-002 | Convert run_managed_repair into a staged transaction | repair-engine | planning | todo | open | suspect | no | high | DIAG-002, REPAIR-001, RESTART-002, INV-001 | - |
-| 3 | PIVOT-002 | Align pivot publication with the final-state publish gate | pivot-orchestration | planning | todo | open | suspect | yes | medium | PIVOT-001, RESTART-001, REPAIR-002 | - |
-| 3 | STAGE-001 | Align stage-completion scripts to transaction-owned state updates | stage-tracking | planning | todo | open | suspect | yes | low | REPAIR-002, PIVOT-002 | - |
+| 3 | REPAIR-002 | Convert run_managed_repair into a staged transaction | repair-engine | complete | done | completed | verified | no | high | DIAG-002, REPAIR-001, RESTART-002, INV-001 | - |
+| 3 | PIVOT-002 | Align pivot publication with the final-state publish gate | pivot-orchestration | complete | done | completed | verified | yes | medium | PIVOT-001, RESTART-001, REPAIR-002 | - |
+| 3 | STAGE-001 | Align stage-completion scripts to transaction-owned state updates | stage-tracking | complete | done | completed | verified | yes | low | REPAIR-002, PIVOT-002 | - |
 | 3 | BLOCK-001 | Narrow blocker semantics across audit, repair, and restart surfaces | blocker-semantics | planning | todo | open | suspect | no | medium | DIAG-002, REPAIR-002, AUDIT-001 | - |
 | 3 | CYCLE-001 | Align repair-cycle auditing with transaction outcomes and churn rules | repair-cycles | planning | todo | open | suspect | yes | low | DIAG-002, REPAIR-002, AUDIT-001 | - |
 | 3 | LEG-001 | Implement the legacy workflow contract migration stage and escalation rules | legacy-migration | planning | todo | open | suspect | no | high | ARCH-001, REPAIR-001 | - |

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -529,6 +530,19 @@ def main() -> int:
     # These are always correct repairs — no intent is changed.
     _repair_ticket_graph_contradictions(repo_root)
 
+    candidate_tempdir = None
+    verification_root = repo_root
+    if not args.skip_deterministic_refresh:
+        candidate_tempdir = tempfile.TemporaryDirectory(prefix="scafforge-repair-candidate-")
+        candidate_root = Path(candidate_tempdir.name) / "candidate"
+        shutil.copytree(repo_root, candidate_root)
+        regenerate_restart_surfaces(
+            candidate_root,
+            reason=args.change_summary,
+            source="scafforge-repair",
+        )
+        verification_root = candidate_root
+
     repair_basis = resolve_repair_basis(repo_root, args.repair_basis_diagnosis)
     repair_basis_path = repair_basis[0] if repair_basis else None
     repair_basis_manifest = repair_basis[1] if repair_basis else {}
@@ -538,9 +552,9 @@ def main() -> int:
             "Run one fresh post-package revalidation audit after the package changes land, then repair from that diagnosis pack."
         )
     basis_requires_causal_replay = repair_basis_requires_causal_replay(repo_root, args.supporting_log, repair_basis)
-    logs = verification_logs(repo_root, args.supporting_log, repair_basis)
-    findings = [] if args.skip_verify else audit_repo(repo_root, logs=logs)
-    pending_process_verification = load_pending_process_verification(repo_root)
+    logs = verification_logs(verification_root, args.supporting_log, repair_basis)
+    findings = [] if args.skip_verify else audit_repo(verification_root, logs=logs)
+    pending_process_verification = load_pending_process_verification(verification_root)
     finding_classes = classify_verification_findings(findings)
     regression_summary = summarize_source_regressions(findings, repair_basis_manifest)
     disposition_shadow_mode = summarize_disposition_shadow_mode(repair_basis_manifest)
@@ -559,6 +573,9 @@ def main() -> int:
     if not args.skip_verify and basis_requires_causal_replay and not logs:
         verification_status["verification_passed"] = False
         verification_status["causal_regression_verified"] = False
+
+    if candidate_tempdir is not None:
+        candidate_tempdir.cleanup()
 
     try:
         required_follow_on = derive_required_follow_on_stages(repo_root, findings, replaced_surfaces, pending_process_verification)

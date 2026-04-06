@@ -47,16 +47,16 @@ stage-tracking
 
 ## Stage
 
-planning
+complete
 
 ## Status
 
-todo
+done
 
 ## Trust
 
-- resolution_state: open
-- verification_state: suspect
+- resolution_state: completed
+- verification_state: verified
 - finding_source: None
 - source_ticket_id: None
 - source_mode: None
@@ -76,14 +76,19 @@ None
 
 ## Acceptance Criteria
 
-- [ ] `record_repair_stage_completion.py` no longer behaves like an independent publication path outside the repair transaction
-- [ ] `record_pivot_stage_completion.py` no longer behaves like an independent publication path outside the pivot publish gate
-- [ ] Stage-completion scripts update only the state they still own and defer restart publication to the transaction or publish-gate owner
-- [ ] Hidden stage-completion side effects are documented and covered by validation after the change
+- [x] `record_repair_stage_completion.py` no longer behaves like an independent publication path outside the repair transaction
+- [x] `record_pivot_stage_completion.py` no longer behaves like an independent publication path outside the pivot publish gate
+- [x] Stage-completion scripts update only the state they still own and defer restart publication to the transaction or publish-gate owner
+- [x] Hidden stage-completion side effects are documented and covered by validation after the change
 
 ## Artifacts
 
-- None yet
+- `skills/scafforge-repair/scripts/record_repair_stage_completion.py`
+- `skills/scafforge-pivot/scripts/record_pivot_stage_completion.py`
+- `scripts/smoke_test_scafforge.py`
+- `npm run validate:smoke`
+- `npm run validate:contract`
+- `python3 scripts/integration_test_scafforge.py`
 
 ## Notes
 

@@ -47,16 +47,16 @@ pivot-orchestration
 
 ## Stage
 
-planning
+complete
 
 ## Status
 
-todo
+done
 
 ## Trust
 
-- resolution_state: open
-- verification_state: suspect
+- resolution_state: completed
+- verification_state: verified
 - finding_source: None
 - source_ticket_id: None
 - source_mode: None
@@ -77,14 +77,18 @@ None
 
 ## Acceptance Criteria
 
-- [ ] `publish_pivot_surfaces.py` only publishes restart surfaces from a verified post-mutation pivot state
-- [ ] `plan_pivot.py` and related pivot orchestration surfaces reference the same publish-gate semantics as repair
-- [ ] Pivot publication cannot bypass the runtime restart contract through private recomputation of restart inputs
-- [ ] Pivot output remains truthful about pending downstream stages and lineage work after the gate change
+- [x] `publish_pivot_surfaces.py` only publishes restart surfaces from a verified post-mutation pivot state
+- [x] `plan_pivot.py` and related pivot orchestration surfaces reference the same publish-gate semantics as repair
+- [x] Pivot publication cannot bypass the runtime restart contract through private recomputation of restart inputs
+- [x] Pivot output remains truthful about pending downstream stages and lineage work after the gate change
 
 ## Artifacts
 
-- None yet
+- `skills/scafforge-pivot/scripts/publish_pivot_surfaces.py`
+- `skills/scafforge-pivot/scripts/record_pivot_stage_completion.py`
+- `scripts/smoke_test_scafforge.py`
+- `npm run validate:smoke`
+- `npm run validate:contract`
 
 ## Notes
 

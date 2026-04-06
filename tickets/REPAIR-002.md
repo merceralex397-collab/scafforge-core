@@ -47,16 +47,16 @@ repair-engine
 
 ## Stage
 
-planning
+complete
 
 ## Status
 
-todo
+done
 
 ## Trust
 
-- resolution_state: open
-- verification_state: suspect
+- resolution_state: completed
+- verification_state: verified
 - finding_source: None
 - source_ticket_id: None
 - source_mode: None
@@ -78,15 +78,19 @@ None
 
 ## Acceptance Criteria
 
-- [ ] `run_managed_repair.py` executes repair as a closed stage sequence from basis resolution through final publication
-- [ ] Candidate-state invariant validation occurs before any restart publication or `repair_follow_on` publication
-- [ ] Final-state verification runs on the exact post-mutation snapshot that repair intends to publish
-- [ ] Repair fails closed when any stage breaks rather than leaving partially refreshed restart truth behind
-- [ ] Repair records enough staged evidence to diagnose interrupted or invalid transactions
+- [x] `run_managed_repair.py` executes repair as a closed stage sequence from basis resolution through final publication
+- [x] Candidate-state invariant validation occurs before any restart publication or `repair_follow_on` publication
+- [x] Final-state verification runs on the exact post-mutation snapshot that repair intends to publish
+- [x] Repair fails closed when any stage breaks rather than leaving partially refreshed restart truth behind
+- [x] Repair records enough staged evidence to diagnose interrupted or invalid transactions
 
 ## Artifacts
 
-- None yet
+- `skills/scafforge-repair/scripts/run_managed_repair.py`
+- `skills/scafforge-repair/scripts/record_repair_stage_completion.py`
+- `scripts/smoke_test_scafforge.py`
+- `python3 scripts/integration_test_scafforge.py`
+- `npm run validate:smoke`
 
 ## Notes
 

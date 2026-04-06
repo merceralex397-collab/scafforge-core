@@ -42,22 +42,6 @@ def record_publication(
 
 def publish_pivot_surfaces(repo_root: Path, *, published_by: str, next_action: str | None = None) -> dict[str, Any]:
     payload = load_pivot_state(repo_root)
-    downstream = payload.get("downstream_refresh_state", {}) or {}
-    verification_status = payload.get("verification_status") if isinstance(payload.get("verification_status"), dict) else {}
-    pending_stages = downstream.get("pending_stages", []) or []
-    if isinstance(pending_stages, dict):
-        pending_stages = [s for s, r in pending_stages.items() if isinstance(r, dict) and r.get("status") != "completed"]
-    pending_lineage = payload.get("ticket_lineage_plan", {}).get("pending_actions", []) or []
-    pending_lineage = [a for a in pending_lineage if isinstance(a, dict) and a.get("status") != "completed"]
-    all_done = len(pending_stages) == 0 and len(pending_lineage) == 0
-    rsi = payload.get("restart_surface_inputs", {}) or {}
-    if isinstance(rsi, dict):
-        rsi["pivot_in_progress"] = not all_done
-        rsi["pending_downstream_stages"] = [str(s) for s in pending_stages]
-        rsi["pending_ticket_lineage_actions"] = [str(a.get("label", a)) for a in pending_lineage if isinstance(a, dict)]
-        rsi["post_pivot_verification_passed"] = verification_status.get("verification_passed") is True
-        payload["restart_surface_inputs"] = rsi
-        persist_pivot_state(repo_root, payload)
     args: dict[str, object] = {}
     if isinstance(next_action, str) and next_action.strip():
         args["next_action"] = next_action.strip()
