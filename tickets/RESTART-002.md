@@ -90,3 +90,4 @@ None
 - RFC coverage: Workstream B repair-side renderer collapse and final-state publish gate preconditions.
 - Primary surfaces: `skills/scafforge-repair/scripts/regenerate_restart_surfaces.py`, `workflow.ts`, `handoff_publish.ts`, repair or pivot callers.
 - This ticket is the explicit answer to the review note that restart rendering duplication was understated.
+- PR-11 final-authority follow-up: `validateRestartSurfacePublication(...)` currently checks pivot ownership plus manifest/workflow convergence, but it does not directly enforce pivot verification-complete fields such as `restart_surface_inputs.post_pivot_verification_passed`, `pending_downstream_stages`, or `pending_ticket_lineage_actions`. If RESTART-002 changes publication or restart inputs, either tighten that gate to cover these fields or document why convergence alone remains sufficient.
