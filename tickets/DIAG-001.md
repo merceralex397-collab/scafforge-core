@@ -47,16 +47,16 @@ audit-disposition
 
 ## Stage
 
-planning
+complete
 
 ## Status
 
-todo
+done
 
 ## Trust
 
-- resolution_state: open
-- verification_state: suspect
+- resolution_state: completed
+- verification_state: verified
 - finding_source: None
 - source_ticket_id: None
 - source_mode: None
@@ -75,10 +75,10 @@ None
 
 ## Acceptance Criteria
 
-- [ ] `audit_reporting.py` and `audit_repo_process.py` emit a structured disposition bundle for every diagnosis finding
-- [ ] The bundle distinguishes managed blockers, manual prerequisites, source follow-up, process-state-only, and advisory findings
-- [ ] Diagnosis packs persist the disposition bundle in a machine-readable form that repair can consume directly
-- [ ] Existing audit output surfaces continue to explain the same findings without losing evidence provenance
+- [x] `audit_reporting.py` and `audit_repo_process.py` emit a structured disposition bundle for every diagnosis finding
+- [x] The bundle distinguishes managed blockers, manual prerequisites, source follow-up, process-state-only, and advisory findings
+- [x] Diagnosis packs persist the disposition bundle in a machine-readable form that repair can consume directly
+- [x] Existing audit output surfaces continue to explain the same findings without losing evidence provenance
 
 ## Artifacts
 

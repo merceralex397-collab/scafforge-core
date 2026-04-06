@@ -28,6 +28,14 @@ from audit_reporting import (
     resolve_current_package_commit,
     select_diagnosis_destination,
 )
+from disposition_bundle import (
+    bundle_repair_routed_codes,
+    bundle_shadow_mode_deltas,
+    bundle_source_follow_up_codes,
+    disposition_class_for_finding,
+    legacy_disposition_class_for_finding,
+    load_disposition_bundle,
+)
 from audit_session_transcripts import SessionTranscriptAuditContext, run_session_transcript_audits
 from audit_restart_surfaces import RestartSurfaceAuditContext, run_restart_surface_audits
 from audit_ticket_graph import TicketGraphAuditContext, run_ticket_graph_audits
@@ -629,6 +637,9 @@ def manifest_diagnosis_kind(manifest: dict[str, Any]) -> str:
 
 
 def repair_routed_codes_from_manifest(manifest: dict[str, Any]) -> set[str]:
+    bundle = load_disposition_bundle(manifest)
+    if bundle is not None:
+        return bundle_repair_routed_codes(bundle)
     return {
         str(item.get("source_finding_code", "")).strip()
         for item in manifest.get("ticket_recommendations", [])

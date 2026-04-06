@@ -9,6 +9,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from disposition_bundle import bundle_source_follow_up_codes, build_disposition_bundle, evidence_grade_for_finding
 from shared_verifier_types import Finding
 
 
@@ -375,13 +376,7 @@ def diagnosis_result_state(findings: list[Finding]) -> str:
 
 
 def evidence_grade(finding: Finding) -> str:
-    if finding.code.startswith("SESSION"):
-        return "transcript-backed and repo-validated"
-    if finding.code.startswith("ENV"):
-        return "host evidence plus repo-state validation"
-    if finding.evidence:
-        return "repo-state validation"
-    return "current-state validation"
+    return evidence_grade_for_finding(finding)
 
 
 def ownership_classification(finding: Finding) -> str:
@@ -788,6 +783,13 @@ def emit_diagnosis_pack(
     destination.mkdir(parents=True, exist_ok=True)
     recommendations = build_ticket_recommendations(findings, ctx)
     next_step = recommended_next_step(findings, recommendations)
+    disposition_bundle = build_disposition_bundle(
+        findings,
+        recommendations,
+        generated_at=generated_at,
+        repo_root=str(root),
+        audit_package_commit=ctx.current_package_commit,
+    )
     reports = {
         DIAGNOSIS_REPORTS["report_1"]: render_report_one(root, findings, generated_at, logs),
         DIAGNOSIS_REPORTS["report_2"]: render_report_two(findings),
@@ -796,6 +798,8 @@ def emit_diagnosis_pack(
     }
     for filename, content in reports.items():
         (destination / filename).write_text(content + "\n", encoding="utf-8")
+    disposition_bundle_name = "disposition-bundle.json"
+    (destination / disposition_bundle_name).write_text(json.dumps(disposition_bundle, indent=2) + "\n", encoding="utf-8")
 
     manifest: dict[str, Any] = {
         "generated_at": generated_at,
@@ -808,13 +812,15 @@ def emit_diagnosis_pack(
                 "severity": finding.severity,
             }
             for finding in findings
-            if finding.code.startswith(("EXEC", "REF"))
+            if finding.code in bundle_source_follow_up_codes(disposition_bundle)
         ],
         "result_state": diagnosis_result_state(findings),
         "diagnosis_kind": "initial_diagnosis",
         "evidence_mode": "transcript_backed" if logs else "current_state_only",
         "audit_package_commit": ctx.current_package_commit,
         "report_files": {key: value for key, value in DIAGNOSIS_REPORTS.items()},
+        "disposition_bundle_file": disposition_bundle_name,
+        "disposition_bundle": disposition_bundle,
         "ticket_recommendations": recommendations,
         "package_work_required_first": package_work_required_first(recommendations),
         "recommended_next_step": next_step,
