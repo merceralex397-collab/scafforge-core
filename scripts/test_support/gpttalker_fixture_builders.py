@@ -105,6 +105,7 @@ def build_split_scope_and_historical_trust_reconciliation(dest: Path, family: di
 
 def build_partial_transaction_edge_case(dest: Path) -> dict[str, Any]:
     bootstrap_full(dest)
+    make_stack_skill_non_placeholder(dest)
     seed_closed_ticket_with_new_active_artifact_write(dest)
     workflow_path = dest / ".opencode" / "state" / "workflow-state.json"
     workflow = read_json(workflow_path)
@@ -117,7 +118,7 @@ def build_partial_transaction_edge_case(dest: Path) -> dict[str, Any]:
             "transaction-owned active ticket updates",
             "lease evidence must not disappear during a staged write",
         ],
-        "expected_finding_codes": ["WFLOW008", "WFLOW010"],
+        "expected_finding_codes": ["WFLOW010"],
         "expected_coverage": [
             "integration:repair",
             "smoke:partial-transaction lease evidence",
@@ -125,7 +126,7 @@ def build_partial_transaction_edge_case(dest: Path) -> dict[str, Any]:
         "truth_expectations": {
             "convergence": "partial-transaction",
             "publish_safety": "lease-evidence-missing",
-            "blocker_truth": "transaction-ownership-not-finalized",
+            "blocker_truth": "partial-transaction-lease-gap",
             "checks": [
                 {
                     "kind": "json_equals",
@@ -148,7 +149,6 @@ def build_partial_transaction_edge_case(dest: Path) -> dict[str, Any]:
             ],
         },
         "archive_origin": ["synthetic-partial-transaction"],
-        "notes": "synthetic-partial-transaction/README.md",
     }
     return write_fixture_contract(dest, slug="partial-transaction-edge-case", family=family)
 
@@ -202,7 +202,6 @@ def build_pivot_state_edge_case(dest: Path) -> dict[str, Any]:
             ],
         },
         "archive_origin": ["synthetic-pivot-state"],
-        "notes": "synthetic-pivot-state/README.md",
     }
     return write_fixture_contract(dest, slug="pivot-state-edge-case", family=family)
 
