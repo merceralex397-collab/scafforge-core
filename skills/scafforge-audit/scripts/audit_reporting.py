@@ -447,7 +447,9 @@ def render_report_one(root: Path, findings: list[Finding], generated_at: str, lo
         f"- errors: {len(grouped.get('error', []))}",
         f"- warnings: {len(grouped.get('warning', []))}",
         "",
-        "## Workflow Findings",
+        "## Validated Findings",
+        "",
+        "### Workflow Findings",
         "",
     ]
     if not findings:

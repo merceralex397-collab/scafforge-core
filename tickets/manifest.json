@@ -1,0 +1,769 @@
+{
+  "version": 3,
+  "project": "Scafforge",
+  "tracking_mode": "package-backlog",
+  "current_focus_ticket": "DIAG-001",
+  "tickets": [
+    {
+      "id": "SETUP-001",
+      "title": "Establish package-local execution baseline and affected-surface inventory",
+      "wave": 0,
+      "lane": "repo-foundation",
+      "parallel_safe": false,
+      "overlap_risk": "high",
+      "stage": "complete",
+      "status": "done",
+      "resolution_state": "completed",
+      "verification_state": "verified",
+      "depends_on": [],
+      "source_ticket_id": null,
+      "follow_up_ticket_ids": [],
+      "summary": "Bootstrap the Scafforge package repo for the RFC implementation itself by fixing the local queue surfaces, naming the canonical validation commands, freezing the affected-surface inventory from the RFC, and making the first legal move explicit so later work does not start from stale assumptions.",
+      "acceptance": [
+        "`tickets/manifest.json`, `tickets/BOARD.md`, and `tickets/templates/TICKET.template.md` exist and record the cleaned package backlog with `SETUP-001` complete and `ARCH-001` as the next focus",
+        "Package validation entrypoints are documented as `npm run validate:contract`, `npm run validate:smoke`, `python3 scripts/integration_test_scafforge.py`, and `python3 scripts/validate_gpttalker_migration.py`",
+        "The ticket pack accounts for every primary surface named in the RFC appendix with no unowned package area left outside the backlog",
+        "The package repo backlog makes the first implementation ticket obvious without relying on generated-repo workflow state"
+      ],
+      "decision_blockers": [],
+      "artifacts": []
+    },
+    {
+      "id": "ARCH-001",
+      "title": "Publish authority ADR and canonical truth-domain inventory",
+      "wave": 0,
+      "lane": "authority-contract",
+      "parallel_safe": false,
+      "overlap_risk": "high",
+      "stage": "complete",
+      "status": "done",
+      "resolution_state": "completed",
+      "verification_state": "verified",
+      "depends_on": [
+        "SETUP-001"
+      ],
+      "source_ticket_id": null,
+      "follow_up_ticket_ids": [],
+      "summary": "Write the authority ownership ADR and invariant catalog that define diagnosis ownership, runtime mutation ownership, pivot-state ownership, contract-alignment obligations, and publish-gate ownership for the Scafforge package and generated repos.",
+      "acceptance": [
+        "A new authority ADR names one owner for diagnosis disposition, repo mutation, pivot state, restart publication, and contract alignment",
+        "A new invariant catalog covers every RFC invariant including pivot-state, publish-gate, and contract-alignment rules",
+        "The authority documents explicitly call out repair-side restart duplication as the first collapse target",
+        "The ADR and invariant catalog are referenced from the contract surfaces that depend on them"
+      ],
+      "decision_blockers": [],
+      "artifacts": []
+    },
+    {
+      "id": "ARCH-002",
+      "title": "Align package contract docs and flow manifest to the authority baseline",
+      "wave": 0,
+      "lane": "contract-alignment",
+      "parallel_safe": false,
+      "overlap_risk": "medium",
+      "stage": "complete",
+      "status": "done",
+      "resolution_state": "completed",
+      "verification_state": "verified",
+      "depends_on": [
+        "ARCH-001"
+      ],
+      "source_ticket_id": null,
+      "follow_up_ticket_ids": [],
+      "summary": "Update the package contract documents and flow manifest so the shipped repo surfaces, skill graph, and authority model all describe the same mutation and publish-gate behavior.",
+      "acceptance": [
+        "`AGENTS.md` reflects the authority map, publish-gate rule, and greenfield versus repair or pivot boundary",
+        "`skills/skill-flow-manifest.json` reflects the new ownership map, required outputs, and downstream routing",
+        "`references/competence-contract.md`, `references/one-shot-generation-contract.md`, and `references/stack-adapter-contract.md` are updated or explicitly verified against the new model",
+        "No stale dual-authority or redundant-gate wording remains in the aligned contract surfaces"
+      ],
+      "decision_blockers": [],
+      "artifacts": []
+    },
+    {
+      "id": "STACK-001",
+      "title": "Define Tier 1 proof-host matrix and release-gate command contract",
+      "wave": 0,
+      "lane": "release-proof",
+      "parallel_safe": true,
+      "overlap_risk": "low",
+      "stage": "complete",
+      "status": "done",
+      "resolution_state": "completed",
+      "verification_state": "verified",
+      "depends_on": [
+        "SETUP-001"
+      ],
+      "source_ticket_id": null,
+      "follow_up_ticket_ids": [],
+      "summary": "Freeze the proof-host expectations for Python, Node, Rust, Go, Godot, Java or Android, C or C++, and .NET so later validation tickets know which hosts must provide real execution proof and which hosts must degrade truthfully.",
+      "acceptance": [
+        "The Tier 1 proof-host matrix names the required toolchains and executable proof commands for all Tier 1 stacks",
+        "Release-gate expectations distinguish proof hosts from best-effort hosts and document truthful degradation behavior",
+        "Package validation surfaces know which commands are authoritative for release proof versus local smoke proof",
+        "The proof-host matrix is referenced from the contract or validation docs used by later tickets"
+      ],
+      "decision_blockers": [],
+      "artifacts": []
+    },
+    {
+      "id": "DIAG-001",
+      "title": "Emit the authoritative disposition bundle from audit outputs",
+      "wave": 1,
+      "lane": "audit-disposition",
+      "parallel_safe": false,
+      "overlap_risk": "medium",
+      "stage": "planning",
+      "status": "todo",
+      "resolution_state": "open",
+      "verification_state": "suspect",
+      "depends_on": [
+        "ARCH-001"
+      ],
+      "source_ticket_id": null,
+      "follow_up_ticket_ids": [],
+      "summary": "Define and emit the machine-readable disposition bundle so diagnosis, repair, and follow-up routing all start from one authoritative ownership surface instead of finding-prefix heuristics.",
+      "acceptance": [
+        "`audit_reporting.py` and `audit_repo_process.py` emit a structured disposition bundle for every diagnosis finding",
+        "The bundle distinguishes managed blockers, manual prerequisites, source follow-up, process-state-only, and advisory findings",
+        "Diagnosis packs persist the disposition bundle in a machine-readable form that repair can consume directly",
+        "Existing audit output surfaces continue to explain the same findings without losing evidence provenance"
+      ],
+      "decision_blockers": [],
+      "artifacts": []
+    },
+    {
+      "id": "MUT-001",
+      "title": "Generalize the pivot runtime adapter into the package-wide runtime bridge",
+      "wave": 1,
+      "lane": "runtime-adapter",
+      "parallel_safe": true,
+      "overlap_risk": "medium",
+      "stage": "planning",
+      "status": "todo",
+      "resolution_state": "open",
+      "verification_state": "suspect",
+      "depends_on": [
+        "ARCH-001"
+      ],
+      "source_ticket_id": null,
+      "follow_up_ticket_ids": [],
+      "summary": "Extract the existing pivot-generated runtime bridge into a shared package-side adapter so repair, pivot, and follow-up ticket flows can call generated runtime tools without creating another Python mutation engine.",
+      "acceptance": [
+        "The package exposes a shared runtime adapter pattern derived from `generated_tool_runtime.py`",
+        "The shared adapter can invoke generated repo TypeScript tools without duplicating ticket or workflow semantics",
+        "Pivot continues to work through the shared adapter after extraction",
+        "Repair and ticket-follow-up surfaces can adopt the shared adapter without introducing a second mutation engine"
+      ],
+      "decision_blockers": [],
+      "artifacts": []
+    },
+    {
+      "id": "PIVOT-001",
+      "title": "Formalize pivot-state ownership and bounded persistence rules",
+      "wave": 1,
+      "lane": "pivot-state",
+      "parallel_safe": true,
+      "overlap_risk": "medium",
+      "stage": "planning",
+      "status": "todo",
+      "resolution_state": "open",
+      "verification_state": "suspect",
+      "depends_on": [
+        "ARCH-001"
+      ],
+      "source_ticket_id": null,
+      "follow_up_ticket_ids": [],
+      "summary": "Turn `.opencode/meta/pivot-state.json` into an explicitly owned truth domain by bounding which pivot surfaces may write it, which surfaces may only derive from it, and how it feeds restart publication.",
+      "acceptance": [
+        "`.opencode/meta/pivot-state.json` has one explicit persistence owner and documented write contract",
+        "`pivot_tracking.py`, `plan_pivot.py`, and related pivot surfaces stop implying that pivot state is an unowned sidecar",
+        "Pivot-state fields distinguish canonical pivot truth from derived restart-surface data",
+        "The contract documents how restart surfaces may read pivot state without synthesizing it"
+      ],
+      "decision_blockers": [],
+      "artifacts": []
+    },
+    {
+      "id": "RESTART-001",
+      "title": "Implement the runtime-backed restart derivation contract",
+      "wave": 1,
+      "lane": "restart-surfaces",
+      "parallel_safe": false,
+      "overlap_risk": "high",
+      "stage": "planning",
+      "status": "todo",
+      "resolution_state": "open",
+      "verification_state": "suspect",
+      "depends_on": [
+        "ARCH-001",
+        "MUT-001"
+      ],
+      "source_ticket_id": null,
+      "follow_up_ticket_ids": [],
+      "summary": "Make `workflow.ts` and `handoff_publish.ts` the canonical owners of restart derivation so `START-HERE.md`, `context-snapshot.md`, and `latest-handoff.md` are always rendered from runtime-owned state instead of package-side parallel logic.",
+      "acceptance": [
+        "`workflow.ts` defines the canonical restart-derivation contract for `START-HERE.md`, `context-snapshot.md`, and `latest-handoff.md`",
+        "`handoff_publish.ts` uses that contract as the runtime publication path",
+        "The contract explicitly includes manifest, workflow, and pivot inputs and defines when restart publication is legal",
+        "Repair and pivot can call the restart contract without inventing local render semantics"
+      ],
+      "decision_blockers": [],
+      "artifacts": []
+    },
+    {
+      "id": "INV-001",
+      "title": "Enforce graph and lifecycle invariants at write time in workflow.ts",
+      "wave": 1,
+      "lane": "mutation-invariants",
+      "parallel_safe": false,
+      "overlap_risk": "high",
+      "stage": "planning",
+      "status": "todo",
+      "resolution_state": "open",
+      "verification_state": "suspect",
+      "depends_on": [
+        "ARCH-001",
+        "RESTART-001"
+      ],
+      "source_ticket_id": null,
+      "follow_up_ticket_ids": [],
+      "summary": "Move graph, lifecycle, and active-ticket convergence checks into the runtime mutation path so invalid state cannot be written and then discovered later by audit or resume.",
+      "acceptance": [
+        "Runtime mutation paths enforce no duplicate parent or dependency edges, symmetric follow-up links, split-scope child rules, and acyclic dependencies",
+        "Lifecycle and queue-state mutations reject impossible stage, status, resolution, or verification combinations",
+        "`manifest.active_ticket` and `workflow.active_ticket` convergence is enforced on successful mutation",
+        "Invariant failures surface early enough that weaker models cannot write stale or contradictory state"
+      ],
+      "decision_blockers": [],
+      "artifacts": []
+    },
+    {
+      "id": "DIAG-002",
+      "title": "Consume the disposition bundle in repair and surface reclassification deltas",
+      "wave": 2,
+      "lane": "repair-disposition",
+      "parallel_safe": false,
+      "overlap_risk": "medium",
+      "stage": "planning",
+      "status": "todo",
+      "resolution_state": "open",
+      "verification_state": "suspect",
+      "depends_on": [
+        "DIAG-001"
+      ],
+      "source_ticket_id": null,
+      "follow_up_ticket_ids": [],
+      "summary": "Teach repair to read the authoritative disposition bundle, report shadow-mode deltas against the legacy classifier, and stop silently inventing its own ownership model.",
+      "acceptance": [
+        "`run_managed_repair.py` reads the diagnosis disposition bundle instead of re-deriving ownership from finding prefixes",
+        "Shadow-mode comparison reports any legacy-versus-authoritative classification delta before full cutover",
+        "`repair_follow_on` outcome derivation no longer depends on silent local reclassification heuristics",
+        "Repair output records any explicit reconcile reason when a later phase must disagree with diagnosis"
+      ],
+      "decision_blockers": [],
+      "artifacts": []
+    },
+    {
+      "id": "MUT-002",
+      "title": "Route package-side ticket mutations through canonical runtime tools",
+      "wave": 2,
+      "lane": "ticket-mutation",
+      "parallel_safe": true,
+      "overlap_risk": "medium",
+      "stage": "planning",
+      "status": "todo",
+      "resolution_state": "open",
+      "verification_state": "suspect",
+      "depends_on": [
+        "MUT-001",
+        "PIVOT-001"
+      ],
+      "source_ticket_id": null,
+      "follow_up_ticket_ids": [],
+      "summary": "Route remediation follow-up and pivot lineage ticket creation or reconciliation through the canonical runtime mutation path so package-side orchestration no longer acts as a shadow ticket writer.",
+      "acceptance": [
+        "`apply_remediation_follow_up.py` uses the shared runtime adapter or a runtime-compatible mutation contract instead of direct manifest mutation for guarded ticket creation",
+        "`apply_pivot_lineage.py` routes all ticket lineage mutations through canonical runtime tools with no shadow ticket semantics",
+        "Split-scope, source-ticket, and follow-up linkage are preserved through the canonical mutation path",
+        "No second direct ticket-writer remains in the package surfaces covered by this ticket"
+      ],
+      "decision_blockers": [],
+      "artifacts": []
+    },
+    {
+      "id": "REPAIR-001",
+      "title": "Remove raw workflow-state reconstruction from apply_repo_process_repair",
+      "wave": 2,
+      "lane": "repair-engine",
+      "parallel_safe": false,
+      "overlap_risk": "high",
+      "stage": "planning",
+      "status": "todo",
+      "resolution_state": "open",
+      "verification_state": "suspect",
+      "depends_on": [
+        "MUT-001",
+        "RESTART-001"
+      ],
+      "source_ticket_id": null,
+      "follow_up_ticket_ids": [],
+      "summary": "Strip `apply_repo_process_repair.py` of its private workflow reconstruction logic so repair orchestration records intent and provenance but no longer manufactures canonical workflow truth on its own.",
+      "acceptance": [
+        "`apply_repo_process_repair.py` no longer rebuilds canonical workflow state through a private parallel truth model",
+        "Workflow-state changes triggered during repair route through the canonical runtime mutation contract or a shared adapter path",
+        "Repair-side workflow updates preserve `active_ticket`, `repair_follow_on`, bootstrap, process-version, and lane-lease truth without inventing secondary semantics",
+        "The repair script records only orchestration intent and provenance that belong at package level"
+      ],
+      "decision_blockers": [],
+      "artifacts": []
+    },
+    {
+      "id": "RESTART-002",
+      "title": "Retire regenerate_restart_surfaces as an independent renderer",
+      "wave": 2,
+      "lane": "restart-surfaces",
+      "parallel_safe": false,
+      "overlap_risk": "high",
+      "stage": "planning",
+      "status": "todo",
+      "resolution_state": "open",
+      "verification_state": "suspect",
+      "depends_on": [
+        "REPAIR-001",
+        "RESTART-001"
+      ],
+      "source_ticket_id": null,
+      "follow_up_ticket_ids": [],
+      "summary": "Turn `regenerate_restart_surfaces.py` into a thin runtime-backed adapter or eliminate its independent renderer role so package-side restart publication can no longer drift from runtime restart truth.",
+      "acceptance": [
+        "`regenerate_restart_surfaces.py` becomes a thin runtime-backed adapter or is otherwise stripped of independent render logic",
+        "No package-side restart renderer remains authoritative after this cutover",
+        "Repair and pivot restart publication use the same canonical derivation contract",
+        "Validation clearly fails if a package-side restart writer drifts from runtime-owned restart truth"
+      ],
+      "decision_blockers": [],
+      "artifacts": []
+    },
+    {
+      "id": "INV-002",
+      "title": "Extend stage-gate and pivot-state enforcement to the new invariant contract",
+      "wave": 2,
+      "lane": "mutation-invariants",
+      "parallel_safe": true,
+      "overlap_risk": "medium",
+      "stage": "planning",
+      "status": "todo",
+      "resolution_state": "open",
+      "verification_state": "suspect",
+      "depends_on": [
+        "INV-001",
+        "PIVOT-001",
+        "MUT-001"
+      ],
+      "source_ticket_id": null,
+      "follow_up_ticket_ids": [],
+      "summary": "Extend preflight and pivot-state enforcement so runtime adapter calls, stage transitions, and pivot writers all obey the same mutation-time invariants and ownership boundaries.",
+      "acceptance": [
+        "`stage-gate-enforcer.ts` blocks invalid lifecycle and mutation requests before write time",
+        "Pivot-state mutation paths enforce their single-owner and read-versus-write boundaries",
+        "Package-side runtime adapter calls cannot bypass the same invariant checks as generated runtime tool calls",
+        "Mutation-time enforcement covers the hidden state writers identified in the RFC, not only the obvious ticket tools"
+      ],
+      "decision_blockers": [],
+      "artifacts": []
+    },
+    {
+      "id": "AUDIT-001",
+      "title": "Align audit modules to the runtime invariant and restart contract",
+      "wave": 2,
+      "lane": "audit-contract",
+      "parallel_safe": true,
+      "overlap_risk": "medium",
+      "stage": "planning",
+      "status": "todo",
+      "resolution_state": "open",
+      "verification_state": "suspect",
+      "depends_on": [
+        "INV-001",
+        "INV-002",
+        "RESTART-002"
+      ],
+      "source_ticket_id": null,
+      "follow_up_ticket_ids": [],
+      "summary": "Align the audit modules so they validate the same runtime mutation contract, restart derivation contract, pivot-state contract, and execution-proof rules that the implementation actually uses.",
+      "acceptance": [
+        "`audit_ticket_graph.py`, `audit_contract_surfaces.py`, `audit_lifecycle_contracts.py`, `audit_restart_surfaces.py`, and `audit_execution_surfaces.py` validate the same contract the runtime mutation layer enforces",
+        "Audit checks for restart publication and derived-surface drift point back to the canonical derivation contract instead of parallel logic",
+        "Audit surfaces account for pivot-state ownership and publish-gate behavior where relevant",
+        "The audit layer no longer assumes a contract that the runtime mutation path has already replaced"
+      ],
+      "decision_blockers": [],
+      "artifacts": []
+    },
+    {
+      "id": "REPAIR-002",
+      "title": "Convert run_managed_repair into a staged transaction",
+      "wave": 3,
+      "lane": "repair-engine",
+      "parallel_safe": false,
+      "overlap_risk": "high",
+      "stage": "planning",
+      "status": "todo",
+      "resolution_state": "open",
+      "verification_state": "suspect",
+      "depends_on": [
+        "DIAG-002",
+        "REPAIR-001",
+        "RESTART-002",
+        "INV-001"
+      ],
+      "source_ticket_id": null,
+      "follow_up_ticket_ids": [],
+      "summary": "Refactor `run_managed_repair.py` into a closed transaction that resolves the repair basis, applies runtime-backed mutations, validates the candidate state, verifies the exact publication snapshot, and fails closed when any stage breaks.",
+      "acceptance": [
+        "`run_managed_repair.py` executes repair as a closed stage sequence from basis resolution through final publication",
+        "Candidate-state invariant validation occurs before any restart publication or `repair_follow_on` publication",
+        "Final-state verification runs on the exact post-mutation snapshot that repair intends to publish",
+        "Repair fails closed when any stage breaks rather than leaving partially refreshed restart truth behind",
+        "Repair records enough staged evidence to diagnose interrupted or invalid transactions"
+      ],
+      "decision_blockers": [],
+      "artifacts": []
+    },
+    {
+      "id": "PIVOT-002",
+      "title": "Align pivot publication with the final-state publish gate",
+      "wave": 3,
+      "lane": "pivot-orchestration",
+      "parallel_safe": true,
+      "overlap_risk": "medium",
+      "stage": "planning",
+      "status": "todo",
+      "resolution_state": "open",
+      "verification_state": "suspect",
+      "depends_on": [
+        "PIVOT-001",
+        "RESTART-001",
+        "REPAIR-002"
+      ],
+      "source_ticket_id": null,
+      "follow_up_ticket_ids": [],
+      "summary": "Apply the same final-state publish gate to pivot planning and publication so pivot restart surfaces only publish from verified post-mutation state and cannot bypass the runtime restart contract.",
+      "acceptance": [
+        "`publish_pivot_surfaces.py` only publishes restart surfaces from a verified post-mutation pivot state",
+        "`plan_pivot.py` and related pivot orchestration surfaces reference the same publish-gate semantics as repair",
+        "Pivot publication cannot bypass the runtime restart contract through private recomputation of restart inputs",
+        "Pivot output remains truthful about pending downstream stages and lineage work after the gate change"
+      ],
+      "decision_blockers": [],
+      "artifacts": []
+    },
+    {
+      "id": "STAGE-001",
+      "title": "Align stage-completion scripts to transaction-owned state updates",
+      "wave": 3,
+      "lane": "stage-tracking",
+      "parallel_safe": true,
+      "overlap_risk": "low",
+      "stage": "planning",
+      "status": "todo",
+      "resolution_state": "open",
+      "verification_state": "suspect",
+      "depends_on": [
+        "REPAIR-002",
+        "PIVOT-002"
+      ],
+      "source_ticket_id": null,
+      "follow_up_ticket_ids": [],
+      "summary": "Rework the repair and pivot stage-completion helpers so they update only transaction-owned state and can no longer act as hidden restart publishers or secondary outcome calculators.",
+      "acceptance": [
+        "`record_repair_stage_completion.py` no longer behaves like an independent publication path outside the repair transaction",
+        "`record_pivot_stage_completion.py` no longer behaves like an independent publication path outside the pivot publish gate",
+        "Stage-completion scripts update only the state they still own and defer restart publication to the transaction or publish-gate owner",
+        "Hidden stage-completion side effects are documented and covered by validation after the change"
+      ],
+      "decision_blockers": [],
+      "artifacts": []
+    },
+    {
+      "id": "BLOCK-001",
+      "title": "Narrow blocker semantics across audit, repair, and restart surfaces",
+      "wave": 3,
+      "lane": "blocker-semantics",
+      "parallel_safe": false,
+      "overlap_risk": "medium",
+      "stage": "planning",
+      "status": "todo",
+      "resolution_state": "open",
+      "verification_state": "suspect",
+      "depends_on": [
+        "DIAG-002",
+        "REPAIR-002",
+        "AUDIT-001"
+      ],
+      "source_ticket_id": null,
+      "follow_up_ticket_ids": [],
+      "summary": "Tighten the blocker model so `managed_blocked`, `source_follow_up`, transcript-only follow-up, and `pending_process_verification` each mean one thing across diagnosis, repair, and restart guidance.",
+      "acceptance": [
+        "`managed_blocked` is emitted only for true managed-workflow or environment blockers",
+        "`source_follow_up` and transcript-only follow-up do not block ordinary lifecycle continuation by themselves",
+        "`pending_process_verification` alone does not escalate a repo into `managed_blocked`",
+        "Audit, repair, and restart surfaces all describe the tightened blocker model consistently",
+        "Validation covers the false-blocker loop that motivated the RFC"
+      ],
+      "decision_blockers": [],
+      "artifacts": []
+    },
+    {
+      "id": "CYCLE-001",
+      "title": "Align repair-cycle auditing with transaction outcomes and churn rules",
+      "wave": 3,
+      "lane": "repair-cycles",
+      "parallel_safe": true,
+      "overlap_risk": "low",
+      "stage": "planning",
+      "status": "todo",
+      "resolution_state": "open",
+      "verification_state": "suspect",
+      "depends_on": [
+        "DIAG-002",
+        "REPAIR-002",
+        "AUDIT-001"
+      ],
+      "source_ticket_id": null,
+      "follow_up_ticket_ids": [],
+      "summary": "Update the churn-detection layer so repeated audit and repair analysis is based on disposition bundles, transaction outcomes, and convergence rules rather than only repeated finding codes.",
+      "acceptance": [
+        "`audit_repair_cycles.py` understands disposition bundles, transaction outcomes, and final publish-gate state",
+        "Repeated-cycle findings identify true non-convergence rather than stale string-level overlaps",
+        "Transcript-backed repair basis handling remains covered so causal-regression checks do not disappear",
+        "Cycle auditing helps prove that one audit-to-repair pass converges when the package logic is correct"
+      ],
+      "decision_blockers": [],
+      "artifacts": []
+    },
+    {
+      "id": "LEG-001",
+      "title": "Implement the legacy workflow contract migration stage and escalation rules",
+      "wave": 3,
+      "lane": "legacy-migration",
+      "parallel_safe": false,
+      "overlap_risk": "high",
+      "stage": "planning",
+      "status": "todo",
+      "resolution_state": "open",
+      "verification_state": "suspect",
+      "depends_on": [
+        "ARCH-001",
+        "REPAIR-001"
+      ],
+      "source_ticket_id": null,
+      "follow_up_ticket_ids": [],
+      "summary": "Add the explicit legacy contract migration stage so managed repair can safely upgrade recent repos, bound any compatibility shim to package-internal use, and escalate very old repos instead of mutating them silently.",
+      "acceptance": [
+        "Repair runs a defined migration stage before ordinary follow-up mutation on legacy repos",
+        "Recent legacy repos auto-migrate into the new workflow contract safely",
+        "Very old or structurally inconsistent repos fail closed with an explicit migration escalation instead of unsafe silent mutation",
+        "Any package-internal compatibility shim remains bounded and does not leak into generated output behavior"
+      ],
+      "decision_blockers": [],
+      "artifacts": []
+    },
+    {
+      "id": "LEG-002",
+      "title": "Record migration provenance and validate legacy upgrade flows",
+      "wave": 4,
+      "lane": "migration-proof",
+      "parallel_safe": true,
+      "overlap_risk": "medium",
+      "stage": "planning",
+      "status": "todo",
+      "resolution_state": "open",
+      "verification_state": "suspect",
+      "depends_on": [
+        "LEG-001"
+      ],
+      "source_ticket_id": null,
+      "follow_up_ticket_ids": [],
+      "summary": "Record explicit migration provenance and validate migrated repo behavior so later repair passes can distinguish migrated state from untouched legacy state and prove that upgrade paths preserve publish-gate truth.",
+      "acceptance": [
+        "Migration provenance is recorded in bootstrap or repair provenance surfaces with enough detail to audit later",
+        "`python3 scripts/validate_gpttalker_migration.py` exercises the new legacy upgrade path and escalation cases",
+        "Migration validation covers restart publication and transaction behavior after upgrade",
+        "The package can distinguish a migrated repo from an untouched legacy repo during later repair runs"
+      ],
+      "decision_blockers": [],
+      "artifacts": []
+    },
+    {
+      "id": "PROOF-001",
+      "title": "Upgrade existing GPTTalker fixture contracts to convergence assertions",
+      "wave": 4,
+      "lane": "fixture-proof",
+      "parallel_safe": true,
+      "overlap_risk": "medium",
+      "stage": "planning",
+      "status": "todo",
+      "resolution_state": "open",
+      "verification_state": "suspect",
+      "depends_on": [
+        "REPAIR-002",
+        "BLOCK-001",
+        "CYCLE-001"
+      ],
+      "source_ticket_id": null,
+      "follow_up_ticket_ids": [],
+      "summary": "Keep the existing GPTTalker fixture families but redefine their contracts around convergence, publish-safety, and blocker-truth so the proof program validates end-state correctness instead of only expected finding codes.",
+      "acceptance": [
+        "Existing GPTTalker fixture families are preserved and redefined around convergence, publish-safety, and blocker-truth assertions",
+        "Fixture contracts stop depending only on `expected_finding_codes` and `expected_coverage`",
+        "Repeated lifecycle contradiction, restart drift, and split-scope reconciliation families all assert end-state truth instead of only finding lists",
+        "Fixture metadata remains readable enough for package contributors to extend without guessing the new proof contract"
+      ],
+      "decision_blockers": [],
+      "artifacts": []
+    },
+    {
+      "id": "PROOF-002",
+      "title": "Extend the harness and fixture builders for stale-state edge cases",
+      "wave": 4,
+      "lane": "validation-harness",
+      "parallel_safe": true,
+      "overlap_risk": "medium",
+      "stage": "planning",
+      "status": "todo",
+      "resolution_state": "open",
+      "verification_state": "suspect",
+      "depends_on": [
+        "PROOF-001",
+        "LEG-002",
+        "PIVOT-002"
+      ],
+      "source_ticket_id": null,
+      "follow_up_ticket_ids": [],
+      "summary": "Extend the existing harness, seeders, and fixture builders so the package can construct restart drift, split-scope, pivot-state, migration, and partial-transaction failure cases instead of only the current happy-path or code-list coverage surfaces.",
+      "acceptance": [
+        "`scafforge_harness.py`, `repo_seeders.py`, and `gpttalker_fixture_builders.py` can seed restart drift, split-scope, pivot-state, migration, and partial-transaction failure cases",
+        "The harness can construct the hidden stale-state cases called out in the RFC instead of only happy-path repos",
+        "New proof families include interrupted repair or pivot scenarios where stale state would otherwise leak through",
+        "The harness remains reusable across smoke, integration, and migration validation surfaces"
+      ],
+      "decision_blockers": [],
+      "artifacts": []
+    },
+    {
+      "id": "STACK-002",
+      "title": "Add Tier 1 full-toolchain execution proof coverage and audit alignment",
+      "wave": 4,
+      "lane": "execution-proof",
+      "parallel_safe": false,
+      "overlap_risk": "medium",
+      "stage": "planning",
+      "status": "todo",
+      "resolution_state": "open",
+      "verification_state": "suspect",
+      "depends_on": [
+        "STACK-001",
+        "AUDIT-001",
+        "PROOF-002"
+      ],
+      "source_ticket_id": null,
+      "follow_up_ticket_ids": [],
+      "summary": "Add real Tier 1 execution proof coverage on full-toolchain hosts and align audit execution reporting so package release proof no longer falls back to detection-only semantics for stacks that claim runnable or buildable coverage.",
+      "acceptance": [
+        "Proof-host validation covers Python, Node, Rust, Go, Godot, Java or Android, C or C++, and .NET with real execution or build evidence",
+        "`audit_execution_surfaces.py` aligns with the proof-host contract and reports truthful degradation on non-proof hosts",
+        "Smoke, integration, or dedicated proof validation surfaces know which Tier 1 checks are mandatory for release",
+        "The package no longer relies on detection-only proof for Tier 1 release acceptance"
+      ],
+      "decision_blockers": [],
+      "artifacts": []
+    },
+    {
+      "id": "CONTRACT-001",
+      "title": "Extend contract, smoke, and integration validation to enforce the new architecture",
+      "wave": 4,
+      "lane": "contract-validation",
+      "parallel_safe": true,
+      "overlap_risk": "medium",
+      "stage": "planning",
+      "status": "todo",
+      "resolution_state": "open",
+      "verification_state": "suspect",
+      "depends_on": [
+        "ARCH-002",
+        "PROOF-001",
+        "PROOF-002",
+        "BLOCK-001"
+      ],
+      "source_ticket_id": null,
+      "follow_up_ticket_ids": [],
+      "summary": "Teach the package validation commands to enforce the re-architecture directly so authority drift, hidden stale-state writers, and publish-gate regressions become build-breaking problems instead of review-only findings.",
+      "acceptance": [
+        "`python3 scripts/validate_scafforge_contract.py` enforces authority alignment, publish-gate semantics, and blocker-truth expectations",
+        "`python3 scripts/smoke_test_scafforge.py` and `python3 scripts/integration_test_scafforge.py` assert runtime mutation ownership and publish-safety rather than only exact strings",
+        "Validation fails when hidden stale-state writers or contract drift reappear",
+        "The package validation set directly covers the architectural regressions the RFC is meant to prevent"
+      ],
+      "decision_blockers": [],
+      "artifacts": []
+    },
+    {
+      "id": "GREEN-001",
+      "title": "Add weak-model greenfield self-sufficiency proof without duplicating the greenfield gate",
+      "wave": 5,
+      "lane": "greenfield-proof",
+      "parallel_safe": false,
+      "overlap_risk": "high",
+      "stage": "planning",
+      "status": "todo",
+      "resolution_state": "open",
+      "verification_state": "suspect",
+      "depends_on": [
+        "STACK-002",
+        "CONTRACT-001",
+        "RESTART-001",
+        "AUDIT-001"
+      ],
+      "source_ticket_id": null,
+      "follow_up_ticket_ids": [],
+      "summary": "Add proof that one-shot greenfield generation still exposes one legal next move, truthful blockers, and end-to-end continuation for weaker models without collapsing back into a repair-first or redundant-gate workflow.",
+      "acceptance": [
+        "The proof program validates that a generated repo exposes one legal next move and truthful blockers through the existing greenfield gate sequence",
+        "Weak-model proof families cover planning, implementation, validation, self-correction, and resume behavior without adding a redundant second greenfield publish pass",
+        "Greenfield proof remains distinct from repair and pivot proof so the product path does not collapse back into audit-first operation",
+        "The package demonstrates movement toward end-to-end generated-repo self-sufficiency, not just workflow documentation correctness"
+      ],
+      "decision_blockers": [],
+      "artifacts": []
+    },
+    {
+      "id": "DOCS-001",
+      "title": "Post-implementation reconcile root docs and contracts to the shipped package state",
+      "wave": 5,
+      "lane": "package-docs",
+      "parallel_safe": true,
+      "overlap_risk": "low",
+      "stage": "planning",
+      "status": "todo",
+      "resolution_state": "open",
+      "verification_state": "suspect",
+      "depends_on": [
+        "ARCH-002",
+        "CONTRACT-001"
+      ],
+      "source_ticket_id": null,
+      "follow_up_ticket_ids": [],
+      "summary": "After implementation tickets land, rewrite the root package docs and contract markdowns so AGENTS.md, README.md, contract references, skill docs, and related markdown surfaces describe the shipped package behavior rather than the planned rewrite.",
+      "acceptance": [
+        "Root AGENTS.md, root README.md, affected references/*.md, and affected skills/*/SKILL.md files describe the shipped package behavior rather than the planned rewrite",
+        "Docs remove stale dual-authority language around repair-side restart rendering, mutation ownership, and blocker semantics",
+        "Any transition-guide docs created during implementation are either updated to final state or explicitly archived",
+        "npm run validate:contract passes after the final documentation reconciliation"
+      ],
+      "decision_blockers": [],
+      "artifacts": []
+    }
+  ]
+}

@@ -19,6 +19,15 @@ Scafforge now separates detection, bootstrap, and execution-audit coverage by st
 
 The adapter contract is documented in [references/stack-adapter-contract.md](references/stack-adapter-contract.md).
 
+## Validation And Release Proof
+
+Package validation runs are separate from subject-repo release proof.
+
+- Package validation entrypoints are `npm run validate:contract`, `npm run validate:smoke`, `python3 scripts/integration_test_scafforge.py`, and `python3 scripts/validate_gpttalker_migration.py`.
+- The package validators prove the Scafforge package itself; they do not substitute for stack-specific release proof in generated repos.
+- The authoritative Tier 1 proof-host matrix and command contract live in [references/stack-adapter-contract.md](references/stack-adapter-contract.md).
+- If a host is missing a Tier 1 toolchain, report the blocker truthfully instead of treating package smoke checks as release proof.
+
 ## Installation
 
 Copy or symlink each folder under `skills/` into the host's skill directory. Keep each skill directory intact so its `SKILL.md`, `scripts/`, `assets/`, and `references/` remain together.
@@ -32,7 +41,7 @@ Scafforge should be treated as a skill bundle, not as a CLI product.
 3. The agent reads the inputs, asks one batched round of blocking decisions when needed, records the selected `model_tier`, and routes through the correct skill path.
 4. Output: a complete project repo or an evidence-backed diagnosis and repair path.
 
-For implementation details and the hardening sequence behind the current package behavior, see the numbered recovery plans under [recovery-plan](recovery-plan).
+For historical implementation-planning context behind this rewrite, see [references/archived-diagnosis-plans/recovery-plan/00-PLAN-INDEX.md](references/archived-diagnosis-plans/recovery-plan/00-PLAN-INDEX.md).
 
 ## Live testing sandbox
 

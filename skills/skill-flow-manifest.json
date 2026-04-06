@@ -88,6 +88,7 @@
       "outputs": ["orchestrated run", "required downstream sequence"],
       "required_outputs": [
         "canonical brief or diagnosis scope",
+        "authority baseline from references/authority-adr.md and references/invariant-catalog.md",
         "selected run-type completion state",
         "aligned ticket/workflow restart surface",
         "same-session immediate continuation verification gate"
@@ -157,7 +158,7 @@
       "downstreams": ["opencode-team-bootstrap", "agent-prompt-engineering", "scafforge-audit"]
     },
     "agent-prompt-engineering": {
-      "owner": "prompts",
+      "owner": "contract-alignment",
       "modes": ["required-pass", "repair-hardening_if_needed"],
       "inputs": ["workflow contract", "weak-model constraints", "repo context"],
       "outputs": ["hardened prompts", "blocker rules", "anti-summary rails"],
@@ -170,23 +171,33 @@
       "downstreams": ["ticket-pack-builder", "scafforge-audit"]
     },
     "scafforge-audit": {
-      "owner": "audit-review",
+      "owner": "diagnosis-disposition",
       "modes": ["full-diagnosis", "audit_then_route_repair_if_needed", "review_and_emit_diagnosis_pack"],
       "inputs": ["repo workflow surfaces", "contract docs", "template outputs", "optional PR/review evidence"],
       "outputs": ["diagnosis", "validated review findings", "four-report pack", "ticket recommendations"],
+      "required_outputs": [
+        "authoritative disposition bundle",
+        "evidence-backed finding ownership",
+        "code-quality findings for execution and reference-integrity failures"
+      ],
       "upstreams": ["repo-scaffold-factory", "opencode-team-bootstrap", "agent-prompt-engineering", "project-skill-bootstrap", "scaffold-kickoff"],
       "downstreams": ["scafforge-repair", "ticket-pack-builder", "handoff-brief"]
     },
     "scafforge-repair": {
-      "owner": "managed-repair",
+      "owner": "runtime-mutation",
       "modes": ["apply-safe-repair", "follow_up_if_managed_workflow_drift"],
       "inputs": ["audit outputs", "repair plan", "validated workflow drift"],
       "outputs": ["safe repairs", "project-specific regeneration", "prompt-hardening refresh", "provenance updates", "verification results", "ticket follow-up routing"],
+      "required_outputs": [
+        "repair_follow_on outcome derived from the authoritative disposition bundle",
+        "verified final snapshot before restart publication",
+        "non-destructive provenance for any managed-surface replacement"
+      ],
       "upstreams": ["scafforge-audit", "scaffold-kickoff", "opencode-team-bootstrap"],
       "downstreams": ["ticket-pack-builder", "handoff-brief"]
     },
     "scafforge-pivot": {
-      "owner": "pivot-orchestration",
+      "owner": "pivot-state",
       "modes": ["classify-and-route", "classify_and_route"],
       "inputs": ["requested change", "canonical brief", "current ticket graph", "workflow state", "existing repo surfaces"],
       "outputs": ["pivot classification", "brief update", "stale-surface map", "bounded refresh routing", "verification result"],
@@ -201,7 +212,7 @@
       "downstreams": ["project-skill-bootstrap", "opencode-team-bootstrap", "agent-prompt-engineering", "ticket-pack-builder", "scafforge-repair", "handoff-brief"]
     },
     "handoff-brief": {
-      "owner": "restart-surface",
+      "owner": "restart-publication",
       "modes": ["publish"],
       "inputs": ["tickets", "workflow state", "artifacts", "diagnosis"],
       "outputs": ["START-HERE refresh", "closeout summary", "restart surface"],
@@ -209,7 +220,8 @@
         "START-HERE.md",
         ".opencode/state/latest-handoff.md",
         "read order with manifest before board",
-        "next action bounded by current evidence"
+        "next action bounded by current evidence",
+        "restart surfaces published only from the verified final snapshot"
       ],
       "upstreams": ["scafforge-audit", "scafforge-repair", "ticket-pack-builder"],
       "downstreams": []

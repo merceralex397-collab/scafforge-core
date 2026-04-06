@@ -7,6 +7,8 @@ Scafforge generation is a one-shot lifecycle.
 `scaffold-kickoff` is the only public generation entrypoint.
 There is one public generation entrypoint: `scaffold-kickoff`.
 
+The authority baseline for this lifecycle is documented in [authority-adr.md](authority-adr.md), and the invariant checklist is documented in [invariant-catalog.md](invariant-catalog.md).
+
 ## Greenfield contract
 
 A greenfield run follows this exact sequence:
@@ -46,12 +48,15 @@ The proof layers inside that sequence are part of the same one-shot pass:
 - That proof must complete before handoff publication.
 - Environment detection and bootstrap routing are part of that same pass. If missing prerequisites remain, the pass must halt with explicit user-actionable blockers instead of continuing into specialization or handoff.
 
+The same final-state publish gate applies to greenfield, repair, and pivot publication. Restart surfaces may only be published from the verified final snapshot; repair-side restart rendering is not an alternate authority.
+
 ## Verification scope
 
 - VERIFY009 proves bootstrap blocker state is persisted canonically and that bootstrap cannot be considered ready while unresolved prerequisites remain.
 - VERIFY010 proves the generated repo passes the stack-specific execution audit for its detected Tier 1 stack surfaces.
 - VERIFY011 proves canonical config, scene, and code reference surfaces do not point at missing files before handoff.
 - These checks prove structural integrity and runnable workflow truth. They do not promise bug-free product implementation beyond the generated scaffold and current ticket scope.
+- The Tier 1 proof commands and host expectations are defined in [stack-adapter-contract.md](stack-adapter-contract.md), and they remain separate from the package-level contract and smoke validators.
 
 ## Model-tier contract
 

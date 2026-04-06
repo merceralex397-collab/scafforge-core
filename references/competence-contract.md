@@ -14,6 +14,21 @@ Scafforge is not competent unless the generated workflow exposes one clear legal
 - greenfield bootstrap must persist blocker state so missing host prerequisites stop the flow truthfully instead of being inferred from tool failures later
 - model-tier configuration may change prompt density, but it must not change workflow fidelity, ownership boundaries, or proof requirements
 
+## Authority And Publication
+
+- diagnosis owns finding disposition and follow-up classification
+- the generated runtime workflow layer owns canonical repo mutation
+- `scafforge-pivot` owns pivot-state persistence and stale-surface routing
+- `handoff-brief` owns restart publication, which may only happen from the verified final snapshot
+- `agent-prompt-engineering` and the contract surfaces it hardens must keep the same owner map visible across prompts, workflow docs, and generated behavior
+- repair-side restart rendering is the first duplicate-authority seam to collapse, not a secondary cleanup item
+
+## Release Proof
+
+- Tier 1 release proof uses stack-specific commands from [stack-adapter-contract.md](stack-adapter-contract.md)
+- package-level smoke and contract validation remain useful, but they do not replace stack proof on a host that can run the declared toolchain
+- unsupported or partially supported hosts must degrade truthfully instead of pretending release proof passed
+
 ## Stack coverage expectations
 
 - Scafforge must detect and bootstrap Tier 1 stacks across Python, Node, Rust, Go, Godot, Java or Android, C or C++, and .NET

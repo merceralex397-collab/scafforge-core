@@ -4,7 +4,7 @@ This document defines the shared contract for stack detection, environment boots
 
 ## Purpose
 
-Scafforge uses stack adapters to keep greenfield bootstrap, generated workflow guidance, target-completion planning, and audit coverage aligned across different project types.
+Scafforge uses stack adapters to keep greenfield bootstrap, generated workflow guidance, target-completion planning, execution proof, and audit coverage aligned across different project types.
 
 An adapter is responsible for three related questions:
 
@@ -31,7 +31,7 @@ The adapter output must be safe to persist into canonical workflow state as boot
 
 ## Tier definitions
 
-- Tier 1: detection, bootstrap guidance, target-completion or release-proof coverage, and execution-audit coverage. Current Tier 1 stacks are Python, Node, Rust, Go, Godot, Java or Android, C or C++, and .NET.
+- Tier 1: detection, bootstrap guidance, target-completion or release-proof coverage, and execution-audit coverage. Current Tier 1 stacks are Python, Node, Rust, Go, Godot, Java or Android, C or C++, and .NET. The authoritative proof-host matrix below defines the required toolchains and command families for those stacks.
 - Tier 2: detection and bootstrap guidance, but no stack-specific execution audit in the package yet. Current Tier 2 stacks are Flutter or Dart, Swift, Zig, and Ruby.
 - Tier 3: detection only with explicit blocker reporting and truthful fallback messaging. Current Tier 3 stacks are Elixir, PHP, and Haskell.
 - Tier 4: generic fallback detection for repos that primarily expose Makefile or shell-based entrypoints without a stronger adapter match.
@@ -109,6 +109,29 @@ This target-completion metadata is internal package contract state. It should in
 - release proof: a debug APK at `build/android/<project-slug>-debug.apk`
 
 Treat explicit target facts from `docs/spec/CANONICAL-BRIEF.md` and `.opencode/meta/bootstrap-provenance.json` as authoritative even before repo-local export files such as `export_presets.cfg` exist.
+
+## Package-Level Validation Versus Release Proof
+
+The package validators are still `npm run validate:contract`, `npm run validate:smoke`, `python3 scripts/integration_test_scafforge.py`, and `python3 scripts/validate_gpttalker_migration.py`.
+
+- Those commands prove the Scafforge package and its harnesses.
+- They do not replace stack-specific release proof in generated repos.
+- Later proof tickets should point at the stack matrix below when they need the authoritative release command for a given Tier 1 stack.
+
+## Tier 1 Proof-Host Matrix
+
+| Stack | Required host/toolchain | Authoritative release-proof command family | Best-effort local check | Truthful degradation |
+| --- | --- | --- | --- | --- |
+| Python | Python 3.10+ plus the project-selected environment manager and test runner | `python -m pytest -q` or the repo-native equivalent surfaced by the adapter | Package smoke or harness checks are not release proof substitutes | Report missing interpreter or environment manager as a blocker |
+| Node | Node.js 20+ plus the repo-selected package manager | `npm test` or the repo-native equivalent surfaced by the adapter | Package smoke or harness checks are not release proof substitutes | Report missing Node or package manager as a blocker |
+| Rust | Rust toolchain (`cargo` and `rustc`) | `cargo test` or the repo-native equivalent surfaced by the adapter | Package smoke or harness checks are not release proof substitutes | Report missing Rust toolchain as a blocker |
+| Go | Go toolchain | `go test ./...` or the repo-native equivalent surfaced by the adapter | Package smoke or harness checks are not release proof substitutes | Report missing Go as a blocker |
+| Godot | Godot editor plus any release/export prerequisites named by the project | `godot --headless --quit --path .` plus the project-specific export or test command when release proof depends on export readiness | Package smoke or harness checks are not release proof substitutes | Report missing Godot or export prerequisites as a blocker |
+| Java or Android | JDK, Gradle wrapper or build tooling, and Android SDK when the target is Android | `./gradlew test` or `./gradlew assembleDebug` when the project evidence makes that the canonical proof path | Package smoke or harness checks are not release proof substitutes | Report missing JDK, Gradle, or Android SDK prerequisites as blockers |
+| C or C++ | Compiler toolchain and the repo-selected build system such as CMake, Make, or Meson | `cmake --build .`, `make`, `meson test`, or the repo-native equivalent surfaced by the adapter | Package smoke or harness checks are not release proof substitutes | Report missing compiler or build-system prerequisites as blockers |
+| .NET | .NET SDK | `dotnet test` or the repo-native equivalent surfaced by the adapter | Package smoke or harness checks are not release proof substitutes | Report missing .NET SDK as a blocker |
+
+The adapter may narrow each family to the repo-native command that the project evidence supports, but it must not downgrade release proof into a generic smoke check.
 
 ## Adding a new adapter
 
