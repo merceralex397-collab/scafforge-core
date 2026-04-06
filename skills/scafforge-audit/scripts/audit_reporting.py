@@ -9,7 +9,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from disposition_bundle import bundle_source_follow_up_codes, build_disposition_bundle
+from disposition_bundle import bundle_source_follow_up_codes, build_disposition_bundle, evidence_grade_for_finding
 from shared_verifier_types import Finding
 
 
@@ -376,13 +376,7 @@ def diagnosis_result_state(findings: list[Finding]) -> str:
 
 
 def evidence_grade(finding: Finding) -> str:
-    if finding.code.startswith("SESSION"):
-        return "transcript-backed and repo-validated"
-    if finding.code.startswith("ENV"):
-        return "host evidence plus repo-state validation"
-    if finding.evidence:
-        return "repo-state validation"
-    return "current-state validation"
+    return evidence_grade_for_finding(finding)
 
 
 def ownership_classification(finding: Finding) -> str:

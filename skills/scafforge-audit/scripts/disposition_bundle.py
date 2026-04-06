@@ -15,6 +15,17 @@ DISPOSITION_CLASSES = (
 )
 
 
+def evidence_grade_for_finding(finding: Finding) -> str:
+    code = getattr(finding, "code", "")
+    if code.startswith("SESSION"):
+        return "transcript-backed and repo-validated"
+    if code.startswith("ENV"):
+        return "host evidence plus repo-state validation"
+    if getattr(finding, "evidence", []):
+        return "repo-state validation"
+    return "current-state validation"
+
+
 def disposition_class_for_finding(finding: Finding) -> str:
     code = getattr(finding, "code", "")
     severity = getattr(finding, "severity", "")
@@ -84,13 +95,7 @@ def build_disposition_bundle(
             "legacy_disposition_class": legacy_class,
             "route": recommendation.get("route"),
             "repair_class": recommendation.get("repair_class"),
-            "evidence_grade": "transcript-backed and repo-validated"
-            if code.startswith("SESSION")
-            else "host evidence plus repo-state validation"
-            if code.startswith("ENV")
-            else "repo-state validation"
-            if getattr(finding, "evidence", [])
-            else "current-state validation",
+            "evidence_grade": evidence_grade_for_finding(finding),
             "source_files": list(getattr(finding, "files", [])),
             "provenance": getattr(finding, "provenance", "script"),
         }

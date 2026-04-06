@@ -139,10 +139,10 @@
       "lane": "runtime-adapter",
       "parallel_safe": true,
       "overlap_risk": "medium",
-      "stage": "complete",
-      "status": "done",
-      "resolution_state": "completed",
-      "verification_state": "verified",
+      "stage": "planning",
+      "status": "todo",
+      "resolution_state": "open",
+      "verification_state": "suspect",
       "depends_on": [
         "ARCH-001"
       ],
@@ -245,10 +245,10 @@
       "lane": "repair-disposition",
       "parallel_safe": false,
       "overlap_risk": "medium",
-      "stage": "planning",
-      "status": "todo",
-      "resolution_state": "open",
-      "verification_state": "suspect",
+      "stage": "complete",
+      "status": "done",
+      "resolution_state": "completed",
+      "verification_state": "verified",
       "depends_on": [
         "DIAG-001"
       ],

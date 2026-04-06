@@ -638,9 +638,8 @@ def manifest_diagnosis_kind(manifest: dict[str, Any]) -> str:
 
 def repair_routed_codes_from_manifest(manifest: dict[str, Any]) -> set[str]:
     bundle = load_disposition_bundle(manifest)
-    routed_codes = bundle_repair_routed_codes(bundle)
-    if routed_codes:
-        return routed_codes
+    if bundle is not None:
+        return bundle_repair_routed_codes(bundle)
     return {
         str(item.get("source_finding_code", "")).strip()
         for item in manifest.get("ticket_recommendations", [])

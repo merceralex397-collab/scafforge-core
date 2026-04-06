@@ -212,9 +212,8 @@ def derive_required_follow_on_stages(
 
 def repair_basis_source_codes(manifest: dict[str, Any]) -> set[str]:
     bundle = load_disposition_bundle(manifest) if isinstance(manifest, dict) else None
-    bundle_codes = bundle_source_follow_up_codes(bundle)
-    if bundle_codes:
-        return bundle_codes
+    if bundle is not None:
+        return bundle_source_follow_up_codes(bundle)
     source_findings = manifest.get("source_findings") if isinstance(manifest, dict) else None
     if isinstance(source_findings, list) and source_findings:
         return {
@@ -321,6 +320,7 @@ def classify_verification_findings(findings: list[Any]) -> dict[str, list[Any]]:
     source_follow_up: list[Any] = []
     manual_prerequisites: list[Any] = []
     process_state_only: list[Any] = []
+    advisory: list[Any] = []
     for finding in findings:
         disposition_class = disposition_class_for_finding(finding)
         if disposition_class == "source_follow_up":
@@ -329,6 +329,8 @@ def classify_verification_findings(findings: list[Any]) -> dict[str, list[Any]]:
             process_state_only.append(finding)
         elif disposition_class == "manual_prerequisite_blocker":
             manual_prerequisites.append(finding)
+        elif disposition_class == "advisory":
+            advisory.append(finding)
         else:
             managed_blockers.append(finding)
     return {
@@ -336,6 +338,7 @@ def classify_verification_findings(findings: list[Any]) -> dict[str, list[Any]]:
         "source_follow_up": source_follow_up,
         "manual_prerequisites": manual_prerequisites,
         "process_state_only": process_state_only,
+        "advisory": advisory,
     }
 
 
@@ -406,6 +409,7 @@ def summarize_verification(
         "blocking_codes": [getattr(finding, "code", "") for finding in blocking_findings],
         "source_follow_up_codes": [getattr(finding, "code", "") for finding in classes["source_follow_up"]],
         "process_state_codes": [getattr(finding, "code", "") for finding in classes["process_state_only"]],
+        "advisory_codes": [getattr(finding, "code", "") for finding in classes["advisory"]],
         "pending_process_verification": pending_process_verification,
         "verification_basis": "transcript_backed" if basis_requires_causal_replay else "current_state_only",
         "basis_requires_causal_replay": basis_requires_causal_replay,

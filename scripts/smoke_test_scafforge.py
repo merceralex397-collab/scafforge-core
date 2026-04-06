@@ -8811,6 +8811,160 @@ def main() -> int:
             run_managed_repair_module = load_python_module(
                 PUBLIC_REPAIR, "scafforge_smoke_run_managed_repair"
             )
+            disposition_bundle_module = load_python_module(
+                ROOT / "skills" / "scafforge-audit" / "scripts" / "disposition_bundle.py",
+                "scafforge_smoke_disposition_bundle",
+            )
+            audit_reporting_module = load_python_module(
+                ROOT / "skills" / "scafforge-audit" / "scripts" / "audit_reporting.py",
+                "scafforge_smoke_audit_reporting_disposition",
+            )
+            audit_repo_process_module = load_python_module(
+                AUDIT, "scafforge_smoke_audit_repo_process_disposition"
+            )
+
+            synthetic_findings = [
+                SimpleNamespace(
+                    code="EXEC-SMOKE-001",
+                    severity="error",
+                    problem="Synthetic execution failure.",
+                    root_cause="Synthetic execution failure for disposition-bundle smoke coverage.",
+                    files=["src/main.py"],
+                    safer_pattern="Run the targeted smoke command and keep execution failures out of the clean path.",
+                    evidence=["synthetic exec evidence"],
+                    provenance="script",
+                ),
+                SimpleNamespace(
+                    code="BOOT001",
+                    severity="error",
+                    problem="Synthetic bootstrap failure.",
+                    root_cause="Synthetic bootstrap failure for shadow-mode smoke coverage.",
+                    files=[".opencode/tools/environment_bootstrap.ts"],
+                    safer_pattern="Repair the bootstrap contract before retrying.",
+                    evidence=["synthetic bootstrap evidence"],
+                    provenance="script",
+                ),
+                SimpleNamespace(
+                    code="WFLOW008",
+                    severity="warning",
+                    problem="Synthetic process-state-only failure.",
+                    root_cause="Synthetic pending process verification state.",
+                    files=["tickets/manifest.json"],
+                    safer_pattern="Restore trust through canonical reverification.",
+                    evidence=["synthetic process evidence"],
+                    provenance="script",
+                ),
+                SimpleNamespace(
+                    code="NOTE001",
+                    severity="info",
+                    problem="Synthetic advisory finding.",
+                    root_cause="Synthetic advisory finding for repair classification smoke coverage.",
+                    files=[],
+                    safer_pattern="No repair action required.",
+                    evidence=[],
+                    provenance="script",
+                ),
+            ]
+            with tempfile.TemporaryDirectory(prefix="scafforge-disposition-bundle-") as temp_dir:
+                temp_root = Path(temp_dir) / "repo"
+                temp_root.mkdir(parents=True, exist_ok=True)
+                diagnosis_dest = Path(temp_dir) / "diagnosis"
+                diagnosis_pack = audit_reporting_module.emit_diagnosis_pack(
+                    temp_root,
+                    synthetic_findings,
+                    diagnosis_dest,
+                    [],
+                    ctx=audit_reporting_module.AuditReportingContext(
+                        package_root=ROOT,
+                        current_package_commit=package_commit(),
+                    ),
+                )
+                if not (diagnosis_dest / "disposition-bundle.json").exists():
+                    raise RuntimeError(
+                        "Diagnosis-pack emission should persist disposition-bundle.json alongside the report files"
+                    )
+                emitted_bundle = diagnosis_pack["manifest"]["disposition_bundle"]
+                emitted_classes = {
+                    item["code"]: item["disposition_class"]
+                    for item in emitted_bundle["findings"]
+                }
+                if emitted_classes != {
+                    "BOOT001": "manual_prerequisite_blocker",
+                    "EXEC-SMOKE-001": "source_follow_up",
+                    "NOTE001": "advisory",
+                    "WFLOW008": "process_state_only",
+                }:
+                    raise RuntimeError(
+                        "Diagnosis-pack emission should persist one authoritative disposition class for every finding"
+                    )
+                if diagnosis_pack["manifest"]["source_findings"] != [
+                    {"code": "EXEC-SMOKE-001", "severity": "error"}
+                ]:
+                    raise RuntimeError(
+                        "Diagnosis-pack source_findings should follow the authoritative source_follow_up bundle entries"
+                    )
+                if diagnosis_pack["manifest"]["disposition_bundle_file"] != "disposition-bundle.json":
+                    raise RuntimeError(
+                        "Diagnosis-pack manifest should record the persisted disposition bundle file"
+                    )
+                shadow_deltas = emitted_bundle["shadow_mode_deltas"]
+                if shadow_deltas != [
+                    {
+                        "code": "BOOT001",
+                        "legacy_disposition_class": "managed_blocker",
+                        "disposition_class": "manual_prerequisite_blocker",
+                        "route": "scafforge-repair",
+                        "reason": "Legacy prefix classification would label BOOT001 as managed_blocker, but the authoritative bundle assigns manual_prerequisite_blocker.",
+                    }
+                ]:
+                    raise RuntimeError(
+                        "Disposition shadow-mode output should surface authoritative-versus-legacy classification deltas"
+                    )
+                note_entry = next(
+                    item for item in emitted_bundle["findings"] if item["code"] == "NOTE001"
+                )
+                if note_entry["evidence_grade"] != disposition_bundle_module.evidence_grade_for_finding(
+                    synthetic_findings[-1]
+                ):
+                    raise RuntimeError(
+                        "Disposition bundle should reuse the shared evidence-grade helper for advisory findings"
+                    )
+
+            advisory_classes = run_managed_repair_module.classify_verification_findings(
+                [synthetic_findings[-1]]
+            )
+            if advisory_classes["managed_blockers"] or advisory_classes["advisory"] != [
+                synthetic_findings[-1]
+            ]:
+                raise RuntimeError(
+                    "Repair verification classification should keep advisory findings out of the managed blocker path"
+                )
+
+            authoritative_empty_bundle_manifest = {
+                "disposition_bundle": {
+                    "version": 1,
+                    "finding_count": 0,
+                    "findings": [],
+                    "shadow_mode_deltas": [],
+                },
+                "source_findings": [{"code": "REF-001", "severity": "error"}],
+                "ticket_recommendations": [
+                    {"source_finding_code": "WFLOW001", "route": "scafforge-repair"}
+                ],
+            }
+            if run_managed_repair_module.repair_basis_source_codes(
+                authoritative_empty_bundle_manifest
+            ):
+                raise RuntimeError(
+                    "Repair should trust an authoritative empty disposition bundle instead of falling back to legacy source_findings heuristics"
+                )
+            if audit_repo_process_module.repair_routed_codes_from_manifest(
+                authoritative_empty_bundle_manifest
+            ):
+                raise RuntimeError(
+                    "Audit-side repair routing should trust an authoritative empty disposition bundle instead of falling back to legacy recommendation heuristics"
+                )
+
             contract_failures = (
                 run_managed_repair_module.verification_contract_failures(
                     [SimpleNamespace(code="WFLOW010")],
