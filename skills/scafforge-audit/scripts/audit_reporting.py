@@ -200,11 +200,11 @@ def prevention_action(finding: Finding) -> str:
     if finding.code == "MODEL001":
         return "Detect deprecated or missing model-profile surfaces, treat stale package-managed defaults as safe repair instead of preserved intent, regenerate the repo-local model operating profile, and align model metadata plus agent defaults before development resumes."
     if finding.code == "CYCLE001":
-        return "Teach audit to inspect the previous diagnosis and repair history, then force repair to explain why the prior cycle failed before another managed-repair run proceeds."
+        return "Teach audit to inspect the previous diagnosis, the latest repair transaction outcome, and the final publish gate before allowing another managed-repair run to proceed."
     if finding.code == "CYCLE002":
         return "Teach audit to stop repeated diagnosis-pack churn when the repo has no newer package or process-version change; require Scafforge package work before the next subject-repo audit."
     if finding.code == "CYCLE003":
-        return "Make repair verification inherit the transcript-backed diagnosis basis automatically, emit the post-repair diagnosis pack from the repair runner, and refuse to call the repo clean on current-state evidence alone."
+        return "Make repair verification inherit the transcript-backed diagnosis basis automatically, keep the final publish gate tied to that basis, emit the post-repair diagnosis pack from the repair runner, and refuse to call the repo clean on current-state evidence alone."
     if finding.code.startswith("EXEC"):
         return "Tighten generated review and QA guidance so runtime validation and test collection proof exist before closure."
     if finding.code.startswith("REF"):

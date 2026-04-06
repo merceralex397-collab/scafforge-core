@@ -2945,6 +2945,54 @@ def main() -> int:
             raise RuntimeError(
                 "Pivot orchestration should expose truthful changed surfaces for restart publication"
             )
+        pivot_audit_dest = workspace / "pivot-audit-drift"
+        shutil.copytree(pivot_dest, pivot_audit_dest)
+        pivot_audit = run_json(
+            [
+                sys.executable,
+                str(AUDIT),
+                str(pivot_audit_dest),
+                "--format",
+                "json",
+                "--no-diagnosis-pack",
+            ],
+            ROOT,
+        )
+        pivot_audit_codes = {
+            finding["code"] for finding in pivot_audit.get("findings", [])
+        }
+        if "WFLOW010" in pivot_audit_codes:
+            raise RuntimeError(
+                "Pivot restart surfaces that still match the canonical pivot state should not emit WFLOW010"
+            )
+        pivot_audit_state_path = (
+            pivot_audit_dest / ".opencode" / "meta" / "pivot-state.json"
+        )
+        pivot_audit_state = json.loads(
+            pivot_audit_state_path.read_text(encoding="utf-8")
+        )
+        pivot_audit_state["restart_surface_inputs"]["pivot_class"] = "drifted"
+        pivot_audit_state_path.write_text(
+            json.dumps(pivot_audit_state, indent=2) + "\n", encoding="utf-8"
+        )
+        pivot_audit_drift = run_json(
+            [
+                sys.executable,
+                str(AUDIT),
+                str(pivot_audit_dest),
+                "--format",
+                "json",
+                "--no-diagnosis-pack",
+            ],
+            ROOT,
+        )
+        pivot_audit_drift_codes = {
+            finding["code"] for finding in pivot_audit_drift.get("findings", [])
+        }
+        if "WFLOW010" not in pivot_audit_drift_codes:
+            raise RuntimeError(
+                "Pivot restart surface drift should be detected when pivot-state inputs no longer match the rendered surfaces"
+            )
         if set(pivot_state["downstream_refresh_state"]["pending_stages"]) != set(
             pivot_stages
         ):
@@ -7495,6 +7543,31 @@ def main() -> int:
         ) != 7:
             raise RuntimeError(
                 "Repair provenance should record process version before and after deterministic replacement"
+            )
+        if latest_repair_entry.get("repair_follow_on_outcome") != repair_payload["execution_record"]["repair_follow_on_outcome"]:
+            raise RuntimeError(
+                "Repair history should preserve the final repair_follow_on outcome for cycle auditing"
+            )
+        if latest_repair_entry.get("handoff_allowed") != repair_payload["execution_record"]["handoff_allowed"]:
+            raise RuntimeError(
+                "Repair history should preserve the final publish-gate result for cycle auditing"
+            )
+        if latest_repair_entry.get("verification_passed") != repair_payload["execution_record"]["verification_status"]["verification_passed"]:
+            raise RuntimeError(
+                "Repair history should preserve verification_passed for cycle auditing"
+            )
+        latest_repair_verification_summary = latest_repair_entry.get("verification_summary")
+        if not isinstance(latest_repair_verification_summary, dict):
+            raise RuntimeError(
+                "Repair history should preserve the verification_summary payload for cycle auditing"
+            )
+        if latest_repair_verification_summary.get("verification_basis") != repair_payload["execution_record"]["verification_status"]["verification_basis"]:
+            raise RuntimeError(
+                "Repair history should preserve verification_basis for cycle auditing"
+            )
+        if latest_repair_verification_summary.get("current_state_clean") != repair_payload["execution_record"]["verification_status"]["current_state_clean"]:
+            raise RuntimeError(
+                "Repair history should preserve current_state_clean for cycle auditing"
             )
         managed_surfaces = repaired_provenance.get("managed_surfaces", {})
         replace_on_retrofit = managed_surfaces.get("replace_on_retrofit", [])
