@@ -79,10 +79,10 @@ None
 
 ## Acceptance Criteria
 
-- [ ] `tickets/manifest.json`, `tickets/BOARD.md`, and `tickets/templates/TICKET.template.md` exist and record the cleaned package backlog with `SETUP-001` complete and `ARCH-001` as the next focus
-- [ ] Package validation entrypoints are documented as `npm run validate:contract`, `npm run validate:smoke`, `python3 scripts/integration_test_scafforge.py`, and `python3 scripts/validate_gpttalker_migration.py`
-- [ ] The ticket pack accounts for every primary surface named in the RFC appendix with no unowned package area left outside the backlog
-- [ ] The package repo backlog makes the first implementation ticket obvious without relying on generated-repo workflow state
+- [x] `tickets/manifest.json`, `tickets/BOARD.md`, and `tickets/templates/TICKET.template.md` exist and record the cleaned package backlog with `SETUP-001` complete and `ARCH-001` as the next focus
+- [x] Package validation entrypoints are documented as `npm run validate:contract`, `npm run validate:smoke`, `python3 scripts/integration_test_scafforge.py`, and `python3 scripts/validate_gpttalker_migration.py`
+- [x] The ticket pack accounts for every primary surface named in the RFC appendix with no unowned package area left outside the backlog
+- [x] The package repo backlog makes the first implementation ticket obvious without relying on generated-repo workflow state
 
 ## Artifacts
 

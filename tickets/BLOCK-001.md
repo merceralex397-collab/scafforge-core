@@ -78,11 +78,11 @@ None
 
 ## Acceptance Criteria
 
-- [ ] `managed_blocked` is emitted only for true managed-workflow or environment blockers
-- [ ] `source_follow_up` and transcript-only follow-up do not block ordinary lifecycle continuation by themselves
-- [ ] `pending_process_verification` alone does not escalate a repo into `managed_blocked`
-- [ ] Audit, repair, and restart surfaces all describe the tightened blocker model consistently
-- [ ] Validation covers the false-blocker loop that motivated the RFC
+- [x] `managed_blocked` is emitted only for true managed-workflow or environment blockers
+- [x] `source_follow_up` and transcript-only follow-up do not block ordinary lifecycle continuation by themselves
+- [x] `pending_process_verification` alone does not escalate a repo into `managed_blocked`
+- [x] Audit, repair, and restart surfaces all describe the tightened blocker model consistently
+- [x] Validation covers the false-blocker loop that motivated the RFC
 
 ## Artifacts
 

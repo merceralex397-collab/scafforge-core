@@ -161,8 +161,8 @@ Use the lighter path when a repo already exists and mainly needs an OpenCode ope
 1. `scaffold-kickoff` decides this is retrofit work.
 2. `spec-pack-normalizer` runs only if the input context is fragmented.
 3. `opencode-team-bootstrap` adds or repairs `.opencode/`.
-4. `ticket-pack-builder` runs if ticketing is missing or weak.
-5. `project-skill-bootstrap` creates or repairs local skills.
+4. `project-skill-bootstrap` creates or repairs local skills.
+5. `ticket-pack-builder` runs if ticketing is missing or weak.
 6. `scafforge-audit` audits the resulting workflow.
 7. `handoff-brief` publishes restart state.
 
