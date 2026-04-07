@@ -3074,17 +3074,17 @@ def validate_audit_repair_surfaces(findings: list[Finding]) -> None:
     )
     require_contains(
         findings,
-        repair_skill / "scripts" / "regenerate_restart_surfaces.py",
+        TEMPLATE_ROOT / ".opencode" / "lib" / "workflow.ts",
         "repair_follow_on_outcome",
     )
     require_contains(
         findings,
-        repair_skill / "scripts" / "regenerate_restart_surfaces.py",
+        TEMPLATE_ROOT / ".opencode" / "lib" / "workflow.ts",
         "split_child_tickets",
     )
     require_contains(
         findings,
-        repair_skill / "scripts" / "regenerate_restart_surfaces.py",
+        TEMPLATE_ROOT / ".opencode" / "lib" / "workflow.ts",
         "Open split children",
     )
     require_absent(

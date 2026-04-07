@@ -77,10 +77,10 @@ None
 
 ## Acceptance Criteria
 
-- [ ] `audit_repair_cycles.py` understands disposition bundles, transaction outcomes, and final publish-gate state
-- [ ] Repeated-cycle findings identify true non-convergence rather than stale string-level overlaps
-- [ ] Transcript-backed repair basis handling remains covered so causal-regression checks do not disappear
-- [ ] Cycle auditing helps prove that one audit-to-repair pass converges when the package logic is correct
+- [x] `audit_repair_cycles.py` understands disposition bundles, transaction outcomes, and final publish-gate state
+- [x] Repeated-cycle findings identify true non-convergence rather than stale string-level overlaps
+- [x] Transcript-backed repair basis handling remains covered so causal-regression checks do not disappear
+- [x] Cycle auditing helps prove that one audit-to-repair pass converges when the package logic is correct
 
 ## Artifacts
 

@@ -1,12 +1,12 @@
 # GPTTalker Migration Validation
 
-- generated_at: `2026-04-06T15:53:07.073629+00:00`
-- source_repo_path: `/tmp/scafforge-gpttalker-fixture-6jflp25o/restart-surface-drift-after-repair`
+- generated_at: `2026-04-07T20:28:19.466305+00:00`
+- source_repo_path: `/tmp/scafforge-gpttalker-fixture-jg8jxigr/restart-surface-drift-after-repair`
 
 ## Source Repo State
 
 ```text
-git status unavailable for /tmp/scafforge-gpttalker-fixture-6jflp25o/restart-surface-drift-after-repair: fatal: not a git repository (or any of the parent directories): .git
+git status unavailable for /tmp/scafforge-gpttalker-fixture-jg8jxigr/restart-surface-drift-after-repair: fatal: not a git repository (or any of the parent directories): .git
 ```
 
 ## Scenario: control

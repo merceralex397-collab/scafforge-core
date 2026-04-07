@@ -80,10 +80,10 @@ None
 
 ## Acceptance Criteria
 
-- [ ] `audit_ticket_graph.py`, `audit_contract_surfaces.py`, `audit_lifecycle_contracts.py`, `audit_restart_surfaces.py`, and `audit_execution_surfaces.py` validate the same contract the runtime mutation layer enforces
-- [ ] Audit checks for restart publication and derived-surface drift point back to the canonical derivation contract instead of parallel logic
-- [ ] Audit surfaces account for pivot-state ownership and publish-gate behavior where relevant
-- [ ] The audit layer no longer assumes a contract that the runtime mutation path has already replaced
+- [x] `audit_ticket_graph.py`, `audit_contract_surfaces.py`, `audit_lifecycle_contracts.py`, `audit_restart_surfaces.py`, and `audit_execution_surfaces.py` validate the same contract the runtime mutation layer enforces
+- [x] Audit checks for restart publication and derived-surface drift point back to the canonical derivation contract instead of parallel logic
+- [x] Audit surfaces account for pivot-state ownership and publish-gate behavior where relevant
+- [x] The audit layer no longer assumes a contract that the runtime mutation path has already replaced
 
 ## Artifacts
 
