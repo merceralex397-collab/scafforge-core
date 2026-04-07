@@ -47,16 +47,16 @@ greenfield-proof
 
 ## Stage
 
-planning
+complete
 
 ## Status
 
-todo
+done
 
 ## Trust
 
-- resolution_state: open
-- verification_state: suspect
+- resolution_state: completed
+- verification_state: verified
 - finding_source: None
 - source_ticket_id: None
 - source_mode: None
@@ -78,17 +78,27 @@ None
 
 ## Acceptance Criteria
 
-- [ ] The proof program validates that a generated repo exposes one legal next move and truthful blockers through the existing greenfield gate sequence
-- [ ] Weak-model proof families cover planning, implementation, validation, self-correction, and resume behavior without adding a redundant second greenfield publish pass
-- [ ] Greenfield proof remains distinct from repair and pivot proof so the product path does not collapse back into audit-first operation
-- [ ] The package demonstrates movement toward end-to-end generated-repo self-sufficiency, not just workflow documentation correctness
+- [x] The proof program validates that a generated repo exposes one legal next move and truthful blockers through the existing greenfield gate sequence
+- [x] Weak-model proof families cover planning, implementation, validation, self-correction, and resume behavior without adding a redundant second greenfield publish pass
+- [x] Greenfield proof remains distinct from repair and pivot proof so the product path does not collapse back into audit-first operation
+- [x] The package demonstrates movement toward end-to-end generated-repo self-sufficiency, not just workflow documentation correctness
 
 ## Artifacts
 
-- None yet
+- `scripts/test_support/gpttalker_fixture_builders.py`
+- `scripts/integration_test_scafforge.py`
+- `scripts/validate_scafforge_contract.py`
+- `tests/fixtures/gpttalker/index.json`
+- `tests/fixtures/gpttalker/README.md`
+- `tests/fixtures/gpttalker/planning-implementation-contract-drift/README.md`
+- `tests/fixtures/gpttalker/validation-verdict-routing-drift/README.md`
+- `tests/fixtures/gpttalker/resume-surface-drift-after-greenfield/README.md`
+- `npm run validate:contract`
+- direct `greenfield_integration` + `fixture_builder_integration` coverage
 
 ## Notes
 
 - RFC coverage: end-state product direction and self-sufficiency proof families.
 - Primary surfaces: proof harness, greenfield fixtures, `handoff_publish.ts`, contract docs that define VERIFY010 and VERIFY011 semantics.
 - This ticket is the proof-side guard against accidentally making repair the default user path again.
+- Validation note: targeted greenfield proof coverage passed on this branch; `npm run validate:smoke` still reproduces a pre-existing `EXEC003` baseline failure on `origin/main`.

@@ -2,7 +2,7 @@
 
 Package backlog only. This board is a tracker, not runtime workflow state.
 
-Current focus: `GREEN-001`
+Current focus: `DOCS-001`
 
 | Wave | ID | Title | Lane | Stage | Status | Resolution | Verification | Parallel Safe | Overlap Risk | Depends On | Follow-ups |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -32,5 +32,5 @@ Current focus: `GREEN-001`
 | 4 | PROOF-002 | Extend the harness and fixture builders for stale-state edge cases | validation-harness | complete | done | completed | verified | yes | medium | PROOF-001, LEG-002, PIVOT-002 | - |
 | 4 | STACK-002 | Add Tier 1 full-toolchain execution proof coverage and audit alignment | execution-proof | complete | done | completed | verified | no | medium | STACK-001, AUDIT-001, PROOF-002 | - |
 | 4 | CONTRACT-001 | Extend contract, smoke, and integration validation to enforce the new architecture | contract-validation | complete | done | completed | verified | yes | medium | ARCH-002, PROOF-001, PROOF-002, BLOCK-001 | - |
-| 5 | GREEN-001 | Add weak-model greenfield self-sufficiency proof without duplicating the greenfield gate | greenfield-proof | planning | todo | open | suspect | no | high | STACK-002, CONTRACT-001, RESTART-001, AUDIT-001 | - |
+| 5 | GREEN-001 | Add weak-model greenfield self-sufficiency proof without duplicating the greenfield gate | greenfield-proof | complete | done | completed | verified | no | high | STACK-002, CONTRACT-001, RESTART-001, AUDIT-001 | - |
 | 5 | DOCS-001 | Post-implementation reconcile root docs and contracts to the shipped package state | package-docs | planning | todo | open | suspect | yes | low | ARCH-002, CONTRACT-001 | - |

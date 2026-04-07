@@ -11,4 +11,6 @@ Each fixture family includes:
 - the invariant or regression family it represents
 - the current Scafforge coverage that is expected to protect against recurrence
 
+The current corpus includes dedicated greenfield families for bootstrap layout drift, host blockage, planning and implementation contract drift, verdict routing drift, and resume surface drift, alongside the repair and pivot regressions.
+
 Use `tests/fixtures/gpttalker/index.json` as the canonical index.

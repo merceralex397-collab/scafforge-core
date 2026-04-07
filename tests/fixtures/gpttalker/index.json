@@ -98,6 +98,134 @@
       "notes": "host-tool-or-permission-blockage/README.md"
     },
     {
+      "slug": "planning-implementation-contract-drift",
+      "title": "Planning and implementation contract drift",
+      "flow": "greenfield",
+      "invariant_focus": [
+        "plan_review must stay explicit",
+        "implementation cannot key off ticket.status"
+      ],
+      "expected_finding_codes": [
+        "WFLOW003",
+        "WFLOW004"
+      ],
+      "expected_coverage": [
+        "integration:greenfield",
+        "smoke:planning-implementation contract drift"
+      ],
+      "truth_expectations": {
+        "convergence": "plan-review-contract-drift",
+        "publish_safety": "implementation-gate-drift",
+        "blocker_truth": "planning-approval-gate",
+        "checks": [
+          {
+            "kind": "file_contains",
+            "file": ".opencode/tools/ticket_update.ts",
+            "needle": "plan-check"
+          },
+          {
+            "kind": "file_contains",
+            "file": ".opencode/tools/ticket_update.ts",
+            "needle": "ticket.status !== \"plan_review\""
+          },
+          {
+            "kind": "file_contains",
+            "file": ".opencode/plugins/stage-gate-enforcer.ts",
+            "needle": "ticket.status !== \"plan_review\""
+          }
+        ]
+      },
+      "archive_origin": [],
+      "notes": "planning-implementation-contract-drift/README.md"
+    },
+    {
+      "slug": "validation-verdict-routing-drift",
+      "title": "Validation verdict routing drift",
+      "flow": "greenfield",
+      "invariant_focus": [
+        "review and QA verdict routing must stay explicit",
+        "markdown-emphasized verdicts must not become ambiguous"
+      ],
+      "expected_finding_codes": [
+        "WFLOW023",
+        "WFLOW026"
+      ],
+      "expected_coverage": [
+        "integration:greenfield",
+        "smoke:validation verdict routing drift"
+      ],
+      "truth_expectations": {
+        "convergence": "validation-verdict-drift",
+        "publish_safety": "blocked-verdict-routing",
+        "blocker_truth": "validation-blocker-truth",
+        "checks": [
+          {
+            "kind": "file_contains",
+            "file": ".opencode/tools/ticket_lookup.ts",
+            "needle": "Review blockers need follow-up"
+          },
+          {
+            "kind": "file_contains",
+            "file": ".opencode/tools/ticket_lookup.ts",
+            "needle": "QA issues need follow-up."
+          },
+          {
+            "kind": "file_contains",
+            "file": ".opencode/state/reviews/greenfield-validation-review.md",
+            "needle": "**Verdict**: FAIL"
+          }
+        ]
+      },
+      "archive_origin": [],
+      "notes": "validation-verdict-routing-drift/README.md"
+    },
+    {
+      "slug": "resume-surface-drift-after-greenfield",
+      "title": "Resume surface drift after greenfield",
+      "flow": "greenfield",
+      "invariant_focus": [
+        "derived restart surfaces must match canonical state",
+        "resume guidance must not outrank manifest and workflow state"
+      ],
+      "expected_finding_codes": [
+        "WFLOW010",
+        "WFLOW013"
+      ],
+      "expected_coverage": [
+        "integration:greenfield",
+        "smoke:resume surface drift"
+      ],
+      "truth_expectations": {
+        "convergence": "resume-drift",
+        "publish_safety": "canonical-resume-required",
+        "blocker_truth": "derived-surface-truth",
+        "checks": [
+          {
+            "kind": "file_contains",
+            "file": "START-HERE.md",
+            "needle": "- bootstrap_status: missing"
+          },
+          {
+            "kind": "file_contains",
+            "file": ".opencode/state/context-snapshot.md",
+            "needle": "- bootstrap_status: missing"
+          },
+          {
+            "kind": "file_contains",
+            "file": ".opencode/state/latest-handoff.md",
+            "needle": "- bootstrap_status: missing"
+          },
+          {
+            "kind": "file_contains",
+            "file": ".opencode/commands/resume.md",
+            "needle": "Resume from the latest handoff first."
+          }
+        ]
+      },
+      "archive_origin": [],
+      "notes": "resume-surface-drift-after-greenfield/README.md"
+    },
+    {
       "slug": "repeated-lifecycle-contradiction",
       "title": "Repeated lifecycle contradiction",
       "flow": "repair",

@@ -3142,6 +3142,7 @@ def validate_audit_repair_surfaces(findings: list[Finding]) -> None:
     require_contains(findings, audit_restart_surfaces, 'code="WFLOW021"')
     require_contains(findings, audit_session_transcripts, 'code="WFLOW022"')
     require_contains(findings, audit_session_transcripts, 'code="WFLOW023"')
+    require_contains(findings, audit_lifecycle_contracts, 'code="WFLOW026"')
     require_contains(findings, audit_ticket_graph, 'code="WFLOW024"')
     require_contains(findings, audit_execution_surfaces, 'code="ENV001"')
     require_contains(findings, audit_execution_surfaces, 'code="ENV002"')
@@ -3907,9 +3908,12 @@ def validate_curated_fixtures(findings: list[Finding]) -> None:
     expected_slugs = {
         "bootstrap-dependency-layout-drift",
         "host-tool-or-permission-blockage",
+        "planning-implementation-contract-drift",
         "repeated-lifecycle-contradiction",
         "restart-surface-drift-after-repair",
         "placeholder-skill-after-refresh",
+        "resume-surface-drift-after-greenfield",
+        "validation-verdict-routing-drift",
         "split-scope-and-historical-trust-reconciliation",
     }
     actual_slugs: set[str] = set()
