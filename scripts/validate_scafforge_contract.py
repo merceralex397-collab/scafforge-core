@@ -3142,6 +3142,7 @@ def validate_audit_repair_surfaces(findings: list[Finding]) -> None:
     require_contains(findings, audit_restart_surfaces, 'code="WFLOW021"')
     require_contains(findings, audit_session_transcripts, 'code="WFLOW022"')
     require_contains(findings, audit_session_transcripts, 'code="WFLOW023"')
+    require_contains(findings, audit_lifecycle_contracts, 'code="WFLOW026"')
     require_contains(findings, audit_ticket_graph, 'code="WFLOW024"')
     require_contains(findings, audit_execution_surfaces, 'code="ENV001"')
     require_contains(findings, audit_execution_surfaces, 'code="ENV002"')

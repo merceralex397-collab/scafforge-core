@@ -2,7 +2,7 @@
   "version": 3,
   "project": "Scafforge",
   "tracking_mode": "package-backlog",
-  "current_focus_ticket": "GREEN-001",
+  "current_focus_ticket": "DOCS-001",
   "tickets": [
     {
       "id": "SETUP-001",
@@ -734,10 +734,10 @@
       "lane": "greenfield-proof",
       "parallel_safe": false,
       "overlap_risk": "high",
-      "stage": "planning",
-      "status": "todo",
-      "resolution_state": "open",
-      "verification_state": "suspect",
+      "stage": "complete",
+      "status": "done",
+      "resolution_state": "completed",
+      "verification_state": "verified",
       "depends_on": [
         "STACK-002",
         "CONTRACT-001",
