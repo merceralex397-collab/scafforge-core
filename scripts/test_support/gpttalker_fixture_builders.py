@@ -103,6 +103,59 @@ def build_split_scope_and_historical_trust_reconciliation(dest: Path, family: di
     return write_fixture_contract(dest, slug="split-scope-and-historical-trust-reconciliation", family=family)
 
 
+
+def _register_fixture_artifact(
+    dest: Path,
+    *,
+    ticket_id: str,
+    kind: str,
+    stage: str,
+    relative_path: str,
+    summary: str,
+    content: str,
+) -> None:
+    manifest_path = dest / "tickets" / "manifest.json"
+    registry_path = dest / ".opencode" / "state" / "artifacts" / "registry.json"
+    manifest = read_json(manifest_path)
+    registry = read_json(registry_path)
+    if not isinstance(manifest, dict):
+        raise RuntimeError("Fixture manifest must be a JSON object.")
+    if not isinstance(registry, dict):
+        registry = {"artifacts": []}
+
+    tickets = manifest.get("tickets")
+    if not isinstance(tickets, list):
+        raise RuntimeError("Fixture manifest must contain a tickets list.")
+
+    ticket = next(
+        (
+            item
+            for item in tickets
+            if isinstance(item, dict) and str(item.get("id", "")).strip() == ticket_id
+        ),
+        None,
+    )
+    if not isinstance(ticket, dict):
+        raise RuntimeError(f"Fixture manifest does not contain ticket `{ticket_id}`.")
+
+    artifact_path = dest / relative_path
+    artifact_path.parent.mkdir(parents=True, exist_ok=True)
+    artifact_path.write_text(content, encoding="utf-8")
+
+    artifact = {
+        "kind": kind,
+        "path": relative_path,
+        "stage": stage,
+        "summary": summary,
+        "created_at": "2026-04-02T00:00:00Z",
+        "trust_state": "current",
+    }
+    ticket.setdefault("artifacts", []).append(artifact)
+    registry.setdefault("artifacts", []).append({"ticket_id": ticket_id, **artifact})
+    write_json(manifest_path, manifest)
+    write_json(registry_path, registry)
+
+
 def build_partial_transaction_edge_case(dest: Path) -> dict[str, Any]:
     bootstrap_full(dest)
     make_stack_skill_non_placeholder(dest)
@@ -206,9 +259,159 @@ def build_pivot_state_edge_case(dest: Path) -> dict[str, Any]:
     return write_fixture_contract(dest, slug="pivot-state-edge-case", family=family)
 
 
+def build_planning_implementation_contract_drift(dest: Path, family: dict[str, Any]) -> dict[str, Any]:
+    bootstrap_full(dest)
+    make_stack_skill_non_placeholder(dest)
+
+    workflow_doc_path = dest / "docs" / "process" / "workflow.md"
+    workflow_doc_text = workflow_doc_path.read_text(encoding="utf-8")
+    workflow_doc_text = workflow_doc_text.replace("plan_review", "plan review")
+    workflow_doc_path.write_text(workflow_doc_text, encoding="utf-8")
+
+    workflow_tool_path = dest / ".opencode" / "lib" / "workflow.ts"
+    workflow_tool_text = workflow_tool_path.read_text(encoding="utf-8")
+    workflow_tool_text = workflow_tool_text.replace("plan_review", "plan-check")
+    workflow_tool_path.write_text(workflow_tool_text, encoding="utf-8")
+
+    ticket_update_path = dest / ".opencode" / "tools" / "ticket_update.ts"
+    ticket_update_text = ticket_update_path.read_text(encoding="utf-8")
+    ticket_update_text = ticket_update_text.replace("plan_review", "plan-check")
+    ticket_update_text = ticket_update_text.replace(
+        'ticket.stage !== "plan-check"',
+        'ticket.status !== "plan_review"',
+    )
+    ticket_update_path.write_text(ticket_update_text, encoding="utf-8")
+
+    stage_gate_path = dest / ".opencode" / "plugins" / "stage-gate-enforcer.ts"
+    stage_gate_text = stage_gate_path.read_text(encoding="utf-8")
+    stage_gate_text = stage_gate_text.replace(
+        'ticket.stage !== "plan_review"',
+        'ticket.status !== "plan_review"',
+    )
+    stage_gate_path.write_text(stage_gate_text, encoding="utf-8")
+
+    return write_fixture_contract(
+        dest,
+        slug="planning-implementation-contract-drift",
+        family=family,
+    )
+
+
+def build_validation_verdict_routing_drift(dest: Path, family: dict[str, Any]) -> dict[str, Any]:
+    bootstrap_full(dest)
+    make_stack_skill_non_placeholder(dest)
+
+    workflow_tool_path = dest / ".opencode" / "lib" / "workflow.ts"
+    workflow_tool_text = workflow_tool_path.read_text(encoding="utf-8")
+    workflow_tool_text = workflow_tool_text.replace(
+        'const labeled = trimmed.match(/^(?:[-*]\\s*)?(?:\\*\\*|__)?(?:overall(?:\\s+result)?|verdict|result|approval\\s+signal)(?:\\*\\*|__)?\\s*:\\s*(?:\\*\\*|__)?\\s*(pass|fail|reject|approved?|blocked?|blocker)(?:\\*\\*|__)?\\b/i)',
+        'const labeled = trimmed.match(/^(?:[-*]\\s*)?(?:overall(?:\\s+result)?|verdict|result|approval\\s+signal)\\s*:\\s*(pass|fail|reject|approved?|blocked?|blocker)\\b/i)',
+    )
+    workflow_tool_path.write_text(workflow_tool_text, encoding="utf-8")
+
+    ticket_lookup_path = dest / ".opencode" / "tools" / "ticket_lookup.ts"
+    ticket_lookup_text = ticket_lookup_path.read_text(encoding="utf-8")
+    ticket_lookup_text = ticket_lookup_text.replace(
+        "Review found blockers. Route back to implementation",
+        "Review blockers need follow-up",
+    )
+    ticket_lookup_text = ticket_lookup_text.replace(
+        "QA found issues. Route back to implementation to fix the QA findings.",
+        "QA issues need follow-up.",
+    )
+    ticket_lookup_path.write_text(ticket_lookup_text, encoding="utf-8")
+
+    manifest_path = dest / "tickets" / "manifest.json"
+    manifest = read_json(manifest_path)
+    if not isinstance(manifest, dict):
+        raise RuntimeError("Fixture manifest must be a JSON object.")
+    active_ticket_id = str(manifest.get("active_ticket", "")).strip()
+    if not active_ticket_id:
+        tickets = manifest.get("tickets")
+        if isinstance(tickets, list) and tickets:
+            first_ticket = tickets[0]
+            if isinstance(first_ticket, dict):
+                active_ticket_id = str(first_ticket.get("id", "")).strip()
+    if not active_ticket_id:
+        raise RuntimeError("Fixture manifest must expose an active ticket for validation drift seeding.")
+
+    _register_fixture_artifact(
+        dest,
+        ticket_id=active_ticket_id,
+        kind="review",
+        stage="review",
+        relative_path=".opencode/state/reviews/greenfield-validation-review.md",
+        summary="Greenfield validation verdict drift review",
+        content="\n".join(
+            [
+                "# Review",
+                "",
+                "**Verdict**: FAIL",
+                "",
+                "Review blockers need follow-up.",
+                "",
+            ]
+        ),
+    )
+
+    return write_fixture_contract(
+        dest,
+        slug="validation-verdict-routing-drift",
+        family=family,
+    )
+
+
+def build_resume_surface_drift_after_greenfield(dest: Path, family: dict[str, Any]) -> dict[str, Any]:
+    bootstrap_full(dest)
+    make_stack_skill_non_placeholder(dest)
+
+    for relative in (
+        "START-HERE.md",
+        ".opencode/state/context-snapshot.md",
+        ".opencode/state/latest-handoff.md",
+    ):
+        path = dest / relative
+        text = path.read_text(encoding="utf-8")
+        text = text.replace("- bootstrap_status: ready", "- bootstrap_status: failed")
+        text = text.replace("- bootstrap_proof: None", "- bootstrap_proof: stale-proof")
+        if relative == ".opencode/state/context-snapshot.md" and "- bootstrap_status:" not in text:
+            text = text.replace(
+                "## Bootstrap\n\n",
+                "## Bootstrap\n\n- bootstrap_status: missing\n- bootstrap_proof: stale-proof\n\n",
+            )
+        path.write_text(text, encoding="utf-8")
+
+    resume_path = dest / ".opencode" / "commands" / "resume.md"
+    resume_path.parent.mkdir(parents=True, exist_ok=True)
+    if resume_path.exists():
+        resume_text = resume_path.read_text(encoding="utf-8")
+    else:
+        resume_text = ""
+    resume_text = resume_text.replace(
+        "Resume from `tickets/manifest.json` and `.opencode/state/workflow-state.json` first.",
+        "Resume from the latest handoff first.",
+    )
+    resume_text = resume_text.replace(
+        "Treat the active open ticket as the primary lane even when historical reverification is pending.",
+        "Treat the latest handoff as the primary lane.",
+    )
+    if not resume_text.strip():
+        resume_text = "Resume from the latest handoff first.\nTreat the latest handoff as the primary lane.\n"
+    resume_path.write_text(resume_text, encoding="utf-8")
+
+    return write_fixture_contract(
+        dest,
+        slug="resume-surface-drift-after-greenfield",
+        family=family,
+    )
+
+
 FIXTURE_BUILDERS: dict[str, Callable[[Path, dict[str, Any]], dict[str, Any]]] = {
     "bootstrap-dependency-layout-drift": build_bootstrap_dependency_layout_drift,
     "host-tool-or-permission-blockage": build_host_tool_or_permission_blockage,
+    "planning-implementation-contract-drift": build_planning_implementation_contract_drift,
+    "validation-verdict-routing-drift": build_validation_verdict_routing_drift,
+    "resume-surface-drift-after-greenfield": build_resume_surface_drift_after_greenfield,
     "repeated-lifecycle-contradiction": build_repeated_lifecycle_contradiction,
     "restart-surface-drift-after-repair": build_restart_surface_drift_after_repair,
     "placeholder-skill-after-refresh": build_placeholder_skill_after_refresh,

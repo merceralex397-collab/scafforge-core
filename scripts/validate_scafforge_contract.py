@@ -3907,9 +3907,12 @@ def validate_curated_fixtures(findings: list[Finding]) -> None:
     expected_slugs = {
         "bootstrap-dependency-layout-drift",
         "host-tool-or-permission-blockage",
+        "planning-implementation-contract-drift",
         "repeated-lifecycle-contradiction",
         "restart-surface-drift-after-repair",
         "placeholder-skill-after-refresh",
+        "resume-surface-drift-after-greenfield",
+        "validation-verdict-routing-drift",
         "split-scope-and-historical-trust-reconciliation",
     }
     actual_slugs: set[str] = set()
