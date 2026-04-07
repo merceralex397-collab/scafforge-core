@@ -583,13 +583,15 @@ def seed_uv_python_fixture(
 
 def seed_failing_pytest_suite(dest: Path) -> None:
     seed_uv_python_fixture(dest)
+    make_stack_skill_non_placeholder(dest)
+    seed_clean_restart_surfaces(dest)
     src_pkg = dest / "src" / "smoke_pkg"
     src_pkg.mkdir(parents=True, exist_ok=True)
     (src_pkg / "__init__.py").write_text("__all__ = ['ok']\n", encoding="utf-8")
     tests_dir = dest / "tests"
     tests_dir.mkdir(parents=True, exist_ok=True)
     (tests_dir / "test_sample.py").write_text(
-        "def test_smoke():\n    assert True\n", encoding="utf-8"
+        "def test_smoke():\n    assert False, 'synthetic runtime failure'\n", encoding="utf-8"
     )
 
     venv_bin = dest / ".venv" / "bin"
@@ -615,6 +617,56 @@ def seed_failing_pytest_suite(dest: Path) -> None:
         encoding="utf-8",
     )
     (venv_bin / "pytest").chmod(0o755)
+
+
+def seed_clean_restart_surfaces(dest: Path) -> None:
+    pivot_generation_block = "\n".join(
+        [
+            "- pivot_in_progress: false",
+            "- pivot_class: none",
+            "- pivot_changed_surfaces: none",
+            "- pivot_pending_stages: none",
+            "- pivot_completed_stages: none",
+            "- pivot_pending_ticket_lineage_actions: none",
+            "- pivot_completed_ticket_lineage_actions: none",
+            "- post_pivot_verification_passed: false",
+            "",
+        ]
+    )
+    for relative in ("START-HERE.md", ".opencode/state/latest-handoff.md"):
+        path = dest / relative
+        text = path.read_text(encoding="utf-8")
+        if "- pivot_in_progress: false" in text:
+            continue
+        if "## Post-Generation Audit Status" not in text:
+            raise RuntimeError(f"{relative} is missing the post-generation audit section.")
+        text = text.replace("## Post-Generation Audit Status", pivot_generation_block + "## Post-Generation Audit Status", 1)
+        path.write_text(text, encoding="utf-8")
+
+    context_path = dest / ".opencode" / "state" / "context-snapshot.md"
+    context_text = context_path.read_text(encoding="utf-8")
+    if "## Pivot State" not in context_text:
+        pivot_block = "\n".join(
+            [
+                "## Pivot State",
+                "",
+                "- pivot_in_progress: false",
+                "- pivot_class: none",
+                "- pivot_changed_surfaces: none",
+                "- pending_downstream_stages: none",
+                "- completed_downstream_stages: none",
+                "- pending_ticket_lineage_actions: none",
+                "- completed_ticket_lineage_actions: none",
+                "- post_pivot_verification_passed: false",
+                "- pivot_state_path: .opencode/meta/pivot-state.json",
+                "- pivot_tracking_mode: none",
+                "",
+            ]
+        )
+        if "## Lane Leases" not in context_text:
+            raise RuntimeError("context-snapshot.md is missing the lane leases section.")
+        context_text = context_text.replace("## Lane Leases", pivot_block + "## Lane Leases", 1)
+        context_path.write_text(context_text, encoding="utf-8")
 
 
 def seed_closed_ticket_with_new_active_artifact_write(dest: Path) -> None:

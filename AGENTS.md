@@ -61,16 +61,11 @@ In this repo:
 
 This repo is being operated with a strong host and human review. That is exactly why the tickets must be self-contained and why package planning must not pretend the generated workflow manager exists here.
 
-## Current Program
+## Shipping State
 
-The current implementation program is the reliability re-architecture defined in:
-- `.github/prompts/plan-scafforgeReliabilityRearchitecture.prompt.md`
-- `tickets/`
-- `IMPLEMENTATION-HANDOFF.md`
+The implementation program is complete. The shipped package baseline is now the reference point for future doc and contract updates.
 
-`SETUP-001` was the package-backlog cleanup and boundary reset. Implementation work starts from the current focus ticket named in `tickets/manifest.json`.
-
-Use `IMPLEMENTATION-HANDOFF.md` for branch naming, PR order, reviewer gates, and ticket-to-PR bundling. That document is the operating plan for the implementer and reviewer during this rewrite.
+`IMPLEMENTATION-HANDOFF.md` remains as historical transition guidance for the closed implementation sequence. Future package work should start from `tickets/manifest.json`, `tickets/BOARD.md`, and the ticket markdowns, then keep root docs, references, and template assets aligned to the code they describe.
 
 ## Authority Baseline
 
@@ -135,7 +130,7 @@ The greenfield proof chain includes:
 - stack-specific execution proof where available
 - reference-integrity verification before handoff
 
-The package still carries one explicit temporary contract smell: `project-skill-bootstrap` and `opencode-team-bootstrap` form a dependency seam, and the current order remains until Scafforge has a real minimal-operable-versus-specialization split.
+The shipped package still carries one explicit temporary contract smell: `project-skill-bootstrap` and `opencode-team-bootstrap` form a dependency seam, and the current order remains until Scafforge has a real minimal-operable-versus-specialization split.
 
 ## Canonical Workflow Contract
 

@@ -30,3 +30,4 @@ build/
 # Temp
 *.tmp
 *.bak
+.github/prompts/Scafforge.code-workspace
