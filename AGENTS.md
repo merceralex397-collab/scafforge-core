@@ -77,7 +77,7 @@ The package-wide authority map is documented in [references/authority-adr.md](re
 - `handoff-brief` owns restart publication from the verified final snapshot.
 - `agent-prompt-engineering` owns contract alignment for prompts, workflow docs, and generated behavior.
 
-Repair-side restart rendering and raw workflow mutation are the first duplicate-authority seam to collapse. Later tickets should cite the ADR and invariant catalog directly instead of restating the owner map ad hoc.
+Repair-side restart rendering and raw workflow mutation were the first duplicate-authority seam to collapse. Later tickets should cite the ADR and invariant catalog directly instead of restating the owner map ad hoc.
 
 ## Canonical Package Validation Commands
 

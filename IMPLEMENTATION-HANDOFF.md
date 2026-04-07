@@ -168,7 +168,7 @@ Current state:
 
 - Branch: `impl/11-post-implementation-doc-sync`
 - Tickets: `DOCS-001`
-- Scope:
+- Scope covered:
   - final rewrite of root `AGENTS.md`, `README.md`, contract references, skill docs, and other authoritative markdowns to match the shipped implementation
 - Minimum validation:
   - `npm run validate:contract`
