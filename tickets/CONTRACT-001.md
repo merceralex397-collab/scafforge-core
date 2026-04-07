@@ -48,16 +48,16 @@ contract-validation
 
 ## Stage
 
-planning
+complete
 
 ## Status
 
-todo
+done
 
 ## Trust
 
-- resolution_state: open
-- verification_state: suspect
+- resolution_state: completed
+- verification_state: verified
 - finding_source: None
 - source_ticket_id: None
 - source_mode: None
@@ -79,17 +79,22 @@ None
 
 ## Acceptance Criteria
 
-- [ ] `python3 scripts/validate_scafforge_contract.py` enforces authority alignment, publish-gate semantics, and blocker-truth expectations
-- [ ] `python3 scripts/smoke_test_scafforge.py` and `python3 scripts/integration_test_scafforge.py` assert runtime mutation ownership and publish-safety rather than only exact strings
-- [ ] Validation fails when hidden stale-state writers or contract drift reappear
-- [ ] The package validation set directly covers the architectural regressions the RFC is meant to prevent
+- [x] `python3 scripts/validate_scafforge_contract.py` enforces authority alignment, publish-gate semantics, and blocker-truth expectations
+- [x] `python3 scripts/smoke_test_scafforge.py` and `python3 scripts/integration_test_scafforge.py` assert runtime mutation ownership and publish-safety rather than only exact strings
+- [x] Validation fails when hidden stale-state writers or contract drift reappear
+- [x] The package validation set directly covers the architectural regressions the RFC is meant to prevent
 
 ## Artifacts
 
-- None yet
+- `scripts/validate_scafforge_contract.py`
+- `scripts/integration_test_scafforge.py`
+- `npm run validate:contract`
+- `npm run validate:smoke`
+- direct `multi_stack_proof_integration` run
 
 ## Notes
 
 - RFC coverage: Workstream G validation enforcement and contract-alignment invariants.
 - Primary surfaces: `scripts/validate_scafforge_contract.py`, `scripts/smoke_test_scafforge.py`, `scripts/integration_test_scafforge.py`.
 - This ticket turns the architecture into a failing build when it drifts.
+- Validation note: the full `scripts/integration_test_scafforge.py` suite still reproduces a pre-existing `repair_integration` failure on `origin/main`, but the PR-specific Tier 1 proof entrypoint passed directly on this branch.

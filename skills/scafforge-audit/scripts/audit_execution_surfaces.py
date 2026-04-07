@@ -663,36 +663,60 @@ def audit_node_execution(root: Path, findings: list[Finding], ctx: ExecutionSurf
     package_json = ctx.read_json(package_path)
     if not isinstance(package_json, dict):
         return
-    if _command_available("node"):
-        entry_candidates = []
-        for key in ("main",):
-            value = package_json.get(key)
-            if isinstance(value, str) and value.strip():
-                entry_candidates.append(root / value)
-        for candidate in (root / "index.js", root / "src" / "index.js"):
-            if candidate not in entry_candidates:
-                entry_candidates.append(candidate)
-        entry_path = next((candidate for candidate in entry_candidates if candidate.exists()), None)
-        if entry_path is not None:
-            relative = f"./{_relative_repo_path(entry_path, root)}"
-            rc, output = ctx.run_command(["node", "-e", f"require({json.dumps(relative)})"], root, 30)
-            if rc != 0:
-                _add_execution_finding(
-                    findings,
-                    ctx,
-                    code="EXEC-NODE-001",
-                    severity="error",
-                    problem="Node entry point cannot be required successfully.",
-                    root_cause="The generated or current Node entry module throws during load or points at a broken dependency chain, so the project cannot start cleanly.",
-                    files=[package_path, entry_path],
-                    safer_pattern="Keep package.json entry points aligned with real files and require-load the entry module during audit to catch runtime boot failures before handoff.",
-                    evidence=_collect_first_error_lines(output),
-                    root=root,
-                )
 
     manager, manager_cmd = _choose_node_manager(root, package_json)
+    node_available = _command_available("node")
+    manager_available = _command_available(manager_cmd[0])
+    if not node_available or not manager_available:
+        evidence = []
+        if not node_available:
+            evidence.append("node not found on system PATH")
+        if not manager_available:
+            evidence.append(f"{manager_cmd[0]} not found on system PATH")
+
+        ctx.add_finding(
+            findings,
+            Finding(
+                code="ENV001",
+                severity="error",
+                problem="Node.js proof host prerequisites are missing.",
+                root_cause="Node repos need Node.js plus the repo-selected package manager to run their release-proof command family, but this host cannot resolve one or more required executables.",
+                files=[ctx.normalize_path(package_path, root)],
+                safer_pattern="Install Node.js and the repo-selected package manager before relying on Node release proof.",
+                evidence=evidence,
+                provenance="script",
+            ),
+        )
+        return
+
+    entry_candidates = []
+    for key in ("main",):
+        value = package_json.get(key)
+        if isinstance(value, str) and value.strip():
+            entry_candidates.append(root / value)
+    for candidate in (root / "index.js", root / "src" / "index.js"):
+        if candidate not in entry_candidates:
+            entry_candidates.append(candidate)
+    entry_path = next((candidate for candidate in entry_candidates if candidate.exists()), None)
+    if entry_path is not None:
+        relative = f"./{_relative_repo_path(entry_path, root)}"
+        rc, output = ctx.run_command(["node", "-e", f"require({json.dumps(relative)})"], root, 30)
+        if rc != 0:
+            _add_execution_finding(
+                findings,
+                ctx,
+                code="EXEC-NODE-001",
+                severity="error",
+                problem="Node entry point cannot be required successfully.",
+                root_cause="The generated or current Node entry module throws during load or points at a broken dependency chain, so the project cannot start cleanly.",
+                files=[package_path, entry_path],
+                safer_pattern="Keep package.json entry points aligned with real files and require-load the entry module during audit to catch runtime boot failures before handoff.",
+                evidence=_collect_first_error_lines(output),
+                root=root,
+            )
+
     scripts = _package_scripts(package_json)
-    if "test" in scripts and _command_available(manager_cmd[0]):
+    if "test" in scripts:
         if manager == "yarn":
             argv = ["yarn", "test"]
         elif manager == "bun":

@@ -2,7 +2,7 @@
   "version": 3,
   "project": "Scafforge",
   "tracking_mode": "package-backlog",
-  "current_focus_ticket": "STACK-002",
+  "current_focus_ticket": "GREEN-001",
   "tickets": [
     {
       "id": "SETUP-001",
@@ -677,10 +677,10 @@
       "lane": "execution-proof",
       "parallel_safe": false,
       "overlap_risk": "medium",
-      "stage": "planning",
-      "status": "todo",
-      "resolution_state": "open",
-      "verification_state": "suspect",
+      "stage": "complete",
+      "status": "done",
+      "resolution_state": "completed",
+      "verification_state": "verified",
       "depends_on": [
         "STACK-001",
         "AUDIT-001",
@@ -705,10 +705,10 @@
       "lane": "contract-validation",
       "parallel_safe": true,
       "overlap_risk": "medium",
-      "stage": "planning",
-      "status": "todo",
-      "resolution_state": "open",
-      "verification_state": "suspect",
+      "stage": "complete",
+      "status": "done",
+      "resolution_state": "completed",
+      "verification_state": "verified",
       "depends_on": [
         "ARCH-002",
         "PROOF-001",

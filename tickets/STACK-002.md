@@ -47,16 +47,16 @@ execution-proof
 
 ## Stage
 
-planning
+complete
 
 ## Status
 
-todo
+done
 
 ## Trust
 
-- resolution_state: open
-- verification_state: suspect
+- resolution_state: completed
+- verification_state: verified
 - finding_source: None
 - source_ticket_id: None
 - source_mode: None
@@ -77,17 +77,23 @@ None
 
 ## Acceptance Criteria
 
-- [ ] Proof-host validation covers Python, Node, Rust, Go, Godot, Java or Android, C or C++, and .NET with real execution or build evidence
-- [ ] `audit_execution_surfaces.py` aligns with the proof-host contract and reports truthful degradation on non-proof hosts
-- [ ] Smoke, integration, or dedicated proof validation surfaces know which Tier 1 checks are mandatory for release
-- [ ] The package no longer relies on detection-only proof for Tier 1 release acceptance
+- [x] Proof-host validation covers Python, Node, Rust, Go, Godot, Java or Android, C or C++, and .NET with real execution or build evidence
+- [x] `audit_execution_surfaces.py` aligns with the proof-host contract and reports truthful degradation on non-proof hosts
+- [x] Smoke, integration, or dedicated proof validation surfaces know which Tier 1 checks are mandatory for release
+- [x] The package no longer relies on detection-only proof for Tier 1 release acceptance
 
 ## Artifacts
 
-- None yet
+- `skills/scafforge-audit/scripts/audit_execution_surfaces.py`
+- `scripts/integration_test_scafforge.py`
+- `scripts/validate_scafforge_contract.py`
+- `npm run validate:contract`
+- `npm run validate:smoke`
+- direct `multi_stack_proof_integration` run
 
 ## Notes
 
 - RFC coverage: Tier 1 execution proof policy and the explicit Tier 1 stack list named in the RFC.
 - Primary surfaces: `skills/scafforge-audit/scripts/audit_execution_surfaces.py`, `scripts/integration_test_scafforge.py`, fixtures or proof-host docs.
 - This ticket is the operational follow-through on the proof-host matrix frozen by `STACK-001`.
+- Validation note: `multi_stack_proof_integration` passed directly on this branch; the full `scripts/integration_test_scafforge.py` suite still has a pre-existing `repair_integration` failure on `origin/main`.
