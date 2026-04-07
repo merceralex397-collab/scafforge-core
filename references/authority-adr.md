@@ -20,7 +20,7 @@ This ADR freezes the package authority map for the Scafforge reliability re-arch
 
 ## First Collapse Target
 
-The first duplicate-authority seam to collapse was repair-side restart rendering and raw workflow mutation. `apply_repo_process_repair.py` and `regenerate_restart_surfaces.py` are the package-side paths that the runtime-owned workflow layer replaced.
+The first duplicate-authority seam to collapse was repair-side restart rendering and raw workflow mutation. `apply_repo_process_repair.py` and `regenerate_restart_surfaces.py` are the package-side paths that were converted to thin adapters delegating to the runtime-owned workflow layer. Dead rendering functions were removed in the final review cleanup.
 
 ## Rules
 
