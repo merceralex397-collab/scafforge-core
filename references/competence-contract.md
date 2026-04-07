@@ -21,7 +21,7 @@ Scafforge is not competent unless the generated workflow exposes one clear legal
 - `scafforge-pivot` owns pivot-state persistence and stale-surface routing
 - `handoff-brief` owns restart publication, which may only happen from the verified final snapshot
 - `agent-prompt-engineering` and the contract surfaces it hardens must keep the same owner map visible across prompts, workflow docs, and generated behavior
-- repair-side restart rendering is the first duplicate-authority seam to collapse, not a secondary cleanup item
+- repair-side restart rendering was the first duplicate-authority seam to collapse; the runtime-owned workflow layer now owns restart publication
 
 ## Release Proof
 
