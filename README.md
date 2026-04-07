@@ -41,7 +41,7 @@ Scafforge should be treated as a skill bundle, not as a CLI product.
 3. The agent reads the inputs, asks one batched round of blocking decisions when needed, records the selected `model_tier`, and routes through the correct skill path.
 4. Output: a complete project repo or an evidence-backed diagnosis and repair path.
 
-For historical implementation-planning context behind this rewrite, see [references/archived-diagnosis-plans/recovery-plan/00-PLAN-INDEX.md](references/archived-diagnosis-plans/recovery-plan/00-PLAN-INDEX.md).
+Historical implementation-planning context for the reliability re-architecture is archived in [references/archived-diagnosis-plans/recovery-plan/00-PLAN-INDEX.md](references/archived-diagnosis-plans/recovery-plan/00-PLAN-INDEX.md).
 
 ## Live testing sandbox
 
@@ -67,7 +67,7 @@ scaffold-kickoff
 ```
 
 This pass allows one batched blocking-decision round and then completes in one uninterrupted same-session generation run. No second Scafforge generation pass is required before development begins. Greenfield now has two proof layers: an early bootstrap-lane proof immediately after scaffold render, and the later immediate-continuation proof before handoff. Greenfield completion requires immediate continuation proof, not only surface agreement. That proof must be completed before handoff publication.
-The current package still carries one temporary contract smell: `project-skill-bootstrap` and `opencode-team-bootstrap` form a dependency seam, so Scafforge keeps the current order until a minimal-operable-versus-specialization split exists.
+The shipped package still carries one temporary contract smell: `project-skill-bootstrap` and `opencode-team-bootstrap` form a dependency seam, so Scafforge keeps the current order until a minimal-operable-versus-specialization split exists.
 
 The one-shot path now also includes environment detection before specialization continues. Missing prerequisites must surface as blocker guidance instead of letting the flow drift into downstream failures.
 

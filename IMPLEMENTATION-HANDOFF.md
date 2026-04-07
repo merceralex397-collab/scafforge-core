@@ -1,12 +1,12 @@
 # Implementation Handoff
 
-This document is the execution contract for the next implementation agent and the reviewer.
+This document is the historical execution contract for the completed implementation sequence and the reviewer.
 
 Current state:
 - package backlog cleanup is complete
 - package-root generated-repo runtime state has been removed
 - `SETUP-001`, `ARCH-001`, `ARCH-002`, `STACK-001`, `DIAG-001`, `DIAG-002`, `MUT-001`, `MUT-002`, `PIVOT-001`, `REPAIR-001`, `RESTART-001`, `RESTART-002`, `INV-001`, `INV-002`, `AUDIT-001`, `BLOCK-001`, and `CYCLE-001` are complete
-- the `PR-06` bundle is complete, the `PR-07` bundle is complete, the `PR-08` bundle is complete, the `PR-09` bundle is complete, the `PR-10` bundle is complete, and the next implementation focus is `DOCS-001`
+  - the `PR-06` bundle is complete, the `PR-07` bundle is complete, the `PR-08` bundle is complete, the `PR-09` bundle is complete, the `PR-10` bundle is complete, the `PR-11` bundle is complete, and this handoff is retained as historical context for the shipped package state
 
 ## Non-Negotiable Rules
 
@@ -168,7 +168,7 @@ Current state:
 
 - Branch: `impl/11-post-implementation-doc-sync`
 - Tickets: `DOCS-001`
-- Scope:
+- Scope covered:
   - final rewrite of root `AGENTS.md`, `README.md`, contract references, skill docs, and other authoritative markdowns to match the shipped implementation
 - Minimum validation:
   - `npm run validate:contract`

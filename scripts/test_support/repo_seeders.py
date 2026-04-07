@@ -589,7 +589,7 @@ def seed_failing_pytest_suite(dest: Path) -> None:
     tests_dir = dest / "tests"
     tests_dir.mkdir(parents=True, exist_ok=True)
     (tests_dir / "test_sample.py").write_text(
-        "def test_smoke():\n    assert True\n", encoding="utf-8"
+        "def test_smoke():\n    assert False, 'synthetic runtime failure'\n", encoding="utf-8"
     )
 
     venv_bin = dest / ".venv" / "bin"

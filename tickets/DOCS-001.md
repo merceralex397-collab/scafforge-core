@@ -50,16 +50,16 @@ package-docs
 
 ## Stage
 
-planning
+complete
 
 ## Status
 
-todo
+done
 
 ## Trust
 
-- resolution_state: open
-- verification_state: suspect
+- resolution_state: completed
+- verification_state: verified
 - finding_source: None
 - source_ticket_id: None
 - source_mode: None
@@ -79,10 +79,10 @@ None
 
 ## Acceptance Criteria
 
-- [ ] Root `AGENTS.md`, root `README.md`, affected `references/*.md`, and affected `skills/*/SKILL.md` files describe the shipped package behavior rather than the planned rewrite
-- [ ] Docs remove stale dual-authority language around repair-side restart rendering, mutation ownership, and blocker semantics
-- [ ] Any transition-guide docs created during implementation are either updated to final state or explicitly archived
-- [ ] `npm run validate:contract` passes after the final documentation reconciliation
+- [x] Root `AGENTS.md`, root `README.md`, affected `references/*.md`, and affected `skills/*/SKILL.md` files describe the shipped package behavior rather than the planned rewrite
+- [x] Docs remove stale dual-authority language around repair-side restart rendering, mutation ownership, and blocker semantics
+- [x] Any transition-guide docs created during implementation are either updated to final state or explicitly archived
+- [x] `npm run validate:contract` passes after the final documentation reconciliation
 
 ## Artifacts
 
@@ -93,3 +93,4 @@ None
 - RFC coverage: Workstream F documentation alignment and rollout policy.
 - Primary surfaces: root `AGENTS.md`, root `README.md`, affected `references/*.md`, affected `SKILL.md` files, and any transition-guide docs introduced during implementation.
 - This ticket is intentionally last in the implementation sequence.
+- Completed in PR-11.
