@@ -1,0 +1,117 @@
+[
+  {
+    "id": "REMED-001",
+    "title": "Source imports reference missing local modules",
+    "description": "Remediate REF-003 by correcting the validated issue and rerunning the relevant quality checks.",
+    "affected_files": [
+      ".opencode/node_modules/zod/src/index.ts"
+    ],
+    "suggested_fix_approach": "Audit local relative import paths and fail when the referenced module file is missing.",
+    "assignee": "implementer",
+    "source_finding_code": "REF-003",
+    "source_finding_codes": [
+      "REF-003"
+    ],
+    "severity": "error",
+    "route": "ticket-pack-builder",
+    "repair_class": "generated-repo remediation ticket",
+    "summary": "Audit local relative import paths and fail when the referenced module file is missing.",
+    "source_files": [
+      ".opencode/node_modules/zod/src/index.ts"
+    ]
+  },
+  {
+    "id": "REMED-002",
+    "title": "The supplied session transcript shows a later reasoning failure that current-state-only diagnosis would miss",
+    "description": "Remediate SESSION001 by correcting the validated issue and rerunning the relevant quality checks.",
+    "affected_files": [
+      "glitch1.md"
+    ],
+    "suggested_fix_approach": "When session logs are supplied, audit chronology first: separate stale resume state from later evidence, then explain any final summary that outruns the executed commands before reconciling current repo state.",
+    "assignee": "implementer",
+    "source_finding_code": "SESSION001",
+    "source_finding_codes": [
+      "SESSION001"
+    ],
+    "severity": "error",
+    "route": "ticket-pack-builder",
+    "repair_class": "generated-repo remediation ticket",
+    "summary": "When session logs are supplied, audit chronology first: separate stale resume state from later evidence, then explain any final summary that outruns the executed commands before reconciling current repo state.",
+    "source_files": [
+      "glitch1.md"
+    ]
+  },
+  {
+    "id": "REMED-003",
+    "title": "The supplied session transcript shows the agent searching for workflow bypasses or soft dependency overrides instead of following the lifecycle contract",
+    "description": "Remediate SESSION003 by correcting the validated issue and rerunning the relevant quality checks.",
+    "affected_files": [
+      "glitch1.md"
+    ],
+    "suggested_fix_approach": "Reject unsupported stages and dependency overrides up front, tell the coordinator not to probe alternate transitions or close blocked tickets anyway, and return the contract contradiction as a blocker when the required proof is missing.",
+    "assignee": "implementer",
+    "source_finding_code": "SESSION003",
+    "source_finding_codes": [
+      "SESSION003"
+    ],
+    "severity": "error",
+    "route": "ticket-pack-builder",
+    "repair_class": "generated-repo remediation ticket",
+    "summary": "Reject unsupported stages and dependency overrides up front, tell the coordinator not to probe alternate transitions or close blocked tickets anyway, and return the contract contradiction as a blocker when the required proof is missing.",
+    "source_files": [
+      "glitch1.md"
+    ]
+  },
+  {
+    "id": "REMED-004",
+    "title": "Declared Godot Android target lacks canonical backlog ownership for export surfaces and debug APK proof",
+    "description": "Remediate WFLOW025 by correcting the validated issue and rerunning the relevant quality checks.",
+    "affected_files": [
+      "tickets/manifest.json",
+      "docs/spec/CANONICAL-BRIEF.md"
+    ],
+    "suggested_fix_approach": "For Godot Android repos, always create `ANDROID-001` in lane `android-export` for repo-local export surfaces and `RELEASE-001` in lane `release-readiness` for debug APK proof. Do not let generic polish tickets stand in for release ownership.",
+    "assignee": "implementer",
+    "source_finding_code": "WFLOW025",
+    "source_finding_codes": [
+      "WFLOW025"
+    ],
+    "severity": "error",
+    "route": "scafforge-repair",
+    "repair_class": "safe Scafforge package change",
+    "summary": "For Godot Android repos, always create `ANDROID-001` in lane `android-export` for repo-local export surfaces and `RELEASE-001` in lane `release-readiness` for debug APK proof. Do not let generic polish tickets stand in for release ownership.",
+    "source_files": [
+      "tickets/manifest.json",
+      "docs/spec/CANONICAL-BRIEF.md"
+    ]
+  },
+  {
+    "id": "REMED-005",
+    "title": "Current artifacts contain explicit markdown verdict labels, but the generated verdict extractor still reports them as unclear",
+    "description": "Remediate WFLOW026 by correcting the validated issue and rerunning the relevant quality checks.",
+    "affected_files": [
+      ".opencode/lib/workflow.ts",
+      "tickets/manifest.json",
+      ".opencode/state/artifacts/history/setup-001/review/2026-04-01T19-56-58-524Z-review.md",
+      ".opencode/state/artifacts/history/system-001/qa/2026-04-01T20-21-43-357Z-qa.md",
+      ".opencode/state/artifacts/history/remed-002/review/2026-04-02T10-26-44-234Z-review.md"
+    ],
+    "suggested_fix_approach": "Keep one shared artifact verdict extractor that accepts plain and markdown-emphasized verdict labels, then route ticket_lookup and ticket_update through that shared parser instead of treating explicit review or QA verdicts as unclear.",
+    "assignee": "implementer",
+    "source_finding_code": "WFLOW026",
+    "source_finding_codes": [
+      "WFLOW026"
+    ],
+    "severity": "error",
+    "route": "scafforge-repair",
+    "repair_class": "safe Scafforge package change",
+    "summary": "Keep one shared artifact verdict extractor that accepts plain and markdown-emphasized verdict labels, then route ticket_lookup and ticket_update through that shared parser instead of treating explicit review or QA verdicts as unclear.",
+    "source_files": [
+      ".opencode/lib/workflow.ts",
+      "tickets/manifest.json",
+      ".opencode/state/artifacts/history/setup-001/review/2026-04-01T19-56-58-524Z-review.md",
+      ".opencode/state/artifacts/history/system-001/qa/2026-04-01T20-21-43-357Z-qa.md",
+      ".opencode/state/artifacts/history/remed-002/review/2026-04-02T10-26-44-234Z-review.md"
+    ]
+  }
+]

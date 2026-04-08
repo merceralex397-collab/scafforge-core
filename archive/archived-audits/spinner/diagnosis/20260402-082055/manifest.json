@@ -1,0 +1,150 @@
+{
+  "generated_at": "2026-04-02T08:20:55Z",
+  "repo_root": "/home/pc/projects/spinner",
+  "finding_count": 5,
+  "finding_codes": [
+    "CYCLE001",
+    "EXEC-GODOT-004",
+    "REF-003",
+    "SKILL001",
+    "WFLOW024"
+  ],
+  "source_findings": [
+    {
+      "code": "EXEC-GODOT-004",
+      "severity": "error"
+    },
+    {
+      "code": "REF-003",
+      "severity": "error"
+    }
+  ],
+  "result_state": "validated failures found",
+  "diagnosis_kind": "post_repair_verification",
+  "evidence_mode": "current_state_only",
+  "audit_package_commit": "missing_provenance",
+  "report_files": {
+    "report_1": "01-initial-codebase-review.md",
+    "report_2": "02-scafforge-process-failures.md",
+    "report_3": "03-scafforge-prevention-actions.md",
+    "report_4": "04-live-repo-repair-plan.md"
+  },
+  "ticket_recommendations": [
+    {
+      "id": "REMED-001",
+      "title": "A previous audit-to-repair cycle did not clear one or more workflow-layer findings before work resumed",
+      "description": "Remediate CYCLE001 by correcting the validated issue and rerunning the relevant quality checks.",
+      "affected_files": [
+        "diagnosis/20260402-081954/manifest.json",
+        ".opencode/meta/bootstrap-provenance.json"
+      ],
+      "suggested_fix_approach": "Before another repair run, compare the latest diagnosis pack against repair_history, identify which findings persisted, and treat repeated deprecated package-managed drift as a repair failure to fix rather than as preserved intent.",
+      "assignee": "implementer",
+      "source_finding_code": "CYCLE001",
+      "source_finding_codes": [
+        "CYCLE001"
+      ],
+      "severity": "error",
+      "route": "manual-prerequisite",
+      "repair_class": "Scafforge package work required before the next subject-repo run",
+      "summary": "Before another repair run, compare the latest diagnosis pack against repair_history, identify which findings persisted, and treat repeated deprecated package-managed drift as a repair failure to fix rather than as preserved intent.",
+      "source_files": [
+        "diagnosis/20260402-081954/manifest.json",
+        ".opencode/meta/bootstrap-provenance.json"
+      ]
+    },
+    {
+      "id": "REMED-002",
+      "title": "Godot headless validation fails",
+      "description": "Remediate EXEC-GODOT-004 by correcting the validated issue and rerunning the relevant quality checks.",
+      "affected_files": [
+        "project.godot"
+      ],
+      "suggested_fix_approach": "Run a deterministic `godot --headless --path . --quit` validation during audit and keep the repo blocked until it succeeds or returns an explicit environment blocker instead.",
+      "assignee": "implementer",
+      "source_finding_code": "EXEC-GODOT-004",
+      "source_finding_codes": [
+        "EXEC-GODOT-004"
+      ],
+      "severity": "error",
+      "route": "ticket-pack-builder",
+      "repair_class": "generated-repo remediation ticket",
+      "summary": "Run a deterministic `godot --headless --path . --quit` validation during audit and keep the repo blocked until it succeeds or returns an explicit environment blocker instead.",
+      "source_files": [
+        "project.godot"
+      ]
+    },
+    {
+      "id": "REMED-003",
+      "title": "Source imports reference missing local modules",
+      "description": "Remediate REF-003 by correcting the validated issue and rerunning the relevant quality checks.",
+      "affected_files": [
+        ".opencode/node_modules/zod/src/index.ts"
+      ],
+      "suggested_fix_approach": "Audit local relative import paths and fail when the referenced module file is missing.",
+      "assignee": "implementer",
+      "source_finding_code": "REF-003",
+      "source_finding_codes": [
+        "REF-003"
+      ],
+      "severity": "error",
+      "route": "ticket-pack-builder",
+      "repair_class": "generated-repo remediation ticket",
+      "summary": "Audit local relative import paths and fail when the referenced module file is missing.",
+      "source_files": [
+        ".opencode/node_modules/zod/src/index.ts"
+      ]
+    },
+    {
+      "id": "REMED-004",
+      "title": "Fail-state routing is still under-specified in generated prompts or workflow skills",
+      "description": "Remediate WFLOW024 by correcting the validated issue and rerunning the relevant quality checks.",
+      "affected_files": [
+        ".opencode/agents/spinner-team-leader.md"
+      ],
+      "suggested_fix_approach": "Document review, QA, smoke-test, and bootstrap failure recovery paths in ticket-execution, and instruct the team leader to follow transition_guidance.recovery_action whenever it is present.",
+      "assignee": "implementer",
+      "source_finding_code": "WFLOW024",
+      "source_finding_codes": [
+        "WFLOW024"
+      ],
+      "severity": "error",
+      "route": "scafforge-repair",
+      "repair_class": "safe Scafforge package change",
+      "summary": "Document review, QA, smoke-test, and bootstrap failure recovery paths in ticket-execution, and instruct the team leader to follow transition_guidance.recovery_action whenever it is present.",
+      "source_files": [
+        ".opencode/agents/spinner-team-leader.md"
+      ]
+    },
+    {
+      "id": "REMED-005",
+      "title": "One or more repo-local skills still contain generic placeholder text instead of project-specific guidance",
+      "description": "Remediate SKILL001 by correcting the validated issue and rerunning the relevant quality checks.",
+      "affected_files": [
+        ".opencode/skills/stack-standards/SKILL.md"
+      ],
+      "suggested_fix_approach": "Populate every baseline local skill with concrete repo-specific rules and validation commands; generated `.opencode/skills/` files must not retain template filler.",
+      "assignee": "implementer",
+      "source_finding_code": "SKILL001",
+      "source_finding_codes": [
+        "SKILL001"
+      ],
+      "severity": "warning",
+      "route": "scafforge-repair",
+      "repair_class": "safe Scafforge package change",
+      "summary": "Populate every baseline local skill with concrete repo-specific rules and validation commands; generated `.opencode/skills/` files must not retain template filler.",
+      "source_files": [
+        ".opencode/skills/stack-standards/SKILL.md"
+      ]
+    }
+  ],
+  "package_work_required_first": true,
+  "recommended_next_step": "scafforge_package_work",
+  "verification_kind": "post_repair",
+  "repair_package_commit": "missing_provenance",
+  "repair_basis_path": "/home/pc/projects/spinner/diagnosis/20260402-081954",
+  "current_state_clean": false,
+  "causal_regression_verified": false,
+  "verification_basis": "current_state_only",
+  "recommended_ticket_payload": "recommended-ticket-payload.json"
+}

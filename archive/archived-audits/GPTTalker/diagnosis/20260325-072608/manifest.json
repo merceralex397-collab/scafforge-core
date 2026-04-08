@@ -1,0 +1,52 @@
+{
+  "generated_at": "2026-03-25T07:26:08Z",
+  "repo_root": "/home/pc/projects/GPTTalker",
+  "result_state": "validated failures found",
+  "finding_count": 6,
+  "report_files": {
+    "report_1": "01-initial-codebase-review.md",
+    "report_2": "02-scafforge-process-failures.md",
+    "report_3": "03-scafforge-prevention-actions.md",
+    "report_4": "04-live-repo-repair-plan.md"
+  },
+  "ticket_recommendations": [
+    {
+      "id": "WFLOW-EXEC-HANDOFF",
+      "title": "Prevent handoff summaries from outrunning executed evidence after smoke-test deadlocks",
+      "wave": 9,
+      "lane": "workflow",
+      "parallel_safe": true,
+      "overlap_risk": "medium",
+      "stage": "planning",
+      "status": "todo",
+      "depends_on": []
+    },
+    {
+      "id": "WFLOW-REVIEW-STAGE",
+      "title": "Make plan review and implementation review operationally distinct for agents and tools",
+      "wave": 9,
+      "lane": "workflow",
+      "parallel_safe": true,
+      "overlap_risk": "medium",
+      "stage": "planning",
+      "status": "todo",
+      "depends_on": []
+    },
+    {
+      "id": "AUDIT-TRANSCRIPT-CHRONOLOGY",
+      "title": "Teach scafforge-audit to treat supplied session logs as temporal evidence before current-state reconciliation",
+      "wave": 9,
+      "lane": "workflow",
+      "parallel_safe": true,
+      "overlap_risk": "low",
+      "stage": "planning",
+      "status": "todo",
+      "depends_on": []
+    }
+  ],
+  "supporting_logs": [
+    "mm27.md",
+    "START-HERE.md",
+    ".opencode/state/latest-handoff.md"
+  ]
+}

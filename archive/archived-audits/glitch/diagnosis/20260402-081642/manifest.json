@@ -1,0 +1,142 @@
+{
+  "generated_at": "2026-04-02T08:16:42Z",
+  "repo_root": "/home/pc/projects/Scafforge/livetesting/glitch",
+  "finding_count": 4,
+  "finding_codes": [
+    "EXEC-GODOT-004",
+    "REF-003",
+    "WFLOW006",
+    "WFLOW012"
+  ],
+  "source_findings": [
+    {
+      "code": "EXEC-GODOT-004",
+      "severity": "error"
+    },
+    {
+      "code": "REF-003",
+      "severity": "error"
+    }
+  ],
+  "result_state": "validated failures found",
+  "diagnosis_kind": "post_repair_verification",
+  "evidence_mode": "current_state_only",
+  "audit_package_commit": "d3db92630b350c6ab318b7fe0a9689655024f216",
+  "report_files": {
+    "report_1": "01-initial-codebase-review.md",
+    "report_2": "02-scafforge-process-failures.md",
+    "report_3": "03-scafforge-prevention-actions.md",
+    "report_4": "04-live-repo-repair-plan.md"
+  },
+  "ticket_recommendations": [
+    {
+      "id": "REMED-001",
+      "title": "Godot headless validation fails",
+      "description": "Remediate EXEC-GODOT-004 by correcting the validated issue and rerunning the relevant quality checks.",
+      "affected_files": [
+        "project.godot"
+      ],
+      "suggested_fix_approach": "Run a deterministic `godot --headless --path . --quit` validation during audit and keep the repo blocked until it succeeds or returns an explicit environment blocker instead.",
+      "assignee": "implementer",
+      "source_finding_code": "EXEC-GODOT-004",
+      "source_finding_codes": [
+        "EXEC-GODOT-004"
+      ],
+      "severity": "error",
+      "route": "ticket-pack-builder",
+      "repair_class": "generated-repo remediation ticket",
+      "summary": "Run a deterministic `godot --headless --path . --quit` validation during audit and keep the repo blocked until it succeeds or returns an explicit environment blocker instead.",
+      "source_files": [
+        "project.godot"
+      ]
+    },
+    {
+      "id": "REMED-002",
+      "title": "Source imports reference missing local modules",
+      "description": "Remediate REF-003 by correcting the validated issue and rerunning the relevant quality checks.",
+      "affected_files": [
+        ".opencode/node_modules/zod/src/index.ts"
+      ],
+      "suggested_fix_approach": "Audit local relative import paths and fail when the referenced module file is missing.",
+      "assignee": "implementer",
+      "source_finding_code": "REF-003",
+      "source_finding_codes": [
+        "REF-003"
+      ],
+      "severity": "error",
+      "route": "ticket-pack-builder",
+      "repair_class": "generated-repo remediation ticket",
+      "summary": "Audit local relative import paths and fail when the referenced module file is missing.",
+      "source_files": [
+        ".opencode/node_modules/zod/src/index.ts"
+      ]
+    },
+    {
+      "id": "REMED-003",
+      "title": "The generated lease-ownership contract is split across coordinator and worker surfaces, so agents can disagree about who should claim a ticket and when bootstrap gates apply",
+      "description": "Remediate WFLOW012 by correcting the validated issue and rerunning the relevant quality checks.",
+      "affected_files": [
+        "docs/process/workflow.md",
+        "tickets/README.md",
+        ".opencode/commands/kickoff.md",
+        ".opencode/commands/run-lane.md",
+        ".opencode/skills/ticket-execution/SKILL.md",
+        ".opencode/agents/glitch-team-leader.md",
+        ".opencode/agents/glitch-implementer.md",
+        ".opencode/agents/glitch-lane-executor.md",
+        ".opencode/agents/glitch-docs-handoff.md"
+      ],
+      "suggested_fix_approach": "Adopt one lease model everywhere: the team leader owns `ticket_claim` and `ticket_release`, specialists work only inside the already-active ticket lease, and only Wave 0 setup work may claim before bootstrap is ready.",
+      "assignee": "implementer",
+      "source_finding_code": "WFLOW012",
+      "source_finding_codes": [
+        "WFLOW012"
+      ],
+      "severity": "error",
+      "route": "scafforge-repair",
+      "repair_class": "safe Scafforge package change",
+      "summary": "Adopt one lease model everywhere: the team leader owns `ticket_claim` and `ticket_release`, specialists work only inside the already-active ticket lease, and only Wave 0 setup work may claim before bootstrap is ready.",
+      "source_files": [
+        "docs/process/workflow.md",
+        "tickets/README.md",
+        ".opencode/commands/kickoff.md",
+        ".opencode/commands/run-lane.md",
+        ".opencode/skills/ticket-execution/SKILL.md",
+        ".opencode/agents/glitch-team-leader.md",
+        ".opencode/agents/glitch-implementer.md",
+        ".opencode/agents/glitch-lane-executor.md",
+        ".opencode/agents/glitch-docs-handoff.md"
+      ]
+    },
+    {
+      "id": "REMED-004",
+      "title": "The team leader prompt leaves workflow mechanics underspecified enough that weaker models can thrash or search for bypasses",
+      "description": "Remediate WFLOW006 by correcting the validated issue and rerunning the relevant quality checks.",
+      "affected_files": [
+        ".opencode/agents/glitch-team-leader.md"
+      ],
+      "suggested_fix_approach": "Tell the team leader to route from `ticket_lookup.transition_guidance`, stop after repeated lifecycle errors, leave stage artifacts to the owning specialist, and keep slash commands human-only.",
+      "assignee": "implementer",
+      "source_finding_code": "WFLOW006",
+      "source_finding_codes": [
+        "WFLOW006"
+      ],
+      "severity": "warning",
+      "route": "scafforge-repair",
+      "repair_class": "safe Scafforge package change",
+      "summary": "Tell the team leader to route from `ticket_lookup.transition_guidance`, stop after repeated lifecycle errors, leave stage artifacts to the owning specialist, and keep slash commands human-only.",
+      "source_files": [
+        ".opencode/agents/glitch-team-leader.md"
+      ]
+    }
+  ],
+  "package_work_required_first": false,
+  "recommended_next_step": "subject_repo_repair",
+  "verification_kind": "post_repair",
+  "repair_package_commit": "d3db92630b350c6ab318b7fe0a9689655024f216",
+  "repair_basis_path": "/home/pc/projects/Scafforge/livetesting/glitch/diagnosis/20260401-215051",
+  "current_state_clean": false,
+  "causal_regression_verified": false,
+  "verification_basis": "current_state_only",
+  "recommended_ticket_payload": "recommended-ticket-payload.json"
+}

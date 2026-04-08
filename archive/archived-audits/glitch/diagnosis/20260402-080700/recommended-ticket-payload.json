@@ -1,0 +1,188 @@
+[
+  {
+    "id": "REMED-001",
+    "title": "A previous audit-to-repair cycle did not clear one or more workflow-layer findings before work resumed",
+    "description": "Remediate CYCLE001 by correcting the validated issue and rerunning the relevant quality checks.",
+    "affected_files": [
+      "diagnosis/20260401-215051/manifest.json",
+      ".opencode/meta/bootstrap-provenance.json"
+    ],
+    "suggested_fix_approach": "Before another repair run, compare the latest diagnosis pack against repair_history, identify which findings persisted, and treat repeated deprecated package-managed drift as a repair failure to fix rather than as preserved intent.",
+    "assignee": "implementer",
+    "source_finding_code": "CYCLE001",
+    "source_finding_codes": [
+      "CYCLE001"
+    ],
+    "severity": "error",
+    "route": "manual-prerequisite",
+    "repair_class": "Scafforge package work required before the next subject-repo run",
+    "summary": "Before another repair run, compare the latest diagnosis pack against repair_history, identify which findings persisted, and treat repeated deprecated package-managed drift as a repair failure to fix rather than as preserved intent.",
+    "source_files": [
+      "diagnosis/20260401-215051/manifest.json",
+      ".opencode/meta/bootstrap-provenance.json"
+    ]
+  },
+  {
+    "id": "REMED-002",
+    "title": "Godot headless validation fails",
+    "description": "Remediate EXEC-GODOT-004 by correcting the validated issue and rerunning the relevant quality checks.",
+    "affected_files": [
+      "project.godot"
+    ],
+    "suggested_fix_approach": "Run a deterministic `godot --headless --path . --quit` validation during audit and keep the repo blocked until it succeeds or returns an explicit environment blocker instead.",
+    "assignee": "implementer",
+    "source_finding_code": "EXEC-GODOT-004",
+    "source_finding_codes": [
+      "EXEC-GODOT-004"
+    ],
+    "severity": "error",
+    "route": "ticket-pack-builder",
+    "repair_class": "generated-repo remediation ticket",
+    "summary": "Run a deterministic `godot --headless --path . --quit` validation during audit and keep the repo blocked until it succeeds or returns an explicit environment blocker instead.",
+    "source_files": [
+      "project.godot"
+    ]
+  },
+  {
+    "id": "REMED-003",
+    "title": "Source imports reference missing local modules",
+    "description": "Remediate REF-003 by correcting the validated issue and rerunning the relevant quality checks.",
+    "affected_files": [
+      ".opencode/node_modules/zod/src/index.ts"
+    ],
+    "suggested_fix_approach": "Audit local relative import paths and fail when the referenced module file is missing.",
+    "assignee": "implementer",
+    "source_finding_code": "REF-003",
+    "source_finding_codes": [
+      "REF-003"
+    ],
+    "severity": "error",
+    "route": "ticket-pack-builder",
+    "repair_class": "generated-repo remediation ticket",
+    "summary": "Audit local relative import paths and fail when the referenced module file is missing.",
+    "source_files": [
+      ".opencode/node_modules/zod/src/index.ts"
+    ]
+  },
+  {
+    "id": "REMED-004",
+    "title": "The generated lease-ownership contract is split across coordinator and worker surfaces, so agents can disagree about who should claim a ticket and when bootstrap gates apply",
+    "description": "Remediate WFLOW012 by correcting the validated issue and rerunning the relevant quality checks.",
+    "affected_files": [
+      "docs/process/workflow.md",
+      "tickets/README.md",
+      ".opencode/commands/kickoff.md",
+      ".opencode/commands/run-lane.md",
+      ".opencode/skills/ticket-execution/SKILL.md",
+      ".opencode/agents/glitch-team-leader.md",
+      ".opencode/agents/glitch-implementer.md",
+      ".opencode/agents/glitch-lane-executor.md",
+      ".opencode/agents/glitch-docs-handoff.md"
+    ],
+    "suggested_fix_approach": "Adopt one lease model everywhere: the team leader owns `ticket_claim` and `ticket_release`, specialists work only inside the already-active ticket lease, and only Wave 0 setup work may claim before bootstrap is ready.",
+    "assignee": "implementer",
+    "source_finding_code": "WFLOW012",
+    "source_finding_codes": [
+      "WFLOW012"
+    ],
+    "severity": "error",
+    "route": "scafforge-repair",
+    "repair_class": "safe Scafforge package change",
+    "summary": "Adopt one lease model everywhere: the team leader owns `ticket_claim` and `ticket_release`, specialists work only inside the already-active ticket lease, and only Wave 0 setup work may claim before bootstrap is ready.",
+    "source_files": [
+      "docs/process/workflow.md",
+      "tickets/README.md",
+      ".opencode/commands/kickoff.md",
+      ".opencode/commands/run-lane.md",
+      ".opencode/skills/ticket-execution/SKILL.md",
+      ".opencode/agents/glitch-team-leader.md",
+      ".opencode/agents/glitch-implementer.md",
+      ".opencode/agents/glitch-lane-executor.md",
+      ".opencode/agents/glitch-docs-handoff.md"
+    ]
+  },
+  {
+    "id": "REMED-005",
+    "title": "Fail-state routing is still under-specified in generated prompts or workflow skills",
+    "description": "Remediate WFLOW024 by correcting the validated issue and rerunning the relevant quality checks.",
+    "affected_files": [
+      ".opencode/agents/glitch-team-leader.md"
+    ],
+    "suggested_fix_approach": "Document review, QA, smoke-test, and bootstrap failure recovery paths in ticket-execution, and instruct the team leader to follow transition_guidance.recovery_action whenever it is present.",
+    "assignee": "implementer",
+    "source_finding_code": "WFLOW024",
+    "source_finding_codes": [
+      "WFLOW024"
+    ],
+    "severity": "error",
+    "route": "scafforge-repair",
+    "repair_class": "safe Scafforge package change",
+    "summary": "Document review, QA, smoke-test, and bootstrap failure recovery paths in ticket-execution, and instruct the team leader to follow transition_guidance.recovery_action whenever it is present.",
+    "source_files": [
+      ".opencode/agents/glitch-team-leader.md"
+    ]
+  },
+  {
+    "id": "REMED-006",
+    "title": "Read-only shell agents still allow commands that can mutate repo-tracked files",
+    "description": "Remediate read-only-shell-mutation-loophole by correcting the validated issue and rerunning the relevant quality checks.",
+    "affected_files": [
+      ".opencode/agents/glitch-tester-qa.md"
+    ],
+    "suggested_fix_approach": "Keep read-only shell allowlists to inspection commands only and move mutation into write-capable roles.",
+    "assignee": "implementer",
+    "source_finding_code": "read-only-shell-mutation-loophole",
+    "source_finding_codes": [
+      "read-only-shell-mutation-loophole"
+    ],
+    "severity": "error",
+    "route": "scafforge-repair",
+    "repair_class": "safe Scafforge package change",
+    "summary": "Keep read-only shell allowlists to inspection commands only and move mutation into write-capable roles.",
+    "source_files": [
+      ".opencode/agents/glitch-tester-qa.md"
+    ]
+  },
+  {
+    "id": "REMED-007",
+    "title": "One or more repo-local skills still contain generic placeholder text instead of project-specific guidance",
+    "description": "Remediate SKILL001 by correcting the validated issue and rerunning the relevant quality checks.",
+    "affected_files": [
+      ".opencode/skills/stack-standards/SKILL.md"
+    ],
+    "suggested_fix_approach": "Populate every baseline local skill with concrete repo-specific rules and validation commands; generated `.opencode/skills/` files must not retain template filler.",
+    "assignee": "implementer",
+    "source_finding_code": "SKILL001",
+    "source_finding_codes": [
+      "SKILL001"
+    ],
+    "severity": "warning",
+    "route": "scafforge-repair",
+    "repair_class": "safe Scafforge package change",
+    "summary": "Populate every baseline local skill with concrete repo-specific rules and validation commands; generated `.opencode/skills/` files must not retain template filler.",
+    "source_files": [
+      ".opencode/skills/stack-standards/SKILL.md"
+    ]
+  },
+  {
+    "id": "REMED-008",
+    "title": "The team leader prompt leaves workflow mechanics underspecified enough that weaker models can thrash or search for bypasses",
+    "description": "Remediate WFLOW006 by correcting the validated issue and rerunning the relevant quality checks.",
+    "affected_files": [
+      ".opencode/agents/glitch-team-leader.md"
+    ],
+    "suggested_fix_approach": "Tell the team leader to route from `ticket_lookup.transition_guidance`, stop after repeated lifecycle errors, leave stage artifacts to the owning specialist, and keep slash commands human-only.",
+    "assignee": "implementer",
+    "source_finding_code": "WFLOW006",
+    "source_finding_codes": [
+      "WFLOW006"
+    ],
+    "severity": "warning",
+    "route": "scafforge-repair",
+    "repair_class": "safe Scafforge package change",
+    "summary": "Tell the team leader to route from `ticket_lookup.transition_guidance`, stop after repeated lifecycle errors, leave stage artifacts to the owning specialist, and keep slash commands human-only.",
+    "source_files": [
+      ".opencode/agents/glitch-team-leader.md"
+    ]
+  }
+]

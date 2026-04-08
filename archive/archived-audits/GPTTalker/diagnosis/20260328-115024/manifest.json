@@ -1,0 +1,45 @@
+{
+  "generated_at": "2026-03-28T11:50:24Z",
+  "repo_root": "/home/pc/projects/GPTTalker",
+  "result_state": "validated failures found",
+  "finding_count": 1,
+  "diagnosis_kind": "post_package_revalidation",
+  "evidence_mode": "transcript_backed_reconciled_with_current_state",
+  "audit_package_commit": "unknown",
+  "report_files": {
+    "report_1": "01-initial-codebase-review.md",
+    "report_2": "02-scafforge-process-failures.md",
+    "report_3": "03-scafforge-prevention-actions.md",
+    "report_4": "04-live-repo-repair-plan.md"
+  },
+  "ticket_recommendations": [
+    {
+      "id": "REMED-001",
+      "title": "Refresh the subject repo onto the already-updated historical-reconciliation package surfaces",
+      "source_finding_code": "CURR-001",
+      "severity": "critical",
+      "route": "scafforge-repair",
+      "repair_class": "generated-repo remediation ticket/process repair",
+      "summary": "The installed Scafforge package now contains the WFLOW024 repair, but this repo still carries the stale managed copies. Run scafforge-repair before any further subject-repo workflow routing.",
+      "source_files": [
+        "tickets/manifest.json",
+        ".opencode/tools/ticket_reconcile.ts",
+        ".opencode/tools/ticket_create.ts",
+        ".opencode/tools/issue_intake.ts",
+        ".opencode/plugins/stage-gate-enforcer.ts"
+      ]
+    }
+  ],
+  "package_work_required_first": false,
+  "recommended_next_step": "scafforge-repair",
+  "supporting_logs": [
+    "sessionlog2703.md"
+  ],
+  "historical_basis_retained": [
+    "SESSION002",
+    "SESSION004",
+    "SESSION005",
+    "SESSION006"
+  ],
+  "recommended_ticket_payload": "recommended-ticket-payload.json"
+}

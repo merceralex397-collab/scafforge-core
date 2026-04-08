@@ -1,0 +1,79 @@
+{
+  "generated_at": "2026-03-27T10:35:27Z",
+  "repo_root": "/home/pc/projects/GPTTalker",
+  "result_state": "validated failures found",
+  "script_candidate_finding_count": 6,
+  "validated_finding_count": 5,
+  "rejected_or_outdated_count": 1,
+  "report_files": {
+    "report_1": "01-initial-codebase-review.md",
+    "report_2": "02-scafforge-process-failures.md",
+    "report_3": "03-scafforge-prevention-actions.md",
+    "report_4": "04-live-repo-repair-plan.md"
+  },
+  "ticket_recommendations": [
+    {
+      "id": "REMED-001",
+      "title": "Historical follow-up routing still requires ordinary source-ticket leases",
+      "source_finding_code": "WFLOW018",
+      "severity": "critical",
+      "route": "package-first",
+      "repair_class": "safe Scafforge package change",
+      "summary": "Refresh the stage gate and related tool contract so completed-ticket `ticket_create(process_verification|post_completion_issue)` and `issue_intake` routes rely on current evidence instead of a live source-ticket lease.",
+      "target_repo": "Scafforge package repo",
+      "source_files": [
+        ".opencode/plugins/stage-gate-enforcer.ts",
+        ".opencode/tools/ticket_create.ts",
+        ".opencode/tools/issue_intake.ts"
+      ]
+    },
+    {
+      "id": "REMED-002",
+      "title": "Public repair-follow-on guidance still routes from legacy `handoff_allowed` fields",
+      "source_finding_code": "WFLOW021",
+      "severity": "major",
+      "route": "package-first",
+      "repair_class": "safe Scafforge package change",
+      "summary": "Refresh restart-surface generation, `/resume`, and coordinator prompts so they route from one public repair-follow-on outcome contract instead of the legacy boolean gate.",
+      "target_repo": "Scafforge package repo",
+      "source_files": [
+        "START-HERE.md",
+        ".opencode/state/context-snapshot.md",
+        ".opencode/state/latest-handoff.md",
+        ".opencode/commands/resume.md",
+        ".opencode/agents/gpttalker-team-leader.md"
+      ]
+    },
+    {
+      "id": "REMED-003",
+      "title": "Repo ticket lineage needs reconciliation after split and supersession edits",
+      "source_finding_code": "WFLOW020+WFLOW019",
+      "severity": "major",
+      "route": "subject-repo-process-repair",
+      "repair_class": "generated-repo remediation ticket/process repair",
+      "summary": "Reconcile the `EXEC-011` split children to `split_scope` and repair stale `EXEC-012` lineage against `EXEC-008` through one canonical queue repair step.",
+      "target_repo": "subject repo",
+      "source_files": [
+        "tickets/manifest.json"
+      ]
+    },
+    {
+      "id": "REMED-004",
+      "title": "Bootstrap proof is still failed and repo-local test tools are absent",
+      "source_finding_code": "ENV002",
+      "severity": "major",
+      "route": "subject-repo-operator-follow-up",
+      "repair_class": "generated-repo remediation ticket/process repair",
+      "summary": "Restore the repo-local validation environment by rerunning `environment_bootstrap` and do not continue lifecycle verification until repo-local `pytest` and `ruff` are available again.",
+      "target_repo": "subject repo",
+      "source_files": [
+        ".opencode/state/workflow-state.json",
+        ".opencode/state/artifacts/history/exec-014/bootstrap/2026-03-27T07-55-04-836Z-environment-bootstrap.md",
+        ".opencode/tools/environment_bootstrap.ts",
+        "pyproject.toml"
+      ]
+    }
+  ],
+  "supporting_logs": [],
+  "recommended_ticket_payload": "recommended-ticket-payload.json"
+}

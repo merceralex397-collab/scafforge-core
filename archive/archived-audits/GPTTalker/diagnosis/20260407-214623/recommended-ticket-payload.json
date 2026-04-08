@@ -1,0 +1,65 @@
+[
+  {
+    "id": "REMED-001",
+    "title": "One or more Python packages fail to import \u2014 the service cannot start",
+    "description": "Remediate EXEC001 by correcting the validated issue and rerunning the relevant quality checks.",
+    "affected_files": [
+      "/tmp/scafforge-repair-candidate-t_gl5xeh/candidate/src"
+    ],
+    "suggested_fix_approach": "Verify every import succeeds: `python -c 'from src.<pkg>.main import app'`. Use string annotations (`-> \"TypeName\"`) for TYPE_CHECKING-only imports. Use `request: Request` (not `app: FastAPI`) in FastAPI dependency functions.",
+    "assignee": "implementer",
+    "source_finding_code": "EXEC001",
+    "source_finding_codes": [
+      "EXEC001"
+    ],
+    "severity": "error",
+    "route": "ticket-pack-builder",
+    "repair_class": "generated-repo remediation ticket",
+    "summary": "Verify every import succeeds: `python -c 'from src.<pkg>.main import app'`. Use string annotations (`-> \"TypeName\"`) for TYPE_CHECKING-only imports. Use `request: Request` (not `app: FastAPI`) in FastAPI dependency functions.",
+    "source_files": [
+      "/tmp/scafforge-repair-candidate-t_gl5xeh/candidate/src"
+    ]
+  },
+  {
+    "id": "REMED-002",
+    "title": "Source imports reference missing local modules",
+    "description": "Remediate REF-003 by correcting the validated issue and rerunning the relevant quality checks.",
+    "affected_files": [
+      ".opencode/node_modules/zod/src/index.ts"
+    ],
+    "suggested_fix_approach": "Audit local relative import paths and fail when the referenced module file is missing.",
+    "assignee": "implementer",
+    "source_finding_code": "REF-003",
+    "source_finding_codes": [
+      "REF-003"
+    ],
+    "severity": "error",
+    "route": "ticket-pack-builder",
+    "repair_class": "generated-repo remediation ticket",
+    "summary": "Audit local relative import paths and fail when the referenced module file is missing.",
+    "source_files": [
+      ".opencode/node_modules/zod/src/index.ts"
+    ]
+  },
+  {
+    "id": "REMED-003",
+    "title": "One or more repo-local skills still contain generic placeholder text instead of project-specific guidance",
+    "description": "Remediate SKILL001 by correcting the validated issue and rerunning the relevant quality checks.",
+    "affected_files": [
+      ".opencode/skills/stack-standards/SKILL.md"
+    ],
+    "suggested_fix_approach": "Populate every baseline local skill with concrete repo-specific rules and validation commands; generated `.opencode/skills/` files must not retain template filler.",
+    "assignee": "implementer",
+    "source_finding_code": "SKILL001",
+    "source_finding_codes": [
+      "SKILL001"
+    ],
+    "severity": "warning",
+    "route": "scafforge-repair",
+    "repair_class": "safe Scafforge package change",
+    "summary": "Populate every baseline local skill with concrete repo-specific rules and validation commands; generated `.opencode/skills/` files must not retain template filler.",
+    "source_files": [
+      ".opencode/skills/stack-standards/SKILL.md"
+    ]
+  }
+]

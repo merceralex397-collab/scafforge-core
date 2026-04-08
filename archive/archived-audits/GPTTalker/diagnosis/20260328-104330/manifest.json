@@ -1,0 +1,65 @@
+{
+  "generated_at": "2026-03-28T10:43:30Z",
+  "repo_root": "/home/pc/projects/GPTTalker",
+  "result_state": "validated failures found",
+  "finding_count": 4,
+  "evidence_mode": "transcript_backed_reconciled_with_current_state",
+  "report_files": {
+    "report_1": "01-initial-codebase-review.md",
+    "report_2": "02-scafforge-process-failures.md",
+    "report_3": "03-scafforge-prevention-actions.md",
+    "report_4": "04-live-repo-repair-plan.md"
+  },
+  "ticket_recommendations": [
+    {
+      "id": "REMED-001",
+      "title": "Restore a legal reconciliation and closeout-publication path for invalidated superseded tickets",
+      "source_finding_code": "CURR-001",
+      "severity": "critical",
+      "route": "manual-prerequisite",
+      "repair_class": "Scafforge package work required before the next subject-repo repair run",
+      "summary": "Fix `ticket_reconcile`, remove the artifactless superseded-ticket deadlock, and keep `handoff_publish` from blocking forever on a state the toolchain cannot legally repair.",
+      "source_files": [
+        ".opencode/tools/ticket_reconcile.ts",
+        ".opencode/plugins/stage-gate-enforcer.ts",
+        ".opencode/tools/ticket_create.ts",
+        ".opencode/tools/issue_intake.ts",
+        ".opencode/tools/handoff_publish.ts",
+        "tickets/manifest.json",
+        ".opencode/state/workflow-state.json"
+      ]
+    },
+    {
+      "id": "REMED-002",
+      "title": "Keep repeated lifecycle blockers from turning into retry loops",
+      "source_finding_code": "SESSION-002",
+      "severity": "major",
+      "route": "scafforge-repair",
+      "repair_class": "safe Scafforge package change",
+      "summary": "Hold the team leader, workflow skill, and regression fixtures to stop-on-repeat lifecycle behavior.",
+      "source_files": [
+        "sessionlog2703.md"
+      ]
+    },
+    {
+      "id": "REMED-003",
+      "title": "Preserve specialist-owned artifacts and proof-before-PASS enforcement",
+      "source_finding_code": "SESSION-004/SESSION-005",
+      "severity": "major",
+      "route": "scafforge-repair",
+      "repair_class": "safe Scafforge package change",
+      "summary": "Prevent coordinator-authored specialist artifacts and reject PASS-style closeout claims when execution evidence is missing.",
+      "source_files": [
+        "sessionlog2703.md"
+      ]
+    }
+  ],
+  "supporting_logs": [
+    "sessionlog2703.md"
+  ],
+  "rejected_candidate_findings": [
+    "CYCLE003",
+    "WFLOW023"
+  ],
+  "recommended_ticket_payload": "recommended-ticket-payload.json"
+}

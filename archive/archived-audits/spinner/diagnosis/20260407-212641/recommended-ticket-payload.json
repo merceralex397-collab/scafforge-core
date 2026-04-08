@@ -1,0 +1,90 @@
+[
+  {
+    "id": "REMED-001",
+    "title": "Godot headless validation fails",
+    "description": "Remediate EXEC-GODOT-004 by correcting the validated issue and rerunning the relevant quality checks.",
+    "affected_files": [
+      "project.godot"
+    ],
+    "suggested_fix_approach": "Run a deterministic `godot --headless --path . --quit` validation during audit and keep the repo blocked until it succeeds or returns an explicit environment blocker instead.",
+    "assignee": "implementer",
+    "source_finding_code": "EXEC-GODOT-004",
+    "source_finding_codes": [
+      "EXEC-GODOT-004"
+    ],
+    "severity": "error",
+    "route": "ticket-pack-builder",
+    "repair_class": "generated-repo remediation ticket",
+    "summary": "Run a deterministic `godot --headless --path . --quit` validation during audit and keep the repo blocked until it succeeds or returns an explicit environment blocker instead.",
+    "source_files": [
+      "project.godot"
+    ]
+  },
+  {
+    "id": "REMED-002",
+    "title": "Android-targeted Godot repo still lacks export surfaces or debug APK proof while the repo claims release progress or completion",
+    "description": "Remediate EXEC-GODOT-005 by correcting the validated issue and rerunning the relevant quality checks.",
+    "affected_files": [
+      "project.godot",
+      "android"
+    ],
+    "suggested_fix_approach": "Keep Godot Android repos blocked on explicit export surfaces plus debug APK proof. Once release work starts or the repo claims completion, require `export_presets.cfg`, non-placeholder `android/` support surfaces, and a debug APK at the canonical build path.",
+    "assignee": "implementer",
+    "source_finding_code": "EXEC-GODOT-005",
+    "source_finding_codes": [
+      "EXEC-GODOT-005"
+    ],
+    "severity": "error",
+    "route": "ticket-pack-builder",
+    "repair_class": "generated-repo remediation ticket",
+    "summary": "Keep Godot Android repos blocked on explicit export surfaces plus debug APK proof. Once release work starts or the repo claims completion, require `export_presets.cfg`, non-placeholder `android/` support surfaces, and a debug APK at the canonical build path.",
+    "source_files": [
+      "project.godot",
+      "android"
+    ]
+  },
+  {
+    "id": "REMED-003",
+    "title": "Source imports reference missing local modules",
+    "description": "Remediate REF-003 by correcting the validated issue and rerunning the relevant quality checks.",
+    "affected_files": [
+      ".opencode/node_modules/zod/src/index.ts"
+    ],
+    "suggested_fix_approach": "Audit local relative import paths and fail when the referenced module file is missing.",
+    "assignee": "implementer",
+    "source_finding_code": "REF-003",
+    "source_finding_codes": [
+      "REF-003"
+    ],
+    "severity": "error",
+    "route": "ticket-pack-builder",
+    "repair_class": "generated-repo remediation ticket",
+    "summary": "Audit local relative import paths and fail when the referenced module file is missing.",
+    "source_files": [
+      ".opencode/node_modules/zod/src/index.ts"
+    ]
+  },
+  {
+    "id": "REMED-004",
+    "title": "Declared Godot Android target lacks canonical backlog ownership for export surfaces and debug APK proof",
+    "description": "Remediate WFLOW025 by correcting the validated issue and rerunning the relevant quality checks.",
+    "affected_files": [
+      "tickets/manifest.json",
+      "docs/spec/CANONICAL-BRIEF.md"
+    ],
+    "suggested_fix_approach": "For Godot Android repos, always create `ANDROID-001` in lane `android-export` for repo-local export surfaces and `RELEASE-001` in lane `release-readiness` for debug APK proof. Do not let generic polish tickets stand in for release ownership.",
+    "assignee": "implementer",
+    "source_finding_code": "WFLOW025",
+    "source_finding_codes": [
+      "WFLOW025"
+    ],
+    "severity": "error",
+    "route": "scafforge-repair",
+    "repair_class": "safe Scafforge package change",
+    "summary": "For Godot Android repos, always create `ANDROID-001` in lane `android-export` for repo-local export surfaces and `RELEASE-001` in lane `release-readiness` for debug APK proof. Do not let generic polish tickets stand in for release ownership.",
+    "source_files": [
+      "tickets/manifest.json",
+      "docs/spec/CANONICAL-BRIEF.md"
+    ]
+  }
+]

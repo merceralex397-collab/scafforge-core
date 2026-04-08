@@ -1,0 +1,70 @@
+{
+  "generated_at": "2026-04-02T12:37:25Z",
+  "repo_root": "/home/pc/projects/Scafforge/livetesting/glitch",
+  "finding_count": 2,
+  "finding_codes": [
+    "SESSION001",
+    "SESSION003"
+  ],
+  "source_findings": [],
+  "result_state": "validated failures found",
+  "diagnosis_kind": "initial_diagnosis",
+  "evidence_mode": "transcript_backed",
+  "audit_package_commit": "missing_provenance",
+  "report_files": {
+    "report_1": "01-initial-codebase-review.md",
+    "report_2": "02-scafforge-process-failures.md",
+    "report_3": "03-scafforge-prevention-actions.md",
+    "report_4": "04-live-repo-repair-plan.md"
+  },
+  "ticket_recommendations": [
+    {
+      "id": "REMED-001",
+      "title": "The supplied session transcript shows a later reasoning failure that current-state-only diagnosis would miss",
+      "description": "Remediate SESSION001 by correcting the validated issue and rerunning the relevant quality checks.",
+      "affected_files": [
+        "glitch1.md"
+      ],
+      "suggested_fix_approach": "When session logs are supplied, audit chronology first: separate stale resume state from later evidence, then explain any final summary that outruns the executed commands before reconciling current repo state.",
+      "assignee": "implementer",
+      "source_finding_code": "SESSION001",
+      "source_finding_codes": [
+        "SESSION001"
+      ],
+      "severity": "error",
+      "route": "ticket-pack-builder",
+      "repair_class": "generated-repo remediation ticket",
+      "summary": "When session logs are supplied, audit chronology first: separate stale resume state from later evidence, then explain any final summary that outruns the executed commands before reconciling current repo state.",
+      "source_files": [
+        "glitch1.md"
+      ]
+    },
+    {
+      "id": "REMED-002",
+      "title": "The supplied session transcript shows the agent searching for workflow bypasses or soft dependency overrides instead of following the lifecycle contract",
+      "description": "Remediate SESSION003 by correcting the validated issue and rerunning the relevant quality checks.",
+      "affected_files": [
+        "glitch1.md"
+      ],
+      "suggested_fix_approach": "Reject unsupported stages and dependency overrides up front, tell the coordinator not to probe alternate transitions or close blocked tickets anyway, and return the contract contradiction as a blocker when the required proof is missing.",
+      "assignee": "implementer",
+      "source_finding_code": "SESSION003",
+      "source_finding_codes": [
+        "SESSION003"
+      ],
+      "severity": "error",
+      "route": "ticket-pack-builder",
+      "repair_class": "generated-repo remediation ticket",
+      "summary": "Reject unsupported stages and dependency overrides up front, tell the coordinator not to probe alternate transitions or close blocked tickets anyway, and return the contract contradiction as a blocker when the required proof is missing.",
+      "source_files": [
+        "glitch1.md"
+      ]
+    }
+  ],
+  "package_work_required_first": false,
+  "recommended_next_step": "subject_repo_source_follow_up",
+  "supporting_logs": [
+    "glitch1.md"
+  ],
+  "recommended_ticket_payload": "recommended-ticket-payload.json"
+}

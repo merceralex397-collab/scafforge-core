@@ -1,0 +1,94 @@
+{
+  "generated_at": "2026-04-07T21:52:43Z",
+  "repo_root": "/home/pc/projects/Scafforge/livetesting/glitch",
+  "finding_count": 1,
+  "finding_codes": [
+    "REF-003"
+  ],
+  "source_findings": [
+    {
+      "code": "REF-003",
+      "severity": "error"
+    }
+  ],
+  "result_state": "validated failures found",
+  "diagnosis_kind": "post_repair_verification",
+  "evidence_mode": "current_state_only",
+  "audit_package_commit": "missing_provenance",
+  "report_files": {
+    "report_1": "01-initial-codebase-review.md",
+    "report_2": "02-scafforge-process-failures.md",
+    "report_3": "03-scafforge-prevention-actions.md",
+    "report_4": "04-live-repo-repair-plan.md"
+  },
+  "disposition_bundle_file": "disposition-bundle.json",
+  "disposition_bundle": {
+    "version": 1,
+    "generated_at": "2026-04-07T21:52:43Z",
+    "repo_root": "/home/pc/projects/Scafforge/livetesting/glitch",
+    "audit_package_commit": "missing_provenance",
+    "allowed_classes": [
+      "managed_blocker",
+      "manual_prerequisite_blocker",
+      "source_follow_up",
+      "process_state_only",
+      "advisory"
+    ],
+    "finding_count": 1,
+    "findings": [
+      {
+        "code": "REF-003",
+        "severity": "error",
+        "disposition_class": "source_follow_up",
+        "legacy_disposition_class": "source_follow_up",
+        "route": "ticket-pack-builder",
+        "repair_class": "generated-repo remediation ticket",
+        "evidence_grade": "repo-state validation",
+        "source_files": [
+          ".opencode/node_modules/zod/src/index.ts"
+        ],
+        "provenance": "script"
+      }
+    ],
+    "counts": {
+      "managed_blocker": 0,
+      "manual_prerequisite_blocker": 0,
+      "source_follow_up": 1,
+      "process_state_only": 0,
+      "advisory": 0
+    },
+    "shadow_mode_deltas": []
+  },
+  "ticket_recommendations": [
+    {
+      "id": "REMED-001",
+      "title": "Source imports reference missing local modules",
+      "description": "Remediate REF-003 by correcting the validated issue and rerunning the relevant quality checks.",
+      "affected_files": [
+        ".opencode/node_modules/zod/src/index.ts"
+      ],
+      "suggested_fix_approach": "Audit local relative import paths and fail when the referenced module file is missing.",
+      "assignee": "implementer",
+      "source_finding_code": "REF-003",
+      "source_finding_codes": [
+        "REF-003"
+      ],
+      "severity": "error",
+      "route": "ticket-pack-builder",
+      "repair_class": "generated-repo remediation ticket",
+      "summary": "Audit local relative import paths and fail when the referenced module file is missing.",
+      "source_files": [
+        ".opencode/node_modules/zod/src/index.ts"
+      ]
+    }
+  ],
+  "package_work_required_first": false,
+  "recommended_next_step": "subject_repo_source_follow_up",
+  "verification_kind": "post_repair",
+  "repair_package_commit": "missing_provenance",
+  "repair_basis_path": "/home/pc/projects/Scafforge/livetesting/glitch/diagnosis/20260407-215121",
+  "current_state_clean": false,
+  "causal_regression_verified": true,
+  "verification_basis": "current_state_only",
+  "recommended_ticket_payload": "recommended-ticket-payload.json"
+}

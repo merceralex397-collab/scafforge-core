@@ -1,0 +1,113 @@
+[
+  {
+    "id": "REMED-001",
+    "title": "A previous audit-to-repair cycle did not clear one or more workflow-layer findings before work resumed",
+    "description": "Remediate CYCLE001 by correcting the validated issue and rerunning the relevant quality checks.",
+    "affected_files": [
+      "diagnosis/20260402-082332/manifest.json",
+      ".opencode/meta/bootstrap-provenance.json"
+    ],
+    "suggested_fix_approach": "Before another repair run, compare the latest diagnosis pack against repair_history, identify which findings persisted, and treat repeated deprecated package-managed drift as a repair failure to fix rather than as preserved intent.",
+    "assignee": "implementer",
+    "source_finding_code": "CYCLE001",
+    "source_finding_codes": [
+      "CYCLE001"
+    ],
+    "severity": "error",
+    "route": "manual-prerequisite",
+    "repair_class": "Scafforge package work required before the next subject-repo run",
+    "summary": "Before another repair run, compare the latest diagnosis pack against repair_history, identify which findings persisted, and treat repeated deprecated package-managed drift as a repair failure to fix rather than as preserved intent.",
+    "source_files": [
+      "diagnosis/20260402-082332/manifest.json",
+      ".opencode/meta/bootstrap-provenance.json"
+    ]
+  },
+  {
+    "id": "REMED-002",
+    "title": "Godot headless validation fails",
+    "description": "Remediate EXEC-GODOT-004 by correcting the validated issue and rerunning the relevant quality checks.",
+    "affected_files": [
+      "project.godot"
+    ],
+    "suggested_fix_approach": "Run a deterministic `godot --headless --path . --quit` validation during audit and keep the repo blocked until it succeeds or returns an explicit environment blocker instead.",
+    "assignee": "implementer",
+    "source_finding_code": "EXEC-GODOT-004",
+    "source_finding_codes": [
+      "EXEC-GODOT-004"
+    ],
+    "severity": "error",
+    "route": "ticket-pack-builder",
+    "repair_class": "generated-repo remediation ticket",
+    "summary": "Run a deterministic `godot --headless --path . --quit` validation during audit and keep the repo blocked until it succeeds or returns an explicit environment blocker instead.",
+    "source_files": [
+      "project.godot"
+    ]
+  },
+  {
+    "id": "REMED-003",
+    "title": "Source imports reference missing local modules",
+    "description": "Remediate REF-003 by correcting the validated issue and rerunning the relevant quality checks.",
+    "affected_files": [
+      ".opencode/node_modules/zod/src/index.ts"
+    ],
+    "suggested_fix_approach": "Audit local relative import paths and fail when the referenced module file is missing.",
+    "assignee": "implementer",
+    "source_finding_code": "REF-003",
+    "source_finding_codes": [
+      "REF-003"
+    ],
+    "severity": "error",
+    "route": "ticket-pack-builder",
+    "repair_class": "generated-repo remediation ticket",
+    "summary": "Audit local relative import paths and fail when the referenced module file is missing.",
+    "source_files": [
+      ".opencode/node_modules/zod/src/index.ts"
+    ]
+  },
+  {
+    "id": "REMED-004",
+    "title": "Open-parent ticket decomposition is missing or routed through non-canonical source modes",
+    "description": "Remediate WFLOW020 by correcting the validated issue and rerunning the relevant quality checks.",
+    "affected_files": [
+      "tickets/manifest.json",
+      ".opencode/tools/ticket_create.ts",
+      ".opencode/lib/workflow.ts"
+    ],
+    "suggested_fix_approach": "Support `ticket_create(source_mode=split_scope)` for open-parent decomposition, keep the parent open and non-foreground, and keep open-parent child tickets out of `net_new_scope` and `post_completion_issue` routing.",
+    "assignee": "implementer",
+    "source_finding_code": "WFLOW020",
+    "source_finding_codes": [
+      "WFLOW020"
+    ],
+    "severity": "error",
+    "route": "scafforge-repair",
+    "repair_class": "safe Scafforge package change",
+    "summary": "Support `ticket_create(source_mode=split_scope)` for open-parent decomposition, keep the parent open and non-foreground, and keep open-parent child tickets out of `net_new_scope` and `post_completion_issue` routing.",
+    "source_files": [
+      "tickets/manifest.json",
+      ".opencode/tools/ticket_create.ts",
+      ".opencode/lib/workflow.ts"
+    ]
+  },
+  {
+    "id": "REMED-005",
+    "title": "One or more repo-local skills still contain generic placeholder text instead of project-specific guidance",
+    "description": "Remediate SKILL001 by correcting the validated issue and rerunning the relevant quality checks.",
+    "affected_files": [
+      ".opencode/skills/stack-standards/SKILL.md"
+    ],
+    "suggested_fix_approach": "Populate every baseline local skill with concrete repo-specific rules and validation commands; generated `.opencode/skills/` files must not retain template filler.",
+    "assignee": "implementer",
+    "source_finding_code": "SKILL001",
+    "source_finding_codes": [
+      "SKILL001"
+    ],
+    "severity": "warning",
+    "route": "scafforge-repair",
+    "repair_class": "safe Scafforge package change",
+    "summary": "Populate every baseline local skill with concrete repo-specific rules and validation commands; generated `.opencode/skills/` files must not retain template filler.",
+    "source_files": [
+      ".opencode/skills/stack-standards/SKILL.md"
+    ]
+  }
+]

@@ -1,0 +1,54 @@
+{
+  "generated_at": "2026-03-31T23:55:20Z",
+  "repo_root": "/home/rowan/spinner",
+  "finding_count": 2,
+  "result_state": "validated failures found",
+  "diagnosis_kind": "post_repair_verification",
+  "evidence_mode": "current_state_only",
+  "audit_package_commit": "e743e6cfdeac51ac2f64f54b95908a4426232a50",
+  "report_files": {
+    "report_1": "01-initial-codebase-review.md",
+    "report_2": "02-scafforge-process-failures.md",
+    "report_3": "03-scafforge-prevention-actions.md",
+    "report_4": "04-live-repo-repair-plan.md"
+  },
+  "ticket_recommendations": [
+    {
+      "id": "REMED-001",
+      "title": "Derived restart surfaces disagree with canonical workflow state, so resume guidance can route work from stale or contradictory facts",
+      "source_finding_code": "WFLOW010",
+      "severity": "error",
+      "route": "scafforge-repair",
+      "repair_class": "safe Scafforge package change",
+      "summary": "Regenerate `START-HERE.md`, `.opencode/state/context-snapshot.md`, and `.opencode/state/latest-handoff.md` from canonical manifest/workflow state after every workflow save, compute handoff readiness from bootstrap plus repair-follow-on plus verification state in one shared contract, and fail repair verification if any derived restart surface drifts.",
+      "source_files": [
+        "tickets/manifest.json",
+        ".opencode/state/workflow-state.json",
+        "START-HERE.md",
+        ".opencode/state/context-snapshot.md",
+        ".opencode/state/latest-handoff.md"
+      ]
+    },
+    {
+      "id": "REMED-002",
+      "title": "One or more repo-local skills still contain generic placeholder text instead of project-specific guidance",
+      "source_finding_code": "SKILL001",
+      "severity": "warning",
+      "route": "scafforge-repair",
+      "repair_class": "safe Scafforge package change",
+      "summary": "Populate every baseline local skill with concrete repo-specific rules and validation commands; generated `.opencode/skills/` files must not retain template filler.",
+      "source_files": [
+        ".opencode/skills/stack-standards/SKILL.md"
+      ]
+    }
+  ],
+  "package_work_required_first": false,
+  "recommended_next_step": "subject_repo_repair",
+  "verification_kind": "post_repair",
+  "repair_package_commit": "e743e6cfdeac51ac2f64f54b95908a4426232a50",
+  "repair_basis_path": "/home/rowan/spinner/diagnosis/20260331-235511",
+  "current_state_clean": false,
+  "causal_regression_verified": false,
+  "verification_basis": "current_state_only",
+  "recommended_ticket_payload": "recommended-ticket-payload.json"
+}

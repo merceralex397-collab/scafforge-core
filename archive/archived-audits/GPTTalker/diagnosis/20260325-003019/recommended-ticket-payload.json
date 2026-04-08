@@ -1,0 +1,26 @@
+[
+  {
+    "id": "REMED-001",
+    "title": "One or more Python packages fail to import \u2014 the service cannot start",
+    "source_finding_code": "EXEC001",
+    "severity": "error",
+    "route": "ticket-pack-builder",
+    "repair_class": "generated-repo remediation ticket",
+    "summary": "Verify every import succeeds: `python -c 'from src.<pkg>.main import app'`. Use string annotations (`-> \"TypeName\"`) for TYPE_CHECKING-only imports. Use `request: Request` (not `app: FastAPI`) in FastAPI dependency functions.",
+    "source_files": [
+      "/home/pc/projects/GPTTalker/src"
+    ]
+  },
+  {
+    "id": "REMED-002",
+    "title": "pytest cannot collect tests \u2014 at least one test file has an import or syntax error",
+    "source_finding_code": "EXEC002",
+    "severity": "error",
+    "route": "ticket-pack-builder",
+    "repair_class": "generated-repo remediation ticket",
+    "summary": "Run `pytest tests/ --collect-only` and fix all collection errors before marking QA done. A QA artifact that claims tests passed when pytest cannot even collect is invalid.",
+    "source_files": [
+      "/home/pc/projects/GPTTalker/tests"
+    ]
+  }
+]

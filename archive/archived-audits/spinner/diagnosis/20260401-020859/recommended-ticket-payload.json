@@ -1,0 +1,14 @@
+[
+  {
+    "id": "REMED-001",
+    "title": "The ticket graph contains stale or contradictory source/follow-up linkage",
+    "source_finding_code": "WFLOW019",
+    "severity": "error",
+    "route": "scafforge-repair",
+    "repair_class": "safe Scafforge package change",
+    "summary": "Use `ticket_reconcile` to atomically repair stale source/follow-up linkage, remove contradictory parent dependencies, and supersede invalidated follow-up tickets from current evidence.",
+    "source_files": [
+      "tickets/manifest.json"
+    ]
+  }
+]

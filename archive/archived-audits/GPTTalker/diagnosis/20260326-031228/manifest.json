@@ -1,0 +1,76 @@
+{
+  "generated_at": "2026-03-26T03:12:28Z",
+  "repo_root": "/home/pc/projects/GPTTalker",
+  "result_state": "validated failures found",
+  "finding_count": 6,
+  "prior_diagnosis_packs_examined": 18,
+  "supporting_logs": [
+    "continuallylocked.md"
+  ],
+  "report_files": {
+    "report_1": "01-initial-codebase-review.md",
+    "report_2": "02-scafforge-process-failures.md",
+    "report_3": "03-scafforge-prevention-actions.md",
+    "report_4": "04-live-repo-repair-plan.md"
+  },
+  "current_state_summary": {
+    "active_ticket": "EXEC-007",
+    "stage": "planning",
+    "bootstrap_status": "failed",
+    "bootstrap_proof": ".opencode/state/artifacts/history/exec-007/bootstrap/2026-03-25T23-02-26-471Z-environment-bootstrap.md",
+    "pending_process_verification": true
+  },
+  "ticket_recommendations": [
+    {
+      "id": "REMED-001",
+      "title": "Align bootstrap-first routing with the planning and write-lease contract",
+      "source_finding_code": "R1-F2/R1-F3",
+      "severity": "error",
+      "route": "scafforge-repair",
+      "repair_class": "safe Scafforge package change",
+      "summary": "Make failed bootstrap the sole legal next action and remove the planning-artifact versus write-lock deadlock for non-Wave-0 tickets.",
+      "target_repo": "Scafforge package repo"
+    },
+    {
+      "id": "REMED-002",
+      "title": "Regenerate restart surfaces from canonical state and block overclaiming repaired status",
+      "source_finding_code": "R1-F1/R1-F5",
+      "severity": "error",
+      "route": "scafforge-repair",
+      "repair_class": "safe Scafforge package change",
+      "summary": "Update START-HERE, context snapshot, and handoff publication so bootstrap and lease drift cannot be published as ready state.",
+      "target_repo": "Scafforge package repo"
+    },
+    {
+      "id": "REMED-003",
+      "title": "Add repeat-cycle and coordinator-ownership regressions to the Scafforge package",
+      "source_finding_code": "R1-F4/R1-F5",
+      "severity": "error",
+      "route": "scafforge-repair",
+      "repair_class": "safe Scafforge package change",
+      "summary": "Teach audit and prompt surfaces to flag post-repair persistence, restart-surface overclaim, and coordinator-authored specialist artifacts.",
+      "target_repo": "Scafforge package repo"
+    },
+    {
+      "id": "REMED-004",
+      "title": "Refresh GPTTalker managed workflow surfaces after package changes land",
+      "source_finding_code": "R1-F1/R1-F2/R1-F3/R1-F4/R1-F5",
+      "severity": "error",
+      "route": "scafforge-repair",
+      "repair_class": "generated-repo remediation ticket/process repair",
+      "summary": "Run repo-local managed-surface repair only after the required Scafforge package changes are available.",
+      "target_repo": "subject repo"
+    },
+    {
+      "id": "REMED-005",
+      "title": "Resume existing Wave 10 source remediation after workflow repair is verified",
+      "source_finding_code": "R1-F6",
+      "severity": "warning",
+      "route": "ticket-pack-builder",
+      "repair_class": "generated-repo remediation ticket",
+      "summary": "Keep using EXEC-007 through EXEC-011; do not create duplicate source tickets before the workflow layer is repaired.",
+      "target_repo": "subject repo"
+    }
+  ],
+  "recommended_ticket_payload": "recommended-ticket-payload.json"
+}

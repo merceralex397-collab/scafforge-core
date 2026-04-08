@@ -1,0 +1,67 @@
+{
+  "generated_at": "2026-03-27T17:13:00Z",
+  "repo_root": "/home/pc/projects/GPTTalker",
+  "finding_count": 4,
+  "report_files": {
+    "report_1": "01-initial-codebase-review.md",
+    "report_2": "02-scafforge-process-failures.md",
+    "report_3": "03-scafforge-prevention-actions.md",
+    "report_4": "04-live-repo-repair-plan.md"
+  },
+  "ticket_recommendations": [
+    {
+      "id": "REMED-001",
+      "title": "The supplied session transcript shows the agent searching for workflow bypasses or soft dependency overrides instead of following the lifecycle contract",
+      "source_finding_code": "SESSION003",
+      "severity": "error",
+      "route": "scafforge-repair",
+      "repair_class": "safe Scafforge package change",
+      "summary": "Reject unsupported stages and dependency overrides up front, tell the coordinator not to probe alternate transitions or close blocked tickets anyway, and return the contract contradiction as a blocker when the required proof is missing.",
+      "source_files": [
+        "reviewlog1.md"
+      ]
+    },
+    {
+      "id": "REMED-002",
+      "title": "The supplied session transcript shows the coordinator writing specialist stage artifacts directly instead of routing those outputs through the owning lane or deterministic tool",
+      "source_finding_code": "SESSION005",
+      "severity": "error",
+      "route": "scafforge-repair",
+      "repair_class": "safe Scafforge package change",
+      "summary": "Keep the coordinator on routing and stage transitions only: specialist lanes own planning, implementation, review, and QA artifacts, while `smoke_test` alone owns smoke-test proof.",
+      "source_files": [
+        "reviewlog1.md"
+      ]
+    },
+    {
+      "id": "REMED-003",
+      "title": "The supplied session transcript shows the managed smoke-test override path failing before the requested smoke command starts",
+      "source_finding_code": "WFLOW016",
+      "severity": "error",
+      "route": "scafforge-repair",
+      "repair_class": "safe Scafforge package change",
+      "summary": "Parse shell-style smoke-test overrides before execution, strip leading `KEY=VALUE` env assignments into the spawn environment, and report malformed overrides as configuration errors rather than environment failures.",
+      "source_files": [
+        "reviewlog1.md",
+        ".opencode/tools/smoke_test.ts"
+      ]
+    },
+    {
+      "id": "REMED-004",
+      "title": "The supplied session transcript shows the smoke-test stage running a heuristic command that does not match the ticket's explicit acceptance command",
+      "source_finding_code": "WFLOW017",
+      "severity": "error",
+      "route": "scafforge-repair",
+      "repair_class": "safe Scafforge package change",
+      "summary": "Treat acceptance-backed smoke commands as canonical, let `smoke_test` infer them automatically, and reject heuristic scope changes unless the caller provides an intentional exact command override.",
+      "source_files": [
+        "reviewlog1.md",
+        ".opencode/tools/smoke_test.ts"
+      ]
+    }
+  ],
+  "supporting_logs": [
+    "reviewlog1.md"
+  ],
+  "recommended_ticket_payload": "recommended-ticket-payload.json"
+}

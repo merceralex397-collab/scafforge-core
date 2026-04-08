@@ -1,0 +1,102 @@
+[
+  {
+    "id": "REMED-001",
+    "title": "One or more Python packages fail to import \u2014 the service cannot start",
+    "description": "Remediate EXEC001 by correcting the validated issue and rerunning the relevant quality checks.",
+    "affected_files": [
+      "/tmp/scafforge-repair-candidate-imgenk65/candidate/src"
+    ],
+    "suggested_fix_approach": "Verify every import succeeds: `python -c 'from src.<pkg>.main import app'`. Use string annotations (`-> \"TypeName\"`) for TYPE_CHECKING-only imports. Use `request: Request` (not `app: FastAPI`) in FastAPI dependency functions.",
+    "assignee": "implementer",
+    "source_finding_code": "EXEC001",
+    "source_finding_codes": [
+      "EXEC001"
+    ],
+    "severity": "error",
+    "route": "ticket-pack-builder",
+    "repair_class": "generated-repo remediation ticket",
+    "summary": "Verify every import succeeds: `python -c 'from src.<pkg>.main import app'`. Use string annotations (`-> \"TypeName\"`) for TYPE_CHECKING-only imports. Use `request: Request` (not `app: FastAPI`) in FastAPI dependency functions.",
+    "source_files": [
+      "/tmp/scafforge-repair-candidate-imgenk65/candidate/src"
+    ]
+  },
+  {
+    "id": "REMED-002",
+    "title": "Source imports reference missing local modules",
+    "description": "Remediate REF-003 by correcting the validated issue and rerunning the relevant quality checks.",
+    "affected_files": [
+      ".opencode/node_modules/zod/src/index.ts"
+    ],
+    "suggested_fix_approach": "Audit local relative import paths and fail when the referenced module file is missing.",
+    "assignee": "implementer",
+    "source_finding_code": "REF-003",
+    "source_finding_codes": [
+      "REF-003"
+    ],
+    "severity": "error",
+    "route": "ticket-pack-builder",
+    "repair_class": "generated-repo remediation ticket",
+    "summary": "Audit local relative import paths and fail when the referenced module file is missing.",
+    "source_files": [
+      ".opencode/node_modules/zod/src/index.ts"
+    ]
+  },
+  {
+    "id": "REMED-003",
+    "title": "The generated lease-ownership contract is split across coordinator and worker surfaces, so agents can disagree about who should claim a ticket and when bootstrap gates apply",
+    "description": "Remediate WFLOW012 by correcting the validated issue and rerunning the relevant quality checks.",
+    "affected_files": [
+      "docs/process/workflow.md",
+      "tickets/README.md",
+      ".opencode/commands/kickoff.md",
+      ".opencode/commands/run-lane.md",
+      ".opencode/skills/ticket-execution/SKILL.md",
+      ".opencode/agents/gpttalker-team-leader.md",
+      ".opencode/agents/gpttalker-implementer-context.md",
+      ".opencode/agents/gpttalker-lane-executor.md",
+      ".opencode/agents/gpttalker-docs-handoff.md"
+    ],
+    "suggested_fix_approach": "Adopt one lease model everywhere: the team leader owns `ticket_claim` and `ticket_release`, specialists work only inside the already-active ticket lease, and only Wave 0 setup work may claim before bootstrap is ready.",
+    "assignee": "implementer",
+    "source_finding_code": "WFLOW012",
+    "source_finding_codes": [
+      "WFLOW012"
+    ],
+    "severity": "error",
+    "route": "scafforge-repair",
+    "repair_class": "safe Scafforge package change",
+    "summary": "Adopt one lease model everywhere: the team leader owns `ticket_claim` and `ticket_release`, specialists work only inside the already-active ticket lease, and only Wave 0 setup work may claim before bootstrap is ready.",
+    "source_files": [
+      "docs/process/workflow.md",
+      "tickets/README.md",
+      ".opencode/commands/kickoff.md",
+      ".opencode/commands/run-lane.md",
+      ".opencode/skills/ticket-execution/SKILL.md",
+      ".opencode/agents/gpttalker-team-leader.md",
+      ".opencode/agents/gpttalker-implementer-context.md",
+      ".opencode/agents/gpttalker-lane-executor.md",
+      ".opencode/agents/gpttalker-docs-handoff.md"
+    ]
+  },
+  {
+    "id": "REMED-004",
+    "title": "The repo-local `ticket-execution` skill is too thin to explain the actual lifecycle contract to weaker models",
+    "description": "Remediate SKILL002 by correcting the validated issue and rerunning the relevant quality checks.",
+    "affected_files": [
+      ".opencode/skills/ticket-execution/SKILL.md"
+    ],
+    "suggested_fix_approach": "Keep `ticket-execution` narrowly procedural: route from `ticket_lookup.transition_guidance`, stop after repeated lifecycle contradictions, reserve `smoke_test` as the only PASS producer, and keep slash commands human-only.",
+    "assignee": "implementer",
+    "source_finding_code": "SKILL002",
+    "source_finding_codes": [
+      "SKILL002"
+    ],
+    "severity": "warning",
+    "route": "scafforge-repair",
+    "repair_class": "safe Scafforge package change",
+    "summary": "Keep `ticket-execution` narrowly procedural: route from `ticket_lookup.transition_guidance`, stop after repeated lifecycle contradictions, reserve `smoke_test` as the only PASS producer, and keep slash commands human-only.",
+    "source_files": [
+      ".opencode/skills/ticket-execution/SKILL.md"
+    ]
+  }
+]

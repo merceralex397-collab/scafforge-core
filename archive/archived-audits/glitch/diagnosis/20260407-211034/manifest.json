@@ -1,0 +1,269 @@
+{
+  "generated_at": "2026-04-07T21:10:34Z",
+  "repo_root": "/home/pc/projects/Scafforge/livetesting/glitch",
+  "finding_count": 5,
+  "finding_codes": [
+    "CYCLE002",
+    "REF-003",
+    "SESSION001",
+    "SESSION003",
+    "SKILL001"
+  ],
+  "source_findings": [
+    {
+      "code": "REF-003",
+      "severity": "error"
+    }
+  ],
+  "result_state": "validated failures found",
+  "diagnosis_kind": "post_repair_verification",
+  "evidence_mode": "transcript_backed",
+  "audit_package_commit": "b624ca1a5a37bf99b8ff651b34fab6ba3f449c8b",
+  "report_files": {
+    "report_1": "01-initial-codebase-review.md",
+    "report_2": "02-scafforge-process-failures.md",
+    "report_3": "03-scafforge-prevention-actions.md",
+    "report_4": "04-live-repo-repair-plan.md"
+  },
+  "disposition_bundle_file": "disposition-bundle.json",
+  "disposition_bundle": {
+    "version": 1,
+    "generated_at": "2026-04-07T21:10:34Z",
+    "repo_root": "/home/pc/projects/Scafforge/livetesting/glitch",
+    "audit_package_commit": "b624ca1a5a37bf99b8ff651b34fab6ba3f449c8b",
+    "allowed_classes": [
+      "managed_blocker",
+      "manual_prerequisite_blocker",
+      "source_follow_up",
+      "process_state_only",
+      "advisory"
+    ],
+    "finding_count": 5,
+    "findings": [
+      {
+        "code": "SKILL001",
+        "severity": "warning",
+        "disposition_class": "manual_prerequisite_blocker",
+        "legacy_disposition_class": "managed_blocker",
+        "route": "scafforge-repair",
+        "repair_class": "safe Scafforge package change",
+        "evidence_grade": "repo-state validation",
+        "source_files": [
+          ".opencode/skills/stack-standards/SKILL.md"
+        ],
+        "provenance": "script"
+      },
+      {
+        "code": "REF-003",
+        "severity": "error",
+        "disposition_class": "source_follow_up",
+        "legacy_disposition_class": "source_follow_up",
+        "route": "ticket-pack-builder",
+        "repair_class": "generated-repo remediation ticket",
+        "evidence_grade": "repo-state validation",
+        "source_files": [
+          ".opencode/node_modules/zod/src/index.ts"
+        ],
+        "provenance": "script"
+      },
+      {
+        "code": "CYCLE002",
+        "severity": "error",
+        "disposition_class": "manual_prerequisite_blocker",
+        "legacy_disposition_class": "managed_blocker",
+        "route": "manual-prerequisite",
+        "repair_class": "Scafforge package work required before the next subject-repo run",
+        "evidence_grade": "repo-state validation",
+        "source_files": [
+          "diagnosis/20260407-211001/manifest.json",
+          ".opencode/meta/bootstrap-provenance.json"
+        ],
+        "provenance": "script"
+      },
+      {
+        "code": "SESSION001",
+        "severity": "error",
+        "disposition_class": "manual_prerequisite_blocker",
+        "legacy_disposition_class": "managed_blocker",
+        "route": "ticket-pack-builder",
+        "repair_class": "generated-repo remediation ticket",
+        "evidence_grade": "transcript-backed and repo-validated",
+        "source_files": [
+          "glitch1.md"
+        ],
+        "provenance": "script"
+      },
+      {
+        "code": "SESSION003",
+        "severity": "error",
+        "disposition_class": "manual_prerequisite_blocker",
+        "legacy_disposition_class": "managed_blocker",
+        "route": "ticket-pack-builder",
+        "repair_class": "generated-repo remediation ticket",
+        "evidence_grade": "transcript-backed and repo-validated",
+        "source_files": [
+          "glitch1.md"
+        ],
+        "provenance": "script"
+      }
+    ],
+    "counts": {
+      "managed_blocker": 0,
+      "manual_prerequisite_blocker": 4,
+      "source_follow_up": 1,
+      "process_state_only": 0,
+      "advisory": 0
+    },
+    "shadow_mode_deltas": [
+      {
+        "code": "SKILL001",
+        "legacy_disposition_class": "managed_blocker",
+        "disposition_class": "manual_prerequisite_blocker",
+        "route": "scafforge-repair",
+        "reason": "Legacy prefix classification would label SKILL001 as managed_blocker, but the authoritative bundle assigns manual_prerequisite_blocker."
+      },
+      {
+        "code": "CYCLE002",
+        "legacy_disposition_class": "managed_blocker",
+        "disposition_class": "manual_prerequisite_blocker",
+        "route": "manual-prerequisite",
+        "reason": "Legacy prefix classification would label CYCLE002 as managed_blocker, but the authoritative bundle assigns manual_prerequisite_blocker."
+      },
+      {
+        "code": "SESSION001",
+        "legacy_disposition_class": "managed_blocker",
+        "disposition_class": "manual_prerequisite_blocker",
+        "route": "ticket-pack-builder",
+        "reason": "Legacy prefix classification would label SESSION001 as managed_blocker, but the authoritative bundle assigns manual_prerequisite_blocker."
+      },
+      {
+        "code": "SESSION003",
+        "legacy_disposition_class": "managed_blocker",
+        "disposition_class": "manual_prerequisite_blocker",
+        "route": "ticket-pack-builder",
+        "reason": "Legacy prefix classification would label SESSION003 as managed_blocker, but the authoritative bundle assigns manual_prerequisite_blocker."
+      }
+    ]
+  },
+  "ticket_recommendations": [
+    {
+      "id": "REMED-001",
+      "title": "Repeated diagnosis packs are re-reporting the same repair-routed findings without any intervening package or process-version change",
+      "description": "Remediate CYCLE002 by correcting the validated issue and rerunning the relevant quality checks.",
+      "affected_files": [
+        "diagnosis/20260407-211001/manifest.json",
+        ".opencode/meta/bootstrap-provenance.json"
+      ],
+      "suggested_fix_approach": "Stop rerunning subject-repo audit until Scafforge package work changes the managed workflow contract or process version, then rerun one fresh audit against the updated package.",
+      "assignee": "implementer",
+      "source_finding_code": "CYCLE002",
+      "source_finding_codes": [
+        "CYCLE002"
+      ],
+      "severity": "error",
+      "route": "manual-prerequisite",
+      "repair_class": "Scafforge package work required before the next subject-repo run",
+      "summary": "Stop rerunning subject-repo audit until Scafforge package work changes the managed workflow contract or process version, then rerun one fresh audit against the updated package.",
+      "source_files": [
+        "diagnosis/20260407-211001/manifest.json",
+        ".opencode/meta/bootstrap-provenance.json"
+      ]
+    },
+    {
+      "id": "REMED-002",
+      "title": "Source imports reference missing local modules",
+      "description": "Remediate REF-003 by correcting the validated issue and rerunning the relevant quality checks.",
+      "affected_files": [
+        ".opencode/node_modules/zod/src/index.ts"
+      ],
+      "suggested_fix_approach": "Audit local relative import paths and fail when the referenced module file is missing.",
+      "assignee": "implementer",
+      "source_finding_code": "REF-003",
+      "source_finding_codes": [
+        "REF-003"
+      ],
+      "severity": "error",
+      "route": "ticket-pack-builder",
+      "repair_class": "generated-repo remediation ticket",
+      "summary": "Audit local relative import paths and fail when the referenced module file is missing.",
+      "source_files": [
+        ".opencode/node_modules/zod/src/index.ts"
+      ]
+    },
+    {
+      "id": "REMED-003",
+      "title": "The supplied session transcript shows a later reasoning failure that current-state-only diagnosis would miss",
+      "description": "Remediate SESSION001 by correcting the validated issue and rerunning the relevant quality checks.",
+      "affected_files": [
+        "glitch1.md"
+      ],
+      "suggested_fix_approach": "When session logs are supplied, audit chronology first: separate stale resume state from later evidence, then explain any final summary that outruns the executed commands before reconciling current repo state.",
+      "assignee": "implementer",
+      "source_finding_code": "SESSION001",
+      "source_finding_codes": [
+        "SESSION001"
+      ],
+      "severity": "error",
+      "route": "ticket-pack-builder",
+      "repair_class": "generated-repo remediation ticket",
+      "summary": "When session logs are supplied, audit chronology first: separate stale resume state from later evidence, then explain any final summary that outruns the executed commands before reconciling current repo state.",
+      "source_files": [
+        "glitch1.md"
+      ]
+    },
+    {
+      "id": "REMED-004",
+      "title": "The supplied session transcript shows the agent searching for workflow bypasses or soft dependency overrides instead of following the lifecycle contract",
+      "description": "Remediate SESSION003 by correcting the validated issue and rerunning the relevant quality checks.",
+      "affected_files": [
+        "glitch1.md"
+      ],
+      "suggested_fix_approach": "Reject unsupported stages and dependency overrides up front, tell the coordinator not to probe alternate transitions or close blocked tickets anyway, and return the contract contradiction as a blocker when the required proof is missing.",
+      "assignee": "implementer",
+      "source_finding_code": "SESSION003",
+      "source_finding_codes": [
+        "SESSION003"
+      ],
+      "severity": "error",
+      "route": "ticket-pack-builder",
+      "repair_class": "generated-repo remediation ticket",
+      "summary": "Reject unsupported stages and dependency overrides up front, tell the coordinator not to probe alternate transitions or close blocked tickets anyway, and return the contract contradiction as a blocker when the required proof is missing.",
+      "source_files": [
+        "glitch1.md"
+      ]
+    },
+    {
+      "id": "REMED-005",
+      "title": "One or more repo-local skills still contain generic placeholder text instead of project-specific guidance",
+      "description": "Remediate SKILL001 by correcting the validated issue and rerunning the relevant quality checks.",
+      "affected_files": [
+        ".opencode/skills/stack-standards/SKILL.md"
+      ],
+      "suggested_fix_approach": "Populate every baseline local skill with concrete repo-specific rules and validation commands; generated `.opencode/skills/` files must not retain template filler.",
+      "assignee": "implementer",
+      "source_finding_code": "SKILL001",
+      "source_finding_codes": [
+        "SKILL001"
+      ],
+      "severity": "warning",
+      "route": "scafforge-repair",
+      "repair_class": "safe Scafforge package change",
+      "summary": "Populate every baseline local skill with concrete repo-specific rules and validation commands; generated `.opencode/skills/` files must not retain template filler.",
+      "source_files": [
+        ".opencode/skills/stack-standards/SKILL.md"
+      ]
+    }
+  ],
+  "package_work_required_first": true,
+  "recommended_next_step": "scafforge_package_work",
+  "supporting_logs": [
+    "glitch1.md"
+  ],
+  "verification_kind": "post_repair",
+  "repair_package_commit": "b624ca1a5a37bf99b8ff651b34fab6ba3f449c8b",
+  "repair_basis_path": "/home/pc/projects/Scafforge/livetesting/glitch/diagnosis/20260402-144600",
+  "current_state_clean": false,
+  "causal_regression_verified": false,
+  "verification_basis": "transcript_backed",
+  "recommended_ticket_payload": "recommended-ticket-payload.json"
+}

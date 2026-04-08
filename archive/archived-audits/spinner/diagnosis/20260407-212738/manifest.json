@@ -1,0 +1,169 @@
+{
+  "generated_at": "2026-04-07T21:27:44Z",
+  "repo_root": "/home/pc/projects/spinner",
+  "finding_count": 3,
+  "finding_codes": [
+    "EXEC-GODOT-004",
+    "EXEC-GODOT-005",
+    "REF-003"
+  ],
+  "source_findings": [
+    {
+      "code": "EXEC-GODOT-004",
+      "severity": "error"
+    },
+    {
+      "code": "EXEC-GODOT-005",
+      "severity": "error"
+    },
+    {
+      "code": "REF-003",
+      "severity": "error"
+    }
+  ],
+  "result_state": "validated failures found",
+  "diagnosis_kind": "initial_diagnosis",
+  "evidence_mode": "current_state_only",
+  "audit_package_commit": "treehash-68989da0dce82659",
+  "report_files": {
+    "report_1": "01-initial-codebase-review.md",
+    "report_2": "02-scafforge-process-failures.md",
+    "report_3": "03-scafforge-prevention-actions.md",
+    "report_4": "04-live-repo-repair-plan.md"
+  },
+  "disposition_bundle_file": "disposition-bundle.json",
+  "disposition_bundle": {
+    "version": 1,
+    "generated_at": "2026-04-07T21:27:44Z",
+    "repo_root": "/home/pc/projects/spinner",
+    "audit_package_commit": "treehash-68989da0dce82659",
+    "allowed_classes": [
+      "managed_blocker",
+      "manual_prerequisite_blocker",
+      "source_follow_up",
+      "process_state_only",
+      "advisory"
+    ],
+    "finding_count": 3,
+    "findings": [
+      {
+        "code": "EXEC-GODOT-004",
+        "severity": "error",
+        "disposition_class": "source_follow_up",
+        "legacy_disposition_class": "source_follow_up",
+        "route": "ticket-pack-builder",
+        "repair_class": "generated-repo remediation ticket",
+        "evidence_grade": "repo-state validation",
+        "source_files": [
+          "project.godot"
+        ],
+        "provenance": "script"
+      },
+      {
+        "code": "EXEC-GODOT-005",
+        "severity": "error",
+        "disposition_class": "source_follow_up",
+        "legacy_disposition_class": "source_follow_up",
+        "route": "ticket-pack-builder",
+        "repair_class": "generated-repo remediation ticket",
+        "evidence_grade": "repo-state validation",
+        "source_files": [
+          "project.godot",
+          "android"
+        ],
+        "provenance": "script"
+      },
+      {
+        "code": "REF-003",
+        "severity": "error",
+        "disposition_class": "source_follow_up",
+        "legacy_disposition_class": "source_follow_up",
+        "route": "ticket-pack-builder",
+        "repair_class": "generated-repo remediation ticket",
+        "evidence_grade": "repo-state validation",
+        "source_files": [
+          ".opencode/node_modules/zod/src/index.ts"
+        ],
+        "provenance": "script"
+      }
+    ],
+    "counts": {
+      "managed_blocker": 0,
+      "manual_prerequisite_blocker": 0,
+      "source_follow_up": 3,
+      "process_state_only": 0,
+      "advisory": 0
+    },
+    "shadow_mode_deltas": []
+  },
+  "ticket_recommendations": [
+    {
+      "id": "REMED-001",
+      "title": "Godot headless validation fails",
+      "description": "Remediate EXEC-GODOT-004 by correcting the validated issue and rerunning the relevant quality checks.",
+      "affected_files": [
+        "project.godot"
+      ],
+      "suggested_fix_approach": "Run a deterministic `godot --headless --path . --quit` validation during audit and keep the repo blocked until it succeeds or returns an explicit environment blocker instead.",
+      "assignee": "implementer",
+      "source_finding_code": "EXEC-GODOT-004",
+      "source_finding_codes": [
+        "EXEC-GODOT-004"
+      ],
+      "severity": "error",
+      "route": "ticket-pack-builder",
+      "repair_class": "generated-repo remediation ticket",
+      "summary": "Run a deterministic `godot --headless --path . --quit` validation during audit and keep the repo blocked until it succeeds or returns an explicit environment blocker instead.",
+      "source_files": [
+        "project.godot"
+      ]
+    },
+    {
+      "id": "REMED-002",
+      "title": "Android-targeted Godot repo still lacks export surfaces or debug APK proof while the repo claims release progress or completion",
+      "description": "Remediate EXEC-GODOT-005 by correcting the validated issue and rerunning the relevant quality checks.",
+      "affected_files": [
+        "project.godot",
+        "android"
+      ],
+      "suggested_fix_approach": "Keep Godot Android repos blocked on explicit export surfaces plus debug APK proof. Once release work starts or the repo claims completion, require `export_presets.cfg`, non-placeholder `android/` support surfaces, and a debug APK at the canonical build path.",
+      "assignee": "implementer",
+      "source_finding_code": "EXEC-GODOT-005",
+      "source_finding_codes": [
+        "EXEC-GODOT-005"
+      ],
+      "severity": "error",
+      "route": "ticket-pack-builder",
+      "repair_class": "generated-repo remediation ticket",
+      "summary": "Keep Godot Android repos blocked on explicit export surfaces plus debug APK proof. Once release work starts or the repo claims completion, require `export_presets.cfg`, non-placeholder `android/` support surfaces, and a debug APK at the canonical build path.",
+      "source_files": [
+        "project.godot",
+        "android"
+      ]
+    },
+    {
+      "id": "REMED-003",
+      "title": "Source imports reference missing local modules",
+      "description": "Remediate REF-003 by correcting the validated issue and rerunning the relevant quality checks.",
+      "affected_files": [
+        ".opencode/node_modules/zod/src/index.ts"
+      ],
+      "suggested_fix_approach": "Audit local relative import paths and fail when the referenced module file is missing.",
+      "assignee": "implementer",
+      "source_finding_code": "REF-003",
+      "source_finding_codes": [
+        "REF-003"
+      ],
+      "severity": "error",
+      "route": "ticket-pack-builder",
+      "repair_class": "generated-repo remediation ticket",
+      "summary": "Audit local relative import paths and fail when the referenced module file is missing.",
+      "source_files": [
+        ".opencode/node_modules/zod/src/index.ts"
+      ]
+    }
+  ],
+  "package_work_required_first": false,
+  "recommended_next_step": "subject_repo_source_follow_up",
+  "recommended_ticket_payload": "recommended-ticket-payload.json"
+}

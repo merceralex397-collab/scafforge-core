@@ -1,0 +1,157 @@
+[
+  {
+    "id": "REMED-001",
+    "title": "Godot headless validation fails",
+    "description": "Remediate EXEC-GODOT-004 by correcting the validated issue and rerunning the relevant quality checks.",
+    "affected_files": [
+      "project.godot"
+    ],
+    "suggested_fix_approach": "Run a deterministic `godot --headless --path . --quit` validation during audit and keep the repo blocked until it succeeds or returns an explicit environment blocker instead.",
+    "assignee": "implementer",
+    "source_finding_code": "EXEC-GODOT-004",
+    "source_finding_codes": [
+      "EXEC-GODOT-004"
+    ],
+    "severity": "error",
+    "route": "ticket-pack-builder",
+    "repair_class": "generated-repo remediation ticket",
+    "summary": "Run a deterministic `godot --headless --path . --quit` validation during audit and keep the repo blocked until it succeeds or returns an explicit environment blocker instead.",
+    "source_files": [
+      "project.godot"
+    ]
+  },
+  {
+    "id": "REMED-002",
+    "title": "Source imports reference missing local modules",
+    "description": "Remediate REF-003 by correcting the validated issue and rerunning the relevant quality checks.",
+    "affected_files": [
+      ".opencode/node_modules/zod/src/index.ts"
+    ],
+    "suggested_fix_approach": "Audit local relative import paths and fail when the referenced module file is missing.",
+    "assignee": "implementer",
+    "source_finding_code": "REF-003",
+    "source_finding_codes": [
+      "REF-003"
+    ],
+    "severity": "error",
+    "route": "ticket-pack-builder",
+    "repair_class": "generated-repo remediation ticket",
+    "summary": "Audit local relative import paths and fail when the referenced module file is missing.",
+    "source_files": [
+      ".opencode/node_modules/zod/src/index.ts"
+    ]
+  },
+  {
+    "id": "REMED-003",
+    "title": "The managed smoke-test override contract can fail before the requested smoke command even starts",
+    "description": "Remediate WFLOW016 by correcting the validated issue and rerunning the relevant quality checks.",
+    "affected_files": [
+      ".opencode/tools/smoke_test.ts"
+    ],
+    "suggested_fix_approach": "Parse one-item shell-style overrides into argv, treat leading `KEY=VALUE` tokens as environment overrides, and report malformed overrides as configuration errors instead of misclassifying them as runtime environment failures.",
+    "assignee": "implementer",
+    "source_finding_code": "WFLOW016",
+    "source_finding_codes": [
+      "WFLOW016"
+    ],
+    "severity": "error",
+    "route": "scafforge-repair",
+    "repair_class": "safe Scafforge package change",
+    "summary": "Parse one-item shell-style overrides into argv, treat leading `KEY=VALUE` tokens as environment overrides, and report malformed overrides as configuration errors instead of misclassifying them as runtime environment failures.",
+    "source_files": [
+      ".opencode/tools/smoke_test.ts"
+    ]
+  },
+  {
+    "id": "REMED-004",
+    "title": "The generated lifecycle contract is not verdict-aware, so FAIL review or QA artifacts can still look advanceable",
+    "description": "Remediate WFLOW023 by correcting the validated issue and rerunning the relevant quality checks.",
+    "affected_files": [
+      ".opencode/tools/ticket_lookup.ts",
+      ".opencode/tools/ticket_update.ts",
+      ".opencode/lib/workflow.ts"
+    ],
+    "suggested_fix_approach": "Extract verdicts from the latest review and QA artifacts, route FAIL or BLOCKED outcomes back to implementation, and reject lifecycle transitions when the latest artifact verdict is blocking or unclear.",
+    "assignee": "implementer",
+    "source_finding_code": "WFLOW023",
+    "source_finding_codes": [
+      "WFLOW023"
+    ],
+    "severity": "error",
+    "route": "scafforge-repair",
+    "repair_class": "safe Scafforge package change",
+    "summary": "Extract verdicts from the latest review and QA artifacts, route FAIL or BLOCKED outcomes back to implementation, and reject lifecycle transitions when the latest artifact verdict is blocking or unclear.",
+    "source_files": [
+      ".opencode/tools/ticket_lookup.ts",
+      ".opencode/tools/ticket_update.ts",
+      ".opencode/lib/workflow.ts"
+    ]
+  },
+  {
+    "id": "REMED-005",
+    "title": "Fail-state routing is still under-specified in generated prompts or workflow skills",
+    "description": "Remediate WFLOW024 by correcting the validated issue and rerunning the relevant quality checks.",
+    "affected_files": [
+      ".opencode/skills/ticket-execution/SKILL.md",
+      ".opencode/agents/spinner-team-leader.md"
+    ],
+    "suggested_fix_approach": "Document review, QA, smoke-test, and bootstrap failure recovery paths in ticket-execution, and instruct the team leader to follow transition_guidance.recovery_action whenever it is present.",
+    "assignee": "implementer",
+    "source_finding_code": "WFLOW024",
+    "source_finding_codes": [
+      "WFLOW024"
+    ],
+    "severity": "error",
+    "route": "scafforge-repair",
+    "repair_class": "safe Scafforge package change",
+    "summary": "Document review, QA, smoke-test, and bootstrap failure recovery paths in ticket-execution, and instruct the team leader to follow transition_guidance.recovery_action whenever it is present.",
+    "source_files": [
+      ".opencode/skills/ticket-execution/SKILL.md",
+      ".opencode/agents/spinner-team-leader.md"
+    ]
+  },
+  {
+    "id": "REMED-006",
+    "title": "Restart-surface tools return paths without verifying what they wrote",
+    "description": "Remediate WFLOW025 by correcting the validated issue and rerunning the relevant quality checks.",
+    "affected_files": [
+      ".opencode/tools/handoff_publish.ts",
+      ".opencode/tools/context_snapshot.ts"
+    ],
+    "suggested_fix_approach": "Return verified flags plus current workflow metadata for published restart surfaces and include size or hash metadata for snapshots so callers can confirm what was written.",
+    "assignee": "implementer",
+    "source_finding_code": "WFLOW025",
+    "source_finding_codes": [
+      "WFLOW025"
+    ],
+    "severity": "error",
+    "route": "scafforge-repair",
+    "repair_class": "safe Scafforge package change",
+    "summary": "Return verified flags plus current workflow metadata for published restart surfaces and include size or hash metadata for snapshots so callers can confirm what was written.",
+    "source_files": [
+      ".opencode/tools/handoff_publish.ts",
+      ".opencode/tools/context_snapshot.ts"
+    ]
+  },
+  {
+    "id": "REMED-007",
+    "title": "One or more repo-local skills still contain generic placeholder text instead of project-specific guidance",
+    "description": "Remediate SKILL001 by correcting the validated issue and rerunning the relevant quality checks.",
+    "affected_files": [
+      ".opencode/skills/stack-standards/SKILL.md"
+    ],
+    "suggested_fix_approach": "Populate every baseline local skill with concrete repo-specific rules and validation commands; generated `.opencode/skills/` files must not retain template filler.",
+    "assignee": "implementer",
+    "source_finding_code": "SKILL001",
+    "source_finding_codes": [
+      "SKILL001"
+    ],
+    "severity": "warning",
+    "route": "scafforge-repair",
+    "repair_class": "safe Scafforge package change",
+    "summary": "Populate every baseline local skill with concrete repo-specific rules and validation commands; generated `.opencode/skills/` files must not retain template filler.",
+    "source_files": [
+      ".opencode/skills/stack-standards/SKILL.md"
+    ]
+  }
+]

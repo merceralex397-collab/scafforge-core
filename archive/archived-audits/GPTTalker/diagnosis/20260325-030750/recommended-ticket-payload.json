@@ -1,0 +1,74 @@
+[
+  {
+    "id": "REMED-001",
+    "title": "The generated bootstrap contract cannot ready this repo on the current machine, so write-capable workflow stages can deadlock before source fixes start",
+    "source_finding_code": "BOOT001",
+    "severity": "error",
+    "route": "scafforge-repair",
+    "repair_class": "safe Scafforge package change",
+    "summary": "Prefer repo-native bootstrap (`uv sync --locked` for uv repos; otherwise repo-local `.venv` plus `.venv/bin/python -m pip`), record missing prerequisites accurately, and keep bootstrap readiness separate from source import/test failures.",
+    "source_files": [
+      ".opencode/tools/environment_bootstrap.ts",
+      ".opencode/state/workflow-state.json",
+      ".opencode/state/artifacts/history/exec-001/bootstrap/2026-03-25T01-39-52-323Z-environment-bootstrap.md"
+    ]
+  },
+  {
+    "id": "REMED-002",
+    "title": "One or more Python packages fail to import \u2014 the service cannot start",
+    "source_finding_code": "EXEC001",
+    "severity": "error",
+    "route": "ticket-pack-builder",
+    "repair_class": "generated-repo remediation ticket",
+    "summary": "Verify every import succeeds: `python -c 'from src.<pkg>.main import app'`. Use string annotations (`-> \"TypeName\"`) for TYPE_CHECKING-only imports. Use `request: Request` (not `app: FastAPI`) in FastAPI dependency functions.",
+    "source_files": [
+      "/home/pc/projects/GPTTalker/src"
+    ]
+  },
+  {
+    "id": "REMED-003",
+    "title": "pytest cannot collect tests \u2014 at least one test file has an import or syntax error",
+    "source_finding_code": "EXEC002",
+    "severity": "error",
+    "route": "ticket-pack-builder",
+    "repair_class": "generated-repo remediation ticket",
+    "summary": "Run `pytest tests/ --collect-only` and fix all collection errors before marking QA done. A QA artifact that claims tests passed when pytest cannot even collect is invalid.",
+    "source_files": [
+      "/home/pc/projects/GPTTalker/tests"
+    ]
+  },
+  {
+    "id": "REMED-004",
+    "title": "Repo-local model operating surfaces are missing or still pinned to deprecated MiniMax defaults",
+    "source_finding_code": "MODEL001",
+    "severity": "warning",
+    "route": "scafforge-repair",
+    "repair_class": "safe Scafforge package change",
+    "summary": "Regenerate `.opencode/skills/model-operating-profile/SKILL.md`, align provenance/model-matrix/agent frontmatter on the current runtime model choices, and remove deprecated `MiniMax-M2.7` surfaces before implementation continues.",
+    "source_files": [
+      ".opencode/meta/bootstrap-provenance.json",
+      "docs/process/model-matrix.md",
+      "docs/spec/CANONICAL-BRIEF.md",
+      "START-HERE.md",
+      ".opencode/agents/gpttalker-backlog-verifier.md",
+      ".opencode/agents/gpttalker-docs-handoff.md",
+      ".opencode/agents/gpttalker-implementer-context.md",
+      ".opencode/agents/gpttalker-implementer-hub.md",
+      ".opencode/agents/gpttalker-implementer-node-agent.md",
+      ".opencode/agents/gpttalker-implementer.md",
+      ".opencode/agents/gpttalker-plan-review.md",
+      ".opencode/agents/gpttalker-planner.md",
+      ".opencode/agents/gpttalker-reviewer-code.md",
+      ".opencode/agents/gpttalker-reviewer-security.md",
+      ".opencode/agents/gpttalker-team-leader.md",
+      ".opencode/agents/gpttalker-tester-qa.md",
+      ".opencode/agents/gpttalker-ticket-creator.md",
+      ".opencode/agents/gpttalker-utility-explore.md",
+      ".opencode/agents/gpttalker-utility-github-research.md",
+      ".opencode/agents/gpttalker-utility-shell-inspect.md",
+      ".opencode/agents/gpttalker-utility-summarize.md",
+      ".opencode/agents/gpttalker-utility-ticket-audit.md",
+      ".opencode/agents/gpttalker-utility-web-research.md"
+    ]
+  }
+]

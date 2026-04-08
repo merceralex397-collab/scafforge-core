@@ -1,0 +1,109 @@
+[
+  {
+    "id": "REMED-001",
+    "title": "The managed bootstrap tool executed a uv sync command that contradicts the repo's declared dependency layout, so validation tools remain missing after bootstrap",
+    "source_finding_code": "BOOT002",
+    "severity": "error",
+    "route": "scafforge-repair",
+    "repair_class": "safe Scafforge package change",
+    "summary": "Correlate `pyproject.toml`, the latest bootstrap artifact command trace, and `environment_bootstrap.ts`; if the repo layout requires `--extra dev`, `--group dev`, or `--all-extras`, treat any bootstrap run that omits those flags as a managed bootstrap defect and repair the tool before retrying.",
+    "source_files": [
+      "pyproject.toml",
+      ".opencode/tools/environment_bootstrap.ts",
+      ".opencode/state/workflow-state.json",
+      ".opencode/state/artifacts/history/exec-014/bootstrap/2026-03-27T13-23-09-710Z-environment-bootstrap.md"
+    ]
+  },
+  {
+    "id": "REMED-002",
+    "title": "The supplied session transcript shows the agent searching for workflow bypasses or soft dependency overrides instead of following the lifecycle contract",
+    "source_finding_code": "SESSION003",
+    "severity": "error",
+    "route": "scafforge-repair",
+    "repair_class": "safe Scafforge package change",
+    "summary": "Reject unsupported stages and dependency overrides up front, tell the coordinator not to probe alternate transitions or close blocked tickets anyway, and return the contract contradiction as a blocker when the required proof is missing.",
+    "source_files": [
+      "bootstrap2.md"
+    ]
+  },
+  {
+    "id": "REMED-003",
+    "title": "The supplied session transcript shows the agent searching for workflow bypasses or soft dependency overrides instead of following the lifecycle contract",
+    "source_finding_code": "SESSION003",
+    "severity": "error",
+    "route": "scafforge-repair",
+    "repair_class": "safe Scafforge package change",
+    "summary": "Reject unsupported stages and dependency overrides up front, tell the coordinator not to probe alternate transitions or close blocked tickets anyway, and return the contract contradiction as a blocker when the required proof is missing.",
+    "source_files": [
+      "bootstrapfail.md"
+    ]
+  },
+  {
+    "id": "REMED-004",
+    "title": "The supplied session transcript shows the coordinator writing specialist stage artifacts directly instead of routing those outputs through the owning lane or deterministic tool",
+    "source_finding_code": "SESSION005",
+    "severity": "error",
+    "route": "scafforge-repair",
+    "repair_class": "safe Scafforge package change",
+    "summary": "Keep the coordinator on routing and stage transitions only: specialist lanes own planning, implementation, review, and QA artifacts, while `smoke_test` alone owns smoke-test proof.",
+    "source_files": [
+      "bootstrapfail.md"
+    ]
+  },
+  {
+    "id": "REMED-005",
+    "title": "Derived restart surfaces disagree with canonical workflow state, so resume guidance can route work from stale or contradictory facts",
+    "source_finding_code": "WFLOW010",
+    "severity": "error",
+    "route": "scafforge-repair",
+    "repair_class": "safe Scafforge package change",
+    "summary": "Regenerate `START-HERE.md`, `.opencode/state/context-snapshot.md`, and `.opencode/state/latest-handoff.md` from canonical manifest/workflow state after every workflow save, compute handoff readiness from bootstrap plus repair-follow-on plus verification state in one shared contract, and fail repair verification if any derived restart surface drifts.",
+    "source_files": [
+      "tickets/manifest.json",
+      ".opencode/state/workflow-state.json",
+      "START-HERE.md",
+      ".opencode/state/context-snapshot.md",
+      ".opencode/state/latest-handoff.md"
+    ]
+  },
+  {
+    "id": "REMED-006",
+    "title": "The supplied session transcript shows the managed smoke-test override path failing before the requested smoke command starts",
+    "source_finding_code": "WFLOW016",
+    "severity": "error",
+    "route": "scafforge-repair",
+    "repair_class": "safe Scafforge package change",
+    "summary": "Parse shell-style smoke-test overrides before execution, strip leading `KEY=VALUE` env assignments into the spawn environment, and report malformed overrides as configuration errors rather than environment failures.",
+    "source_files": [
+      "bootstrapfail.md",
+      ".opencode/tools/smoke_test.ts"
+    ]
+  },
+  {
+    "id": "REMED-007",
+    "title": "The supplied session transcript shows the smoke-test stage running a heuristic command that does not match the ticket's explicit acceptance command",
+    "source_finding_code": "WFLOW017",
+    "severity": "error",
+    "route": "scafforge-repair",
+    "repair_class": "safe Scafforge package change",
+    "summary": "Treat acceptance-backed smoke commands as canonical, let `smoke_test` infer them automatically, and reject heuristic scope changes unless the caller provides an intentional exact command override.",
+    "source_files": [
+      "bootstrapfail.md",
+      ".opencode/tools/smoke_test.ts"
+    ]
+  },
+  {
+    "id": "REMED-008",
+    "title": "Generated prompts or restart surfaces still gate workflow decisions on the legacy `handoff_allowed` flag instead of the outcome model",
+    "source_finding_code": "WFLOW021",
+    "severity": "error",
+    "route": "scafforge-repair",
+    "repair_class": "safe Scafforge package change",
+    "summary": "Keep backward-compatible `handoff_allowed` parsing internal only. Generated prompts, commands, and restart surfaces should route from `repair_follow_on.outcome`, `repair_follow_on_required`, `repair_follow_on_next_stage`, and truthful verification state.",
+    "source_files": [
+      "START-HERE.md",
+      ".opencode/state/context-snapshot.md",
+      ".opencode/state/latest-handoff.md"
+    ]
+  }
+]

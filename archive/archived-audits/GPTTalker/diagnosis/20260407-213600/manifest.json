@@ -1,0 +1,76 @@
+{
+  "generated_at": "2026-04-07T21:36:00Z",
+  "repo_root": "/home/pc/projects/GPTTalker",
+  "diagnosis_kind": "post_package_revalidation",
+  "evidence_mode": "current_state",
+  "result_state": "validated failures found",
+  "finding_count": 9,
+  "finding_codes": [
+    "AGENT-001",
+    "AGENT-002",
+    "AGENT-003",
+    "AGENT-004",
+    "AGENT-005",
+    "AGENT-006",
+    "AGENT-007",
+    "AGENT-008",
+    "STATE-001"
+  ],
+  "source_findings": [
+    { "code": "AGENT-001", "severity": "critical", "file": ".opencode/agents/gpttalker-team-leader.md" },
+    { "code": "AGENT-002", "severity": "critical", "file": ".opencode/agents/gpttalker-reviewer-code.md" },
+    { "code": "AGENT-003", "severity": "major",    "file": ".opencode/agents/gpttalker-reviewer-security.md" },
+    { "code": "AGENT-004", "severity": "major",    "file": ".opencode/agents/gpttalker-tester-qa.md" },
+    { "code": "AGENT-005", "severity": "major",    "file": ".opencode/agents/gpttalker-ticket-creator.md" },
+    { "code": "AGENT-006", "severity": "minor",    "file": ".opencode/agents/gpttalker-planner.md" },
+    { "code": "AGENT-007", "severity": "minor",    "file": ".opencode/agents/gpttalker-plan-review.md" },
+    { "code": "AGENT-008", "severity": "minor",    "file": ".opencode/agents/gpttalker-backlog-verifier.md" },
+    { "code": "STATE-001", "severity": "critical", "file": ".opencode/meta/repair-execution.json" }
+  ],
+  "rejected_findings": [
+    { "code": "REF-003", "reason": "false positive — audit script scanned node_modules/zod/src/; not a project import" }
+  ],
+  "report_files": {
+    "report_1": "01-initial-codebase-review.md",
+    "report_2": "02-scafforge-process-failures.md",
+    "report_3": "03-scafforge-prevention-actions.md",
+    "report_4": "04-live-repo-repair-plan.md"
+  },
+  "package_work_required_first": false,
+  "recommended_next_step": "scafforge-repair",
+  "repair_actions": [
+    {
+      "id": "R-001",
+      "action": "Run opencode-team-bootstrap to regenerate all agents from current template",
+      "type": "managed-surface replacement",
+      "safe": true,
+      "preserve": ["model: minimax-coding-plan/MiniMax-M2.7", "project-specific task routing", "project-specific bash allowlists"]
+    },
+    {
+      "id": "R-002",
+      "action": "Run agent-prompt-engineering hardening pass",
+      "type": "prompt hardening",
+      "safe": true
+    },
+    {
+      "id": "R-003",
+      "action": "Update repair provenance, set pending_process_verification:true, regenerate restart surfaces",
+      "type": "provenance update",
+      "safe": true
+    },
+    {
+      "id": "R-004",
+      "action": "Route EXEC001 through ticket-pack-builder",
+      "type": "ticket follow-up",
+      "safe": true
+    }
+  ],
+  "ticket_recommendations": [
+    {
+      "id": "REMED-AGENTS-001",
+      "title": "Regenerate .opencode/agents/ from current package template",
+      "route": "scafforge-repair -> opencode-team-bootstrap",
+      "source_findings": ["AGENT-001","AGENT-002","AGENT-003","AGENT-004","AGENT-005","AGENT-006","AGENT-007","AGENT-008"]
+    }
+  ]
+}
