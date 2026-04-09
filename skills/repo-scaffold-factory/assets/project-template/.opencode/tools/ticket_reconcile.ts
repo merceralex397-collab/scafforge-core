@@ -191,7 +191,9 @@ export default tool({
       summary: `Reconciled ${targetTicket.id} against ${replacementSourceTicket.id}.`,
     })
 
-    await saveWorkflowBundle({ workflow, manifest, registry })
+    // ticket_reconcile's purpose is to repair graph issues — skip full graph validation
+    // to avoid deadlocks from the very corruption this tool is designed to fix.
+    await saveWorkflowBundle({ workflow, manifest, registry, skipGraphValidation: true })
 
     return JSON.stringify(
       {

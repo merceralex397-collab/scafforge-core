@@ -179,7 +179,7 @@ echo "Starting agent... (output → ${LOG_FILE})"
 echo "Press Ctrl+C to abort"
 echo ""
 
-"${CMD[@]}" 2>&1 | tee "$LOG_FILE"
+"${CMD[@]}" < /dev/null 2>&1 | tee "$LOG_FILE"
 EXIT_CODE=${PIPESTATUS[0]}
 
 echo ""

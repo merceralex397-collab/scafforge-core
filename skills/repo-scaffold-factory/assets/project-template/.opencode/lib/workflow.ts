@@ -958,7 +958,9 @@ function validateManifestWorkflowConvergence(manifest: Manifest, workflow: Workf
 }
 
 async function validateManifestWriteState(manifest: Manifest, root = rootPath(), context: SaveValidationContext = {}): Promise<void> {
-  validateTicketGraphInvariants(manifest)
+  if (!context.skipGraphValidation) {
+    validateTicketGraphInvariants(manifest)
+  }
   const workflow = context.workflow ?? await readJson<WorkflowState | null>(workflowStatePath(root), null)
   if (workflow) {
     validateManifestWorkflowConvergence(manifest, workflow)
@@ -1484,11 +1486,13 @@ type SaveWorkflowBundle = {
   registry?: ArtifactRegistry
   root?: string
   expectedRevision?: number
+  skipGraphValidation?: boolean
 }
 export async function saveWorkflowBundle(bundle: SaveWorkflowBundle): Promise<void> {
   const root = bundle.root ?? rootPath()
-  await saveWorkflowState(bundle.workflow, root, bundle.expectedRevision, { refreshDerivedSurfaces: false }, { manifest: bundle.manifest, workflow: bundle.workflow })
-  if (bundle.manifest) await saveManifest(bundle.manifest, root, { refreshDerivedSurfaces: false }, { manifest: bundle.manifest, workflow: bundle.workflow })
+  const ctx: SaveValidationContext = { manifest: bundle.manifest, workflow: bundle.workflow, skipGraphValidation: bundle.skipGraphValidation }
+  await saveWorkflowState(bundle.workflow, root, bundle.expectedRevision, { refreshDerivedSurfaces: false }, ctx)
+  if (bundle.manifest) await saveManifest(bundle.manifest, root, { refreshDerivedSurfaces: false }, ctx)
   if (bundle.registry) await saveArtifactRegistry(bundle.registry, root)
   await refreshRestartSurfaces({ manifest: bundle.manifest, workflow: bundle.workflow, root })
 }

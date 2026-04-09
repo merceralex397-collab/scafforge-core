@@ -169,7 +169,10 @@ export default tool({
     }
     syncWorkflowSelection(workflow, manifest)
 
-    await saveWorkflowBundle({ workflow, manifest })
+    // Skip full-manifest graph validation during ticket_create to avoid deadlocks from
+    // pre-existing data quality issues in the manifest. The new ticket's own relationships
+    // are already validated above (depends_on targets exist, source ticket checks, etc.).
+    await saveWorkflowBundle({ workflow, manifest, skipGraphValidation: true })
 
     return JSON.stringify(
       {
