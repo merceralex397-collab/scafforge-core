@@ -95,6 +95,7 @@ export default tool({
     replacement_source_mode: tool.schema.enum(["process_verification", "post_completion_issue", "net_new_scope", "split_scope"]).describe("Optional replacement source mode for the target ticket.").optional(),
     remove_dependency_on_source: tool.schema.boolean().describe("Whether to remove any target dependency on the canonical source ticket.").optional(),
     supersede_target: tool.schema.boolean().describe("Whether to close the target ticket as superseded after reconciliation.").optional(),
+    add_dependency_ids: tool.schema.string().describe("Comma-separated ticket IDs to add to the target ticket's depends_on array. Use this to enforce missing dependency edges.").optional(),
     activate_source: tool.schema.boolean().describe("Whether to make the canonical source ticket active after reconciliation.").optional(),
   },
   async execute(args) {
@@ -150,6 +151,21 @@ export default tool({
       targetTicket.depends_on = targetTicket.depends_on.filter((candidate) => !contradictorySourceIds.has(candidate))
     }
 
+    const addedDependencyIds: string[] = []
+    if (args.add_dependency_ids) {
+      const ids = args.add_dependency_ids.split(",").map((id) => id.trim()).filter(Boolean)
+      for (const depId of ids) {
+        const depTicket = manifest.tickets.find((t) => t.id === depId)
+        if (!depTicket) {
+          throw new Error(`Cannot add dependency: ticket ${depId} not found in manifest.`)
+        }
+        if (!targetTicket.depends_on.includes(depId)) {
+          targetTicket.depends_on.push(depId)
+          addedDependencyIds.push(depId)
+        }
+      }
+    }
+
     if (supersedeTarget) {
       targetTicket.stage = "closeout"
       targetTicket.status = "done"
@@ -202,6 +218,7 @@ export default tool({
         replacement_source_ticket_id: replacementSourceTicket.id,
         replacement_source_mode: replacementSourceMode,
         removed_dependency_on_source: removeDependencyOnSource,
+        added_dependency_ids: addedDependencyIds,
         superseded_target: supersedeTarget,
         evidence_artifact_path: evidenceArtifact.path,
         reconciliation_artifact: reconciliationArtifact.path,
