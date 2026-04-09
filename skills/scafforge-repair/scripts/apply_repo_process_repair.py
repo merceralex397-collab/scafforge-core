@@ -1001,6 +1001,13 @@ def apply_repair(repo_root: Path, rendered_root: Path, change_summary: str, *, p
         write_merged_start_here_with_backup(rendered_start_here, target_start_here_path)
         replaced_surfaces.append("START-HERE.md managed block")
 
+        # Replace export_presets.cfg for Godot projects if rendered template provides one
+        rendered_export_presets = rendered_root / "export_presets.cfg"
+        target_export_presets = repo_root / "export_presets.cfg"
+        if rendered_export_presets.exists():
+            replace_file_with_backup(rendered_export_presets, target_export_presets)
+            replaced_surfaces.append("export_presets.cfg")
+
         (repo_root / ".opencode" / "state" / "bootstrap").mkdir(parents=True, exist_ok=True)
 
         for relative in TRANSACTION_STATE_SURFACES:
