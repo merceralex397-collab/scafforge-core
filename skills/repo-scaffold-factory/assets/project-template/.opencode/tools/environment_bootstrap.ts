@@ -670,7 +670,19 @@ async function detectGodotBootstrap(root: string): Promise<StackDetectionResult>
 		} else {
 			detection.version_info.android_sdk_path = androidSdkPath
 		}
-		if (!(await firstAvailableExecutable(["java"], ["-version"]))) detection.blockers.push(createBlocker("java", "Required for Android export support in Godot.", null))
+		if (!(await firstAvailableExecutable(["java"], ["-version"]))) {
+			detection.blockers.push(createBlocker("java", "Required for Android export support in Godot.", null))
+		} else if (!process.env.JAVA_HOME) {
+			// java is in PATH but JAVA_HOME is not set — Godot's Android Gradle build requires JAVA_HOME,
+			// not just a java binary in PATH. Without it the export fails with "A valid Java SDK path is
+			// required in Editor Settings." Derive a candidate path from the binary and surface it as a blocker.
+			detection.blockers.push(createBlocker(
+				"JAVA_HOME",
+				"JAVA_HOME is not set. Godot's Android Gradle build requires JAVA_HOME (not just java in PATH). " +
+				"Run: export JAVA_HOME=$(dirname $(dirname $(readlink -f $(which java)))) && echo $JAVA_HOME",
+				"export JAVA_HOME=$(dirname $(dirname $(readlink -f $(which java))))"
+			))
+		}
 		if (!(await firstAvailableExecutable(["javac"], ["-version"]))) detection.blockers.push(createBlocker("javac", "Required for Android export support in Godot.", null))
 		if (!(await hasGodotExportTemplatesInstalled())) detection.blockers.push(createBlocker("godot-export-templates", "Required for Godot Android debug APK export.", null))
 		if (!existsSync(join(root, "export_presets.cfg"))) {

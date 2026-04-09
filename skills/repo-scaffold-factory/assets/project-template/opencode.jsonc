@@ -53,7 +53,15 @@
       "git diff*": "allow",
       "git log*": "allow",
       "git add *": "allow",
-      "git commit *": "allow"
+      "git commit *": "allow",
+      "godot4 *": "allow",
+      "godot *": "allow",
+      "java *": "allow",
+      "javac *": "allow",
+      "cargo *": "allow",
+      "rustc *": "allow",
+      "go *": "allow",
+      "dotnet *": "allow"
     }
   }
 }
