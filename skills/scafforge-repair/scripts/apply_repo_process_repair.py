@@ -433,6 +433,17 @@ def load_metadata(repo_root: Path, args: argparse.Namespace) -> dict[str, str]:
     utility_model = args.utility_model or runtime.get("utility") or planner_model
     model_tier = args.model_tier or runtime.get("tier") or "weak"
 
+    # Provenance may store models as "provider/model" but bootstrap_repo_scaffold
+    # expects bare model names and prepends provider itself. Strip the prefix.
+    if model_provider and isinstance(model_provider, str):
+        prefix = model_provider.strip() + "/"
+        if isinstance(planner_model, str) and planner_model.startswith(prefix):
+            planner_model = planner_model[len(prefix):]
+        if isinstance(implementer_model, str) and implementer_model.startswith(prefix):
+            implementer_model = implementer_model[len(prefix):]
+        if isinstance(utility_model, str) and utility_model.startswith(prefix):
+            utility_model = utility_model[len(prefix):]
+
     # Recover stack_label from provenance when not explicitly overridden.
     # Without this, Godot repos would be rebuilt with framework-agnostic scaffolds.
     stack_label = args.stack_label
