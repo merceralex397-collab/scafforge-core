@@ -396,6 +396,11 @@ def package_work_required_first(recommendations: list[dict[str, Any]]) -> bool:
 def recommended_next_step(findings: list[Finding], recommendations: list[dict[str, Any]]) -> str:
     if package_work_required_first(recommendations):
         return "scafforge_package_work"
+    # WFLOW030 = managed_blocked deadlock with only host-only stages unresolved.
+    # Running repair again would re-trigger the broad WFLOW trigger and deepen
+    # the deadlock.  The correct action is host intervention, not another repair.
+    if any(getattr(f, "code", "") == "WFLOW030" for f in findings):
+        return "host_intervention_required"
     if any(not finding.code.startswith(("BOOT", "ENV", "EXEC", "REF", "SESSION")) for finding in findings):
         return "subject_repo_repair"
     if findings:

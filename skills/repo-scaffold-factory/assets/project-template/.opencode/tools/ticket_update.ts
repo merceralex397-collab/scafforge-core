@@ -7,6 +7,7 @@ import {
   hasArtifact,
   hasPendingRepairFollowOn,
   hasReviewArtifact,
+  isAllowedFollowOnTicket,
   isPlanApprovedForTicket,
   isBlockingArtifactVerdict,
   loadManifest,
@@ -47,13 +48,20 @@ export default tool({
     await ensureRequiredFile(workflowStatePath(rootPath()), ".opencode/state/workflow-state.json")
     const manifest = await loadManifest()
     const workflow = await loadWorkflowState()
-    if (hasPendingRepairFollowOn(workflow)) {
+    if (hasPendingRepairFollowOn(workflow) && !isAllowedFollowOnTicket(workflow, args.ticket_id)) {
       const repairBlocker = repairFollowOnBlockingReason(workflow) || (
         nextRepairFollowOnStage(workflow)
           ? `Repair follow-on remains incomplete. Complete \`${nextRepairFollowOnStage(workflow)}\` before resuming normal ticket lifecycle mutations.`
           : "Repair follow-on remains incomplete. Complete the required repair stages before resuming normal ticket lifecycle mutations."
       )
       throw new Error(repairBlocker)
+    }
+    // Even for explicitly allowed follow-on tickets, pending_process_verification
+    // is a global workflow write that must remain blocked until managed_blocked
+    // is fully resolved.  Lifecycle stage/status progression is permitted; global
+    // state mutations are not.
+    if (hasPendingRepairFollowOn(workflow) && typeof args.pending_process_verification === "boolean") {
+      throw new Error("Cannot modify pending_process_verification while repair follow-on is incomplete. Complete the required repair stages before clearing global verification state.")
     }
     const ticket = getTicket(manifest, args.ticket_id)
     const wasDone = ticket.status === "done"

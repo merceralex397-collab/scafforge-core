@@ -14,6 +14,7 @@ import {
   hasPendingRepairFollowOn,
   hasReviewArtifact,
   historicalArtifacts,
+  isAllowedFollowOnTicket,
   isPlanApprovedForTicket,
   isBlockingArtifactVerdict,
   latestArtifact,
@@ -44,7 +45,7 @@ async function buildTransitionGuidance(ticket: ReturnType<typeof getTicket>, wor
   const ticketNeedsReconciliation = ticketNeedsHistoricalReconciliation(ticket)
   const ticketTrustNeedsRestoration = ticketNeedsTrustRestoration(ticket, workflow)
   const bootstrapStatus = workflow.bootstrap.status
-  const repairFollowOnPending = hasPendingRepairFollowOn(workflow)
+  const repairFollowOnPending = hasPendingRepairFollowOn(workflow) && !isAllowedFollowOnTicket(workflow, ticket.id)
   const repairFollowOnStage = nextRepairFollowOnStage(workflow)
   const repairFollowOnBlocker = repairFollowOnBlockingReason(workflow)
   const splitChildren = openSplitScopeChildren(manifest, ticket.id)

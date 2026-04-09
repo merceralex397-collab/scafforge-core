@@ -100,6 +100,10 @@ export type RepairFollowOnState = {
   handoff_allowed: boolean
   last_updated_at: string | null
   process_version: number
+  // Explicit list of ticket IDs the repair cycle has authorised for lifecycle
+  // progression while managed_blocked is active.  Populated by the repair
+  // script from REMED ticket IDs and their source_ticket_id values.
+  allowed_follow_on_tickets?: string[]
 }
 
 export type PivotDownstreamStageState = {
@@ -240,6 +244,7 @@ const DEFAULT_REPAIR_FOLLOW_ON_STATE = (processVersion = DEFAULT_PROCESS_VERSION
   handoff_allowed: true,
   last_updated_at: null,
   process_version: processVersion,
+  allowed_follow_on_tickets: [],
 })
 
 export const COARSE_STATUSES = new Set(["todo", "ready", "plan_review", "in_progress", "blocked", "review", "qa", "smoke_test", "done"])
@@ -1531,6 +1536,17 @@ export function ticketNeedsTrustRestoration(ticket: Ticket, workflow: WorkflowSt
 }
 export function hasPendingRepairFollowOn(workflow: WorkflowState): boolean {
   return workflow.repair_follow_on.outcome === "managed_blocked"
+}
+/**
+ * Returns true when the repair cycle has explicitly authorised `ticketId` for
+ * lifecycle progression while managed_blocked is active.  This is the correct
+ * carve-out for REMED tickets and their source tickets — it is keyed to
+ * explicit IDs written by the repair script, not to lane text or other
+ * mutable ticket metadata.
+ */
+export function isAllowedFollowOnTicket(workflow: WorkflowState, ticketId: string): boolean {
+  const allowed = workflow.repair_follow_on.allowed_follow_on_tickets
+  return Array.isArray(allowed) && allowed.includes(ticketId)
 }
 export function nextRepairFollowOnStage(workflow: WorkflowState): string | null {
   if (workflow.repair_follow_on.outcome !== "managed_blocked") return null

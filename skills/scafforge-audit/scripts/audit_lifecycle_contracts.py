@@ -756,3 +756,118 @@ def run_lifecycle_contract_audits(
     audit_smoke_test_artifact_bypass(root, findings, ctx)
     audit_remediation_review_evidence(root, findings, ctx)
     audit_handoff_artifact_ownership_conflict(root, findings, ctx)
+    audit_managed_blocked_deadlock(root, findings, ctx)
+
+
+# WFLOW codes that represent legitimate host-only follow-on stages.
+# When managed_blocked requires only these stages and none of them are
+# completable by the local agent, the repo has zero legal moves — a
+# direct contract violation.
+_HOST_ONLY_FOLLOW_ON_STAGES: frozenset[str] = frozenset({
+    "project-skill-bootstrap",
+    "opencode-team-bootstrap",
+    "agent-prompt-engineering",
+})
+
+
+def audit_managed_blocked_deadlock(
+    root: Path, findings: list[Finding], ctx: LifecycleContractAuditContext
+) -> None:
+    """WFLOW030 — managed_blocked deadlock: no legal move exists for the local agent.
+
+    Fires when all of the following are true:
+    1. repair_follow_on.outcome == "managed_blocked"
+    2. At least one required stage is not yet in completed_stages
+    3. All unresolved required stages are host-only (project-skill-bootstrap,
+       opencode-team-bootstrap, agent-prompt-engineering)
+    4. ticket_update.ts contains the hasPendingRepairFollowOn guard (confirms
+       the lifecycle block is active in the installed runtime)
+
+    The combination means the local agent cannot advance any ticket AND cannot
+    complete any required follow-on stage — a zero-legal-moves deadlock.
+    """
+    workflow_path = root / ".opencode" / "state" / "workflow-state.json"
+    ticket_update_path = root / ".opencode" / "tools" / "ticket_update.ts"
+
+    if not workflow_path.exists():
+        return
+
+    workflow = ctx.read_json(workflow_path)
+    if not isinstance(workflow, dict):
+        return
+
+    repair_follow_on = workflow.get("repair_follow_on")
+    if not isinstance(repair_follow_on, dict):
+        return
+
+    if repair_follow_on.get("outcome") != "managed_blocked":
+        return
+
+    required: list[str] = [
+        str(s) for s in repair_follow_on.get("required_stages", [])
+        if isinstance(s, str) and s.strip()
+    ]
+    completed: set[str] = {
+        str(s) for s in repair_follow_on.get("completed_stages", [])
+        if isinstance(s, str) and s.strip()
+    }
+    unresolved = [s for s in required if s not in completed]
+    if not unresolved:
+        return
+
+    host_only_unresolved = [s for s in unresolved if s in _HOST_ONLY_FOLLOW_ON_STAGES]
+    non_host_unresolved = [s for s in unresolved if s not in _HOST_ONLY_FOLLOW_ON_STAGES]
+
+    # Only fire WFLOW030 when ALL unresolved stages are host-only.
+    # If a local-agent stage (e.g. ticket-pack-builder) is still unresolved,
+    # the agent has at least one legal move.
+    if non_host_unresolved:
+        return
+    if not host_only_unresolved:
+        return
+
+    # Confirm the lifecycle block guard is actually installed in the runtime.
+    tool_has_guard = (
+        ticket_update_path.exists()
+        and "hasPendingRepairFollowOn" in ctx.read_text(ticket_update_path)
+    )
+    if not tool_has_guard:
+        return
+
+    evidence: list[str] = [
+        f"repair_follow_on.outcome = managed_blocked",
+        f"required_stages = {required}",
+        f"completed_stages = {sorted(completed)}",
+        f"unresolved host-only stages = {host_only_unresolved}",
+        f"ticket_update.ts contains hasPendingRepairFollowOn guard — lifecycle mutations are blocked for all tickets.",
+    ]
+
+    ctx.add_finding(
+        findings,
+        Finding(
+            code="WFLOW030",
+            severity="error",
+            problem="Repo is in managed_blocked deadlock: all unresolved required follow-on stages are host-only, so the local agent has zero legal moves.",
+            root_cause=(
+                "The repair cycle left managed_blocked active with only host-only required stages "
+                "(project-skill-bootstrap, opencode-team-bootstrap, or agent-prompt-engineering) "
+                "still incomplete, while ticket_update.ts blocks ALL ticket lifecycle mutations "
+                "when managed_blocked is set. The local agent cannot complete host-only stages "
+                "and cannot advance any ticket. This is a direct violation of the Scafforge "
+                "contract: the repo must always expose one legal next move with one named owner."
+            ),
+            files=[
+                ctx.normalize_path(workflow_path, root),
+                ctx.normalize_path(ticket_update_path, root),
+            ],
+            safer_pattern=(
+                "Host-operator must: (1) run the required host-only stages "
+                "(project-skill-bootstrap via Scafforge), (2) update "
+                "repair_follow_on.completed_stages in workflow-state.json, and "
+                "(3) set outcome to 'clean' or 'source_follow_up' once all stages "
+                "are done. After that the local agent regains ticket mutation access."
+            ),
+            evidence=evidence,
+            provenance="script",
+        ),
+    )

@@ -22,6 +22,18 @@ from shared_verifier import audit_repo
 from shared_generated_tool_runtime import run_generated_tool
 
 
+# WFLOW codes that specifically indicate agent-team or prompt surface drift.
+# Only these codes justify adding opencode-team-bootstrap / agent-prompt-engineering
+# as required follow-on stages.  All other WFLOW codes (e.g. WFLOW029 ticket-graph,
+# WFLOW025 release-gate) do NOT indicate prompt/agent drift.
+_AGENT_PROMPT_WFLOW_CODES: frozenset[str] = frozenset({
+    "WFLOW006",  # team-leader prompt drift
+    "WFLOW011",  # bootstrap routing missing from prompts
+    "WFLOW013",  # /resume trust absent from prompts
+    "WFLOW014",  # coordinator artifact surface drift
+    "WFLOW021",  # legacy handoff_allowed reference in prompts
+})
+
 START_HERE_MANAGED_START = "<!-- SCAFFORGE:START_HERE_BLOCK START -->"
 START_HERE_MANAGED_END = "<!-- SCAFFORGE:START_HERE_BLOCK END -->"
 FOLLOW_ON_TRACKING_PATH = Path(".opencode/meta/repair-follow-on-state.json")
@@ -547,13 +559,23 @@ def initialize_follow_on_tracking_state(
 
 
 def find_placeholder_skills(repo_root: Path) -> list[str]:
+    # These patterns must stay in sync with PLACEHOLDER_SKILL_PATTERNS in
+    # skills/scafforge-audit/scripts/audit_repo_process.py so that repair
+    # detection agrees with audit detection.
+    _PLACEHOLDER_SKILL_PATTERNS = (
+        "Replace this file",
+        "TODO: replace",
+        "When the repo stack is finalized, rewrite this catalog",
+        "When the project stack is confirmed, replace this file",
+        "__STACK_LABEL__",
+    )
     hits: list[str] = []
     skills_root = repo_root / ".opencode" / "skills"
     if not skills_root.exists():
         return hits
     for path in sorted(skills_root.rglob("SKILL.md")):
         text = read_text(path)
-        if "Replace this file" in text or "TODO: replace" in text:
+        if any(pat in text for pat in _PLACEHOLDER_SKILL_PATTERNS):
             hits.append(str(path.relative_to(repo_root)))
     return hits
 
@@ -605,8 +627,8 @@ def build_stale_surface_map(
 ) -> dict[str, dict[str, Any]]:
     required_stage_names = required_stage_names or set()
     codes = {getattr(finding, "code", "") for finding in findings if getattr(finding, "code", "")}
-    workflow_codes = {code for code in codes if code.startswith(("WFLOW", "BOOT", "CYCLE")) and code != "WFLOW008"}
-    prompt_codes = {code for code in codes if code.startswith("WFLOW")}
+    workflow_codes = {code for code in codes if code.startswith(("WFLOW", "BOOT", "CYCLE")) and code not in {"WFLOW008", "WFLOW025", "WFLOW029"}}
+    prompt_codes = {code for code in codes if code in _AGENT_PROMPT_WFLOW_CODES}
     skill_codes = {code for code in codes if code.startswith(("SKILL", "MODEL"))}
     ticket_codes = {code for code in codes if code.startswith("EXEC") or code == "WFLOW008"}
 

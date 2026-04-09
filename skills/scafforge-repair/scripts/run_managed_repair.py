@@ -13,6 +13,7 @@ from apply_repo_process_repair import (
     FOLLOW_ON_TRACKING_PATH,
     REPAIR_ESCALATION_PATH,
     RepairEscalation,
+    _AGENT_PROMPT_WFLOW_CODES,
     append_migration_history,
     apply_repair,
     build_stale_surface_map,
@@ -524,7 +525,10 @@ def derive_required_follow_on_stages(
                 "reason": "Repo-local skills still contain generic placeholder/model drift that must be regenerated with project-specific content.",
             }
         )
-    if prompt_drift or any(code.startswith("WFLOW") for code in finding_codes):
+    # Only specific WFLOW codes indicate agent-team or prompt-surface drift.
+    # Ticket-graph, release-gate, and other WFLOW codes must NOT trigger host-only
+    # opencode-team-bootstrap / agent-prompt-engineering stages.
+    if prompt_drift or bool(finding_codes & _AGENT_PROMPT_WFLOW_CODES):
         required.append(
             {
                 **follow_on_stage_metadata("opencode-team-bootstrap"),
@@ -539,6 +543,20 @@ def derive_required_follow_on_stages(
                 "reason": "Prompt behavior changed or remains stale after repair, so the same-session hardening pass is required before handoff.",
             }
         )
+    # When .opencode/skills surfaces were replaced, project-skill-bootstrap is
+    # required even if placeholder detection didn't fire on the new stubs.
+    if not any(s["stage"] == "project-skill-bootstrap" for s in required):
+        if any(
+            ".opencode/skills" in surface or surface == "scaffold-managed .opencode/skills"
+            for surface in replaced_surfaces
+        ):
+            required.append(
+                {
+                    **follow_on_stage_metadata("project-skill-bootstrap"),
+                    "stage": "project-skill-bootstrap",
+                    "reason": "Replaced .opencode/skills surfaces require regeneration with project-specific content.",
+                }
+            )
     if any(code.startswith("EXEC") for code in finding_codes) or "WFLOW025" in finding_codes or "WFLOW029" in finding_codes:
         ticket_follow_up_reason = (
             "Repair left remediation, reverification, or target-completion follow-up that must be routed into the repo ticket system."
@@ -826,6 +844,7 @@ def update_repair_follow_on_state(
     handoff_allowed: bool,
     current_state_clean: bool,
     causal_regression_verified: bool,
+    allowed_follow_on_tickets: list[str] | None = None,
 ) -> dict[str, Any]:
     workflow_path = repo_root / ".opencode" / "state" / "workflow-state.json"
     workflow = read_json(workflow_path)
@@ -852,6 +871,10 @@ def update_repair_follow_on_state(
         "causal_regression_verified": causal_regression_verified,
         "last_updated_at": tracking_state.get("last_updated_at"),
         "process_version": process_version,
+        # Tickets the repair script has explicitly authorized for lifecycle
+        # progression while this managed_blocked state is active.  Populated from
+        # REMED and source ticket IDs created during this repair cycle.
+        "allowed_follow_on_tickets": list(allowed_follow_on_tickets) if allowed_follow_on_tickets else [],
     }
     workflow["repair_follow_on"] = repair_follow_on
     write_json(workflow_path, workflow)
@@ -1183,6 +1206,26 @@ def main() -> int:
             else "clean"
         )
         handoff_allowed = verification_status["verification_passed"] and not blocking_reasons
+
+        # Build the explicit list of ticket IDs the repair has authorised for
+        # lifecycle progression while managed_blocked is active.  This allows
+        # REMED tickets (and their source tickets) to advance without being
+        # blocked by the hasPendingRepairFollowOn guard in ticket_update / lookup.
+        _remed_tickets: list[dict[str, Any]] = (
+            remediation_follow_up.get("created_tickets", [])
+            if isinstance(remediation_follow_up, dict)
+            else []
+        )
+        _allowed: list[str] = []
+        for _t in _remed_tickets:
+            if isinstance(_t, dict):
+                _tid = str(_t.get("id", "")).strip()
+                if _tid:
+                    _allowed.append(_tid)
+                _src = str(_t.get("source_ticket_id", "")).strip()
+                if _src and _src not in _allowed:
+                    _allowed.append(_src)
+
         repair_follow_on_state = update_repair_follow_on_state(
             candidate_root,
             outcome=repair_follow_on_outcome,
@@ -1196,6 +1239,7 @@ def main() -> int:
             handoff_allowed=handoff_allowed,
             current_state_clean=verification_status["current_state_clean"],
             causal_regression_verified=verification_status["causal_regression_verified"],
+            allowed_follow_on_tickets=_allowed,
         )
         regenerate_restart_surfaces(
             candidate_root,

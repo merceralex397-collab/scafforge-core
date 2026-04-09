@@ -1960,6 +1960,29 @@ def seed_thin_ticket_execution(dest: Path) -> None:
     )
 
 
+def seed_managed_blocked_deadlock(dest: Path) -> None:
+    """Seed a repo into managed_blocked with only host-only required stages remaining.
+
+    This is the deadlock state WFLOW030 must detect: repair_follow_on.outcome =
+    managed_blocked, required stages are non-empty, and every unresolved stage is
+    host-only (project-skill-bootstrap, opencode-team-bootstrap, or
+    agent-prompt-engineering).  The ticket_update.ts guard must also be present.
+    """
+    import json as _json
+
+    wf_path = dest / ".opencode" / "state" / "workflow-state.json"
+    wf = _json.loads(wf_path.read_text(encoding="utf-8"))
+    wf.setdefault("repair_follow_on", {})
+    wf["repair_follow_on"]["outcome"] = "managed_blocked"
+    wf["repair_follow_on"]["required_stages"] = [
+        "opencode-team-bootstrap",
+        "agent-prompt-engineering",
+    ]
+    wf["repair_follow_on"]["completed_stages"] = []
+    wf["repair_follow_on"]["allowed_follow_on_tickets"] = []
+    wf_path.write_text(_json.dumps(wf, indent=2), encoding="utf-8")
+
+
 def verify_render(dest: Path, *, expect_full_repo: bool) -> None:
     checklist = json.loads(CHECKLIST.read_text(encoding="utf-8"))
     for relative in checklist["required_files"]:
@@ -5132,6 +5155,43 @@ def main() -> int:
         if "WFLOW010" in clearable_pending_verification_codes:
             raise RuntimeError(
                 "A repo whose restart surfaces correctly collapse done_but_not_fully_trusted to none when the affected set is empty should not emit WFLOW010"
+            )
+
+        managed_blocked_deadlock_dest = workspace / "managed-blocked-deadlock"
+        shutil.copytree(full_dest, managed_blocked_deadlock_dest)
+        seed_managed_blocked_deadlock(managed_blocked_deadlock_dest)
+        managed_blocked_deadlock_audit = run_json(
+            [
+                sys.executable,
+                str(AUDIT),
+                str(managed_blocked_deadlock_dest),
+                "--format",
+                "json",
+            ],
+            ROOT,
+        )
+        managed_blocked_deadlock_codes = {
+            finding["code"]
+            for finding in managed_blocked_deadlock_audit.get("findings", [])
+        }
+        if "WFLOW030" not in managed_blocked_deadlock_codes:
+            raise RuntimeError(
+                "A repo with managed_blocked outcome and only host-only required stages "
+                "should emit WFLOW030 (managed-blocked deadlock)"
+            )
+        managed_blocked_deadlock_manifest = json.loads(
+            Path(managed_blocked_deadlock_audit["diagnosis_pack"]["path"])
+            .joinpath("manifest.json")
+            .read_text(encoding="utf-8")
+        )
+        if (
+            managed_blocked_deadlock_manifest.get("recommended_next_step")
+            != "host_intervention_required"
+        ):
+            raise RuntimeError(
+                f"WFLOW030 findings should route recommended_next_step to "
+                f"'host_intervention_required', got "
+                f"{managed_blocked_deadlock_manifest.get('recommended_next_step')!r}"
             )
 
         closed_ticket_dependent_dest = workspace / "closed-ticket-dependent-routing"
