@@ -1061,6 +1061,12 @@ export function extractArtifactVerdict(content: string): ArtifactVerdictInspecti
       const verdict = normalizeArtifactVerdictToken(labeled[1] || "")
       if (verdict) return { verdict, verdict_unclear: false, matched_line: trimmed }
     }
+    // Heading with inline verdict: ## Verdict: APPROVE / ## Overall Result: PASS
+    const headingInline = trimmed.match(/^#{1,4}\s+(?:overall(?:\s+result)?|verdict|result|approval\s+signal)\s*:\s*(?:\*\*|__)?\s*(pass|fail|reject|approved?|blocked?|blocker)\s*(?:\*\*|__)?\s*$/i)
+    if (headingInline) {
+      const verdict = normalizeArtifactVerdictToken(headingInline[1] || "")
+      if (verdict) return { verdict, verdict_unclear: false, matched_line: trimmed }
+    }
     // Heading-style verdict: ## Verdict / **APPROVE** on next non-empty line
     const headingLabel = trimmed.match(/^#{1,4}\s+(?:overall(?:\s+result)?|verdict|result|approval\s+signal)\s*$/i)
     if (headingLabel) {
