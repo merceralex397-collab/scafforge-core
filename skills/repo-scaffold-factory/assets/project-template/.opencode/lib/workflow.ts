@@ -1053,13 +1053,27 @@ function normalizeArtifactVerdictToken(token: string): ArtifactVerdict | null {
 }
 export function extractArtifactVerdict(content: string): ArtifactVerdictInspection {
   const lines = content.split(/\r?\n/)
-  for (const line of lines) {
-    const trimmed = line.trim()
+  for (let i = 0; i < lines.length; i++) {
+    const trimmed = lines[i].trim()
     if (!trimmed) continue
     const labeled = trimmed.match(/^(?:[-*]\s*)?(?:\*\*|__)?(?:overall(?:\s+result)?|verdict|result|approval\s+signal)(?:\*\*|__)?\s*:\s*(?:\*\*|__)?\s*(pass|fail|reject|approved?|blocked?|blocker)(?:\*\*|__)?\b/i)
     if (labeled) {
       const verdict = normalizeArtifactVerdictToken(labeled[1] || "")
       if (verdict) return { verdict, verdict_unclear: false, matched_line: trimmed }
+    }
+    // Heading-style verdict: ## Verdict / **APPROVE** on next non-empty line
+    const headingLabel = trimmed.match(/^#{1,4}\s+(?:overall(?:\s+result)?|verdict|result|approval\s+signal)\s*$/i)
+    if (headingLabel) {
+      for (let j = i + 1; j < lines.length; j++) {
+        const nextTrimmed = lines[j].trim()
+        if (!nextTrimmed) continue
+        const headingVerdict = nextTrimmed.match(/^(?:\*\*|__)?\s*(pass|fail|reject|approved?|blocked?|blocker)\s*(?:\*\*|__)?$/i)
+        if (headingVerdict) {
+          const verdict = normalizeArtifactVerdictToken(headingVerdict[1] || "")
+          if (verdict) return { verdict, verdict_unclear: false, matched_line: nextTrimmed }
+        }
+        break
+      }
     }
     const failureEmoji = trimmed.match(/[❌✖]\s*(?:[^A-Za-z]*)(pass|fail|reject|approved?|blocked?|blocker)\b/i)
     if (failureEmoji) {
