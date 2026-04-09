@@ -983,6 +983,15 @@ def apply_repair(repo_root: Path, rendered_root: Path, change_summary: str, *, p
             replace_directory_with_backup(skill_dir, target_skills_root / skill_dir.name)
         replaced_surfaces.append("scaffold-managed .opencode/skills")
 
+        rendered_agents_root = rendered_root / ".opencode" / "agents"
+        target_agents_root = repo_root / ".opencode" / "agents"
+        if rendered_agents_root.exists() and target_agents_root.exists():
+            for agent_file in sorted(rendered_agents_root.glob("*.md")):
+                target_file = target_agents_root / agent_file.name
+                if target_file.exists():
+                    replace_file_with_backup(agent_file, target_file)
+            replaced_surfaces.append(".opencode/agents")
+
         for filename in DETERMINISTIC_PROCESS_DOCS:
             replace_file_with_backup(rendered_root / "docs" / "process" / filename, repo_root / "docs" / "process" / filename)
             replaced_surfaces.append(f"docs/process/{filename}")
