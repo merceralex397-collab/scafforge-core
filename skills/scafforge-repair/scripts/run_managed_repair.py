@@ -119,6 +119,9 @@ def regenerate_android_surfaces(repo_root: Path) -> dict[str, Any]:
         destination = repo_root / relative_path
         existing_text = destination.read_text(encoding="utf-8") if destination.exists() else ""
         needs_write = (not destination.exists()) or "__PACKAGE_NAME__" in existing_text or "__PROJECT_SLUG__" in existing_text
+        # Also rewrite if keystore/debug is empty in export_presets.cfg (blocks APK export)
+        if not needs_write and relative_path.name == "export_presets.cfg" and 'keystore/debug=""' in existing_text:
+            needs_write = True
         if not needs_write:
             continue
         rendered = _render_android_template(template_path.read_text(encoding="utf-8"), project_slug, package_name)
