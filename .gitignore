@@ -31,3 +31,6 @@ build/
 # Temp
 *.tmp
 *.bak
+
+# Godot
+godot-lib.aar
