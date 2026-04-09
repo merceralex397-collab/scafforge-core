@@ -131,6 +131,18 @@ def regenerate_android_surfaces(repo_root: Path) -> dict[str, Any]:
         if existing_text:
             placeholder_repairs += 1
 
+    # Ensure project.godot has ETC2/ASTC compression enabled (required for Android export)
+    project_godot = repo_root / "project.godot"
+    if project_godot.exists():
+        godot_text = project_godot.read_text(encoding="utf-8")
+        if "import_etc2_astc" not in godot_text:
+            if "[textures]" in godot_text:
+                godot_text = godot_text.replace("[textures]", "[textures]\nvram_compression/import_etc2_astc=true")
+            else:
+                godot_text += "\n[textures]\nvram_compression/import_etc2_astc=true\n"
+            project_godot.write_text(godot_text, encoding="utf-8")
+            regenerated.append("project.godot (ETC2/ASTC)")
+
     if not regenerated:
         return {"performed": False, "reason": "all managed Android surfaces already exist", "regenerated": []}
 
