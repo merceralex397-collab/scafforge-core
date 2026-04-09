@@ -1014,7 +1014,7 @@ def main() -> int:
         shutil.copytree(
             repo_root,
             candidate_root,
-            ignore=shutil.ignore_patterns(".git"),
+            ignore=shutil.ignore_patterns(".git", ".venv", "node_modules", "__pycache__"),
         )
 
         # Pre-flight: fix any lifecycle corruption (invalid status values) before anything else.
@@ -1252,7 +1252,10 @@ def main() -> int:
             verification_passed=verification_status["verification_passed"],
         )
 
-        shutil.copytree(candidate_root, repo_root, dirs_exist_ok=True)
+        shutil.copytree(
+            candidate_root, repo_root, dirs_exist_ok=True,
+            ignore=shutil.ignore_patterns(".git", ".venv", "node_modules", "__pycache__"),
+        )
 
     published_logs = verification_logs(repo_root, args.supporting_log, repair_basis)
     verification_status["supporting_logs"] = [str(path) for path in published_logs]
