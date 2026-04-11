@@ -118,7 +118,7 @@ Notes:
 
 - The major repos in active work are all dirty.
 - `Scafforge` itself is dirty not only from package work, but also from embedded `glitch` changes and a very large log footprint.
-- `blender-agent` currently has only one visible dirty file: `mcp-server/uv.lock`.
+- `blender-agent` is no longer a near-clean assessment target: direct runtime-worker repair work is now in progress there because VersionC evidence exposed a real stateless persistence bug.
 
 ---
 

@@ -332,7 +332,15 @@ The repo has advanced, but the pointer surfaces are stale/inconsistent: it still
 
 ## Supporting repo note: blender-agent
 
-This session also included assessment work around `blender-agent` / Blender MCP capability, but it is not in the same "deliverable downstream repo" bucket as the seven repos above.
+This session also included direct repair work in `blender-agent`, which is in scope as a first-class tool/product repo.
+
+Latest direct finding and fix:
+
+- the newer `blender_mcp_runtime` worker paths were dropping stateless persistence data before `bridge_runtime.py` executed
+- both headless and UI-backed workers were writing temp job specs without `input_blend` / `output_blend`, and they were checking raw relative paths instead of resolved project-relative blend paths
+- that meant VersionC-style chained `scene_batch_edit` calls could look like they "always start fresh" even when the caller supplied persistence paths
+- direct fix now landed in `blender-agent`: worker job specs now carry resolved persistence paths and the worker launch logic uses resolved paths consistently
+- targeted regression tests now cover both worker modes
 
 ---
 
