@@ -7,7 +7,7 @@ This document remains useful, but parts of it are now stale relative to the late
 ### What changed since this assessment was first written
 
 1. **Current audits show multiple repos are still live-problem repos, not near-clean closures.**
-2. **`validate:smoke` is no longer currently green** in the Scafforge worktree. The current failing point is the repeated-diagnosis `CYCLE002` assertion inside `scripts/smoke_test_scafforge.py`.
+2. **Scafforge package validation is green again.** `validate:smoke` and `validate:contract` now pass after hardening the repeated-diagnosis fixture, follow-on tracking/repair-runner edges, and the Godot release/finish smoke path.
 3. **womanvshorseVA is confirmed as a false-finish release.** The repo exported an APK, but the accepted release smoke artifact also contains parse errors in core gameplay scripts.
 
 ### Latest direct audit snapshot
@@ -44,12 +44,12 @@ So VA was accepted despite its HUD/wave gameplay path being visibly broken at sc
 
 The currently unaccounted or insufficiently handled Scafforge issues are now:
 
-- release closeout still overweights APK export proof versus runtime/gameplay load proof
-- finish-contract enforcement does not yet reject "technically exports, functionally bad" consumer-facing releases
+- release closeout no longer relies on export proof alone; generated Godot release/finish smoke now appends a clean `--headless --path . --quit` load pass
+- finish-contract enforcement now rejects the VA-style "technically exports, functionally bad" consumer-facing release shape by seeding finish ownership and gating `RELEASE-001` on finish validation
 - `WFLOW010` restart-surface drift still exists in live downstream repos
 - `WFLOW019` ticket-graph / follow-up linkage drift still exists in multiple repos
 - `EXEC-REMED-001` remains widespread, so remediation review evidence is still not being produced or refreshed consistently enough in downstream practice
-- Scafforge smoke currently has an unresolved `CYCLE002` harness inconsistency in the full suite run
+- generated-repo bash denial and remaining womanvshorse downstream quality issues still need package-side or runtime-path analysis
 
 Treat this addendum as the live truth when it conflicts with older optimistic statements below.
 

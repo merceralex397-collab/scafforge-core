@@ -404,13 +404,13 @@ def package_work_required_first(recommendations: list[dict[str, Any]]) -> bool:
 
 
 def recommended_next_step(findings: list[Finding], recommendations: list[dict[str, Any]]) -> str:
-    if package_work_required_first(recommendations):
-        return "scafforge_package_work"
     # WFLOW030 = managed_blocked deadlock with only host-only stages unresolved.
     # Running repair again would re-trigger the broad WFLOW trigger and deepen
     # the deadlock.  The correct action is host intervention, not another repair.
     if any(getattr(f, "code", "") == "WFLOW030" for f in findings):
         return "host_intervention_required"
+    if package_work_required_first(recommendations):
+        return "scafforge_package_work"
     if any(not finding.code.startswith(("BOOT", "ENV", "EXEC", "REF", "SESSION")) for finding in findings):
         return "subject_repo_repair"
     if findings:
@@ -892,41 +892,50 @@ def emit_diagnosis_pack(
 def resolve_current_package_commit(package_root: Path) -> str:
     if os.environ.get("SCAFFORGE_FORCE_MISSING_PROVENANCE") == "1":
         return "missing_provenance"
-    result = subprocess.run(
-        ["git", "rev-parse", "HEAD"],
-        cwd=package_root,
-        check=False,
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-    )
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            cwd=package_root,
+            check=False,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+        )
+    except OSError:
+        return "missing_provenance"
     if result.returncode != 0:
         return "missing_provenance"
     commit = result.stdout.strip() or "missing_provenance"
-    dirty = subprocess.run(
-        ["git", "status", "--porcelain=v1"],
-        cwd=package_root,
-        check=False,
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-    )
+    try:
+        dirty = subprocess.run(
+            ["git", "status", "--porcelain=v1"],
+            cwd=package_root,
+            check=False,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+        )
+    except OSError:
+        return commit
     if dirty.returncode != 0:
         return commit
     dirty_state = dirty.stdout.strip()
     if not dirty_state:
         return commit
-    diff = subprocess.run(
-        ["git", "diff", "--no-ext-diff", "HEAD", "--"],
-        cwd=package_root,
-        check=False,
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-    )
+    try:
+        diff = subprocess.run(
+            ["git", "diff", "--no-ext-diff", "HEAD", "--"],
+            cwd=package_root,
+            check=False,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+        )
+    except OSError:
+        return commit
     fingerprint_source = dirty_state
     if diff.returncode == 0 and diff.stdout:
         fingerprint_source = f"{dirty_state}\n{diff.stdout}"

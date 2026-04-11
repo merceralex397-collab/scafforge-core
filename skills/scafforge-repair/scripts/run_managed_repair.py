@@ -1183,19 +1183,22 @@ def main() -> int:
         except ValueError as exc:
             raise SystemExit(str(exc)) from exc
         asserted_stage_names = sorted(set(requested_stage_names))
-        tracking_state = update_follow_on_tracking_state(
-            candidate_root,
-            required_follow_on=required_follow_on,
-            asserted_stage_names=asserted_stage_names,
-            repair_basis_path=repair_basis_path,
-            repair_package_commit=current_package_commit(),
-        )
-        tracking_state, auto_detected_recorded_stage_names = auto_record_stage_completion_from_canonical_evidence(
-            candidate_root,
-            tracking_state,
-            required_stage_names=required_stage_names,
-            repair_package_commit=current_package_commit(),
-        )
+        try:
+            tracking_state = update_follow_on_tracking_state(
+                candidate_root,
+                required_follow_on=required_follow_on,
+                asserted_stage_names=asserted_stage_names,
+                repair_basis_path=repair_basis_path,
+                repair_package_commit=current_package_commit(),
+            )
+            tracking_state, auto_detected_recorded_stage_names = auto_record_stage_completion_from_canonical_evidence(
+                candidate_root,
+                tracking_state,
+                required_stage_names=required_stage_names,
+                repair_package_commit=current_package_commit(),
+            )
+        except ValueError as exc:
+            raise SystemExit(str(exc)) from exc
         persisted_completed_stage_names = completed_stage_names(tracking_state)
         recorded_execution_stage_list = recorded_execution_stage_names(tracking_state)
         invalidated_recorded_stage_list = invalidated_recorded_stage_names(tracking_state)

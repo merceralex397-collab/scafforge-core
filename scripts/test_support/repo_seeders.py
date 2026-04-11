@@ -200,28 +200,32 @@ def seed_repeated_diagnosis_churn(dest: Path) -> None:
             ],
         }
     baseline_manifest["audit_package_commit"] = package_commit()
-    baseline_manifest["generated_at"] = "2026-03-27T00:03:00Z"
-    baseline_manifest["ticket_recommendations"] = [
-        {
-            "source_finding_code": "SKILL001",
-            "route": "scafforge-repair",
-            "title": "Regenerate placeholder repo-local skills",
-        }
-    ]
-    write_json(baseline_manifest_path, baseline_manifest)
+    baseline_manifest["repo_root"] = str(dest)
+    recommendations = baseline_manifest.get("ticket_recommendations")
+    if not isinstance(recommendations, list) or not recommendations:
+        recommendations = [
+            {
+                "source_finding_code": "SKILL001",
+                "route": "scafforge-repair",
+                "title": "Regenerate placeholder repo-local skills",
+            }
+        ]
+    baseline_manifest["ticket_recommendations"] = recommendations
+
+    if diagnosis_root.exists():
+        shutil.rmtree(diagnosis_root)
+    diagnosis_root.mkdir(parents=True, exist_ok=True)
 
     for folder_name, generated_at in (
+        ("20260327-000001", "2026-03-27T00:03:00Z"),
         ("20260327-002513", "2026-03-27T00:25:13Z"),
         ("20260327-014404", "2026-03-27T01:44:04Z"),
     ):
         target = diagnosis_root / folder_name
-        if target.exists():
-            shutil.rmtree(target)
-        shutil.copytree(baseline, target)
-        manifest_path = target / "manifest.json"
-        manifest = read_json(manifest_path)
+        target.mkdir(parents=True, exist_ok=True)
+        manifest = dict(baseline_manifest)
         manifest["generated_at"] = generated_at
-        write_json(manifest_path, manifest)
+        write_json(target / "manifest.json", manifest)
 
 
 def seed_restart_surface_drift(dest: Path) -> None:

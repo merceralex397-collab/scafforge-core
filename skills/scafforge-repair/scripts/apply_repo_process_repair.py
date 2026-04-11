@@ -494,15 +494,18 @@ def package_root() -> Path:
 def current_package_commit() -> str:
     if os.environ.get("SCAFFORGE_FORCE_MISSING_PROVENANCE") == "1":
         return "missing_provenance"
-    result = subprocess.run(
-        ["git", "rev-parse", "HEAD"],
-        cwd=package_root(),
-        check=False,
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-    )
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            cwd=package_root(),
+            check=False,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+        )
+    except OSError:
+        return "missing_provenance"
     if result.returncode != 0:
         return "missing_provenance"
     return result.stdout.strip() or "missing_provenance"

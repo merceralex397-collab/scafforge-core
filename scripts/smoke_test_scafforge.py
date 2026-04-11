@@ -1415,8 +1415,11 @@ def seed_false_clean_preceded_by_later_transcript_basis(dest: Path) -> None:
 def seed_historical_reconciliation_deadlock(dest: Path) -> None:
     manifest_path = dest / "tickets" / "manifest.json"
     workflow_path = dest / ".opencode" / "state" / "workflow-state.json"
+    provenance_path = dest / ".opencode" / "meta" / "bootstrap-provenance.json"
+    diagnosis_root = dest / "diagnosis"
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     workflow = json.loads(workflow_path.read_text(encoding="utf-8"))
+    provenance = json.loads(provenance_path.read_text(encoding="utf-8"))
     manifest["tickets"].append(
         {
             "id": "EXEC-099",
@@ -1441,8 +1444,12 @@ def seed_historical_reconciliation_deadlock(dest: Path) -> None:
     workflow["active_ticket"] = "EXEC-099"
     workflow["stage"] = "closeout"
     workflow["status"] = "done"
+    provenance["repair_history"] = []
     manifest_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
     workflow_path.write_text(json.dumps(workflow, indent=2) + "\n", encoding="utf-8")
+    provenance_path.write_text(json.dumps(provenance, indent=2) + "\n", encoding="utf-8")
+    if diagnosis_root.exists():
+        shutil.rmtree(diagnosis_root)
 
     ticket_reconcile_path = dest / ".opencode" / "tools" / "ticket_reconcile.ts"
     ticket_reconcile_text = ticket_reconcile_path.read_text(encoding="utf-8")
@@ -2819,9 +2826,12 @@ def main() -> int:
                     f"audit_reporting.py is missing phase 6 remediation-ticket logic: {expected}"
                 )
 
-        remediation_follow_up_script = (
+        remediation_follow_up_script_path = (
             ROOT / "skills" / "ticket-pack-builder" / "scripts" / "apply_remediation_follow_up.py"
-        ).read_text(encoding="utf-8")
+        )
+        remediation_follow_up_script = remediation_follow_up_script_path.read_text(
+            encoding="utf-8"
+        )
         for expected in (
             "load_ticket_recommendations",
             '"finding_source": str(recommendation.get("source_finding_code")',
@@ -8082,6 +8092,86 @@ def main() -> int:
             raise RuntimeError(
                 "smoke_test should not classify successful Godot export stderr noise as a syntax/configuration failure"
             )
+        godot_release_guard_dest = workspace / "executed-smoke-test-godot-release-guard"
+        shutil.copytree(full_dest, godot_release_guard_dest)
+        seed_ready_bootstrap(godot_release_guard_dest)
+        seed_godot_android_target(godot_release_guard_dest)
+        seed_minimal_godot_project(godot_release_guard_dest)
+        manifest_path = godot_release_guard_dest / "tickets" / "manifest.json"
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        manifest["tickets"].append(
+            {
+                "id": "RELEASE-001",
+                "title": "Synthetic release gate",
+                "wave": 99,
+                "lane": "release-readiness",
+                "parallel_safe": False,
+                "overlap_risk": "high",
+                "stage": "smoke_test",
+                "status": "smoke_test",
+                "resolution_state": "open",
+                "verification_state": "suspect",
+                "depends_on": ["SETUP-001"],
+                "summary": "Synthetic release ticket for Godot release smoke gating coverage.",
+                "acceptance": [],
+                "decision_blockers": [],
+                "artifacts": [],
+                "follow_up_ticket_ids": [],
+            }
+        )
+        manifest["active_ticket"] = "RELEASE-001"
+        manifest_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+        workflow_path = godot_release_guard_dest / ".opencode" / "state" / "workflow-state.json"
+        workflow = json.loads(workflow_path.read_text(encoding="utf-8"))
+        workflow["active_ticket"] = "RELEASE-001"
+        workflow["stage"] = "smoke_test"
+        workflow["status"] = "smoke_test"
+        workflow_path.write_text(json.dumps(workflow, indent=2) + "\n", encoding="utf-8")
+        register_current_ticket_artifact(
+            godot_release_guard_dest,
+            ticket_id="RELEASE-001",
+            kind="qa",
+            stage="qa",
+            relative_path=".opencode/state/artifacts/release-001-qa-godot-release.md",
+            summary="Synthetic QA artifact for release-readiness Godot load validation coverage.",
+            content="# QA\n\nCommand: godot4 --headless --path . --export-debug Android Debug build/android/release-001-debug.apk\n\nQA evidence is current.\n",
+        )
+        write_executable(
+            godot_release_guard_dest / "scripts" / "godot4",
+            "\n".join(
+                [
+                    "#!/usr/bin/env python3",
+                    "import sys",
+                    'sys.stderr.write(\'SCRIPT ERROR: Parse Error: Identifier \"EnemyBrown\" not declared in the current scope.\\n\')',
+                    'sys.stderr.write(\'ERROR: Failed to load script \"res://scripts/wave_spawner.gd\" with error \"Parse error\".\\n\')',
+                    "sys.stdout.write('Export completed successfully\\n')",
+                    "sys.exit(0)",
+                ]
+            )
+            + "\n",
+        )
+        godot_release_guard_result = run_generated_tool(
+            godot_release_guard_dest,
+            ".opencode/tools/smoke_test.ts",
+            {
+                "ticket_id": "RELEASE-001",
+                "command_override": [
+                    "./scripts/godot4 --headless --path . --export-debug 'Android Debug' build/android/release-001-debug.apk"
+                ],
+            },
+        )
+        if godot_release_guard_result["passed"] is True:
+            raise RuntimeError(
+                "smoke_test should append a clean Godot load validation pass for release-readiness tickets instead of trusting export success alone"
+            )
+        if len(godot_release_guard_result.get("commands", [])) < 2:
+            raise RuntimeError(
+                "Godot release-readiness smoke coverage should execute both export proof and load validation commands"
+            )
+        if godot_release_guard_result["commands"][1]["failure_classification"] != "syntax_error":
+            raise RuntimeError(
+                "Godot release-readiness load validation should classify parse/load errors as syntax_error even when export itself exits 0"
+            )
 
         executed_smoke_missing_exec_dest = (
             workspace / "executed-smoke-test-missing-exec"
@@ -9467,10 +9557,10 @@ def main() -> int:
         remediation_follow_up_reheal = run_json(
             [
                 sys.executable,
-                str(remediation_follow_up_script),
+                str(remediation_follow_up_script_path),
                 str(remediation_follow_up_dest),
                 "--diagnosis",
-                str(remediation_diagnosis_path),
+                str(remediation_follow_up_manifest),
             ],
             ROOT,
         )
@@ -9716,6 +9806,31 @@ def main() -> int:
         shutil.copytree(full_dest, source_follow_up_repair_dest)
         make_stack_skill_non_placeholder(source_follow_up_repair_dest)
         seed_failing_pytest_suite(source_follow_up_repair_dest)
+        stale_blender_skill_dir = (
+            source_follow_up_repair_dest
+            / ".opencode"
+            / "skills"
+            / "blender-mcp-workflow"
+        )
+        if stale_blender_skill_dir.exists():
+            shutil.rmtree(stale_blender_skill_dir)
+        source_follow_up_provenance_path = (
+            source_follow_up_repair_dest
+            / ".opencode"
+            / "meta"
+            / "bootstrap-provenance.json"
+        )
+        source_follow_up_provenance = json.loads(
+            source_follow_up_provenance_path.read_text(encoding="utf-8")
+        )
+        source_follow_up_provenance["repair_history"] = []
+        source_follow_up_provenance_path.write_text(
+            json.dumps(source_follow_up_provenance, indent=2) + "\n",
+            encoding="utf-8",
+        )
+        source_follow_up_diagnosis_root = source_follow_up_repair_dest / "diagnosis"
+        if source_follow_up_diagnosis_root.exists():
+            shutil.rmtree(source_follow_up_diagnosis_root)
         if host_has_uv:
             invalid_known_stage_process = subprocess.run(
                 [
@@ -9923,261 +10038,286 @@ def main() -> int:
                 raise RuntimeError(
                     "reconcile_repair_follow_on should convert repaired placeholder-skill blockers into source_follow_up once the current cycle is complete"
                 )
-            polluted_follow_on_state_dest = workspace / "polluted-follow-on-state"
-            shutil.copytree(full_dest, polluted_follow_on_state_dest)
-            make_stack_skill_non_placeholder(polluted_follow_on_state_dest)
-            seed_failing_pytest_suite(polluted_follow_on_state_dest)
-            polluted_initial_process = subprocess.run(
-                [
-                    sys.executable,
-                    str(PUBLIC_REPAIR),
-                    str(polluted_follow_on_state_dest),
-                    "--skip-deterministic-refresh",
-                ],
-                cwd=ROOT,
-                check=False,
-                capture_output=True,
-                text=True,
+        polluted_follow_on_state_dest = workspace / "polluted-follow-on-state"
+        shutil.copytree(full_dest, polluted_follow_on_state_dest)
+        make_stack_skill_non_placeholder(polluted_follow_on_state_dest)
+        seed_failing_pytest_suite(polluted_follow_on_state_dest)
+        polluted_blender_skill_dir = (
+            polluted_follow_on_state_dest
+            / ".opencode"
+            / "skills"
+            / "blender-mcp-workflow"
+        )
+        if polluted_blender_skill_dir.exists():
+            shutil.rmtree(polluted_blender_skill_dir)
+        polluted_provenance_path = (
+            polluted_follow_on_state_dest
+            / ".opencode"
+            / "meta"
+            / "bootstrap-provenance.json"
+        )
+        polluted_provenance = json.loads(
+            polluted_provenance_path.read_text(encoding="utf-8")
+        )
+        polluted_provenance["repair_history"] = []
+        polluted_provenance_path.write_text(
+            json.dumps(polluted_provenance, indent=2) + "\n",
+            encoding="utf-8",
+        )
+        polluted_diagnosis_root = polluted_follow_on_state_dest / "diagnosis"
+        if polluted_diagnosis_root.exists():
+            shutil.rmtree(polluted_diagnosis_root)
+        polluted_initial_process = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_REPAIR),
+                str(polluted_follow_on_state_dest),
+                "--skip-deterministic-refresh",
+            ],
+            cwd=ROOT,
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        polluted_initial = json.loads(polluted_initial_process.stdout)
+        if not polluted_initial["execution_record"]["blocking_reasons"]:
+            raise RuntimeError(
+                "A repair run without any valid follow-on completion should remain blocked before polluted-state pruning is tested"
             )
-            polluted_initial = json.loads(polluted_initial_process.stdout)
-            if not polluted_initial["execution_record"]["blocking_reasons"]:
-                raise RuntimeError(
-                    "A repair run without any valid follow-on completion should remain blocked before polluted-state pruning is tested"
-                )
-            polluted_state_path = (
-                polluted_follow_on_state_dest
-                / ".opencode"
-                / "meta"
-                / "repair-follow-on-state.json"
-            )
-            polluted_state = json.loads(polluted_state_path.read_text(encoding="utf-8"))
-            polluted_state["required_stages"].append("bogus-stage")
-            polluted_state["stage_records"]["bogus-stage"] = {
+        polluted_state_path = (
+            polluted_follow_on_state_dest
+            / ".opencode"
+            / "meta"
+            / "repair-follow-on-state.json"
+        )
+        polluted_state = json.loads(polluted_state_path.read_text(encoding="utf-8"))
+        polluted_state["required_stages"].append("bogus-stage")
+        polluted_state["stage_records"]["bogus-stage"] = {
+            "stage": "bogus-stage",
+            "status": "completed",
+            "completion_mode": "recorded_execution",
+            "evidence_paths": [
+                ".opencode/state/artifacts/history/repair/bogus-stage.md"
+            ],
+            "completed_by": "bogus-stage",
+            "last_recorded_at": "2026-03-30T00:00:00Z",
+            "last_checked_at": "2026-03-30T00:00:00Z",
+            "last_updated_at": "2026-03-30T00:00:00Z",
+        }
+        polluted_state["history"].append(
+            {
+                "recorded_at": "2026-03-30T00:00:00Z",
                 "stage": "bogus-stage",
                 "status": "completed",
                 "completion_mode": "recorded_execution",
-                "evidence_paths": [
-                    ".opencode/state/artifacts/history/repair/bogus-stage.md"
-                ],
-                "completed_by": "bogus-stage",
-                "last_recorded_at": "2026-03-30T00:00:00Z",
-                "last_checked_at": "2026-03-30T00:00:00Z",
-                "last_updated_at": "2026-03-30T00:00:00Z",
             }
-            polluted_state["history"].append(
-                {
-                    "recorded_at": "2026-03-30T00:00:00Z",
-                    "stage": "bogus-stage",
-                    "status": "completed",
-                    "completion_mode": "recorded_execution",
-                }
+        )
+        polluted_state_path.write_text(
+            json.dumps(polluted_state, indent=2) + "\n", encoding="utf-8"
+        )
+        pruned_follow_on_state_process = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLIC_REPAIR),
+                str(polluted_follow_on_state_dest),
+                "--skip-deterministic-refresh",
+            ],
+            cwd=ROOT,
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        if pruned_follow_on_state_process.returncode == 0:
+            raise RuntimeError(
+                "Pruning unknown legacy follow-on stage records should not make the repair runner succeed while real ticket follow-up remains"
             )
-            polluted_state_path.write_text(
-                json.dumps(polluted_state, indent=2) + "\n", encoding="utf-8"
+        pruned_follow_on_state = json.loads(pruned_follow_on_state_process.stdout)
+        if (
+            "bogus-stage"
+            in pruned_follow_on_state["execution_record"][
+                "recorded_completed_stages"
+            ]
+        ):
+            raise RuntimeError(
+                "Managed repair should prune unknown legacy follow-on stage records instead of trusting them as completed"
             )
-            pruned_follow_on_state_process = subprocess.run(
-                [
-                    sys.executable,
-                    str(PUBLIC_REPAIR),
-                    str(polluted_follow_on_state_dest),
-                    "--skip-deterministic-refresh",
-                ],
-                cwd=ROOT,
-                check=False,
-                capture_output=True,
-                text=True,
+        if pruned_follow_on_state["execution_record"]["pruned_unknown_stages"] != [
+            "bogus-stage"
+        ]:
+            raise RuntimeError(
+                "Managed repair should report which unknown legacy follow-on stages were pruned from polluted state"
             )
-            if pruned_follow_on_state_process.returncode == 0:
-                raise RuntimeError(
-                    "Pruning unknown legacy follow-on stage records should not make the repair runner succeed while real ticket follow-up remains"
-                )
-            pruned_follow_on_state = json.loads(pruned_follow_on_state_process.stdout)
-            if (
-                "bogus-stage"
-                in pruned_follow_on_state["execution_record"][
-                    "recorded_completed_stages"
-                ]
-            ):
-                raise RuntimeError(
-                    "Managed repair should prune unknown legacy follow-on stage records instead of trusting them as completed"
-                )
-            if pruned_follow_on_state["execution_record"]["pruned_unknown_stages"] != [
-                "bogus-stage"
-            ]:
-                raise RuntimeError(
-                    "Managed repair should report which unknown legacy follow-on stages were pruned from polluted state"
-                )
-            if (
-                "bogus-stage"
-                in pruned_follow_on_state["execution_record"][
-                    "follow_on_tracking_state"
-                ]["stage_records"]
-            ):
-                raise RuntimeError(
-                    "Managed repair should remove unknown legacy follow-on stage records from the persisted tracking state"
-                )
-            prune_history = pruned_follow_on_state["execution_record"][
+        if (
+            "bogus-stage"
+            in pruned_follow_on_state["execution_record"][
                 "follow_on_tracking_state"
-            ].get("history", [])
-            if not any(
-                item.get("status") == "pruned_unknown_stages"
-                and item.get("pruned_unknown_stages") == ["bogus-stage"]
-                for item in prune_history
-                if isinstance(item, dict)
-            ):
-                raise RuntimeError(
-                    "Managed repair should leave a history event when polluted unknown follow-on stages are pruned"
-                )
-            if not pruned_follow_on_state["execution_record"]["blocking_reasons"]:
-                raise RuntimeError(
-                    "Pruning unknown legacy follow-on stage records should not clear the real ticket follow-up blocker"
-                )
+            ]["stage_records"]
+        ):
+            raise RuntimeError(
+                "Managed repair should remove unknown legacy follow-on stage records from the persisted tracking state"
+            )
+        prune_history = pruned_follow_on_state["execution_record"][
+            "follow_on_tracking_state"
+        ].get("history", [])
+        if not any(
+            item.get("status") == "pruned_unknown_stages"
+            and item.get("pruned_unknown_stages") == ["bogus-stage"]
+            for item in prune_history
+            if isinstance(item, dict)
+        ):
+            raise RuntimeError(
+                "Managed repair should leave a history event when polluted unknown follow-on stages are pruned"
+            )
+        if not pruned_follow_on_state["execution_record"]["blocking_reasons"]:
+            raise RuntimeError(
+                "Pruning unknown legacy follow-on stage records should not clear the real ticket follow-up blocker"
+            )
 
-            source_follow_on_state_path = (
+        source_follow_on_state_path = (
+            source_follow_up_repair_dest
+            / ".opencode"
+            / "meta"
+            / "repair-follow-on-state.json"
+        )
+        source_follow_on_state = json.loads(
+            source_follow_on_state_path.read_text(encoding="utf-8")
+        )
+        source_follow_on_cycle = source_follow_on_state["cycle_id"]
+        source_ticket_pack_rel = ".opencode/state/artifacts/history/repair/ticket-pack-builder-completion.md"
+        source_ticket_pack_path = (
+            source_follow_up_repair_dest / source_ticket_pack_rel
+        )
+        source_ticket_pack_path.parent.mkdir(parents=True, exist_ok=True)
+        source_ticket_pack_path.write_text(
+            "# Repair Follow-On Completion\n\n"
+            "- completed_stage: ticket-pack-builder\n"
+            f"- cycle_id: {source_follow_on_cycle}\n"
+            "- completed_by: ticket-pack-builder\n\n"
+            "## Summary\n\n"
+            "- Routed source follow-up into the ticket system.\n",
+            encoding="utf-8",
+        )
+        source_handoff_rel = (
+            ".opencode/state/artifacts/history/repair/handoff-brief-completion.md"
+        )
+        source_handoff_path = source_follow_up_repair_dest / source_handoff_rel
+        source_handoff_path.parent.mkdir(parents=True, exist_ok=True)
+        source_handoff_path.write_text(
+            "# Repair Follow-On Completion\n\n"
+            "- completed_stage: handoff-brief\n"
+            f"- cycle_id: {source_follow_on_cycle}\n"
+            "- completed_by: handoff-brief\n\n"
+            "## Summary\n\n"
+            "- Refreshed restart surfaces after converged managed repair.\n",
+            encoding="utf-8",
+        )
+        run_json(
+            [
+                sys.executable,
+                str(RECORD_REPAIR_STAGE),
+                str(source_follow_up_repair_dest),
+                "--stage",
+                "ticket-pack-builder",
+                "--completed-by",
+                "ticket-pack-builder",
+                "--summary",
+                "Routed source follow-up into the ticket system.",
+                "--evidence",
+                source_ticket_pack_rel,
+            ],
+            ROOT,
+        )
+        run_json(
+            [
+                sys.executable,
+                str(RECORD_REPAIR_STAGE),
+                str(source_follow_up_repair_dest),
+                "--stage",
+                "handoff-brief",
+                "--completed-by",
+                "handoff-brief",
+                "--summary",
+                "Refreshed restart surfaces after converged managed repair.",
+                "--evidence",
+                source_handoff_rel,
+            ],
+            ROOT,
+        )
+        reconcile_source_follow_up = run_json(
+            [
+                sys.executable,
+                str(RECONCILE_REPAIR),
+                str(source_follow_up_repair_dest),
+            ],
+            ROOT,
+        )
+        if reconcile_source_follow_up.get("status") != "reconciled":
+            raise RuntimeError(
+                "reconcile_repair_follow_on should reconcile completed current-cycle follow-on stages into source_follow_up when only EXEC findings remain"
+            )
+        reconciled_workflow = json.loads(
+            (
                 source_follow_up_repair_dest
                 / ".opencode"
-                / "meta"
-                / "repair-follow-on-state.json"
+                / "state"
+                / "workflow-state.json"
+            ).read_text(encoding="utf-8")
+        )
+        if (
+            reconciled_workflow["repair_follow_on"]["outcome"]
+            != "source_follow_up"
+        ):
+            raise RuntimeError(
+                "reconcile_repair_follow_on should update workflow-state to source_follow_up when only source follow-up remains"
             )
-            source_follow_on_state = json.loads(
-                source_follow_on_state_path.read_text(encoding="utf-8")
+        if (
+            reconciled_workflow["repair_follow_on"]["handoff_allowed"]
+            is not True
+        ):
+            raise RuntimeError(
+                "reconcile_repair_follow_on should allow handoff once required follow-on stages are complete and only source follow-up remains"
             )
-            source_follow_on_cycle = source_follow_on_state["cycle_id"]
-            source_ticket_pack_rel = ".opencode/state/artifacts/history/repair/ticket-pack-builder-completion.md"
-            source_ticket_pack_path = (
-                source_follow_up_repair_dest / source_ticket_pack_rel
+        if reconciled_workflow["repair_follow_on"]["blocking_reasons"]:
+            raise RuntimeError(
+                "reconcile_repair_follow_on should clear stage-only repair blocking reasons once the current cycle is reconciled"
             )
-            source_ticket_pack_path.parent.mkdir(parents=True, exist_ok=True)
-            source_ticket_pack_path.write_text(
-                "# Repair Follow-On Completion\n\n"
-                "- completed_stage: ticket-pack-builder\n"
-                f"- cycle_id: {source_follow_on_cycle}\n"
-                "- completed_by: ticket-pack-builder\n\n"
-                "## Summary\n\n"
-                "- Routed source follow-up into the ticket system.\n",
-                encoding="utf-8",
+        source_follow_up_repair = run_json(
+            [
+                sys.executable,
+                str(PUBLIC_REPAIR),
+                str(source_follow_up_repair_dest),
+                "--skip-deterministic-refresh",
+            ],
+            ROOT,
+        )
+        if source_follow_up_repair["execution_record"]["blocking_reasons"]:
+            raise RuntimeError(
+                "Source-layer EXEC follow-up alone should not keep managed repair follow-on blocked once the required follow-on stages are complete"
             )
-            source_handoff_rel = (
-                ".opencode/state/artifacts/history/repair/handoff-brief-completion.md"
+        if source_follow_up_repair["execution_record"]["verification_status"][
+            "source_follow_up_codes"
+        ] != ["EXEC003"]:
+            raise RuntimeError(
+                "Public managed repair runner should classify EXEC findings as source follow-up instead of managed repair blockers"
             )
-            source_handoff_path = source_follow_up_repair_dest / source_handoff_rel
-            source_handoff_path.parent.mkdir(parents=True, exist_ok=True)
-            source_handoff_path.write_text(
-                "# Repair Follow-On Completion\n\n"
-                "- completed_stage: handoff-brief\n"
-                f"- cycle_id: {source_follow_on_cycle}\n"
-                "- completed_by: handoff-brief\n\n"
-                "## Summary\n\n"
-                "- Refreshed restart surfaces after converged managed repair.\n",
-                encoding="utf-8",
+        required_stage_details = source_follow_up_repair["execution_record"][
+            "required_follow_on_stage_details"
+        ]
+        if required_stage_details != [
+            {
+                "stage": "ticket-pack-builder",
+                "owner": "ticket-pack-builder",
+                "category": "ticket_follow_up",
+                "reason": "Repair left remediation or reverification follow-up that must be routed into the repo ticket system.",
+            }
+        ]:
+            raise RuntimeError(
+                "Public managed repair runner should expose machine-readable owner/category metadata for required follow-on stages"
             )
-            run_json(
-                [
-                    sys.executable,
-                    str(RECORD_REPAIR_STAGE),
-                    str(source_follow_up_repair_dest),
-                    "--stage",
-                    "ticket-pack-builder",
-                    "--completed-by",
-                    "ticket-pack-builder",
-                    "--summary",
-                    "Routed source follow-up into the ticket system.",
-                    "--evidence",
-                    source_ticket_pack_rel,
-                ],
-                ROOT,
-            )
-            run_json(
-                [
-                    sys.executable,
-                    str(RECORD_REPAIR_STAGE),
-                    str(source_follow_up_repair_dest),
-                    "--stage",
-                    "handoff-brief",
-                    "--completed-by",
-                    "handoff-brief",
-                    "--summary",
-                    "Refreshed restart surfaces after converged managed repair.",
-                    "--evidence",
-                    source_handoff_rel,
-                ],
-                ROOT,
-            )
-            reconcile_source_follow_up = run_json(
-                [
-                    sys.executable,
-                    str(RECONCILE_REPAIR),
-                    str(source_follow_up_repair_dest),
-                ],
-                ROOT,
-            )
-            if reconcile_source_follow_up.get("status") != "reconciled":
-                raise RuntimeError(
-                    "reconcile_repair_follow_on should reconcile completed current-cycle follow-on stages into source_follow_up when only EXEC findings remain"
-                )
-            reconciled_workflow = json.loads(
-                (
-                    source_follow_up_repair_dest
-                    / ".opencode"
-                    / "state"
-                    / "workflow-state.json"
-                ).read_text(encoding="utf-8")
-            )
-            if (
-                reconciled_workflow["repair_follow_on"]["outcome"]
-                != "source_follow_up"
-            ):
-                raise RuntimeError(
-                    "reconcile_repair_follow_on should update workflow-state to source_follow_up when only source follow-up remains"
-                )
-            if (
-                reconciled_workflow["repair_follow_on"]["handoff_allowed"]
-                is not True
-            ):
-                raise RuntimeError(
-                    "reconcile_repair_follow_on should allow handoff once required follow-on stages are complete and only source follow-up remains"
-                )
-            if reconciled_workflow["repair_follow_on"]["blocking_reasons"]:
-                raise RuntimeError(
-                    "reconcile_repair_follow_on should clear stage-only repair blocking reasons once the current cycle is reconciled"
-                )
-            source_follow_up_repair = run_json(
-                [
-                    sys.executable,
-                    str(PUBLIC_REPAIR),
-                    str(source_follow_up_repair_dest),
-                    "--skip-deterministic-refresh",
-                ],
-                ROOT,
-            )
-            if source_follow_up_repair["execution_record"]["blocking_reasons"]:
-                raise RuntimeError(
-                    "Source-layer EXEC follow-up alone should not keep managed repair follow-on blocked once the required follow-on stages are complete"
-                )
-            if source_follow_up_repair["execution_record"]["verification_status"][
-                "source_follow_up_codes"
-            ] != ["EXEC003"]:
-                raise RuntimeError(
-                    "Public managed repair runner should classify EXEC findings as source follow-up instead of managed repair blockers"
-                )
-            required_stage_details = source_follow_up_repair["execution_record"][
-                "required_follow_on_stage_details"
-            ]
-            if required_stage_details != [
-                {
-                    "stage": "ticket-pack-builder",
-                    "owner": "ticket-pack-builder",
-                    "category": "ticket_follow_up",
-                    "reason": "Repair left remediation or reverification follow-up that must be routed into the repo ticket system.",
-                }
-            ]:
-                raise RuntimeError(
-                    "Public managed repair runner should expose machine-readable owner/category metadata for required follow-on stages"
-                )
-            if source_follow_up_repair["execution_record"]["verification_status"][
-                "current_state_clean"
-            ]:
-                raise RuntimeError(
+        if source_follow_up_repair["execution_record"]["verification_status"][
+            "current_state_clean"
+        ]:
+            raise RuntimeError(
                     "Public managed repair runner should not call EXEC-only residual work current_state_clean"
                 )
             if not source_follow_up_repair["execution_record"]["verification_status"][

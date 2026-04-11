@@ -403,7 +403,8 @@ def ensure_godot_android_completion_tickets(
         )
     if "RELEASE-001" not in existing_ids:
         release_acceptance = [
-            f"A debug APK is produced at build/android/{project_slug}-debug.apk or the exact blocker is recorded with command evidence",
+            f"`godot4 --headless --path . --export-debug Android\\ Debug build/android/{project_slug}-debug.apk` produces a debug APK at build/android/{project_slug}-debug.apk or the exact blocker is recorded with command evidence",
+            "`godot4 --headless --path . --quit` succeeds before release closeout so export proof does not mask broken runtime/script-load state",
             "The APK build uses the Android export surfaces owned by ANDROID-001",
             "Release-readiness evidence names the exact export command and outcome",
         ]
@@ -589,6 +590,7 @@ def ensure_finish_ownership_tickets(
                 "summary": "Prove that the declared Product Finish Contract is satisfied and that no placeholder output remains in user-facing surfaces.",
                 "acceptance": [
                     f"Finish proof matches the declared acceptance signals: {finish_acceptance_signals}",
+                    "`godot4 --headless --path . --quit` succeeds so finish validation is based on a loadable product, not just exported artifacts",
                     "All finish-direction, visual, audio, or content ownership tickets required by the contract are completed before closeout",
                 ],
                 "decision_blockers": [],

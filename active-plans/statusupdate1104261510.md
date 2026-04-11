@@ -18,8 +18,8 @@ The most important corrections are:
 2. **womanvshorseVA was falsely accepted.**
    The release smoke artifact for `RELEASE-001` shows `Overall Result: PASS`, but it also contains parse errors in `scripts/hud.gd` and `scripts/wave_spawner.gd`. So the repo exported an APK while core gameplay scripts were still invalid. That is a Scafforge finish/evidence failure.
 
-3. **Scafforge package validation is mixed, not fully green.**
-   `validate:contract` passed on the latest Android target-completion fix, but `validate:smoke` is currently failing on the `CYCLE002` repeated-diagnosis assertion in the monolithic smoke suite.
+3. **Scafforge package validation is green again.**
+   `validate:smoke` and `validate:contract` both pass after the VA-triggered release/finish gate hardening and the follow-on/smoke fixture cleanup work.
 
 4. **The governance breach explanation remains the same, but the consequence is clearer now.**
    The session did drift into direct downstream editing because it prioritized end-to-end repo repair over the stricter Scafforge-only boundary. That was incorrect once the boundary was explicit, and it left several downstream repos with large direct deltas that now need to be treated as state to reconcile rather than proof of correctness.

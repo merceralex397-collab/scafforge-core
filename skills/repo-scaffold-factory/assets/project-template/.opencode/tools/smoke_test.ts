@@ -323,6 +323,42 @@ async function detectAcceptanceCommands(root: string, ticket: { acceptance?: unk
   })
 }
 
+async function augmentGodotReleaseCommands(
+  root: string,
+  ticket: { id?: unknown, lane?: unknown },
+  commands: CommandSpec[],
+): Promise<CommandSpec[]> {
+  if (!(await exists(join(root, "project.godot")))) {
+    return commands
+  }
+  const ticketId = typeof ticket.id === "string" ? ticket.id.trim().toUpperCase() : ""
+  const lane = typeof ticket.lane === "string" ? ticket.lane.trim().toLowerCase() : ""
+  const isReleaseValidationTicket = (
+    ticketId === "RELEASE-001"
+    || ticketId === "FINISH-VALIDATE-001"
+    || lane === "release-readiness"
+    || lane === "finish-validation"
+  )
+  if (!isReleaseValidationTicket) {
+    return commands
+  }
+  const exportCommand = commands.find((command) => isGodotExportCommand(command.argv))
+  if (!exportCommand) {
+    return commands
+  }
+  const loadValidation: CommandSpec = {
+    label: "godot load validation",
+    argv: [exportCommand.argv[0] ?? "godot4", "--headless", "--path", ".", "--quit"],
+    reason: "Godot release/finish proof must also confirm the project loads cleanly, not just that export exits successfully.",
+    env_overrides: exportCommand.env_overrides,
+  }
+  const signature = renderCommand(loadValidation).toLowerCase()
+  if (commands.some((command) => renderCommand(command).toLowerCase() === signature)) {
+    return commands
+  }
+  return [...commands, loadValidation]
+}
+
 async function detectRustCommands(root: string): Promise<CommandSpec[]> {
   if (!(await exists(join(root, "Cargo.toml")))) {
     return []
@@ -507,11 +543,11 @@ function parseCommandOverride(rawOverride: string[]): CommandSpec[] {
 
 async function detectCommands(root: string, ticket: { acceptance?: unknown }, args: SmokeArgs): Promise<CommandSpec[]> {
   if (Array.isArray(args.command_override) && args.command_override.length > 0) {
-    return parseCommandOverride(args.command_override)
+    return augmentGodotReleaseCommands(root, ticket, parseCommandOverride(args.command_override))
   }
   const acceptanceCommands = await detectAcceptanceCommands(root, ticket)
   if (acceptanceCommands.length > 0) {
-    return acceptanceCommands
+    return augmentGodotReleaseCommands(root, ticket, acceptanceCommands)
   }
   const makeOverride = await detectMakeSmokeTarget(root)
   if (makeOverride.length > 0) {
