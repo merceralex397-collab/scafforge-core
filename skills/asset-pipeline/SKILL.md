@@ -53,13 +53,18 @@ Use the blender-agent MCP server to generate 3D assets via AI-orchestrated Blend
 
 **Pipeline**:
 1. Agent reads asset brief from `assets/briefs/<asset-name>.md`
-2. Agent calls blender-agent tools in sequence:
-   - `project_initialize` → set up Blender project
-   - `mesh_edit_batch` → create geometry
-   - `material_pbr_build` → apply materials
-   - `uv_workflow` → UV unwrap
-   - `render_preview` → generate preview for QA
-   - `export_asset` → export as `.glb` for Godot
+2. Agent calls blender-agent tools in sequence.
+   - **Critical persistence contract**: Blender mutating calls are stateless. Every mutating call must provide `output_blend`, must inspect the returned `persistence.saved_blend`, and must pass that exact saved path back as `input_blend` on the next mutating call.
+   - Never pass `input_blend: null` or `output_blend: null` on a mutating call.
+   - If a response says the work was ephemeral, `output_blend` was omitted, or `persistence.saved_blend` is missing, stop and retry that step correctly before continuing.
+   - Recommended chain:
+     - `project_initialize(output_blend=tmp/<asset>-01.blend)` → set up Blender project
+     - `mesh_edit_batch(input_blend=<saved>, output_blend=tmp/<asset>-02.blend)` or `scene_batch_edit(...)` → create geometry
+     - `material_pbr_build(input_blend=<saved>, output_blend=tmp/<asset>-03.blend)` → apply materials
+     - `uv_workflow(input_blend=<saved>, output_blend=tmp/<asset>-04.blend)` → UV unwrap
+     - `render_preview(input_blend=<saved>, output_blend=tmp/<asset>-05.blend)` → generate preview for QA
+     - `quality_validate(input_blend=<saved>)` → validate the persisted asset state
+     - `export_asset(input_blend=<saved>)` → export as `.glb` for Godot
 3. Exported `.glb` placed in `assets/models/`
 4. Agent runs `quality_validate` for mesh quality checks
 5. Godot re-import validation: `godot4 --headless --path . --quit` (checks import)
@@ -84,7 +89,23 @@ Use Godot's native capabilities for asset creation.
 
 ## Procedure
 
-### 1. Classify Asset Requirements
+### 1. Seed the deterministic asset scaffold first
+
+Before writing custom docs or tickets, run the initializer so the repo already contains the canonical asset surfaces:
+
+```sh
+python3 skills/asset-pipeline/scripts/init_asset_pipeline.py <repo-root>
+```
+
+That script reads `.opencode/meta/bootstrap-provenance.json` when present, then seeds:
+- `assets/pipeline.json`
+- `assets/PROVENANCE.md`
+- `assets/briefs/`, `assets/models/`, `assets/sprites/`, `assets/audio/`, `assets/fonts/`, `assets/themes/`
+- `.opencode/meta/asset-pipeline-bootstrap.json`
+
+Treat `.opencode/meta/asset-pipeline-bootstrap.json` as the machine-readable handoff for `project-skill-bootstrap` and `opencode-team-bootstrap`.
+
+### 2. Classify Asset Requirements
 
 Read the canonical brief and extract:
 - Art style (pixel, low-poly, stylized, realistic)
@@ -92,7 +113,7 @@ Read the canonical brief and extract:
 - Target platform constraints (mobile = smaller textures, fewer polygons)
 - License requirements (commercial? attribution-ok? copyleft-ok?)
 
-### 2. Select Routes Per Asset Category
+### 3. Select Routes Per Asset Category
 
 Map each asset category to the best route:
 
@@ -117,9 +138,9 @@ vfx:
   fallback: route_a (procedural)
 ```
 
-### 3. Generate Asset Pipeline Configuration
+### 4. Refine the seeded asset pipeline configuration
 
-Create `assets/pipeline.json`:
+Update the seeded `assets/pipeline.json` instead of inventing a new layout:
 ```json
 {
   "art_style": "low-poly",
@@ -137,20 +158,6 @@ Create `assets/pipeline.json`:
   "texture_max_size": 1024,
   "model_max_tris": 5000
 }
-```
-
-### 4. Create Asset Directory Structure
-
-```
-assets/
-  briefs/          # Asset description documents (for route C)
-  models/          # 3D models (.glb, .gltf, .obj)
-  sprites/         # 2D sprites (.png, .svg)
-  audio/           # Sound effects and music (.ogg, .wav)
-  fonts/           # Font files (.ttf, .otf)
-  themes/          # Godot theme resources (.tres)
-  PROVENANCE.md    # License and source tracking
-  pipeline.json    # Pipeline configuration
 ```
 
 ### 5. Generate Tickets for Asset Work
@@ -174,6 +181,7 @@ Add to the team's agent configuration:
 - Scoped to blender-agent MCP tools only
 - Uses the asset-description skill for brief interpretation
 - Has access to `assets/briefs/` for input and `assets/models/` for output
+- Mirror that choice into `.opencode/meta/asset-pipeline-bootstrap.json` if you refine the route map after initialization.
 
 ## Outputs
 
@@ -181,6 +189,7 @@ Add to the team's agent configuration:
 - `assets/PROVENANCE.md` — Asset provenance tracking (initialized)
 - `assets/briefs/*.md` — Asset description documents (if route C)
 - Asset directory structure created
+- `.opencode/meta/asset-pipeline-bootstrap.json` — machine-readable route + agent/skill hints for later bootstrap stages
 - Tickets created for asset acquisition work
 - Blender-MCP subagent configured (if route C)
 

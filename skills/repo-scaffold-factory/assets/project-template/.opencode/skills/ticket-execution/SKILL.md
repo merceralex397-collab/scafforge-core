@@ -84,6 +84,7 @@ Remediation ticket closeout:
 - include the rerun output and whether the original error signature is gone in the closeout evidence
 - if the finding-specific rerun still fails, do not close the ticket; route back to implementation with the fresh command output
 - if the finding-specific rerun passes, also confirm adjacent quality gates that previously passed still remain green
+- for process-remediation or reverification tickets, keep smoke-test scope limited to checks that are valid at the repo's current backlog state; do not broaden smoke into a product boot command that is expected to fail because prerequisite feature tickets are still unfinished
 
 Verification state semantics:
 

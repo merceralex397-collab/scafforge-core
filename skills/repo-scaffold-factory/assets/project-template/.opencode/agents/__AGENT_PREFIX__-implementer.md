@@ -33,9 +33,19 @@ permission:
     "ls *": allow
     "find *": allow
     "rg *": allow
+    "grep *": allow
     "cat *": allow
     "head *": allow
     "tail *": allow
+    "file *": allow
+    "echo *": allow
+    "test -f *": allow
+    "test -d *": allow
+    "[ -f *": allow
+    "[ -d *": allow
+    "mkdir *": allow
+    "cp *": allow
+    "mv *": allow
     "git status*": allow
     "git diff*": allow
     "npm *": allow
@@ -44,11 +54,20 @@ permission:
     "bun *": allow
     "node *": allow
     "python *": allow
+    "python3 *": allow
     "pytest *": allow
     "uv *": allow
+    "curl *": allow
+    "wget *": allow
+    "unzip *": allow
+    "tar *": allow
+    "zip *": allow
     "cargo *": allow
     "go *": allow
     "make *": allow
+    "/home/pc/.local/bin/godot *": allow
+    "godot *": allow
+    "godot4 *": allow
     "rm *": deny
     "git reset *": deny
     "git clean *": deny

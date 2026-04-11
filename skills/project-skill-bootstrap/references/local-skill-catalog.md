@@ -30,6 +30,14 @@ The default full-orchestration profile should expose these lanes, but heavier pa
 - required stage order
 - bootstrap-first routing when bootstrap is not `ready`
 - artifact expectations
+- team-leader ownership of `ticket_claim` / `ticket_release`
+- Wave 0-only pre-bootstrap write claims
+- repeated lifecycle-contradiction stop rule
+- explicit failure recovery paths for review, QA, and smoke-test stages
+- `ticket_lookup.transition_guidance.recovery_action` routing
+- `smoke_test` as the only producer of passing smoke artifacts
+- process-remediation and reverification smoke scoped only to commands that are valid at the current backlog state, not broader product boot probes that are expected to fail while prerequisite feature tickets remain open
+- slash commands treated as human entrypoints only
 
 ## review-audit-bridge
 

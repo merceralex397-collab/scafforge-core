@@ -1237,7 +1237,7 @@ def validate_template_surfaces(findings: list[Finding]) -> None:
     require_contains(
         findings,
         TEMPLATE_ROOT / "docs" / "process" / "workflow.md",
-        "use `ticket_reverify` to restore trust on a closed done ticket",
+        "use `ticket_reverify` to restore trust on a historical ticket",
     )
     require_contains(
         findings,
@@ -1526,12 +1526,12 @@ def validate_template_surfaces(findings: list[Finding]) -> None:
     require_contains(
         findings,
         TEMPLATE_ROOT / ".opencode" / "tools" / "ticket_reverify.ts",
-        "legal mutation path for closed done tickets",
+        "legal mutation path for closed done tickets and reopened historical tickets",
     )
     require_contains(
         findings,
         TEMPLATE_ROOT / ".opencode" / "tools" / "ticket_reverify.ts",
-        'if (sourceTicket.status !== "done")',
+        "ticketEligibleForTrustRestoration(sourceTicket)",
     )
     require_contains(
         findings,

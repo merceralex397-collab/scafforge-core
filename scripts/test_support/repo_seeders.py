@@ -402,6 +402,38 @@ def seed_restart_surface_drift(dest: Path) -> None:
     )
 
 
+def seed_completed_repair_follow_on_verification_block(dest: Path) -> None:
+    workflow_path = dest / ".opencode" / "state" / "workflow-state.json"
+    workflow = read_json(workflow_path)
+    proof_rel = ".opencode/state/bootstrap/synthetic-ready-bootstrap.md"
+    proof_path = dest / proof_rel
+    proof_path.parent.mkdir(parents=True, exist_ok=True)
+    proof_path.write_text("# Ready Bootstrap\n", encoding="utf-8")
+    workflow["bootstrap"] = {
+        "status": "ready",
+        "last_verified_at": "2026-03-25T23:02:26Z",
+        "environment_fingerprint": compute_bootstrap_fingerprint(dest),
+        "proof_artifact": proof_rel,
+    }
+    workflow["pending_process_verification"] = True
+    workflow["repair_follow_on"] = {
+        **workflow.get("repair_follow_on", {}),
+        "outcome": "managed_blocked",
+        "required_stages": ["ticket-pack-builder"],
+        "completed_stages": ["ticket-pack-builder"],
+        "blocking_reasons": [
+            "Post-repair verification failed repair-contract consistency checks: restart_surface_drift_after_repair."
+        ],
+        "verification_passed": False,
+        "handoff_allowed": False,
+        "current_state_clean": False,
+        "contract_failures": ["restart_surface_drift_after_repair"],
+        "allowed_follow_on_tickets": [],
+        "last_updated_at": "2026-03-25T23:02:26Z",
+    }
+    write_json(workflow_path, workflow)
+
+
 def seed_historical_reconciliation_state(dest: Path) -> None:
     manifest_path = dest / "tickets" / "manifest.json"
     workflow_path = dest / ".opencode" / "state" / "workflow-state.json"
@@ -712,4 +744,3 @@ def seed_all_tickets_closed(dest: Path) -> None:
 
     write_json(manifest_path, manifest)
     write_json(workflow_path, workflow)
-

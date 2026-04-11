@@ -785,7 +785,7 @@ def summarize_verification(
     repair_basis_path: Path | None,
     regression_summary: dict[str, list[str]],
 ) -> dict[str, Any]:
-    blocking_findings = [*classes["managed_blockers"], *classes["manual_prerequisites"]]
+    blocking_findings = [*classes["managed_blockers"]]
     managed_repair_verified = (
         performed
         and not blocking_findings
@@ -795,6 +795,7 @@ def summarize_verification(
     current_state_clean = (
         managed_repair_verified
         and not classes["source_follow_up"]
+        and not classes["manual_prerequisites"]
         and not classes["process_state_only"]
         and not pending_process_verification
     )
@@ -813,6 +814,7 @@ def summarize_verification(
         "warning_count": sum(1 for finding in findings if getattr(finding, "severity", "") == "warning"),
         "codes": [getattr(finding, "code", "") for finding in findings],
         "blocking_codes": [getattr(finding, "code", "") for finding in blocking_findings],
+        "manual_prerequisite_codes": [getattr(finding, "code", "") for finding in classes["manual_prerequisites"]],
         "source_follow_up_codes": [getattr(finding, "code", "") for finding in classes["source_follow_up"]],
         "process_state_codes": [getattr(finding, "code", "") for finding in classes["process_state_only"]],
         "advisory_codes": [getattr(finding, "code", "") for finding in classes["advisory"]],
@@ -887,6 +889,12 @@ def update_repair_follow_on_state(
     handoff_allowed: bool,
     current_state_clean: bool,
     causal_regression_verified: bool,
+    verification_blocking_codes: list[str] | None = None,
+    manual_prerequisite_codes: list[str] | None = None,
+    source_follow_up_codes: list[str] | None = None,
+    process_state_codes: list[str] | None = None,
+    advisory_codes: list[str] | None = None,
+    contract_failures: list[str] | None = None,
     allowed_follow_on_tickets: list[str] | None = None,
 ) -> dict[str, Any]:
     workflow_path = repo_root / ".opencode" / "state" / "workflow-state.json"
@@ -912,6 +920,12 @@ def update_repair_follow_on_state(
         "handoff_allowed": handoff_allowed,
         "current_state_clean": current_state_clean,
         "causal_regression_verified": causal_regression_verified,
+        "verification_blocking_codes": list(verification_blocking_codes or []),
+        "manual_prerequisite_codes": list(manual_prerequisite_codes or []),
+        "source_follow_up_codes": list(source_follow_up_codes or []),
+        "process_state_codes": list(process_state_codes or []),
+        "advisory_codes": list(advisory_codes or []),
+        "contract_failures": list(contract_failures or []),
         "last_updated_at": tracking_state.get("last_updated_at"),
         "process_version": process_version,
         # Tickets the repair script has explicitly authorized for lifecycle
@@ -947,6 +961,14 @@ def main() -> int:
         "summary": "Deterministic refresh was skipped; legacy migration did not run." if args.skip_deterministic_refresh else "Current process contract detected.",
         "migration_id": None,
     }
+    repair_basis = resolve_repair_basis(repo_root, args.repair_basis_diagnosis)
+    repair_basis_path = repair_basis[0] if repair_basis else None
+    repair_basis_manifest = repair_basis[1] if repair_basis else {}
+    if isinstance(repair_basis_manifest, dict) and repair_basis_manifest.get("package_work_required_first") is True:
+        raise SystemExit(
+            "The selected repair basis still requires Scafforge package work first. "
+            "Run one fresh post-package revalidation audit after the package changes land, then repair from that diagnosis pack."
+        )
 
     if not args.skip_deterministic_refresh:
         metadata = load_metadata(repo_root, args)
@@ -993,6 +1015,7 @@ def main() -> int:
                     repo_root,
                     rendered_root,
                     args.change_summary,
+                    repair_basis_path=repair_basis_path,
                     preserve_backups=args.preserve_backups,
                 )
             except RepairEscalation as exc:
@@ -1021,14 +1044,6 @@ def main() -> int:
                 return 2
             replaced_surfaces = repair_result["replaced_surfaces"]
 
-    repair_basis = resolve_repair_basis(repo_root, args.repair_basis_diagnosis)
-    repair_basis_path = repair_basis[0] if repair_basis else None
-    repair_basis_manifest = repair_basis[1] if repair_basis else {}
-    if isinstance(repair_basis_manifest, dict) and repair_basis_manifest.get("package_work_required_first") is True:
-        raise SystemExit(
-            "The selected repair basis still requires Scafforge package work first. "
-            "Run one fresh post-package revalidation audit after the package changes land, then repair from that diagnosis pack."
-        )
     basis_requires_causal_replay = repair_basis_requires_causal_replay(repo_root, args.supporting_log, repair_basis)
     findings: list[Any] = []
     pending_process_verification = False
@@ -1241,14 +1256,17 @@ def main() -> int:
                 + ", ".join(verification_status["contract_failures"])
                 + "."
             )
-        elif finding_classes["managed_blockers"] or finding_classes["manual_prerequisites"]:
+        elif finding_classes["managed_blockers"]:
             blocking_reasons.append("Post-repair verification still reports managed workflow or environment findings; handoff must remain blocked until they are resolved.")
 
         repair_follow_on_outcome = (
             "managed_blocked"
             if blocking_reasons or not verification_status["verification_passed"]
             else "source_follow_up"
-            if verification_status["source_follow_up_codes"] or verification_status["process_state_codes"] or pending_process_verification
+            if verification_status["source_follow_up_codes"]
+            or verification_status["manual_prerequisite_codes"]
+            or verification_status["process_state_codes"]
+            or pending_process_verification
             else "clean"
         )
         handoff_allowed = verification_status["verification_passed"] and not blocking_reasons
@@ -1285,6 +1303,12 @@ def main() -> int:
             handoff_allowed=handoff_allowed,
             current_state_clean=verification_status["current_state_clean"],
             causal_regression_verified=verification_status["causal_regression_verified"],
+            verification_blocking_codes=verification_status["blocking_codes"],
+            manual_prerequisite_codes=verification_status["manual_prerequisite_codes"],
+            source_follow_up_codes=verification_status["source_follow_up_codes"],
+            process_state_codes=verification_status["process_state_codes"],
+            advisory_codes=verification_status["advisory_codes"],
+            contract_failures=verification_status["contract_failures"],
             allowed_follow_on_tickets=_allowed,
         )
         regenerate_restart_surfaces(

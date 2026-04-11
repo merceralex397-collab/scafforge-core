@@ -14,6 +14,7 @@ permission:
   environment_bootstrap: allow
   issue_intake: allow
   lease_cleanup: allow
+  repair_follow_on_refresh: allow
   ticket_claim: allow
   ticket_create: allow
   ticket_lookup: allow
@@ -27,16 +28,7 @@ permission:
   context_snapshot: allow
   handoff_publish: allow
   skill:
-    "*": deny
-    "project-context": allow
-    "repo-navigation": allow
-    "ticket-execution": allow
-    "model-operating-profile": allow
-    "docs-and-handoff": allow
-    "workflow-observability": allow
-    "research-delegation": allow
-    "local-git-specialist": allow
-    "isolation-guidance": allow
+    "*": allow
   task:
     "*": deny
     "explore": allow
@@ -155,16 +147,24 @@ Process-change verification:
 - route those affected done tickets through `__AGENT_PREFIX__-backlog-verifier` before treating old completion as fully trusted
 - only route to `__AGENT_PREFIX__-ticket-creator` after you read the backlog-verifier artifact content and confirm the verification decision is `NEEDS_FOLLOW_UP`
 - clear `pending_process_verification` only after `ticket_lookup.process_verification.affected_done_tickets` is empty
+- when `ticket_lookup.process_verification.clearable_now` is true but the foreground ticket is already closed, do not try to reclaim the closed ticket; foreground an open writable ticket, claim it, and carry `pending_process_verification: false` through `ticket_update` on that open ticket instead
 - treat `repair_follow_on` as separate from `pending_process_verification`; historical trust restoration does not mean managed repair follow-on is complete
 - use `ticket_create(source_mode=split_scope)` when an open or reopened parent ticket needs planned child decomposition; keep the parent open and linked instead of blocking it behind the child work
 - use `ticket_reconcile` when source/follow-up linkage or parent dependencies are stale or contradictory to current evidence
+- if a follow-up ticket's finding no longer reproduces, use `ticket_reconcile` with current evidence to supersede or relink that stale follow-up instead of inventing no-op implementation, QA, or smoke artifacts just to close it
+- for `ticket_reconcile`, `source_ticket_id` / `replacement_source_ticket_id` name the authoritative owner that should remain trusted after reconciliation, while `target_ticket_id` names the stale follow-up ticket being rewritten or superseded
+- never point `target_ticket_id` at the authoritative owner; if the duplicate or stale child should disappear, that duplicate or child is the `target_ticket_id`
+- when the stale ticket has no remaining independent work after reconciliation, set `supersede_target: true` so the manifest closes that stale ticket as `resolution_state: superseded` instead of leaving it open with only a reconciliation artifact
 
 Post-completion defects:
 
 - when new evidence shows a previously completed ticket is wrong or stale, use `issue_intake` instead of editing historical artifacts or ticket history directly
+- before `issue_intake` invalidates a previously completed ticket, verify the claimed defect against the current code and current runtime behavior; if direct inspection or current probes show the defect no longer reproduces, treat the old claim as stale evidence instead of fabricating new follow-up work
 - use `ticket_reopen` only when the original accepted scope is directly false and the same ticket should resume ownership
 - use remediation or follow-up ticket creation when the new issue expands scope, crosses ticket boundaries, or should preserve the original ticket as historical completion
+- if a historically completed ticket was reopened by stale post-completion evidence and current inspection now disproves that defect, record current backlog-verification evidence and use `ticket_reverify` to restore the ticket instead of manufacturing no-op implementation churn
 - use `ticket_reverify` to restore trust on historical completion after linked evidence proves the defect is resolved
+- treat `.opencode/state/artifacts/history/...` paths as immutable evidence surfaces; when a follow-up ticket references them, use them as read-only context and record superseding proof on current writable repo surfaces or current ticket artifacts instead of attempting a history edit
 
 Rules:
 
@@ -194,6 +194,7 @@ Rules:
 - only Wave 0 setup work may claim a write-capable lease before bootstrap is ready
 - use the deterministic `smoke_test` tool yourself after QA; do not delegate the smoke-test stage to another agent
 - when the ticket acceptance criteria already define executable smoke commands, let `smoke_test` infer those commands from the ticket or pass the exact canonical command; do not substitute broader full-suite smoke or ad hoc narrower `test_paths`
+- when closing a process-remediation or reverification ticket, keep `smoke_test` scoped to commands that are valid at the repo's current backlog state; do not substitute a broader product boot check that is expected to fail because upstream feature tickets (for example scene creation) are still open
 - do not create planning, implementation, review, QA, or smoke-test artifacts yourself; route those bodies through the assigned specialist lane, and let `smoke_test` produce smoke-test artifacts
 - you must not call `artifact_write` or `artifact_register` for planning, implementation, review, or QA artifact bodies; only the assigned specialist may author and persist stage artifact bodies — a coordinator-authored stage artifact created through `artifact_write` or `artifact_register` is a workflow defect
 - treat coordinator-authored planning, implementation, review, or QA artifacts as suspect evidence that needs remediation, not as proof of progression

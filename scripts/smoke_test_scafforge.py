@@ -15,6 +15,7 @@ from test_support.repo_seeders import (
     make_stack_skill_non_placeholder,
     seed_all_tickets_closed,
     seed_bootstrap_command_layout_mismatch,
+    seed_completed_repair_follow_on_verification_block,
     seed_closed_ticket_with_new_active_artifact_write,
     seed_failing_pytest_suite,
     seed_ready_bootstrap,
@@ -33,6 +34,7 @@ from test_support.scafforge_harness import (
     PIVOT_PUBLISH,
     PIVOT_RECORD,
     PUBLIC_REPAIR,
+    RECONCILE_REPAIR,
     RECORD_REPAIR_STAGE,
     REGENERATE,
     REPAIR,
@@ -390,14 +392,73 @@ def seed_review_stage_with_verdict(dest: Path, verdict_line: str) -> None:
     )
 
 
+def seed_glitch_style_remediation_review(
+    dest: Path, result_line: str = "**Verdict:** PASS"
+) -> None:
+    manifest_path = dest / "tickets" / "manifest.json"
+    workflow_path = dest / ".opencode" / "state" / "workflow-state.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    workflow = json.loads(workflow_path.read_text(encoding="utf-8"))
+    ticket = manifest["tickets"][0]
+    ticket["stage"] = "review"
+    ticket["status"] = "review"
+    ticket["finding_source"] = "EXEC-REMED-001"
+    manifest["active_ticket"] = ticket["id"]
+    workflow["active_ticket"] = ticket["id"]
+    workflow["stage"] = "review"
+    workflow["status"] = "review"
+    workflow["ticket_state"].setdefault(
+        ticket["id"],
+        {"approved_plan": True, "reopen_count": 0, "needs_reverification": False},
+    )["approved_plan"] = True
+    manifest_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+    workflow_path.write_text(json.dumps(workflow, indent=2) + "\n", encoding="utf-8")
+    register_current_ticket_artifact(
+        dest,
+        ticket_id=ticket["id"],
+        kind="review",
+        stage="review",
+        relative_path=".opencode/state/reviews/setup-001-review.md",
+        summary="Synthetic remediation review artifact with fenced command evidence.",
+        content=(
+            "# Review Artifact: SETUP-001\n\n"
+            "## Review Summary\n\n"
+            f"{result_line}\n\n"
+            "### Finding 1 - Real Command Evidence Provided\n\n"
+            "**Command run:**\n"
+            "```text\n"
+            "godot --headless --path . --quit 2>&1 | head -50\n"
+            "```\n\n"
+            "**Raw output (truncated to relevant lines):**\n"
+            "```text\n"
+            "Godot Engine v4.6.2.stable.official.71f334935 - https://godotengine.org\n"
+            "[HUD] Successfully connected to glitch_warning signal\n"
+            "```\n\n"
+            f"{result_line}\n"
+        ),
+    )
+
+
 def seed_legacy_markdown_verdict_parser(dest: Path) -> None:
     legacy_minimax = "minimax-coding-plan/" + "MiniMax-M2." + "5"
     workflow_path = dest / ".opencode" / "lib" / "workflow.ts"
     text = workflow_path.read_text(encoding="utf-8")
-    text = text.replace(
-        r"/^(?:[-*]\s*)?(?:\*\*|__)?(?:overall(?:\s+result)?|verdict|result|approval\s+signal)(?:\*\*|__)?\s*:\s*(?:\*\*|__)?\s*(pass|fail|reject|approved?|blocked?|blocker)(?:\*\*|__)?\b/i",
-        r"/^(?:overall(?:\s+result)?|verdict|result|approval\s+signal)\s*:\s*(?:\*\*)?\s*(pass|fail|reject|approved?|blocked?|blocker)\b/i",
+    broad_plain_label = """const labeled = plain.match(
+      new RegExp(
+        `^(?:[-*]\\\\s*)?${ARTIFACT_VERDICT_LABEL_PATTERN}\\\\s*:\\\\s*(pass|fail|reject|approved?|blocked?|blocker)\\\\b`,
+        "i",
+      ),
+    )"""
+    legacy_plain_label = (
+        r'const labeled = trimmed.match(/^(?:overall(?:\s+result)?|verdict|result|approval\s+signal)\s*:\s*(?:\*\*)?\s*(pass|fail|reject|approved?|blocked?|blocker)\b/i)'
     )
+    if broad_plain_label in text:
+        text = text.replace(broad_plain_label, legacy_plain_label)
+    else:
+        text = text.replace(
+            r"/^(?:[-*]\s*)?(?:(?:\*\*|__)?(?:overall(?:\s+(?:result|verdict))?|verdict|result|approval\s+signal)(?:\*\*|__)?\s*:|(?:\*\*|__)?(?:overall(?:\s+(?:result|verdict))?|verdict|result|approval\s+signal):(?:\*\*|__)?)\s*(?:\*\*|__)?\s*(pass|fail|reject|approved?|blocked?|blocker)(?:\*\*|__)?\b/i",
+            r"/^(?:overall(?:\s+result)?|verdict|result|approval\s+signal)\s*:\s*(?:\*\*)?\s*(pass|fail|reject|approved?|blocked?|blocker)\b/i",
+        )
     workflow_path.write_text(text, encoding="utf-8")
 
     (dest / "docs" / "process" / "model-matrix.md").write_text(
@@ -477,6 +538,38 @@ def seed_closed_ticket_with_blocked_dependent(dest: Path) -> None:
     active_ticket["status"] = "done"
     active_ticket["resolution_state"] = "done"
     active_ticket["verification_state"] = "reverified"
+    smoke_test_path = (
+        dest
+        / ".opencode"
+        / "state"
+        / "artifacts"
+        / "history"
+        / active_ticket_id.lower()
+        / "smoke-test"
+        / "2099-01-01T00-00-00Z-smoke-test.md"
+    )
+    smoke_test_path.parent.mkdir(parents=True, exist_ok=True)
+    smoke_test_path.write_text(
+        "# Smoke Test\n\n## Validation Command\n\n`npm test -- --runInBand`\n\n## Raw Output\n\n```text\nPASS tests/workflow.test.ts\n  workflow closeout convergence\n    ✓ foregrounds the next live lane after a closed active ticket is resaved\n\nTest Suites: 1 passed, 1 total\nTests:       1 passed, 1 total\nSnapshots:   0 total\nTime:        0.842 s\nRan all test suites matching /workflow/i.\n```\n\n## Notes\n\n- Synthetic PASS smoke proof used to exercise closed-ticket continuation coverage through the generated tool path.\n- Includes command output and a realistic artifact body so closeout validation sees the same surface shape as a real run.\n\n## Overall Result\n\nPASS\n",
+        encoding="utf-8",
+    )
+    active_ticket_artifacts = active_ticket.setdefault("artifacts", [])
+    if not any(
+        artifact.get("stage") == "smoke-test"
+        and artifact.get("kind") == "smoke-test"
+        and artifact.get("trust_state") == "current"
+        for artifact in active_ticket_artifacts
+    ):
+        active_ticket_artifacts.append(
+            {
+                "kind": "smoke-test",
+                "stage": "smoke-test",
+                "path": str(smoke_test_path.relative_to(dest)),
+                "summary": "Synthetic PASS smoke proof for closed-ticket continuation coverage.",
+                "created_at": "2099-01-01T00:00:00Z",
+                "trust_state": "current",
+            }
+        )
     if not any(ticket["id"] == "EXEC-DEP" for ticket in manifest["tickets"]):
         manifest["tickets"].append(
             {
@@ -725,6 +818,45 @@ def seed_closed_ticket_needing_explicit_reverification(dest: Path) -> None:
     if isinstance(ticket_state, dict):
         active_ticket_state = ticket_state.get(active_ticket_id)
         if isinstance(active_ticket_state, dict):
+            active_ticket_state["needs_reverification"] = True
+    proof_path = (
+        dest / ".opencode" / "state" / "bootstrap" / "synthetic-ready-bootstrap.md"
+    )
+    proof_path.parent.mkdir(parents=True, exist_ok=True)
+    proof_path.write_text("# Ready Bootstrap\n", encoding="utf-8")
+    manifest_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+    workflow_path.write_text(json.dumps(workflow, indent=2) + "\n", encoding="utf-8")
+
+
+def seed_reopened_ticket_needing_explicit_reverification(dest: Path) -> None:
+    manifest_path = dest / "tickets" / "manifest.json"
+    workflow_path = dest / ".opencode" / "state" / "workflow-state.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    workflow = json.loads(workflow_path.read_text(encoding="utf-8"))
+    active_ticket_id = manifest["active_ticket"]
+    active_ticket = next(
+        ticket for ticket in manifest["tickets"] if ticket["id"] == active_ticket_id
+    )
+    active_ticket["stage"] = "planning"
+    active_ticket["status"] = "todo"
+    active_ticket["resolution_state"] = "reopened"
+    active_ticket["verification_state"] = "invalidated"
+    workflow["stage"] = "planning"
+    workflow["status"] = "todo"
+    workflow["pending_process_verification"] = False
+    workflow["bootstrap"] = {
+        "status": "ready",
+        "last_verified_at": "2026-03-26T00:00:00Z",
+        "environment_fingerprint": compute_bootstrap_fingerprint(dest),
+        "proof_artifact": ".opencode/state/bootstrap/synthetic-ready-bootstrap.md",
+    }
+    ticket_state = workflow.get("ticket_state")
+    if isinstance(ticket_state, dict):
+        active_ticket_state = ticket_state.get(active_ticket_id)
+        if isinstance(active_ticket_state, dict):
+            active_ticket_state["reopen_count"] = max(
+                int(active_ticket_state.get("reopen_count", 0)), 1
+            )
             active_ticket_state["needs_reverification"] = True
     proof_path = (
         dest / ".opencode" / "state" / "bootstrap" / "synthetic-ready-bootstrap.md"
@@ -1666,6 +1798,71 @@ def seed_open_parent_split_drift(dest: Path) -> None:
     manifest_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
 
 
+def seed_superseded_follow_up_history(dest: Path) -> None:
+    manifest_path = dest / "tickets" / "manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    source = manifest["tickets"][0]
+    child_id = "EXEC-SUPERSEDED-HISTORY"
+    manifest["tickets"].append(
+        {
+            "id": child_id,
+            "title": "Historical superseded follow-up",
+            "wave": source["wave"],
+            "lane": "remediation",
+            "parallel_safe": False,
+            "overlap_risk": "low",
+            "stage": "closeout",
+            "status": "done",
+            "depends_on": [],
+            "summary": "Synthetic superseded follow-up retained only for historical lineage.",
+            "acceptance": ["Historical superseded follow-up stays closed."],
+            "decision_blockers": [],
+            "artifacts": [],
+            "resolution_state": "superseded",
+            "verification_state": "reverified",
+            "finding_source": "EXEC-HISTORY-001",
+            "source_ticket_id": source["id"],
+            "follow_up_ticket_ids": [],
+            "source_mode": "split_scope",
+            "split_kind": "sequential_dependent",
+        }
+    )
+    manifest_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+
+
+def seed_parent_retains_superseded_follow_up(dest: Path) -> None:
+    manifest_path = dest / "tickets" / "manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    source = manifest["tickets"][0]
+    child_id = "EXEC-SUPERSEDED-LINK"
+    source["follow_up_ticket_ids"] = [*source.get("follow_up_ticket_ids", []), child_id]
+    manifest["tickets"].append(
+        {
+            "id": child_id,
+            "title": "Superseded follow-up still linked from parent",
+            "wave": source["wave"],
+            "lane": "remediation",
+            "parallel_safe": False,
+            "overlap_risk": "low",
+            "stage": "closeout",
+            "status": "done",
+            "depends_on": [],
+            "summary": "Synthetic superseded follow-up still incorrectly listed by the parent.",
+            "acceptance": ["Superseded follow-up is unlinked from the parent."],
+            "decision_blockers": [],
+            "artifacts": [],
+            "resolution_state": "superseded",
+            "verification_state": "reverified",
+            "finding_source": "EXEC-HISTORY-002",
+            "source_ticket_id": source["id"],
+            "follow_up_ticket_ids": [],
+            "source_mode": "split_scope",
+            "split_kind": "sequential_dependent",
+        }
+    )
+    manifest_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+
+
 def seed_blocked_split_parent(dest: Path) -> None:
     manifest_path = dest / "tickets" / "manifest.json"
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
@@ -1909,7 +2106,7 @@ def seed_reverification_deadlock(dest: Path) -> None:
     stage_gate = dest / ".opencode" / "plugins" / "stage-gate-enforcer.ts"
     text = stage_gate.read_text(encoding="utf-8")
     text = text.replace(
-        '        const ticket = getTicket(manifest, ticketId)\n        if (ticket.status !== "done") {\n          throw new Error(`Ticket ${ticket.id} must already be done before ticket_reverify can restore trust.`)\n        }\n',
+        '        const ticket = getTicket(manifest, ticketId)\n        if (!ticketEligibleForTrustRestoration(ticket)) {\n          throw new Error(`Ticket ${ticket.id} must still be a historical done or reopened ticket before ticket_reverify can restore trust.`)\n        }\n',
         "        await ensureTargetTicketWriteLease(ticketId)\n",
     )
     stage_gate.write_text(text, encoding="utf-8")
@@ -2209,6 +2406,80 @@ def main() -> int:
                 "Generated model-matrix.md should reflect an explicit strong model tier"
             )
 
+        va_finish_dest = workspace / "va-finish-contract"
+        run(
+            [
+                sys.executable,
+                str(BOOTSTRAP),
+                "--project-name",
+                "VA Finish Probe",
+                "--project-slug",
+                "va-finish-probe",
+                "--agent-prefix",
+                "vafinish",
+                "--model-provider",
+                "openrouter",
+                "--planner-model",
+                "openrouter/anthropic/claude-sonnet-4.5",
+                "--implementer-model",
+                "openrouter/openai/gpt-5-codex",
+                "--utility-model",
+                "openrouter/openai/gpt-5-mini",
+                "--stack-label",
+                "godot-3d-android-game",
+                "--deliverable-kind",
+                "Android APK for local testing and direct device installation",
+                "--placeholder-policy",
+                "Procedural/programmatic sprites acceptable. Colored shapes with basic animations. No placeholder art in final build.",
+                "--visual-finish-target",
+                "2D top-down view with procedural sprites. Clean, readable gameplay.",
+                "--audio-finish-target",
+                "Minimal: procedural/generated SFX. Background music optional.",
+                "--content-source-plan",
+                "Procedural generation — sprites created programmatically via GDScript. No external assets.",
+                "--finish-acceptance-signals",
+                "APK compiles and installs. All waves playable. Touch controls work. Score tracking functions.",
+                "--dest",
+                str(va_finish_dest),
+                "--scope",
+                "full",
+                "--force",
+            ],
+            ROOT,
+        )
+        make_stack_skill_non_placeholder(va_finish_dest)
+        va_finish_manifest = json.loads(
+            (va_finish_dest / "tickets" / "manifest.json").read_text(encoding="utf-8")
+        )
+        va_finish_tickets = {
+            str(ticket.get("id", "")).strip(): ticket
+            for ticket in va_finish_manifest.get("tickets", [])
+            if isinstance(ticket, dict)
+        }
+        if not {"VISUAL-001", "FINISH-VALIDATE-001", "RELEASE-001"}.issubset(
+            va_finish_tickets
+        ):
+            raise RuntimeError(
+                "Godot Android repos whose finish contract forbids placeholder output should seed finish ownership and finish validation tickets even when procedural art is allowed."
+            )
+        if "FINISH-VALIDATE-001" not in va_finish_tickets["RELEASE-001"].get(
+            "depends_on", []
+        ):
+            raise RuntimeError(
+                "RELEASE-001 should depend on FINISH-VALIDATE-001 when the finish contract still imposes a non-placeholder gameplay/visual finish bar."
+            )
+        va_finish_verify = run_json(
+            [sys.executable, str(VERIFY_GENERATED), str(va_finish_dest), "--format", "json"],
+            ROOT,
+        )
+        if (
+            va_finish_verify.get("immediately_continuable") is not True
+            or va_finish_verify.get("finding_count") != 0
+        ):
+            raise RuntimeError(
+                "VA-style procedural finish contracts should pass continuation verification once finish ownership is seeded."
+            )
+
         model_profile_skill = (
             full_dest / ".opencode" / "skills" / "model-operating-profile" / "SKILL.md"
         ).read_text(encoding="utf-8")
@@ -2252,6 +2523,34 @@ def main() -> int:
             if expected not in implementer_prompt:
                 raise RuntimeError(
                     f"Generated implementer prompt is missing required hardening section: {expected}"
+                )
+
+        tester_qa_prompt = next(
+            (full_dest / ".opencode" / "agents").glob("*tester-qa*.md")
+        ).read_text(encoding="utf-8")
+        for expected in (
+            '"echo *": allow',
+            '"test -f *": allow',
+            '"[ -f *": allow',
+            '"/home/pc/.local/bin/godot *": allow',
+        ):
+            if expected not in tester_qa_prompt:
+                raise RuntimeError(
+                    f"Generated tester-qa permissions should allow stack-guided safe diagnostics: {expected}"
+                )
+
+        shell_inspect_prompt = next(
+            (full_dest / ".opencode" / "agents").glob("*utility-shell-inspect*.md")
+        ).read_text(encoding="utf-8")
+        for expected in (
+            '"echo *": allow',
+            '"test -f *": allow',
+            '"[ -d *": allow',
+            '"godot4 *": allow',
+        ):
+            if expected not in shell_inspect_prompt:
+                raise RuntimeError(
+                    f"Generated shell-inspect permissions should allow safe runtime evidence commands: {expected}"
                 )
 
         delegation_doc = (full_dest / "docs" / "AGENT-DELEGATION.md").read_text(
@@ -2902,9 +3201,9 @@ def main() -> int:
         generated_ticket_reverify = (
             full_dest / ".opencode" / "tools" / "ticket_reverify.ts"
         ).read_text(encoding="utf-8")
-        if 'if (sourceTicket.status !== "done")' not in generated_ticket_reverify:
+        if "ticketEligibleForTrustRestoration(sourceTicket)" not in generated_ticket_reverify:
             raise RuntimeError(
-                "Generated ticket_reverify.ts should reject attempts to restore trust on non-done tickets"
+                "Generated ticket_reverify.ts should gate trust restoration through the shared historical-ticket eligibility helper"
             )
         if (
             "ticket_reverify requires evidence_artifact_path or verification_content."
@@ -2933,6 +3232,10 @@ def main() -> int:
         ):
             raise RuntimeError(
                 "Generated ticket_reverify.ts should register both inline backlog-verification evidence and the final reverification artifact"
+            )
+        if "markTicketDone(sourceTicket, workflow)" not in generated_ticket_reverify:
+            raise RuntimeError(
+                "Generated ticket_reverify.ts should restore reopened historical tickets to done before persisting reverification"
             )
         generated_ticket_reconcile = (
             full_dest / ".opencode" / "tools" / "ticket_reconcile.ts"
@@ -4335,6 +4638,61 @@ def main() -> int:
             raise RuntimeError(
                 "Audit should flag placeholder repo-local skills with SKILL001 on the base scaffold output"
             )
+        asset_meta_path = full_dest / ".opencode" / "meta" / "asset-pipeline-bootstrap.json"
+        asset_meta_path.parent.mkdir(parents=True, exist_ok=True)
+        asset_meta_path.write_text(
+            json.dumps(
+                {
+                    "suggested_skills": ["blender-mcp-workflow"],
+                    "routes": {"characters": "blender-mcp"},
+                },
+                indent=2,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        stale_blender_skill = full_dest / ".opencode" / "skills" / "blender-mcp-workflow" / "SKILL.md"
+        stale_blender_skill.parent.mkdir(parents=True, exist_ok=True)
+        stale_blender_skill.write_text(
+            "\n".join(
+                (
+                    "---",
+                    "name: blender-mcp-workflow",
+                    "description: stale test skill",
+                    "---",
+                    "",
+                    "# Blender-MCP Workflow",
+                    "",
+                    "- Requires an active Blender session via the MCP add-on",
+                    "- Use blender_session_create and blender_session_checkpoint between modeling steps",
+                )
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        stale_skill_audit = run_json(
+            [
+                sys.executable,
+                str(AUDIT),
+                str(full_dest),
+                "--format",
+                "json",
+            ],
+            ROOT,
+        )
+        stale_skill_evidence = [
+            finding
+            for finding in stale_skill_audit.get("findings", [])
+            if finding.get("code") == "SKILL001"
+        ]
+        if not any(
+            "blender-mcp-workflow/SKILL.md"
+            in " ".join(finding.get("files", [])) + " " + " ".join(finding.get("evidence", []))
+            for finding in stale_skill_evidence
+        ):
+            raise RuntimeError(
+                "Audit should flag stale synthesized blender-mcp-workflow skills with SKILL001 when asset-pipeline metadata requires that skill"
+            )
         diagnosis_root = full_dest / "diagnosis"
         diagnosis_dirs = (
             sorted(path for path in diagnosis_root.iterdir() if path.is_dir())
@@ -4740,6 +5098,72 @@ def main() -> int:
                 f"Current depends_on={release_ticket.get('depends_on', [])}, "
                 f"eligible feature tickets={sorted(_feature_ticket_ids)}"
             )
+        android_reconcile_dest = workspace / "public-repair-android-existing-release"
+        shutil.copytree(public_repair_android_dest, android_reconcile_dest)
+        android_reconcile_manifest_path = android_reconcile_dest / "tickets" / "manifest.json"
+        android_reconcile_manifest = json.loads(
+            android_reconcile_manifest_path.read_text(encoding="utf-8")
+        )
+        android_reconcile_release = next(
+            ticket
+            for ticket in android_reconcile_manifest["tickets"]
+            if ticket["id"] == "RELEASE-001"
+        )
+        android_reconcile_release["source_ticket_id"] = None
+        android_reconcile_release["source_mode"] = None
+        android_reconcile_release["split_kind"] = None
+        android_reconcile_release["depends_on"] = sorted(
+            set(android_reconcile_release.get("depends_on", [])) | {"ANDROID-001"}
+        )
+        android_reconcile_manifest_path.write_text(
+            json.dumps(android_reconcile_manifest, indent=2) + "\n",
+            encoding="utf-8",
+        )
+        android_reconcile_diagnosis_dirs = sorted(
+            path
+            for path in (android_reconcile_dest / "diagnosis").iterdir()
+            if path.is_dir()
+        )
+        android_reconcile_result = run_json(
+            [
+                sys.executable,
+                str(
+                    ROOT
+                    / "skills"
+                    / "ticket-pack-builder"
+                    / "scripts"
+                    / "apply_remediation_follow_up.py"
+                ),
+                str(android_reconcile_dest),
+                "--diagnosis",
+                str(android_reconcile_diagnosis_dirs[-1] / "manifest.json"),
+            ],
+            ROOT,
+        )
+        if "RELEASE-001" not in android_reconcile_result.get("created_tickets", []):
+            raise RuntimeError(
+                "Android target-completion follow-up should report existing RELEASE-001 normalization when split-scope linkage drifts"
+            )
+        android_reconcile_manifest = json.loads(
+            android_reconcile_manifest_path.read_text(encoding="utf-8")
+        )
+        android_reconciled_release = next(
+            ticket
+            for ticket in android_reconcile_manifest["tickets"]
+            if ticket["id"] == "RELEASE-001"
+        )
+        if "ANDROID-001" in android_reconciled_release.get("depends_on", []):
+            raise RuntimeError(
+                "Existing RELEASE-001 tickets should drop ANDROID-001 from depends_on when split-scope linkage is restored"
+            )
+        if (
+            android_reconciled_release.get("source_ticket_id") != "ANDROID-001"
+            or android_reconciled_release.get("source_mode") != "split_scope"
+            or android_reconciled_release.get("split_kind") != "sequential_dependent"
+        ):
+            raise RuntimeError(
+                "Existing RELEASE-001 tickets should be normalized back to ANDROID-001 split-scope lineage during Android target-completion repair"
+            )
 
         repeat_dest = workspace / "repeat-cycle"
         shutil.copytree(full_dest, repeat_dest)
@@ -4962,6 +5386,37 @@ def main() -> int:
                 raise RuntimeError(
                     f"Audit should emit {expected} when handoff overclaims and transcript chronology proves thrash, bypass-seeking, or evidence-free PASS claims"
                 )
+        external_chronology_log = workspace / "chronology-supporting-log.md"
+        shutil.copyfile(transcript_log, external_chronology_log)
+        external_chronology_audit = run_json(
+            [
+                sys.executable,
+                str(AUDIT),
+                str(chronology_dest),
+                "--format",
+                "json",
+                "--emit-diagnosis-pack",
+                "--supporting-log",
+                str(external_chronology_log),
+            ],
+            ROOT,
+        )
+        external_chronology_codes = {
+            finding["code"] for finding in external_chronology_audit.get("findings", [])
+        }
+        if "SESSION002" not in external_chronology_codes:
+            raise RuntimeError(
+                "Audit should still ingest transcript findings when the supporting log lives outside the subject repo root"
+            )
+        external_supporting_logs = (
+            external_chronology_audit.get("diagnosis_pack", {})
+            .get("manifest", {})
+            .get("supporting_logs", [])
+        )
+        if external_supporting_logs != [str(external_chronology_log)]:
+            raise RuntimeError(
+                "Diagnosis packs should preserve external supporting-log paths instead of crashing on non-relative host paths"
+            )
 
         recovered_dest = workspace / "recovered-verification"
         shutil.copytree(full_dest, recovered_dest)
@@ -5109,6 +5564,49 @@ def main() -> int:
                 "A repo whose restart surfaces match canonical repair-follow-on and verification state should not emit WFLOW010"
             )
 
+        blocked_repair_follow_on_dest = (
+            workspace / "restart-surface-repair-follow-on-verification-block"
+        )
+        shutil.copytree(full_dest, blocked_repair_follow_on_dest)
+        make_stack_skill_non_placeholder(blocked_repair_follow_on_dest)
+        seed_completed_repair_follow_on_verification_block(
+            blocked_repair_follow_on_dest
+        )
+        run_json(
+            [sys.executable, str(REGENERATE), str(blocked_repair_follow_on_dest)],
+            ROOT,
+        )
+        blocked_repair_follow_on_start_here = (
+            blocked_repair_follow_on_dest / "START-HERE.md"
+        ).read_text(encoding="utf-8")
+        if (
+            "- handoff_status: repair follow-up required"
+            not in blocked_repair_follow_on_start_here
+            or "- repair_follow_on_outcome: managed_blocked"
+            not in blocked_repair_follow_on_start_here
+            or "- repair_follow_on_required: true"
+            not in blocked_repair_follow_on_start_here
+            or "- repair_follow_on_next_stage: none"
+            not in blocked_repair_follow_on_start_here
+            or "- repair_follow_on_verification_passed: false"
+            not in blocked_repair_follow_on_start_here
+        ):
+            raise RuntimeError(
+                "Restart regeneration should keep repair follow-on pending when verification remains blocked after required stages are complete"
+            )
+        blocked_repair_follow_on_handoff = (
+            blocked_repair_follow_on_dest / ".opencode" / "state" / "latest-handoff.md"
+        ).read_text(encoding="utf-8")
+        if (
+            "- handoff_status: repair follow-up required"
+            not in blocked_repair_follow_on_handoff
+            or "- repair_follow_on_required: true"
+            not in blocked_repair_follow_on_handoff
+        ):
+            raise RuntimeError(
+                "latest-handoff should stay aligned when repair follow-on remains verification-blocked"
+            )
+
         clearable_pending_verification_dest = (
             workspace / "clearable-pending-process-verification"
         )
@@ -5220,6 +5718,25 @@ def main() -> int:
             raise RuntimeError(
                 "latest-handoff should stay aligned with START-HERE for closed-ticket dependent continuation"
             )
+        closed_ticket_update = run_generated_tool(
+            closed_ticket_dependent_dest,
+            ".opencode/tools/ticket_update.ts",
+            {"ticket_id": "SETUP-001"},
+        )
+        if (
+            closed_ticket_update["active_ticket"] != "EXEC-DEP"
+            or closed_ticket_update["workflow"]["active_ticket"] != "EXEC-DEP"
+        ):
+            raise RuntimeError(
+                "ticket_update should foreground the first remaining live lane after the active ticket is already closed"
+            )
+        if (
+            closed_ticket_update["workflow"]["stage"] != "planning"
+            or closed_ticket_update["workflow"]["status"] != "ready"
+        ):
+            raise RuntimeError(
+                "ticket_update should sync workflow stage/status to the newly foregrounded live ticket after closeout convergence"
+            )
 
         explicit_reverification_dest = (
             workspace / "closed-ticket-explicit-reverification"
@@ -5255,6 +5772,134 @@ def main() -> int:
         ):
             raise RuntimeError(
                 "latest-handoff should stay aligned with START-HERE for explicit closed-ticket trust restoration"
+            )
+
+        reopened_reverification_dest = (
+            workspace / "reopened-ticket-explicit-reverification"
+        )
+        shutil.copytree(full_dest, reopened_reverification_dest)
+        seed_reopened_ticket_needing_explicit_reverification(
+            reopened_reverification_dest
+        )
+        run_json(
+            [sys.executable, str(REGENERATE), str(reopened_reverification_dest)], ROOT
+        )
+        reopened_reverification_start_here = (
+            reopened_reverification_dest / "START-HERE.md"
+        ).read_text(encoding="utf-8")
+        if (
+            "If current inspection disproves it, produce current evidence and run ticket_reverify on SETUP-001"
+            not in reopened_reverification_start_here
+        ):
+            raise RuntimeError(
+                "Restart regeneration should surface ticket_reverify as the stale-intake recovery path for reopened historical tickets"
+            )
+        run_generated_plugin_before(
+            reopened_reverification_dest,
+            ".opencode/plugins/stage-gate-enforcer.ts",
+            "ticket_reverify",
+            {
+                "ticket_id": "SETUP-001",
+                "verification_content": "# Backlog Verification\n\n## Result\n\nPASS\n",
+                "reason": "Synthetic stale-intake recovery proof for smoke coverage.",
+            },
+        )
+        reopened_reverification_result = run_generated_tool(
+            reopened_reverification_dest,
+            ".opencode/tools/ticket_reverify.ts",
+            {
+                "ticket_id": "SETUP-001",
+                "verification_content": "# Backlog Verification\n\n## Result\n\nPASS\n",
+                "reason": "Synthetic stale-intake recovery proof for smoke coverage.",
+            },
+        )
+        reopened_reverification_manifest = json.loads(
+            (reopened_reverification_dest / "tickets" / "manifest.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        reopened_reverification_ticket = next(
+            ticket
+            for ticket in reopened_reverification_manifest["tickets"]
+            if ticket["id"] == "SETUP-001"
+        )
+        if (
+            reopened_reverification_result["verification_state"] != "reverified"
+            or reopened_reverification_ticket["status"] != "done"
+            or reopened_reverification_ticket["resolution_state"] != "done"
+            or reopened_reverification_ticket["verification_state"] != "reverified"
+        ):
+            raise RuntimeError(
+                "ticket_reverify should restore reopened historical tickets back to done/reverified when current evidence disproves the reopened defect"
+            )
+        reopened_reverification_workflow = json.loads(
+            (
+                reopened_reverification_dest
+                / ".opencode"
+                / "state"
+                / "workflow-state.json"
+            ).read_text(encoding="utf-8")
+        )
+        if (
+            reopened_reverification_workflow["ticket_state"]["SETUP-001"][
+                "needs_reverification"
+            ]
+            is not False
+        ):
+            raise RuntimeError(
+                "ticket_reverify should clear needs_reverification after restoring a reopened historical ticket"
+            )
+
+        self_lineage_reverification_dest = (
+            workspace / "self-lineage-ticket-reverification"
+        )
+        shutil.copytree(full_dest, self_lineage_reverification_dest)
+        seed_closed_ticket_needing_explicit_reverification(
+            self_lineage_reverification_dest
+        )
+        self_lineage_manifest_path = (
+            self_lineage_reverification_dest / "tickets" / "manifest.json"
+        )
+        self_lineage_manifest = json.loads(
+            self_lineage_manifest_path.read_text(encoding="utf-8")
+        )
+        self_lineage_ticket = next(
+            ticket
+            for ticket in self_lineage_manifest["tickets"]
+            if ticket["id"] == "SETUP-001"
+        )
+        self_lineage_ticket["resolution_state"] = "superseded"
+        self_lineage_ticket["source_ticket_id"] = "SETUP-001"
+        self_lineage_ticket["source_mode"] = "post_completion_issue"
+        self_lineage_ticket["follow_up_ticket_ids"] = ["SETUP-001"]
+        self_lineage_manifest_path.write_text(
+            json.dumps(self_lineage_manifest, indent=2) + "\n", encoding="utf-8"
+        )
+        self_lineage_reverification_result = run_generated_tool(
+            self_lineage_reverification_dest,
+            ".opencode/tools/ticket_reverify.ts",
+            {
+                "ticket_id": "SETUP-001",
+                "verification_content": "# Backlog Verification\n\n## Result\n\nPASS\n",
+                "reason": "Synthetic self-lineage corruption repair for smoke coverage.",
+            },
+        )
+        self_lineage_reverification_manifest = json.loads(
+            self_lineage_manifest_path.read_text(encoding="utf-8")
+        )
+        self_lineage_reverified_ticket = next(
+            ticket
+            for ticket in self_lineage_reverification_manifest["tickets"]
+            if ticket["id"] == "SETUP-001"
+        )
+        if (
+            self_lineage_reverification_result["verification_state"] != "reverified"
+            or self_lineage_reverified_ticket["resolution_state"] != "done"
+            or self_lineage_reverified_ticket.get("source_ticket_id") is not None
+            or "SETUP-001" in self_lineage_reverified_ticket["follow_up_ticket_ids"]
+        ):
+            raise RuntimeError(
+                "ticket_reverify should normalize self-sourced superseded lineage back to a trusted done ticket"
             )
 
         executed_reverification_dest = workspace / "executed-ticket-reverify"
@@ -5659,6 +6304,23 @@ def main() -> int:
                 "ticket_reconcile should leave the source dependency intact unless remove_dependency_on_source is explicitly true"
             )
 
+        reversed_reconcile_error = run_generated_tool_error(
+            default_dependency_reconcile_dest,
+            ".opencode/tools/ticket_reconcile.ts",
+            {
+                "source_ticket_id": "SETUP-001",
+                "target_ticket_id": "EXEC-RECON-SRC",
+                "replacement_source_ticket_id": "EXEC-RECON-SRC",
+                "replacement_source_mode": "split_scope",
+                "evidence_artifact_path": default_evidence_rel,
+                "reason": "Synthetic reversed reconciliation arguments should be rejected.",
+            },
+        )
+        if "target_ticket_id cannot equal replacement_source_ticket_id" not in reversed_reconcile_error:
+            raise RuntimeError(
+                "ticket_reconcile should reject reversed source/target calls where the target is also named as the replacement source"
+            )
+
         unrelated_evidence_reconcile_dest = (
             workspace / "executed-ticket-reconcile-unrelated-evidence"
         )
@@ -5858,6 +6520,52 @@ def main() -> int:
         ):
             raise RuntimeError(
                 "ticket_create should record sequential split guidance on the source ticket"
+            )
+
+        blocked_parent_split_dest = workspace / "executed-ticket-create-blocked-parent-split"
+        shutil.copytree(full_dest, blocked_parent_split_dest)
+        blocked_parent_manifest_path = blocked_parent_split_dest / "tickets" / "manifest.json"
+        blocked_parent_manifest = json.loads(
+            blocked_parent_manifest_path.read_text(encoding="utf-8")
+        )
+        blocked_parent_source = next(
+            ticket
+            for ticket in blocked_parent_manifest["tickets"]
+            if ticket["id"] == "SETUP-001"
+        )
+        blocked_parent_source["stage"] = "implementation"
+        blocked_parent_source["status"] = "blocked"
+        blocked_parent_source["resolution_state"] = "open"
+        blocked_parent_manifest_path.write_text(
+            json.dumps(blocked_parent_manifest, indent=2) + "\n",
+            encoding="utf-8",
+        )
+        run_generated_tool(
+            blocked_parent_split_dest,
+            ".opencode/tools/ticket_create.ts",
+            {
+                "id": "EXEC-SPLIT-BLOCKED-PARENT",
+                "title": "Synthetic split child from blocked parent",
+                "lane": "implementation",
+                "wave": 2,
+                "summary": "Split child created from a blocked parent through the generated ticket_create tool.",
+                "acceptance": ["Parent status is normalized back to an open lifecycle state."],
+                "source_ticket_id": "SETUP-001",
+                "source_mode": "split_scope",
+                "split_kind": "sequential_dependent",
+            },
+        )
+        blocked_parent_split_manifest = json.loads(
+            blocked_parent_manifest_path.read_text(encoding="utf-8")
+        )
+        blocked_parent_source = next(
+            ticket
+            for ticket in blocked_parent_split_manifest["tickets"]
+            if ticket["id"] == "SETUP-001"
+        )
+        if blocked_parent_source["status"] != "in_progress":
+            raise RuntimeError(
+                "ticket_create should normalize blocked split parents back to their stage-default open status"
             )
 
         split_scope_dependency_error = run_generated_tool_error(
@@ -6121,6 +6829,112 @@ def main() -> int:
             raise RuntimeError(
                 "ticket_release should release the bootstrap lease after the pre-bootstrap claim probe"
             )
+        process_clearable_dest = workspace / "executed-process-clearable"
+        shutil.copytree(full_dest, process_clearable_dest)
+        seed_ready_bootstrap(process_clearable_dest)
+        process_manifest_path = process_clearable_dest / "tickets" / "manifest.json"
+        process_workflow_path = (
+            process_clearable_dest / ".opencode" / "state" / "workflow-state.json"
+        )
+        process_manifest = json.loads(
+            process_manifest_path.read_text(encoding="utf-8")
+        )
+        process_workflow = json.loads(
+            process_workflow_path.read_text(encoding="utf-8")
+        )
+        process_ticket = next(
+            ticket
+            for ticket in process_manifest["tickets"]
+            if ticket["id"] == "SETUP-001"
+        )
+        process_ticket["stage"] = "closeout"
+        process_ticket["status"] = "done"
+        process_ticket["resolution_state"] = "done"
+        process_ticket["verification_state"] = "trusted"
+        process_manifest["active_ticket"] = "SETUP-001"
+        process_manifest["tickets"].append(
+            {
+                "id": "PROC-001",
+                "title": "Synthetic writable follow-up",
+                "wave": 99,
+                "lane": "workflow",
+                "parallel_safe": False,
+                "overlap_risk": "low",
+                "stage": "planning",
+                "status": "todo",
+                "depends_on": [],
+                "summary": "Synthetic open ticket used to carry global workflow updates.",
+                "acceptance": [
+                    "The team leader can foreground this ticket to carry a workflow-state-only mutation."
+                ],
+                "decision_blockers": [],
+                "artifacts": [],
+                "resolution_state": "open",
+                "verification_state": "suspect",
+                "follow_up_ticket_ids": [],
+            }
+        )
+        process_workflow["active_ticket"] = "SETUP-001"
+        process_workflow["stage"] = "closeout"
+        process_workflow["status"] = "done"
+        process_workflow["approved_plan"] = True
+        process_workflow["pending_process_verification"] = True
+        process_workflow["process_last_changed_at"] = "2026-03-30T00:00:00Z"
+        process_workflow.setdefault("ticket_state", {})
+        process_workflow["ticket_state"]["SETUP-001"] = {
+            "approved_plan": True,
+            "reopen_count": 0,
+            "needs_reverification": False,
+        }
+        process_workflow["ticket_state"]["PROC-001"] = {
+            "approved_plan": False,
+            "reopen_count": 0,
+            "needs_reverification": False,
+        }
+        process_manifest_path.write_text(
+            json.dumps(process_manifest, indent=2) + "\n", encoding="utf-8"
+        )
+        process_workflow_path.write_text(
+            json.dumps(process_workflow, indent=2) + "\n", encoding="utf-8"
+        )
+        register_current_ticket_artifact(
+            process_clearable_dest,
+            ticket_id="SETUP-001",
+            kind="smoke-test",
+            stage="smoke-test",
+            relative_path=".opencode/state/artifacts/history/setup-001/smoke-test/2026-04-01T00-00-00Z-synthetic-smoke.md",
+            summary="Synthetic smoke proof after the process change.",
+            content="# Smoke Test\n\n## Command\n\n`pytest -q`\n\n## Raw Output\n\n```text\n1 passed in 0.01s\n```\n\nOverall Result: PASS\n",
+            created_at="2026-04-01T00:00:00Z",
+        )
+        process_clearable_lookup = run_generated_tool(
+            process_clearable_dest,
+            ".opencode/tools/ticket_lookup.ts",
+            {},
+        )
+        if process_clearable_lookup["process_verification"]["clearable_now"] is not True:
+            raise RuntimeError(
+                "ticket_lookup should report clearable_now when pending_process_verification is true and no done tickets remain affected"
+            )
+        process_clearable_guidance = process_clearable_lookup["transition_guidance"]
+        if process_clearable_guidance["next_action_tool"] != "ticket_update":
+            raise RuntimeError(
+                "ticket_lookup should route clearable process verification through ticket_update even when the active ticket is already closed"
+            )
+        if process_clearable_guidance["recommended_ticket_update"] != {
+            "ticket_id": "PROC-001",
+            "activate": True,
+            "pending_process_verification": False,
+        }:
+            raise RuntimeError(
+                "ticket_lookup should foreground an open writable ticket when clearing pending_process_verification from a closed foreground ticket"
+            )
+        if "Foreground open ticket PROC-001" not in process_clearable_guidance[
+            "recommended_action"
+        ]:
+            raise RuntimeError(
+                "ticket_lookup should explain that the team leader must switch to an open ticket before clearing pending_process_verification"
+            )
         register_current_ticket_artifact(
             executed_lifecycle_dest,
             ticket_id="SETUP-001",
@@ -6308,6 +7122,128 @@ def main() -> int:
             raise RuntimeError(
                 "ticket_update should allow review-to-QA transitions when the latest review artifact records `**Verdict**: PASS`"
             )
+        overall_verdict_dest = workspace / "executed-review-overall-verdict"
+        shutil.copytree(full_dest, overall_verdict_dest)
+        seed_ready_bootstrap(overall_verdict_dest)
+        seed_review_stage_with_verdict(
+            overall_verdict_dest, "## Overall Verdict\n\n### **APPROVE**"
+        )
+        overall_lookup = run_generated_tool(
+            overall_verdict_dest,
+            ".opencode/tools/ticket_lookup.ts",
+            {},
+        )
+        if overall_lookup["transition_guidance"]["review_verdict"] != "APPROVED":
+            raise RuntimeError(
+                "ticket_lookup should extract APPROVED verdicts from overall-verdict headings"
+            )
+        overall_update = run_generated_tool(
+            overall_verdict_dest,
+            ".opencode/tools/ticket_update.ts",
+            {"ticket_id": "SETUP-001", "stage": "qa", "activate": True},
+        )
+        if overall_update["updated_ticket"]["stage"] != "qa":
+            raise RuntimeError(
+                "ticket_update should allow review-to-QA transitions when the latest review artifact records `## Overall Verdict` followed by `### **APPROVE**`"
+            )
+        review_heading_dest = workspace / "executed-review-heading-verdict"
+        shutil.copytree(full_dest, review_heading_dest)
+        seed_ready_bootstrap(review_heading_dest)
+        seed_review_stage_with_verdict(
+            review_heading_dest, "## Review Verdict\n\n**APPROVE**"
+        )
+        review_heading_lookup = run_generated_tool(
+            review_heading_dest,
+            ".opencode/tools/ticket_lookup.ts",
+            {},
+        )
+        if review_heading_lookup["transition_guidance"]["review_verdict"] != "APPROVED":
+            raise RuntimeError(
+                "ticket_lookup should extract APPROVED verdicts from `## Review Verdict` headings"
+            )
+        review_heading_update = run_generated_tool(
+            review_heading_dest,
+            ".opencode/tools/ticket_update.ts",
+            {"ticket_id": "SETUP-001", "stage": "qa", "activate": True},
+        )
+        if review_heading_update["updated_ticket"]["stage"] != "qa":
+            raise RuntimeError(
+                "ticket_update should allow review-to-QA transitions when the latest review artifact records `## Review Verdict` followed by `**APPROVE**`"
+            )
+        blocker_signal_dest = workspace / "executed-review-blocker-or-approval"
+        shutil.copytree(full_dest, blocker_signal_dest)
+        seed_ready_bootstrap(blocker_signal_dest)
+        seed_review_stage_with_verdict(
+            blocker_signal_dest, "## Blocker or Approval Signal\n\n**APPROVE**"
+        )
+        blocker_signal_lookup = run_generated_tool(
+            blocker_signal_dest,
+            ".opencode/tools/ticket_lookup.ts",
+            {},
+        )
+        if blocker_signal_lookup["transition_guidance"]["review_verdict"] != "APPROVED":
+            raise RuntimeError(
+                "ticket_lookup should extract APPROVED verdicts from `## Blocker or Approval Signal` headings"
+            )
+        blocker_signal_update = run_generated_tool(
+            blocker_signal_dest,
+            ".opencode/tools/ticket_update.ts",
+            {"ticket_id": "SETUP-001", "stage": "qa", "activate": True},
+        )
+        if blocker_signal_update["updated_ticket"]["stage"] != "qa":
+            raise RuntimeError(
+                "ticket_update should allow review-to-QA transitions when the latest review artifact records `## Blocker or Approval Signal` followed by `**APPROVE**`"
+            )
+        glitch_style_remediation_dest = (
+            workspace / "executed-review-glitch-style-remediation"
+        )
+        shutil.copytree(full_dest, glitch_style_remediation_dest)
+        seed_ready_bootstrap(glitch_style_remediation_dest)
+        seed_glitch_style_remediation_review(glitch_style_remediation_dest)
+        glitch_style_lookup = run_generated_tool(
+            glitch_style_remediation_dest,
+            ".opencode/tools/ticket_lookup.ts",
+            {},
+        )
+        if glitch_style_lookup["transition_guidance"]["review_verdict"] != "PASS":
+            raise RuntimeError(
+                "ticket_lookup should extract PASS verdicts from remediation review artifacts that use `**Verdict:** PASS`"
+            )
+        glitch_style_update = run_generated_tool(
+            glitch_style_remediation_dest,
+            ".opencode/tools/ticket_update.ts",
+            {"ticket_id": "SETUP-001", "stage": "qa", "activate": True},
+        )
+        if glitch_style_update["updated_ticket"]["stage"] != "qa":
+            raise RuntimeError(
+                "ticket_update should allow review-to-QA transitions when a remediation review artifact records `**Command run:**` plus fenced command/output blocks and `**Verdict:** PASS`"
+            )
+        overall_result_remediation_dest = (
+            workspace / "executed-review-remediation-overall-result"
+        )
+        shutil.copytree(full_dest, overall_result_remediation_dest)
+        seed_ready_bootstrap(overall_result_remediation_dest)
+        seed_glitch_style_remediation_review(
+            overall_result_remediation_dest, "Overall Result: **PASS**"
+        )
+        overall_result_lookup = run_generated_tool(
+            overall_result_remediation_dest,
+            ".opencode/tools/ticket_lookup.ts",
+            {},
+        )
+        if overall_result_lookup["transition_guidance"]["review_verdict"] != "PASS":
+            raise RuntimeError(
+                "ticket_lookup should extract PASS verdicts from remediation review artifacts that use `Overall Result: **PASS**`"
+            )
+        overall_result_update = run_generated_tool(
+            overall_result_remediation_dest,
+            ".opencode/tools/ticket_update.ts",
+            {"ticket_id": "SETUP-001", "stage": "qa", "activate": True},
+        )
+        if overall_result_update["updated_ticket"]["stage"] != "qa":
+            raise RuntimeError(
+                "ticket_update should allow review-to-QA transitions when a remediation review artifact records `Overall Result: **PASS**` with fenced command and output evidence"
+            )
         qa_fail_dest = workspace / "executed-qa-fail-guidance"
         shutil.copytree(full_dest, qa_fail_dest)
         seed_ready_bootstrap(qa_fail_dest)
@@ -6363,6 +7299,53 @@ def main() -> int:
         if "latest artifact shows FAIL verdict" not in qa_fail_update_error:
             raise RuntimeError(
                 "ticket_update should reject QA-to-smoke-test transitions when the latest QA verdict is blocking"
+            )
+        qa_pass_dest = workspace / "executed-qa-overall-verdict"
+        shutil.copytree(full_dest, qa_pass_dest)
+        seed_ready_bootstrap(qa_pass_dest)
+        qa_pass_manifest_path = qa_pass_dest / "tickets" / "manifest.json"
+        qa_pass_manifest = json.loads(qa_pass_manifest_path.read_text(encoding="utf-8"))
+        qa_pass_ticket = next(
+            ticket for ticket in qa_pass_manifest["tickets"] if ticket["id"] == "SETUP-001"
+        )
+        qa_pass_ticket["stage"] = "qa"
+        qa_pass_ticket["status"] = "qa"
+        qa_pass_manifest_path.write_text(
+            json.dumps(qa_pass_manifest, indent=2) + "\n", encoding="utf-8"
+        )
+        qa_pass_workflow_path = qa_pass_dest / ".opencode" / "state" / "workflow-state.json"
+        qa_pass_workflow = json.loads(qa_pass_workflow_path.read_text(encoding="utf-8"))
+        qa_pass_workflow["stage"] = "qa"
+        qa_pass_workflow["status"] = "qa"
+        qa_pass_workflow_path.write_text(
+            json.dumps(qa_pass_workflow, indent=2) + "\n", encoding="utf-8"
+        )
+        register_current_ticket_artifact(
+            qa_pass_dest,
+            ticket_id="SETUP-001",
+            kind="qa",
+            stage="qa",
+            relative_path=".opencode/state/qa/setup-001-qa-qa.md",
+            summary="Synthetic PASS QA artifact for overall-QA-verdict coverage.",
+            content="# QA\n\n## Validation Command\n\n`npm test -- --runInBand`\n\n## Raw Output\n\n```text\nPASS tests/setup.test.ts\n  setup workflow\n    ✓ keeps lifecycle routing intact (42 ms)\n\nTest Suites: 1 passed, 1 total\nTests:       1 passed, 1 total\nSnapshots:   0 total\nTime:        0.842 s\nRan all test suites matching /setup/i.\n```\n\n## Overall QA Verdict\n\n**PASS**",
+        )
+        qa_pass_lookup = run_generated_tool(
+            qa_pass_dest,
+            ".opencode/tools/ticket_lookup.ts",
+            {},
+        )
+        if qa_pass_lookup["transition_guidance"]["qa_verdict"] != "PASS":
+            raise RuntimeError(
+                "ticket_lookup should extract PASS verdicts from `## Overall QA Verdict` headings"
+            )
+        qa_pass_update = run_generated_tool(
+            qa_pass_dest,
+            ".opencode/tools/ticket_update.ts",
+            {"ticket_id": "SETUP-001", "stage": "smoke-test", "activate": True},
+        )
+        if qa_pass_update["updated_ticket"]["stage"] != "smoke-test":
+            raise RuntimeError(
+                "ticket_update should allow QA-to-smoke-test transitions when the latest QA artifact records `## Overall QA Verdict` followed by `**PASS**`"
             )
         split_brain_dest = workspace / "ticket-lookup-requested-ticket"
         shutil.copytree(full_dest, split_brain_dest)
@@ -6590,6 +7573,31 @@ def main() -> int:
                 "content": "# Synthetic Implementation\n",
             },
         )
+        wildcard_lease_dest = workspace / "wildcard-write-lease"
+        shutil.copytree(full_dest, wildcard_lease_dest)
+        seed_ready_bootstrap(wildcard_lease_dest)
+        run_generated_tool(
+            wildcard_lease_dest,
+            ".opencode/tools/ticket_claim.ts",
+            {
+                "ticket_id": "SETUP-001",
+                "owner_agent": "smoke-wildcard-lease",
+                "allowed_paths": [".opencode/state/plans/*.md"],
+                "write_lock": True,
+            },
+        )
+        run_generated_plugin_before(
+            wildcard_lease_dest,
+            ".opencode/plugins/stage-gate-enforcer.ts",
+            "artifact_write",
+            {
+                "ticket_id": "SETUP-001",
+                "path": ".opencode/state/plans/setup-001-planning-plan.md",
+                "kind": "plan",
+                "stage": "planning",
+                "content": "# Synthetic Plan\n",
+            },
+        )
         # Regression test: closeout-to-new-ticket artifact write (WFLOW010)
         # Ensures ensureWriteLease accepts a target-ticket parameter so artifact tools
         # validate against the correct ticket instead of stale workflow.active_ticket.
@@ -6666,23 +7674,17 @@ def main() -> int:
             summary="Synthetic reopen evidence.",
             content="# Reopen Evidence\n\nA newly discovered defect invalidates completion.\n",
         )
-        reopen_workflow_path = (
-            executed_reopen_dest / ".opencode" / "state" / "workflow-state.json"
-        )
-        reopen_workflow = json.loads(reopen_workflow_path.read_text(encoding="utf-8"))
-        reopen_workflow["lane_leases"] = [
+        reopen_workflow_path = executed_reopen_dest / ".opencode" / "state" / "workflow-state.json"
+        run_generated_plugin_before(
+            executed_reopen_dest,
+            ".opencode/plugins/stage-gate-enforcer.ts",
+            "ticket_reopen",
             {
                 "ticket_id": "SETUP-001",
-                "lane": "repo-foundation",
-                "owner_agent": "smoke-implementer",
-                "write_lock": True,
-                "claimed_at": "2026-03-30T00:00:00Z",
-                "expires_at": "2099-03-30T00:00:00Z",
-                "allowed_paths": ["."],
-            }
-        ]
-        reopen_workflow_path.write_text(
-            json.dumps(reopen_workflow, indent=2) + "\n", encoding="utf-8"
+                "reason": "Synthetic reopened scope due to newly discovered defect.",
+                "evidence_artifact_path": reopen_evidence_rel,
+                "activate": True,
+            },
         )
         ticket_reopen_result = run_generated_tool(
             executed_reopen_dest,
@@ -6973,6 +7975,114 @@ def main() -> int:
                 "smoke_test should record the passing result and executed command in the smoke-test artifact"
             )
 
+        executed_smoke_fatal_stderr_dest = workspace / "executed-smoke-test-fatal-stderr"
+        shutil.copytree(full_dest, executed_smoke_fatal_stderr_dest)
+        seed_ready_bootstrap(executed_smoke_fatal_stderr_dest)
+        register_current_ticket_artifact(
+            executed_smoke_fatal_stderr_dest,
+            ticket_id="SETUP-001",
+            kind="qa",
+            stage="qa",
+            relative_path=".opencode/state/artifacts/setup-001-qa-fatal-stderr.md",
+            summary="Synthetic QA artifact for fatal stderr smoke coverage.",
+            content="# QA\n\nCommand: python3 -m py_compile scripts/smoke_test_scafforge.py\n\nQA evidence is current.\n",
+        )
+        write_executable(
+            executed_smoke_fatal_stderr_dest / "scripts" / "mock_fatal_smoke.py",
+            "\n".join(
+                [
+                    "#!/usr/bin/env python3",
+                    "import sys",
+                    'sys.stderr.write(\'SCRIPT ERROR: Parse Error: Identifier \"EnemyBrown\" not declared in the current scope.\\n\')',
+                    'sys.stderr.write(\'ERROR: Failed to load script \"res://scripts/wave_spawner.gd\" with error \"Parse error\".\\n\')',
+                    "sys.exit(0)",
+                ]
+            )
+            + "\n",
+        )
+        smoke_fatal_stderr_result = run_generated_tool(
+            executed_smoke_fatal_stderr_dest,
+            ".opencode/tools/smoke_test.ts",
+            {
+                "ticket_id": "SETUP-001",
+                "command_override": ["python3 scripts/mock_fatal_smoke.py"],
+            },
+        )
+        if smoke_fatal_stderr_result["passed"] is not False:
+            raise RuntimeError(
+                "smoke_test should fail when a command exits 0 but emits fatal parse/load diagnostics on stderr"
+            )
+        if (
+            smoke_fatal_stderr_result["failure_classification"] != "configuration"
+            or smoke_fatal_stderr_result["commands"][0]["failure_classification"]
+            != "syntax_error"
+        ):
+            raise RuntimeError(
+                "smoke_test should classify exit-0 parse/load diagnostics as a syntax/configuration blocker"
+            )
+        smoke_fatal_artifact = executed_smoke_fatal_stderr_dest / str(
+            smoke_fatal_stderr_result["smoke_test_artifact"]
+        )
+        smoke_fatal_artifact_body = smoke_fatal_artifact.read_text(encoding="utf-8")
+        if (
+            "Overall Result: FAIL" not in smoke_fatal_artifact_body
+            or "Parse Error" not in smoke_fatal_artifact_body
+        ):
+            raise RuntimeError(
+                "smoke_test should persist fatal stderr diagnostics in a failing smoke artifact"
+            )
+
+        executed_godot_export_stderr_dest = (
+            workspace / "executed-smoke-test-godot-export-stderr"
+        )
+        shutil.copytree(full_dest, executed_godot_export_stderr_dest)
+        seed_ready_bootstrap(executed_godot_export_stderr_dest)
+        register_current_ticket_artifact(
+            executed_godot_export_stderr_dest,
+            ticket_id="SETUP-001",
+            kind="qa",
+            stage="qa",
+            relative_path=".opencode/state/artifacts/setup-001-qa-godot-export.md",
+            summary="Synthetic QA artifact for Godot export stderr smoke coverage.",
+            content="# QA\n\nCommand: python3 -m py_compile scripts/smoke_test_scafforge.py\n\nQA evidence is current.\n",
+        )
+        write_executable(
+            executed_godot_export_stderr_dest / "scripts" / "godot4",
+            "\n".join(
+                [
+                    "#!/usr/bin/env python3",
+                    "import sys",
+                    'sys.stderr.write(\'SCRIPT ERROR: Parse Error: Identifier \"EnemyBrown\" not declared in the current scope.\\n\')',
+                    'sys.stderr.write(\'ERROR: Failed to load script \"res://scripts/wave_spawner.gd\" with error \"Parse error\".\\n\')',
+                    "sys.stdout.write('Export completed successfully\\n')",
+                    "sys.exit(0)",
+                ]
+            )
+            + "\n",
+        )
+        godot_export_stderr_result = run_generated_tool(
+            executed_godot_export_stderr_dest,
+            ".opencode/tools/smoke_test.ts",
+            {
+                "ticket_id": "SETUP-001",
+                "command_override": [
+                    "./scripts/godot4 --headless --path . --export-debug 'Android Debug' build/android/setup-001-debug.apk"
+                ],
+            },
+        )
+        if godot_export_stderr_result["passed"] is not True:
+            raise RuntimeError(
+                "smoke_test should treat a successful Godot export command as passing even when stderr contains parse/load noise"
+            )
+        if (
+            godot_export_stderr_result["failure_classification"] is not None
+            or godot_export_stderr_result["commands"][0]["failure_classification"]
+            is not None
+        ):
+            raise RuntimeError(
+                "smoke_test should not classify successful Godot export stderr noise as a syntax/configuration failure"
+            )
+
         executed_smoke_missing_exec_dest = (
             workspace / "executed-smoke-test-missing-exec"
         )
@@ -7232,6 +8342,48 @@ def main() -> int:
         if "WFLOW019" not in contradictory_graph_codes:
             raise RuntimeError(
                 "A repo whose source/follow-up lineage contradicts its dependency graph should emit WFLOW019"
+            )
+        superseded_history_dest = workspace / "superseded-follow-up-history"
+        shutil.copytree(full_dest, superseded_history_dest)
+        seed_superseded_follow_up_history(superseded_history_dest)
+        superseded_history_audit = run_json(
+            [
+                sys.executable,
+                str(AUDIT),
+                str(superseded_history_dest),
+                "--format",
+                "json",
+                "--no-diagnosis-pack",
+            ],
+            ROOT,
+        )
+        superseded_history_codes = {
+            finding["code"] for finding in superseded_history_audit.get("findings", [])
+        }
+        if "WFLOW019" in superseded_history_codes:
+            raise RuntimeError(
+                "A superseded historical follow-up should not emit WFLOW019 merely because the parent no longer lists it in follow_up_ticket_ids"
+            )
+        superseded_parent_link_dest = workspace / "superseded-parent-link"
+        shutil.copytree(full_dest, superseded_parent_link_dest)
+        seed_parent_retains_superseded_follow_up(superseded_parent_link_dest)
+        superseded_parent_link_audit = run_json(
+            [
+                sys.executable,
+                str(AUDIT),
+                str(superseded_parent_link_dest),
+                "--format",
+                "json",
+                "--no-diagnosis-pack",
+            ],
+            ROOT,
+        )
+        superseded_parent_link_codes = {
+            finding["code"] for finding in superseded_parent_link_audit.get("findings", [])
+        }
+        if "WFLOW019" not in superseded_parent_link_codes:
+            raise RuntimeError(
+                "A parent that still lists a superseded follow-up should emit WFLOW019"
             )
 
         split_scope_drift_dest = workspace / "split-scope-drift"
@@ -7964,6 +9116,48 @@ def main() -> int:
             raise RuntimeError(
                 "Audit should emit EXEC-REMED-001 when a remediation review artifact lacks runnable command evidence"
             )
+        valid_remediation_dest = workspace / "remediation-review-glitch-style"
+        shutil.copytree(full_dest, valid_remediation_dest)
+        make_stack_skill_non_placeholder(valid_remediation_dest)
+        seed_glitch_style_remediation_review(valid_remediation_dest)
+        valid_remediation_audit = run_json(
+            [sys.executable, str(AUDIT), str(valid_remediation_dest), "--format", "json"],
+            ROOT,
+        )
+        valid_remediation_findings = [
+            finding
+            for finding in valid_remediation_audit.get("findings", [])
+            if isinstance(finding, dict) and finding.get("code") == "EXEC-REMED-001"
+        ]
+        if valid_remediation_findings:
+            raise RuntimeError(
+                "Audit should accept remediation review artifacts that use bold labels with fenced command and output evidence"
+            )
+        valid_remediation_overall_dest = workspace / "remediation-review-overall-result"
+        shutil.copytree(full_dest, valid_remediation_overall_dest)
+        make_stack_skill_non_placeholder(valid_remediation_overall_dest)
+        seed_glitch_style_remediation_review(
+            valid_remediation_overall_dest, "Overall Result: **PASS**"
+        )
+        valid_remediation_overall_audit = run_json(
+            [
+                sys.executable,
+                str(AUDIT),
+                str(valid_remediation_overall_dest),
+                "--format",
+                "json",
+            ],
+            ROOT,
+        )
+        valid_remediation_overall_findings = [
+            finding
+            for finding in valid_remediation_overall_audit.get("findings", [])
+            if isinstance(finding, dict) and finding.get("code") == "EXEC-REMED-001"
+        ]
+        if valid_remediation_overall_findings:
+            raise RuntimeError(
+                "Audit should accept remediation review artifacts that use `Overall Result: **PASS**` with fenced command and output evidence"
+            )
 
         empty_remediation_dest = workspace / "remediation-review-empty-output"
         shutil.copytree(full_dest, empty_remediation_dest)
@@ -7982,6 +9176,331 @@ def main() -> int:
             raise RuntimeError(
                 "Audit should emit EXEC-REMED-001 when a remediation review artifact uses an empty raw-output block"
             )
+
+        remediation_follow_up_dest = workspace / "remediation-follow-up-history-sources"
+        shutil.copytree(full_dest, remediation_follow_up_dest)
+        make_stack_skill_non_placeholder(remediation_follow_up_dest)
+        remediation_follow_up_manifest = (
+            remediation_follow_up_dest / "diagnosis" / "2099-01-01T00-00-00Z"
+            / "manifest.json"
+        )
+        remediation_follow_up_manifest.parent.mkdir(parents=True, exist_ok=True)
+        history_review_path = (
+            ".opencode/state/artifacts/history/remed-010/review/"
+            "2026-04-09T22-35-04-635Z-review.md"
+        )
+        remediation_follow_up_manifest.write_text(
+            json.dumps(
+                {
+                    "ticket_recommendations": [
+                        {
+                            "id": "REMED-900",
+                            "route": "ticket-pack-builder",
+                            "title": "Record superseding remediation evidence",
+                            "description": "Remediate EXEC-REMED-001 by recording runnable evidence for the current remediation surface.",
+                            "source_finding_code": "EXEC-REMED-001",
+                            "source_files": [
+                                "tickets/manifest.json",
+                                history_review_path,
+                            ],
+                        }
+                    ]
+                },
+                indent=2,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        remediation_follow_up_result = run_json(
+            [
+                sys.executable,
+                str(
+                    ROOT
+                    / "skills"
+                    / "ticket-pack-builder"
+                    / "scripts"
+                    / "apply_remediation_follow_up.py"
+                ),
+                str(remediation_follow_up_dest),
+                "--diagnosis",
+                str(remediation_follow_up_manifest),
+            ],
+            ROOT,
+        )
+        if "REMED-900" not in remediation_follow_up_result.get("created_tickets", []):
+            raise RuntimeError(
+                "apply_remediation_follow_up.py should create remediation tickets from diagnosis recommendations"
+            )
+        remediation_follow_up_ticket = next(
+            ticket
+            for ticket in json.loads(
+                (remediation_follow_up_dest / "tickets" / "manifest.json").read_text(
+                    encoding="utf-8"
+                )
+            )["tickets"]
+            if ticket["id"] == "REMED-900"
+        )
+        remediation_follow_up_summary = remediation_follow_up_ticket["summary"]
+        if (
+            f"Affected surfaces: tickets/manifest.json, {history_review_path}."
+            in remediation_follow_up_summary
+        ):
+            raise RuntimeError(
+                "Remediation follow-up tickets must not frame immutable history artifacts as writable affected surfaces"
+            )
+        for expected in (
+            "Affected surfaces: tickets/manifest.json.",
+            f"Historical evidence sources: {history_review_path}.",
+            "read-only context",
+        ):
+            if expected not in remediation_follow_up_summary:
+                raise RuntimeError(
+                    "apply_remediation_follow_up.py should preserve history paths as read-only evidence sources in the ticket summary"
+                )
+        if not any(
+            "read-only evidence sources" in item
+            for item in remediation_follow_up_ticket.get("acceptance", [])
+        ):
+            raise RuntimeError(
+                "Remediation follow-up acceptance should tell downstream agents to produce superseding current evidence instead of editing immutable history"
+            )
+        if (
+            remediation_follow_up_ticket.get("source_mode") != "split_scope"
+            or remediation_follow_up_ticket.get("split_kind")
+            != "parallel_independent"
+        ):
+            raise RuntimeError(
+                "apply_remediation_follow_up.py should create EXEC-REMED follow-up tickets as parallel-independent split children when they extend an open parent ticket"
+            )
+        remediation_manifest_path = remediation_follow_up_dest / "tickets" / "manifest.json"
+        remediation_manifest_data = json.loads(
+            remediation_manifest_path.read_text(encoding="utf-8")
+        )
+        remediation_parent_ticket = next(
+            ticket
+            for ticket in remediation_manifest_data["tickets"]
+            if ticket["id"] == remediation_follow_up_ticket["source_ticket_id"]
+        )
+        existing_remed_ticket = next(
+            ticket
+            for ticket in remediation_manifest_data["tickets"]
+            if ticket["id"] == "REMED-900"
+        )
+        existing_remed_ticket["summary"] = (
+            "Remediate EXEC-REMED-001 by recording runnable evidence for the current remediation surface. "
+            f"Affected surfaces: tickets/manifest.json, {history_review_path}."
+        )
+        existing_remed_ticket["acceptance"] = [
+            "The validated finding `EXEC-REMED-001` no longer reproduces.",
+            "Current quality checks rerun with evidence tied to the fix approach.",
+        ]
+        remediation_manifest_data["tickets"].append(
+            {
+                "id": "MODEL-999",
+                "title": "Stale remediation parent",
+                "wave": existing_remed_ticket["wave"],
+                "lane": "model-generation",
+                "parallel_safe": False,
+                "overlap_risk": "low",
+                "stage": "review",
+                "status": "review",
+                "depends_on": [],
+                "summary": "Synthetic stale parent for remediation follow-up reconciliation coverage.",
+                "acceptance": [
+                    "Stale parent no longer owns the follow-up after reconciliation."
+                ],
+                "decision_blockers": [],
+                "artifacts": [],
+                "resolution_state": "open",
+                "verification_state": "suspect",
+                "follow_up_ticket_ids": ["REMED-900"],
+            }
+        )
+        existing_remed_ticket["source_ticket_id"] = "MODEL-999"
+        existing_remed_ticket["split_kind"] = "sequential_dependent"
+        remediation_parent_ticket.setdefault("follow_up_ticket_ids", []).append(
+            "REMED-901"
+        )
+        remediation_parent_ticket.setdefault("decision_blockers", []).append(
+            f"Sequential split: this ticket ({remediation_parent_ticket['id']}) must complete its parent-owned work before child ticket REMED-901 may be foregrounded."
+        )
+        remediation_manifest_data["tickets"].append(
+            {
+                "id": "REMED-901",
+                "title": "Stale remediation ticket",
+                "wave": existing_remed_ticket["wave"] + 1,
+                "lane": "remediation",
+                "parallel_safe": False,
+                "overlap_risk": "low",
+                "stage": "planning",
+                "status": "todo",
+                "depends_on": [],
+                "summary": "Stale remediation follow-up that should be superseded.",
+                "acceptance": ["Stale remediation ticket is superseded."],
+                "decision_blockers": [],
+                "artifacts": [],
+                "resolution_state": "open",
+                "verification_state": "suspect",
+                "finding_source": "EXEC-REMED-001",
+                "source_ticket_id": remediation_parent_ticket["id"],
+                "follow_up_ticket_ids": [],
+                "source_mode": "split_scope",
+                "split_kind": "sequential_dependent",
+            }
+        )
+        remediation_manifest_path.write_text(
+            json.dumps(remediation_manifest_data, indent=2) + "\n",
+            encoding="utf-8",
+        )
+        remediation_ticket_path = remediation_follow_up_dest / "tickets" / "REMED-900.md"
+        remediation_ticket_path.write_text(
+            "# REMED-900: Record superseding remediation evidence\n\n"
+            "## Summary\n\n"
+            "Remediate EXEC-REMED-001 by recording runnable evidence for the current remediation surface. "
+            f"Affected surfaces: tickets/manifest.json, {history_review_path}.\n\n"
+            "## Notes\n\n"
+            "Keep this note.\n",
+            encoding="utf-8",
+        )
+        remediation_follow_up_rerun = run_json(
+            [
+                sys.executable,
+                str(
+                    ROOT
+                    / "skills"
+                    / "ticket-pack-builder"
+                    / "scripts"
+                    / "apply_remediation_follow_up.py"
+                ),
+                str(remediation_follow_up_dest),
+                "--diagnosis",
+                str(remediation_follow_up_manifest),
+            ],
+            ROOT,
+        )
+        if "REMED-900" not in remediation_follow_up_rerun.get("created_tickets", []):
+            raise RuntimeError(
+                "apply_remediation_follow_up.py should report existing remediation tickets it reconciles from diagnosis recommendations"
+            )
+        if "REMED-901" not in remediation_follow_up_rerun.get(
+            "superseded_tickets", []
+        ):
+            raise RuntimeError(
+                "apply_remediation_follow_up.py should supersede stale remediation tickets that are no longer recommended by the current diagnosis"
+            )
+        refreshed_remediation_ticket = next(
+            ticket
+            for ticket in json.loads(
+                remediation_manifest_path.read_text(encoding="utf-8")
+            )["tickets"]
+            if ticket["id"] == "REMED-900"
+        )
+        superseded_remediation_ticket = next(
+            ticket
+            for ticket in json.loads(
+                remediation_manifest_path.read_text(encoding="utf-8")
+            )["tickets"]
+            if ticket["id"] == "REMED-901"
+        )
+        if (
+            f"Affected surfaces: tickets/manifest.json, {history_review_path}."
+            in refreshed_remediation_ticket["summary"]
+        ):
+            raise RuntimeError(
+                "apply_remediation_follow_up.py should rewrite stale existing remediation summaries instead of preserving immutable history paths as writable affected surfaces"
+            )
+        if refreshed_remediation_ticket.get("split_kind") != "parallel_independent":
+            raise RuntimeError(
+                "apply_remediation_follow_up.py should refresh existing EXEC-REMED follow-up tickets to the current split_kind policy"
+            )
+        if (
+            refreshed_remediation_ticket.get("source_ticket_id")
+            != remediation_parent_ticket["id"]
+        ):
+            raise RuntimeError(
+                "apply_remediation_follow_up.py should restore the canonical source_ticket_id for existing remediation follow-up tickets"
+            )
+        if (
+            superseded_remediation_ticket.get("resolution_state") != "superseded"
+            or superseded_remediation_ticket.get("status") != "done"
+        ):
+            raise RuntimeError(
+                "apply_remediation_follow_up.py should supersede stale remediation tickets that fall out of the current diagnosis set"
+            )
+        refreshed_manifest_after_rerun = json.loads(
+            remediation_manifest_path.read_text(encoding="utf-8")
+        )
+        refreshed_parent_ticket = next(
+            ticket
+            for ticket in refreshed_manifest_after_rerun["tickets"]
+            if ticket["id"] == remediation_parent_ticket["id"]
+        )
+        if "REMED-901" in refreshed_parent_ticket.get("follow_up_ticket_ids", []):
+            raise RuntimeError(
+                "apply_remediation_follow_up.py should unlink superseded stale remediation tickets from their source parent"
+            )
+        refreshed_stale_parent = next(
+            ticket
+            for ticket in refreshed_manifest_after_rerun["tickets"]
+            if ticket["id"] == "MODEL-999"
+        )
+        if "REMED-900" in refreshed_stale_parent.get("follow_up_ticket_ids", []):
+            raise RuntimeError(
+                "apply_remediation_follow_up.py should remove current remediation tickets from stale historical parents when source ownership changes"
+            )
+        if "REMED-900" not in refreshed_parent_ticket.get("follow_up_ticket_ids", []):
+            raise RuntimeError(
+                "apply_remediation_follow_up.py should ensure the canonical current parent lists the reconciled remediation ticket in follow_up_ticket_ids"
+            )
+        if any(
+            "REMED-901" in blocker
+            for blocker in refreshed_parent_ticket.get("decision_blockers", [])
+        ):
+            raise RuntimeError(
+                "apply_remediation_follow_up.py should remove stale split-parent blocker text when a remediation ticket is superseded"
+            )
+        refreshed_parent_ticket.setdefault("follow_up_ticket_ids", []).append("REMED-901")
+        remediation_manifest_path.write_text(
+            json.dumps(refreshed_manifest_after_rerun, indent=2) + "\n",
+            encoding="utf-8",
+        )
+        remediation_follow_up_reheal = run_json(
+            [
+                sys.executable,
+                str(remediation_follow_up_script),
+                str(remediation_follow_up_dest),
+                "--diagnosis",
+                str(remediation_diagnosis_path),
+            ],
+            ROOT,
+        )
+        if "REMED-901" not in remediation_follow_up_reheal.get(
+            "superseded_tickets", []
+        ):
+            raise RuntimeError(
+                "apply_remediation_follow_up.py should heal stale parent linkage for already-superseded remediation tickets"
+            )
+        rehealed_manifest = json.loads(
+            remediation_manifest_path.read_text(encoding="utf-8")
+        )
+        rehealed_parent_ticket = next(
+            ticket
+            for ticket in rehealed_manifest["tickets"]
+            if ticket["id"] == remediation_parent_ticket["id"]
+        )
+        if "REMED-901" in rehealed_parent_ticket.get("follow_up_ticket_ids", []):
+            raise RuntimeError(
+                "apply_remediation_follow_up.py should unlink already-superseded remediation tickets on later reruns when stale parent linkage survives"
+            )
+        refreshed_ticket_doc = remediation_ticket_path.read_text(encoding="utf-8")
+        for expected in (
+            f"Historical evidence sources: {history_review_path}.",
+            "Keep this note.",
+        ):
+            if expected not in refreshed_ticket_doc:
+                raise RuntimeError(
+                    "apply_remediation_follow_up.py should refresh existing remediation ticket files while preserving their notes"
+                )
 
         stale_godot_dest = workspace / "stale-godot-project"
         shutil.copytree(full_dest, stale_godot_dest)
@@ -8292,6 +9811,118 @@ def main() -> int:
                 raise RuntimeError(
                     "A source-follow-up repair fixture should remain blocked before any recorded follow-on completion exists"
                 )
+            placeholder_reconcile_dest = workspace / "placeholder-reconcile"
+            shutil.copytree(full_dest, placeholder_reconcile_dest)
+            seed_failing_pytest_suite(placeholder_reconcile_dest)
+            placeholder_initial_process = subprocess.run(
+                [
+                    sys.executable,
+                    str(PUBLIC_REPAIR),
+                    str(placeholder_reconcile_dest),
+                    "--skip-deterministic-refresh",
+                ],
+                cwd=ROOT,
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            if placeholder_initial_process.returncode not in {0, 3}:
+                raise RuntimeError(
+                    "Placeholder reconcile repair probe failed unexpectedly.\n"
+                    f"STDOUT:\n{placeholder_initial_process.stdout}\n"
+                    f"STDERR:\n{placeholder_initial_process.stderr}"
+                )
+            placeholder_initial = json.loads(placeholder_initial_process.stdout)
+            if not any(
+                "placeholder_local_skills_survived_refresh" in reason
+                for reason in placeholder_initial["execution_record"]["blocking_reasons"]
+            ):
+                raise RuntimeError(
+                    "A placeholder-skill repair fixture should preserve the placeholder_local_skills_survived_refresh blocker before follow-on completion"
+                )
+            placeholder_follow_on_state_path = (
+                placeholder_reconcile_dest
+                / ".opencode"
+                / "meta"
+                / "repair-follow-on-state.json"
+            )
+            placeholder_follow_on_state = json.loads(
+                placeholder_follow_on_state_path.read_text(encoding="utf-8")
+            )
+            placeholder_cycle = placeholder_follow_on_state["cycle_id"]
+            make_stack_skill_non_placeholder(placeholder_reconcile_dest)
+            placeholder_ticket_pack_rel = (
+                ".opencode/state/artifacts/history/repair/ticket-pack-builder-completion.md"
+            )
+            placeholder_ticket_pack_path = (
+                placeholder_reconcile_dest / placeholder_ticket_pack_rel
+            )
+            placeholder_ticket_pack_path.parent.mkdir(parents=True, exist_ok=True)
+            placeholder_ticket_pack_path.write_text(
+                "# Repair Follow-On Completion\n\n"
+                "- completed_stage: ticket-pack-builder\n"
+                f"- cycle_id: {placeholder_cycle}\n"
+                "- completed_by: ticket-pack-builder\n\n"
+                "## Summary\n\n"
+                "- Routed source follow-up into the ticket system after project-skill regeneration.\n",
+                encoding="utf-8",
+            )
+            run_json(
+                [
+                    sys.executable,
+                    str(RECORD_REPAIR_STAGE),
+                    str(placeholder_reconcile_dest),
+                    "--stage",
+                    "project-skill-bootstrap",
+                    "--completed-by",
+                    "project-skill-bootstrap",
+                    "--summary",
+                    "Replaced placeholder stack standards with repo-specific guidance.",
+                    "--evidence",
+                    ".opencode/skills/stack-standards/SKILL.md",
+                ],
+                ROOT,
+            )
+            run_json(
+                [
+                    sys.executable,
+                    str(RECORD_REPAIR_STAGE),
+                    str(placeholder_reconcile_dest),
+                    "--stage",
+                    "ticket-pack-builder",
+                    "--completed-by",
+                    "ticket-pack-builder",
+                    "--summary",
+                    "Routed source follow-up into the ticket system after project-skill regeneration.",
+                    "--evidence",
+                    placeholder_ticket_pack_rel,
+                ],
+                ROOT,
+            )
+            placeholder_reconcile = run_json(
+                [
+                    sys.executable,
+                    str(RECONCILE_REPAIR),
+                    str(placeholder_reconcile_dest),
+                ],
+                ROOT,
+            )
+            if placeholder_reconcile.get("status") != "reconciled":
+                raise RuntimeError(
+                    "reconcile_repair_follow_on should clear placeholder_local_skills_survived_refresh once project-skill-bootstrap completed and the live repo-local skills are no longer placeholder text"
+                )
+            placeholder_workflow = json.loads(
+                (
+                    placeholder_reconcile_dest
+                    / ".opencode"
+                    / "state"
+                    / "workflow-state.json"
+                ).read_text(encoding="utf-8")
+            )
+            if placeholder_workflow["repair_follow_on"]["outcome"] != "source_follow_up":
+                raise RuntimeError(
+                    "reconcile_repair_follow_on should convert repaired placeholder-skill blockers into source_follow_up once the current cycle is complete"
+                )
             polluted_follow_on_state_dest = workspace / "polluted-follow-on-state"
             shutil.copytree(full_dest, polluted_follow_on_state_dest)
             make_stack_skill_non_placeholder(polluted_follow_on_state_dest)
@@ -8472,6 +10103,44 @@ def main() -> int:
                 ],
                 ROOT,
             )
+            reconcile_source_follow_up = run_json(
+                [
+                    sys.executable,
+                    str(RECONCILE_REPAIR),
+                    str(source_follow_up_repair_dest),
+                ],
+                ROOT,
+            )
+            if reconcile_source_follow_up.get("status") != "reconciled":
+                raise RuntimeError(
+                    "reconcile_repair_follow_on should reconcile completed current-cycle follow-on stages into source_follow_up when only EXEC findings remain"
+                )
+            reconciled_workflow = json.loads(
+                (
+                    source_follow_up_repair_dest
+                    / ".opencode"
+                    / "state"
+                    / "workflow-state.json"
+                ).read_text(encoding="utf-8")
+            )
+            if (
+                reconciled_workflow["repair_follow_on"]["outcome"]
+                != "source_follow_up"
+            ):
+                raise RuntimeError(
+                    "reconcile_repair_follow_on should update workflow-state to source_follow_up when only source follow-up remains"
+                )
+            if (
+                reconciled_workflow["repair_follow_on"]["handoff_allowed"]
+                is not True
+            ):
+                raise RuntimeError(
+                    "reconcile_repair_follow_on should allow handoff once required follow-on stages are complete and only source follow-up remains"
+                )
+            if reconciled_workflow["repair_follow_on"]["blocking_reasons"]:
+                raise RuntimeError(
+                    "reconcile_repair_follow_on should clear stage-only repair blocking reasons once the current cycle is reconciled"
+                )
             source_follow_up_repair = run_json(
                 [
                     sys.executable,
@@ -9290,6 +10959,75 @@ def main() -> int:
                 raise RuntimeError(
                     "Persisted follow-on history should keep owner/category metadata for recorded execution events"
                 )
+            package_mismatch_state = json.loads(
+                recorded_follow_on_state_path.read_text(encoding="utf-8")
+            )
+            package_mismatch_state["repair_package_commit"] = "stale-package-commit"
+            package_mismatch_state["stage_records"]["ticket-pack-builder"][
+                "repair_package_commit"
+            ] = "stale-package-commit"
+            recorded_follow_on_state_path.write_text(
+                json.dumps(package_mismatch_state, indent=2) + "\n",
+                encoding="utf-8",
+            )
+            recorded_follow_on_package_mismatch_process = subprocess.run(
+                [
+                    sys.executable,
+                    str(PUBLIC_REPAIR),
+                    str(recorded_follow_on_dest),
+                    "--skip-deterministic-refresh",
+                ],
+                cwd=ROOT,
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            recorded_follow_on_package_mismatch = json.loads(
+                recorded_follow_on_package_mismatch_process.stdout
+            )
+            if (
+                "ticket-pack-builder"
+                not in recorded_follow_on_package_mismatch["execution_record"][
+                    "invalidated_recorded_stages"
+                ]
+            ):
+                raise RuntimeError(
+                    "Managed repair should invalidate recorded execution reuse when the recorded stage package provenance is stale"
+                )
+            if recorded_follow_on_package_mismatch["execution_record"][
+                "recorded_execution_completed_stages"
+            ]:
+                raise RuntimeError(
+                    "Managed repair should stop reporting recorded execution completion when its repair package provenance is stale"
+                )
+            package_mismatch_after_state = json.loads(
+                recorded_follow_on_state_path.read_text(encoding="utf-8")
+            )
+            if (
+                package_mismatch_after_state["stage_records"]["ticket-pack-builder"].get(
+                    "evidence_validation_error"
+                )
+                != "repair_package_commit_mismatch"
+            ):
+                raise RuntimeError(
+                    "Follow-on tracking should record repair_package_commit_mismatch when a recorded stage was produced by an older package commit"
+                )
+            run_json(
+                [
+                    sys.executable,
+                    str(RECORD_REPAIR_STAGE),
+                    str(recorded_follow_on_dest),
+                    "--stage",
+                    "ticket-pack-builder",
+                    "--completed-by",
+                    "ticket-pack-builder",
+                    "--summary",
+                    "Refined repair follow-up tickets after managed repair.",
+                    "--evidence",
+                    recorded_evidence_rel,
+                ],
+                ROOT,
+            )
             recorded_evidence_path.write_text(
                 "# Repair Follow-On Completion\n\n"
                 "- completed_stage: ticket-pack-builder\n"

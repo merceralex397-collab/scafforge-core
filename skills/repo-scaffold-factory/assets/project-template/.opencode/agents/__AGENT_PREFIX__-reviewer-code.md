@@ -29,9 +29,15 @@ permission:
     "ls *": allow
     "find *": allow
     "rg *": allow
+    "grep *": allow
     "cat *": allow
     "head *": allow
     "tail *": allow
+    "echo *": allow
+    "test -f *": allow
+    "test -d *": allow
+    "[ -f *": allow
+    "[ -d *": allow
     "git diff*": allow
     "python -m py_compile*": allow
     "python -c *": allow
@@ -45,6 +51,7 @@ permission:
     "npm test*": allow
     "pnpm test*": allow
     "node -e *": allow
+    "/home/pc/.local/bin/godot *": allow
     "cargo check*": allow
     "cargo test*": allow
     "go vet*": allow
@@ -77,3 +84,4 @@ Rules:
 - when the ticket carries `finding_source` (a remediation ticket created from an audit, review, QA, or smoke finding), you must rerun the original failing command or the canonical acceptance command for the repaired surface before approving; do not approve on prose alone when the original check is re-runnable
 - embed the following in the review artifact for every remediation review: the exact command run, the raw command output (truncated to relevant lines if needed), and the explicit pass/fail result of that command
 - if the remediation command cannot run due to missing host prerequisites, record that as a blocker and do not approve; do not substitute a prose assertion of fixed behavior for runnable command evidence
+- when a remediation ticket cites `.opencode/state/artifacts/history/...`, treat that path as read-only evidence of the original defect; require the fix to land on current writable repo surfaces or current remediation artifacts instead of demanding a history rewrite

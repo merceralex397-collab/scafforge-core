@@ -107,6 +107,104 @@ def read_text(path: Path) -> str:
     return path.read_text(encoding="utf-8") if path.exists() else ""
 
 
+_FINISH_CONSUMER_KEYWORDS = (
+    "mobile app",
+    "android app",
+    "ios app",
+    "game",
+    "toddler",
+    "consumer-facing",
+    "store-ready",
+    "playable",
+    "packaged product",
+)
+
+
+def brief_is_consumer_facing(brief_text: str) -> bool:
+    lowered = brief_text.lower()
+    return any(keyword in lowered for keyword in _FINISH_CONSUMER_KEYWORDS)
+
+
+def brief_has_finish_contract(brief_text: str) -> bool:
+    return bool(re.search(r"^##\s+13\.", brief_text, re.MULTILINE) or "product finish contract" in brief_text.lower())
+
+
+def infer_finish_contract_section(brief_text: str) -> str | None:
+    if not brief_text.strip() or not brief_is_consumer_facing(brief_text) or brief_has_finish_contract(brief_text):
+        return None
+
+    lowered = brief_text.lower()
+    placeholder_policy = (
+        "no_placeholders"
+        if "no placeholders" in lowered or "must not ship" in lowered
+        else "placeholder_ok"
+    )
+
+    if "android" in lowered:
+        deliverable_kind = "Android APK for local testing and direct device installation"
+    elif "game" in lowered:
+        deliverable_kind = "Playable packaged game build"
+    else:
+        deliverable_kind = "User-facing application build"
+
+    if "toddler" in lowered:
+        visual_finish_target = (
+            "Bright, toddler-safe visuals with large readable shapes, cohesive toy-box presentation, "
+            "and stable feedback across all shipped play surfaces."
+        )
+        audio_finish_target = (
+            "Soft, child-safe tactile audio feedback that supports play without startling spikes or harsh loops."
+        )
+        finish_acceptance_signals = (
+            "Release-facing milestones must keep the toy-box flow coherent, maintain immediate touch feedback, "
+            "and ensure any shipped visual or audio content matches the toddler-safe direction recorded in this brief."
+        )
+    else:
+        visual_finish_target = "User-facing visuals must match the recorded product direction across all shipped surfaces."
+        audio_finish_target = "User-facing audio must match the recorded product direction across all shipped surfaces."
+        finish_acceptance_signals = (
+            "Release-facing milestones must confirm shipped content matches the recorded finish bar for the product."
+        )
+
+    content_source_plan = (
+        "Use repo-authored or appropriately licensed content. Temporary implementation assets are acceptable until a later "
+        "brief revision records a stricter finish bar."
+        if placeholder_policy == "placeholder_ok"
+        else "Use repo-authored or appropriately licensed final content only; temporary implementation assets must not ship."
+    )
+    licensing_constraints = (
+        "All committed visual and audio content must be repo-authored, user-supplied, or covered by a license compatible "
+        "with the intended distribution path."
+    )
+
+    return (
+        "## 13. Product Finish Contract\n\n"
+        "This section is the canonical authority for what product finish means for this repo. Audit, ticket generation, "
+        "and closeout must reference it before treating the product as finished.\n\n"
+        f"- deliverable_kind: {deliverable_kind}\n"
+        f"- placeholder_policy: {placeholder_policy}\n"
+        f"- visual_finish_target: {visual_finish_target}\n"
+        f"- audio_finish_target: {audio_finish_target}\n"
+        f"- content_source_plan: {content_source_plan}\n"
+        f"- licensing_or_provenance_constraints: {licensing_constraints}\n"
+        f"- finish_acceptance_signals: {finish_acceptance_signals}\n"
+    )
+
+
+def backfill_missing_finish_contract(brief_text: str) -> str | None:
+    normalized = brief_text.replace(
+        "and closeout must reference it before treating the product as release-ready.",
+        "and closeout must reference it before treating the product as finished.",
+    )
+    if normalized != brief_text:
+        return normalized
+    section = infer_finish_contract_section(brief_text)
+    if section is None:
+        return None
+    body = brief_text.rstrip()
+    return f"{body}\n\n{section}"
+
+
 def write_json(path: Path, value: Any) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(value, indent=2) + "\n", encoding="utf-8")
@@ -568,8 +666,52 @@ def initialize_follow_on_tracking_state(
     *,
     process_version: int,
     change_summary: str,
+    repair_basis_path: Path | None = None,
 ) -> dict[str, Any]:
+    # Import lazily to avoid the existing circular dependency:
+    # follow_on_tracking imports FOLLOW_ON_TRACKING_PATH from this module.
+    from follow_on_tracking import normalize_follow_on_tracking_state
+
     timestamp = current_iso_timestamp()
+    repair_package_commit = current_package_commit()
+    normalized_repair_basis_path = str(repair_basis_path) if repair_basis_path else None
+    existing_payload = read_json(repo_root / FOLLOW_ON_TRACKING_PATH)
+    if isinstance(existing_payload, dict):
+        existing_state = normalize_follow_on_tracking_state(
+            existing_payload, process_version=process_version
+        )
+        existing_commit = (
+            existing_state.get("repair_package_commit")
+            if isinstance(existing_state.get("repair_package_commit"), str)
+            else None
+        )
+        existing_basis = (
+            existing_state.get("repair_basis_path")
+            if isinstance(existing_state.get("repair_basis_path"), str)
+            else None
+        )
+        existing_stage_records = (
+            existing_state.get("stage_records")
+            if isinstance(existing_state.get("stage_records"), dict)
+            else {}
+        )
+        existing_required = (
+            existing_state.get("required_stages")
+            if isinstance(existing_state.get("required_stages"), list)
+            else []
+        )
+        if (
+            existing_commit == repair_package_commit
+            and existing_basis == normalized_repair_basis_path
+            and (existing_stage_records or existing_required)
+        ):
+            existing_state["last_updated_at"] = timestamp
+            existing_state["process_version"] = process_version
+            existing_state["repair_package_commit"] = repair_package_commit
+            existing_state["repair_basis_path"] = normalized_repair_basis_path
+            existing_state["change_summary"] = change_summary
+            write_json(repo_root / FOLLOW_ON_TRACKING_PATH, existing_state)
+            return existing_state
     payload = {
         "tracking_mode": "persistent_recorded_state",
         "assertion_input_mode": "legacy_manual_assertion",
@@ -577,7 +719,8 @@ def initialize_follow_on_tracking_state(
         "created_at": timestamp,
         "last_updated_at": timestamp,
         "process_version": process_version,
-        "repair_package_commit": current_package_commit(),
+        "repair_package_commit": repair_package_commit,
+        "repair_basis_path": normalized_repair_basis_path,
         "change_summary": change_summary,
         "required_stages": [],
         "stage_records": {},
@@ -797,7 +940,13 @@ def refresh_restart_surfaces(repo_root: Path) -> None:
     )
 
 
-def update_workflow_state(repo_root: Path, rendered_provenance: dict[str, Any], change_summary: str) -> None:
+def update_workflow_state(
+    repo_root: Path,
+    rendered_provenance: dict[str, Any],
+    change_summary: str,
+    *,
+    repair_basis_path: Path | None = None,
+) -> None:
     workflow_contract = rendered_provenance.get("workflow_contract", {}) if isinstance(rendered_provenance, dict) else {}
     process_version = workflow_contract.get("process_version", 7)
     changed_at = current_iso_timestamp()
@@ -833,6 +982,7 @@ def update_workflow_state(repo_root: Path, rendered_provenance: dict[str, Any], 
         repo_root,
         process_version=process_version,
         change_summary=change_summary,
+        repair_basis_path=repair_basis_path,
     )
 
 
@@ -925,7 +1075,14 @@ def _warn_if_split_scope_deadlock_present(repo_root: Path) -> None:
         )
 
 
-def apply_repair(repo_root: Path, rendered_root: Path, change_summary: str, *, preserve_backups: bool = False) -> dict[str, Any]:
+def apply_repair(
+    repo_root: Path,
+    rendered_root: Path,
+    change_summary: str,
+    *,
+    repair_basis_path: Path | None = None,
+    preserve_backups: bool = False,
+) -> dict[str, Any]:
     replaced_surfaces: list[str] = []
     diff_summary = build_managed_surface_diff_summary(repo_root, rendered_root)
     intent_changing_reasons = detect_intent_changing_repair(repo_root, rendered_root)
@@ -996,6 +1153,22 @@ def apply_repair(repo_root: Path, rendered_root: Path, change_summary: str, *, p
             replace_file_with_backup(rendered_root / "docs" / "process" / filename, repo_root / "docs" / "process" / filename)
             replaced_surfaces.append(f"docs/process/{filename}")
 
+        brief_path = repo_root / "docs" / "spec" / "CANONICAL-BRIEF.md"
+        brief_before = read_text(brief_path)
+        brief_after = backfill_missing_finish_contract(brief_before)
+        if brief_after is not None and brief_after != brief_before:
+            processed_records.append(backup_target(brief_path, backup_root, repo_root))
+            write_text(brief_path, brief_after)
+            replaced_surfaces.append("docs/spec/CANONICAL-BRIEF.md")
+            diff_summary = merge_diff_summaries(
+                diff_summary,
+                {
+                    "files_added": ["docs/spec/CANONICAL-BRIEF.md"] if not brief_before else [],
+                    "files_removed": [],
+                    "files_modified": ["docs/spec/CANONICAL-BRIEF.md"] if brief_before else [],
+                },
+            )
+
         rendered_start_here = (rendered_root / "START-HERE.md").read_text(encoding="utf-8")
         target_start_here_path = repo_root / "START-HERE.md"
         write_merged_start_here_with_backup(rendered_start_here, target_start_here_path)
@@ -1013,7 +1186,12 @@ def apply_repair(repo_root: Path, rendered_root: Path, change_summary: str, *, p
         for relative in TRANSACTION_STATE_SURFACES:
             processed_records.append(backup_target(repo_root / relative, backup_root, repo_root))
 
-        update_workflow_state(repo_root, read_json(rendered_root / ".opencode" / "meta" / "bootstrap-provenance.json"), change_summary)
+        update_workflow_state(
+            repo_root,
+            read_json(rendered_root / ".opencode" / "meta" / "bootstrap-provenance.json"),
+            change_summary,
+            repair_basis_path=repair_basis_path,
+        )
         process_version_after = None
         workflow_after = read_json(repo_root / ".opencode" / "state" / "workflow-state.json")
         if isinstance(workflow_after, dict) and isinstance(workflow_after.get("process_version"), int):

@@ -40,6 +40,13 @@ PUBLIC_REPAIR = (
 REGENERATE = (
     ROOT / "skills" / "scafforge-repair" / "scripts" / "regenerate_restart_surfaces.py"
 )
+RECONCILE_REPAIR = (
+    ROOT
+    / "skills"
+    / "scafforge-repair"
+    / "scripts"
+    / "reconcile_repair_follow_on.py"
+)
 PIVOT = ROOT / "skills" / "scafforge-pivot" / "scripts" / "plan_pivot.py"
 PIVOT_RECORD = (
     ROOT / "skills" / "scafforge-pivot" / "scripts" / "record_pivot_stage_completion.py"
@@ -102,7 +109,31 @@ def package_commit() -> str:
         raise RuntimeError(
             f"Unable to resolve package commit for smoke tests:\nSTDERR:\n{result.stderr}"
         )
-    return result.stdout.strip()
+    commit = result.stdout.strip()
+    dirty = subprocess.run(
+        ["git", "status", "--porcelain=v1"],
+        cwd=ROOT,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    if dirty.returncode != 0:
+        return commit
+    dirty_state = dirty.stdout.strip()
+    if not dirty_state:
+        return commit
+    diff = subprocess.run(
+        ["git", "diff", "--no-ext-diff", "HEAD", "--"],
+        cwd=ROOT,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    fingerprint_source = dirty_state
+    if diff.returncode == 0 and diff.stdout:
+        fingerprint_source = f"{dirty_state}\n{diff.stdout}"
+    fingerprint = hashlib.sha256(fingerprint_source.encode("utf-8")).hexdigest()[:12]
+    return f"{commit}+dirty:{fingerprint}"
 
 
 def run(command: list[str], cwd: Path, *, env: dict[str, str] | None = None) -> None:

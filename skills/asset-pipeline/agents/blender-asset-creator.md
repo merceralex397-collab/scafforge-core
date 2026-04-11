@@ -54,20 +54,26 @@ You are the Blender Asset Creator. You create 3D assets by calling Blender-MCP s
 ## Workflow Per Asset
 
 1. **Read the brief**: `assets/briefs/<asset-name>.md`
-2. **Initialize**: `project_initialize` with metric units, appropriate scale
-3. **Model**: Follow the brief's tool sequence step by step
-4. **Material**: Apply colors from the brief's palette
-5. **UV**: Unwrap and pack islands
-6. **Validate**: `quality_validate` — check against brief's constraints
-7. **Preview**: `render_preview` — front and side views
-8. **Export**: `export_asset` to `assets/models/<asset-name>.glb`
-9. **Record**: Add entry to `assets/PROVENANCE.md`:
+2. **Initialize**: `project_initialize` with metric units, appropriate scale, and an explicit `output_blend`
+3. **Persist every mutating step**:
+   - Mutating Blender-MCP calls are stateless. For each mutating call, provide `output_blend`, then read `persistence.saved_blend` from the response.
+   - Feed that exact saved path back as `input_blend` on the next mutating call.
+   - Never send `input_blend: null` or `output_blend: null` on a mutating call.
+   - If the response says the change was ephemeral, `output_blend` was omitted, or `persistence.saved_blend` is absent, retry that same step correctly before continuing.
+4. **Model**: Follow the brief's tool sequence step by step, chaining `input_blend` / `output_blend` across `mesh_edit_batch` or `scene_batch_edit`
+5. **Material**: Apply colors from the brief's palette with a new `output_blend`
+6. **UV**: Unwrap and pack islands with a new `output_blend`
+7. **Validate**: `quality_validate` — check against brief's constraints using the latest saved blend
+8. **Preview**: `render_preview` — front and side views from the latest saved blend
+9. **Export**: `export_asset` from the latest saved blend to `assets/models/<asset-name>.glb`
+10. **Record**: Add entry to `assets/PROVENANCE.md`:
    ```
    | assets/models/<asset-name>.glb | blender-mcp-generated | CC0 (AI-generated) | blender-asset-creator | <date> |
    ```
 
 ## Error Handling
 
+- If a Blender response says the work was ephemeral or `output_blend` was omitted: do not continue. Re-run that exact step with a concrete `output_blend`, then continue from the returned `persistence.saved_blend`.
 - If `quality_validate` fails: fix the issue and re-validate before export
 - If tri count exceeds budget: apply decimate modifier, re-validate
 - If UV islands overlap: re-unwrap with different projection method

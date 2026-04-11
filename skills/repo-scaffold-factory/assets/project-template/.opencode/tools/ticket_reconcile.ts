@@ -2,8 +2,10 @@ import { tool } from "@opencode-ai/plugin"
 import {
   currentRegistryArtifact,
   defaultArtifactPath,
+  defaultStatusForStage,
   getTicket,
   getTicketWorkflowState,
+  ticketEligibleForTrustRestoration,
   loadArtifactRegistry,
   loadManifest,
   loadWorkflowState,
@@ -23,10 +25,6 @@ function normalizeOptional(value: string | undefined): string | undefined {
   if (typeof value !== "string") return undefined
   const normalized = value.trim()
   return normalized || undefined
-}
-
-function isCompletedHistoricalTicket(ticket: Ticket): boolean {
-  return ticket.status === "done" || ticket.resolution_state === "done" || ticket.resolution_state === "superseded"
 }
 
 function findEvidenceArtifact(
@@ -87,11 +85,11 @@ ${args.reason}
 export default tool({
   description: "Reconcile stale or contradictory source/follow-up linkage using current registered evidence instead of manual manifest edits.",
   args: {
-    source_ticket_id: tool.schema.string().describe("Canonical source ticket that should own the follow-up linkage."),
-    target_ticket_id: tool.schema.string().describe("Follow-up ticket whose lineage or dependency graph needs reconciliation."),
+    source_ticket_id: tool.schema.string().describe("Canonical source ticket or historical owner that should own the follow-up linkage after reconciliation."),
+    target_ticket_id: tool.schema.string().describe("Stale follow-up ticket whose lineage or dependency graph should be rewritten; this is the ticket being changed or superseded."),
     evidence_artifact_path: tool.schema.string().describe("Current registered artifact path that justifies the reconciliation."),
     reason: tool.schema.string().describe("Why the current ticket graph is stale or contradictory."),
-    replacement_source_ticket_id: tool.schema.string().describe("Optional replacement source ticket. Defaults to source_ticket_id.").optional(),
+    replacement_source_ticket_id: tool.schema.string().describe("Optional authoritative replacement source ticket. Defaults to source_ticket_id and must not equal target_ticket_id.").optional(),
     replacement_source_mode: tool.schema.enum(["process_verification", "post_completion_issue", "net_new_scope", "split_scope"]).describe("Optional replacement source mode for the target ticket.").optional(),
     remove_dependency_on_source: tool.schema.boolean().describe("Whether to remove any target dependency on the canonical source ticket.").optional(),
     supersede_target: tool.schema.boolean().describe("Whether to close the target ticket as superseded after reconciliation.").optional(),
@@ -114,6 +112,16 @@ export default tool({
     if (!reason) {
       throw new Error("reason must not be empty.")
     }
+    if (sourceTicket.id === targetTicket.id) {
+      throw new Error(
+        "ticket_reconcile requires source_ticket_id to name the authoritative owner and target_ticket_id to name the stale follow-up being changed; they cannot be the same ticket.",
+      )
+    }
+    if (replacementSourceTicket.id === targetTicket.id) {
+      throw new Error(
+        `ticket_reconcile target_ticket_id cannot equal replacement_source_ticket_id (${targetTicket.id}). The target is the stale follow-up being rewritten or superseded; the replacement source must be the authoritative owner.`,
+      )
+    }
 
     const registry = await loadArtifactRegistry()
     const evidenceArtifact = findEvidenceArtifact(sourceTicket, targetTicket, replacementSourceTicket, registry, evidenceArtifactPath)
@@ -124,10 +132,10 @@ export default tool({
     if (replacementSourceMode === "split_scope" && (!["open", "reopened"].includes(replacementSourceTicket.resolution_state) || replacementSourceTicket.status === "done")) {
       throw new Error(`split_scope reconciliation requires an open or reopened replacement source ticket. ${replacementSourceTicket.id} is not currently eligible.`)
     }
-    if (replacementSourceMode === "post_completion_issue" && !isCompletedHistoricalTicket(replacementSourceTicket)) {
+    if (replacementSourceMode === "post_completion_issue" && !ticketEligibleForTrustRestoration(replacementSourceTicket) && replacementSourceTicket.resolution_state !== "superseded") {
       throw new Error(`post_completion_issue reconciliation requires a completed historical source ticket. ${replacementSourceTicket.id} is still open.`)
     }
-    if (replacementSourceMode === "process_verification" && !isCompletedHistoricalTicket(replacementSourceTicket)) {
+    if (replacementSourceMode === "process_verification" && !ticketEligibleForTrustRestoration(replacementSourceTicket) && replacementSourceTicket.resolution_state !== "superseded") {
       throw new Error(`process_verification reconciliation requires a completed historical source ticket. ${replacementSourceTicket.id} is still open.`)
     }
 
@@ -142,8 +150,11 @@ export default tool({
     targetTicket.source_ticket_id = replacementSourceTicket.id
     targetTicket.source_mode = replacementSourceMode ?? undefined
 
-    if (!replacementSourceTicket.follow_up_ticket_ids.includes(targetTicket.id)) {
+    if (!supersedeTarget && !replacementSourceTicket.follow_up_ticket_ids.includes(targetTicket.id)) {
       replacementSourceTicket.follow_up_ticket_ids.push(targetTicket.id)
+    }
+    if (replacementSourceMode === "split_scope" && replacementSourceTicket.status === "blocked") {
+      replacementSourceTicket.status = defaultStatusForStage(replacementSourceTicket.stage)
     }
 
     if (removeDependencyOnSource) {
@@ -167,6 +178,7 @@ export default tool({
     }
 
     if (supersedeTarget) {
+      replacementSourceTicket.follow_up_ticket_ids = replacementSourceTicket.follow_up_ticket_ids.filter((candidate) => candidate !== targetTicket.id)
       targetTicket.stage = "closeout"
       targetTicket.status = "done"
       targetTicket.resolution_state = "superseded"

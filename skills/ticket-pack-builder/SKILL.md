@@ -70,6 +70,7 @@ For each piece of work, create a ticket with these fields:
 - `follow_up_ticket_ids` — linked downstream remediation or expansion tickets, initially empty
 - `source_mode` — `process_verification`, `post_completion_issue`, `net_new_scope`, or `split_scope` when the ticket was created from later diagnosis, reverification work, or open-parent decomposition; omit for greenfield bootstrap tickets
 - `split_kind` — required when `source_mode` is `split_scope`; use `sequential_dependent` when the child must not run until the parent-owned work is complete, or `parallel_independent` when the child can truly advance independently; default to `sequential_dependent` unless project evidence proves the child has no dependency on the parent's open work
+- For `EXEC-REMED-001` follow-up tickets that repair missing runnable review evidence on an open parent ticket, treat the child as `parallel_independent`: the parent stays open, but the evidence-repair child is the foreground work and must not deadlock behind the parent it is meant to unblock
 - `finding_source` — original audit, review, QA, or smoke finding code when this ticket exists to remediate a validated issue
 - `summary` — one-paragraph description of what needs to be done
 - `acceptance` — list of specific acceptance criteria tied to finalized repo-local commands, checks, or observable workflow surfaces; these must be scope-isolated to the ticket's own work
@@ -141,7 +142,7 @@ Do not let a generic `POLISH-001`, UX, or validation ticket stand in for Android
 
 ### Mandatory finish-ownership tickets for consumer-facing repos
 
-If the canonical brief includes a Product Finish Contract (section 13) with `placeholder_policy: no_placeholders`, create explicit finish-ownership tickets instead of burying finish work in a generic polish bucket.
+If the canonical brief includes a Product Finish Contract (section 13) that forbids placeholder output in the final product, create explicit finish-ownership tickets instead of burying finish work in a generic polish bucket.
 
 Finish work must be split into owned tickets that cover:
 
@@ -152,7 +153,7 @@ Finish work must be split into owned tickets that cover:
 
 Do not create one generic `FINISH-001` or `POLISH-001` ticket for all content work. The backlog must be specific enough for an agent to determine what constitutes completion for each owned area.
 
-When `placeholder_policy: placeholder_ok` is explicitly recorded in the brief, do not invent finish-ownership tickets for those content areas.
+When the finish contract explicitly allows placeholder output in the shipped product (for example `placeholder_policy: placeholder_ok`), do not invent finish-ownership tickets for those content areas.
 
 Leaving finish work as unwritten commentary outside the canonical backlog is not permitted when the Product Finish Contract records a non-placeholder finish bar.
 

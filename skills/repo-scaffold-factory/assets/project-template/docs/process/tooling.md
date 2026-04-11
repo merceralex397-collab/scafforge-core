@@ -20,7 +20,7 @@ Important workflow tools:
 - `handoff_publish` refreshes the top-level handoff
 - `skill_ping` records explicit local or global skill use in `.opencode/state/invocation-log.jsonl`
 - `ticket_create` creates guarded follow-up tickets from current registered evidence during process verification, post-completion defect intake, open-parent split decomposition, or other approved remediation follow-up paths; `split_scope` keeps the parent open and linked instead of marking it blocked
-- `ticket_reconcile` repairs stale or contradictory source/follow-up linkage from current evidence and writes a reconciliation artifact instead of requiring manual manifest surgery
+- `ticket_reconcile` repairs stale or contradictory source/follow-up linkage from current evidence and writes a reconciliation artifact instead of requiring manual manifest surgery; `source_ticket_id` / `replacement_source_ticket_id` name the authoritative owner, and `target_ticket_id` names the stale follow-up ticket being rewritten or superseded; set `supersede_target: true` when the stale ticket should close as superseded rather than remain open with relinked lineage
 
 Tracking surfaces:
 

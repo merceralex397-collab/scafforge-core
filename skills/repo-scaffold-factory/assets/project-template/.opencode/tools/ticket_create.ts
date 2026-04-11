@@ -2,6 +2,7 @@ import { tool } from "@opencode-ai/plugin"
 import {
   createTicketRecord,
   currentRegistryArtifact,
+  defaultStatusForStage,
   getTicket,
   loadArtifactRegistry,
   loadManifest,
@@ -81,6 +82,11 @@ export default tool({
         throw new Error(`source_ticket_id is required when source_mode is ${sourceMode}.`)
       }
       sourceTicket = getTicket(manifest, sourceTicketId)
+      if (ticket.depends_on.includes(sourceTicket.id)) {
+        throw new Error(
+          `Ticket ${ticket.id} cannot name ${sourceTicket.id} as both source_ticket_id and depends_on.`,
+        )
+      }
 
       if (sourceMode === "process_verification") {
         if (!workflow.pending_process_verification) {
@@ -147,6 +153,9 @@ export default tool({
         : `Parallel split: scope delegated to follow-up ticket ${ticket.id}. Keep the parent open and non-foreground until the child work lands.`
       if (!sourceTicket.decision_blockers.includes(splitNote)) {
         sourceTicket.decision_blockers.push(splitNote)
+      }
+      if (sourceTicket.status === "blocked") {
+        sourceTicket.status = defaultStatusForStage(sourceTicket.stage)
       }
     }
 

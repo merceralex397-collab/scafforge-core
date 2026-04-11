@@ -2,7 +2,7 @@ import { tool } from "@opencode-ai/plugin"
 import { spawn } from "node:child_process"
 import { existsSync } from "node:fs"
 import { access, readFile } from "node:fs/promises"
-import { join } from "node:path"
+import { basename, join } from "node:path"
 import {
   currentArtifacts,
   defaultArtifactPath,
@@ -444,7 +444,7 @@ function parseOverrideTokens(tokens: string[], label: string): CommandSpec {
 }
 
 function isSyntaxErrorOutput(output: string): boolean {
-  return /syntax error|unexpected token|missing language argument|unterminated|unmatched quote/i.test(output)
+  return /syntax error|parse error|failed to load script|not declared in the current scope|not found in base self|unexpected token|missing language argument|unterminated|unmatched quote/i.test(output)
 }
 
 function isConfigurationErrorOutput(output: string): boolean {
@@ -452,20 +452,38 @@ function isConfigurationErrorOutput(output: string): boolean {
 }
 
 function classifyCommandFailure(args: {
+  argv: string[]
   exitCode: number
   stdout: string
   stderr: string
   missingExecutable?: string
   blockedByPermissions?: boolean
 }): CommandResult["failure_classification"] {
-  if (args.exitCode === 0) return undefined
+  const output = `${args.stdout}\n${args.stderr}`
   if (args.missingExecutable) return "missing_executable"
   if (args.blockedByPermissions) return "permission_restriction"
-  const output = `${args.stdout}\n${args.stderr}`
+  if (args.exitCode === 0 && isGodotExportCommand(args.argv) && isSyntaxErrorOutput(output)) return undefined
   if (isSyntaxErrorOutput(output)) return "syntax_error"
   if (isConfigurationErrorOutput(output)) return "configuration_error"
+  if (args.exitCode === 0) return undefined
   if (output.trim()) return "test_failure"
   return "command_error"
+}
+
+function isGodotExportCommand(argv: string[]): boolean {
+  const executable = basename(argv[0] ?? "").toLowerCase()
+  if (!/^godot(?:[\d.]+)?$/.test(executable)) {
+    return false
+  }
+  return argv.some((arg) => /^--export(?:-debug|-release)?$/.test(arg))
+}
+
+function commandBlocksPass(command: Pick<CommandResult, "exit_code" | "failure_classification">): boolean {
+  return (
+    command.exit_code !== 0
+    || command.failure_classification === "syntax_error"
+    || command.failure_classification === "configuration_error"
+  )
 }
 
 function parseCommandOverride(rawOverride: string[]): CommandSpec[] {
@@ -547,7 +565,7 @@ async function runCommand(root: string, command: CommandSpec): Promise<CommandRe
         stdout: "",
         stderr: errorStderr,
         missing_executable: missingExecutable,
-        failure_classification: classifyCommandFailure({ exitCode: -1, stdout: "", stderr: errorStderr, missingExecutable, blockedByPermissions }),
+        failure_classification: classifyCommandFailure({ argv: command.argv, exitCode: -1, stdout: "", stderr: errorStderr, missingExecutable, blockedByPermissions }),
         blocked_by_permissions: blockedByPermissions || undefined,
       })
       return
@@ -573,7 +591,7 @@ async function runCommand(root: string, command: CommandSpec): Promise<CommandRe
         stdout,
         stderr: renderedError,
         missing_executable: missingExecutable,
-        failure_classification: classifyCommandFailure({ exitCode: -1, stdout, stderr: renderedError, missingExecutable, blockedByPermissions }),
+        failure_classification: classifyCommandFailure({ argv: command.argv, exitCode: -1, stdout, stderr: renderedError, missingExecutable, blockedByPermissions }),
         blocked_by_permissions: blockedByPermissions || undefined,
       })
     })
@@ -590,7 +608,7 @@ async function runCommand(root: string, command: CommandSpec): Promise<CommandRe
         stdout,
         stderr,
         missing_executable: missingExecutable,
-        failure_classification: classifyCommandFailure({ exitCode: code ?? -1, stdout, stderr, missingExecutable, blockedByPermissions }),
+        failure_classification: classifyCommandFailure({ argv: command.argv, exitCode: code ?? -1, stdout, stderr, missingExecutable, blockedByPermissions }),
         blocked_by_permissions: blockedByPermissions || undefined,
       })
     })
@@ -625,7 +643,7 @@ function classifyCommandKind(command: CommandResult): "build_or_quality_gate" | 
   return "other"
 }
 function classifySmokeFailure(results: CommandResult[]): "environment" | "ticket" | "configuration" | null {
-  const failed = results.find((command) => command.exit_code !== 0)
+  const failed = results.find((command) => commandBlocksPass(command))
   if (!failed) return null
   const output = `${failed.stdout}\n${failed.stderr}`
   if (failed.failure_classification === "syntax_error" || failed.failure_classification === "configuration_error") {
@@ -641,7 +659,7 @@ function classifySmokeFailure(results: CommandResult[]): "environment" | "ticket
 }
 
 function classifyHostSurfaceFailure(results: CommandResult[]): "missing_executable" | "permission_restriction" | "runtime_setup" | null {
-  const failed = results.find((command) => command.exit_code !== 0)
+  const failed = results.find((command) => commandBlocksPass(command))
   if (!failed) return null
   if (failed.failure_classification === "missing_executable" || failed.missing_executable) {
     return "missing_executable"
@@ -757,14 +775,14 @@ export default tool({
     for (const command of commands) {
       const result = await runCommand(root, command)
       results.push(result)
-      if (result.exit_code !== 0) {
+      if (commandBlocksPass(result)) {
         passed = false
         break
       }
     }
     const failureClassification = classifySmokeFailure(results)
     const hostSurfaceClassification = classifyHostSurfaceFailure(results)
-    const failedCommand = results.find((result) => result.exit_code !== 0)
+    const failedCommand = results.find((result) => commandBlocksPass(result))
     const failedCommandKind = failedCommand ? classifyCommandKind(failedCommand) : null
 
     const note = passed

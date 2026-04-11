@@ -6,9 +6,12 @@ import {
   loadArtifactRegistry,
   loadManifest,
   loadWorkflowState,
+  markTicketDone,
   normalizeRepoPath,
   registerArtifactSnapshot,
   saveWorkflowBundle,
+  syncWorkflowSelection,
+  ticketEligibleForTrustRestoration,
   type Artifact,
   writeText,
 } from "../lib/workflow"
@@ -41,7 +44,7 @@ Overall Result: PASS
 }
 
 export default tool({
-  description: "Restore trust for a completed historical ticket after follow-up remediation or backlog reverification completes. This is the legal mutation path for closed done tickets that still need process verification.",
+  description: "Restore trust for a historical ticket after follow-up remediation or backlog reverification completes. This is the legal mutation path for closed done tickets and reopened historical tickets whose current evidence disproves the defect.",
   args: {
     ticket_id: tool.schema.string().describe("Historical source ticket whose trust should be restored."),
     evidence_artifact_path: tool.schema.string().describe("Current artifact path proving the reverification outcome. Optional when verification_content is supplied and should be recorded in this same call.").optional(),
@@ -64,8 +67,8 @@ export default tool({
       ? args.reason.trim()
       : `Trust restored from ${evidenceTicket.id} using ${evidencePath || "inline reverification content"}.`
 
-    if (sourceTicket.status !== "done") {
-      throw new Error(`Ticket ${sourceTicket.id} must remain historically done before it can be reverified.`)
+    if (!ticketEligibleForTrustRestoration(sourceTicket)) {
+      throw new Error(`Ticket ${sourceTicket.id} must still be a historical done or reopened ticket before it can be reverified.`)
     }
     if (!evidencePath && !verificationContent) {
       throw new Error("ticket_reverify requires evidence_artifact_path or verification_content.")
@@ -122,6 +125,22 @@ export default tool({
       summary: `Trust restored using ${evidenceTicket.id}.`,
     })
 
+    if (sourceTicket.status !== "done") {
+      markTicketDone(sourceTicket, workflow)
+      syncWorkflowSelection(workflow, manifest)
+    }
+    const hasSelfLineageCorruption = (
+      sourceTicket.source_ticket_id === sourceTicket.id
+      || sourceTicket.follow_up_ticket_ids.includes(sourceTicket.id)
+    )
+    if (hasSelfLineageCorruption) {
+      sourceTicket.source_ticket_id = undefined
+      sourceTicket.source_mode = undefined
+      sourceTicket.follow_up_ticket_ids = sourceTicket.follow_up_ticket_ids.filter((ticketId) => ticketId !== sourceTicket.id)
+      if (sourceTicket.resolution_state === "superseded") {
+        sourceTicket.resolution_state = "done"
+      }
+    }
     sourceTicket.verification_state = "reverified"
     getTicketWorkflowState(workflow, sourceTicket.id).needs_reverification = false
 

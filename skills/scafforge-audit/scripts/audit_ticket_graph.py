@@ -93,10 +93,28 @@ def audit_stale_ticket_graph(root: Path, findings: list[Finding], ctx: TicketGra
             evidence.append(f"{ticket_id} references missing source_ticket_id {source_ticket_id}.")
             continue
         source_follow_ups = [str(item).strip() for item in source_ticket.get("follow_up_ticket_ids", []) if isinstance(item, str) and str(item).strip()]
-        if ticket_id not in source_follow_ups:
+        superseded_follow_up = ticket.get("status") == "done" and ticket.get("resolution_state") == "superseded"
+        if not superseded_follow_up and ticket_id not in source_follow_ups:
             evidence.append(f"{ticket_id} names {source_ticket_id} as source_ticket_id, but {source_ticket_id} does not list it in follow_up_ticket_ids.")
         if ticket_id in source_follow_ups and source_ticket_id in depends_on:
             evidence.append(f"{ticket_id} is listed as a follow-up of {source_ticket_id} while still declaring {source_ticket_id} as a blocking dependency.")
+    for ticket_id, ticket in tickets_by_id.items():
+        source_follow_ups = [
+            str(item).strip()
+            for item in ticket.get("follow_up_ticket_ids", [])
+            if isinstance(item, str) and str(item).strip()
+        ]
+        for follow_up_ticket_id in source_follow_ups:
+            follow_up_ticket = tickets_by_id.get(follow_up_ticket_id)
+            if follow_up_ticket is None:
+                evidence.append(f"{ticket_id} lists missing follow-up ticket {follow_up_ticket_id} in follow_up_ticket_ids.")
+                continue
+            if str(follow_up_ticket.get("source_ticket_id", "")).strip() != ticket_id:
+                evidence.append(
+                    f"{ticket_id} lists {follow_up_ticket_id} in follow_up_ticket_ids, but {follow_up_ticket_id} names {follow_up_ticket.get('source_ticket_id')} as source_ticket_id."
+                )
+            if follow_up_ticket.get("status") == "done" and follow_up_ticket.get("resolution_state") == "superseded":
+                evidence.append(f"{ticket_id} still lists superseded follow-up ticket {follow_up_ticket_id} in follow_up_ticket_ids.")
     if not evidence:
         return
 

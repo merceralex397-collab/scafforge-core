@@ -56,6 +56,12 @@ The script copies files from `assets/project-template/` and substitutes these pl
 
 Output includes: README.md, AGENTS.md, START-HERE.md, docs/, tickets/, opencode.jsonc, .opencode/ (agents, tools, plugins, commands, skills, config, state), and .opencode/meta/bootstrap-provenance.json.
 
+For Godot Android game stacks, the script also seeds the base asset-pipeline surfaces so later skills start from a real repo layout instead of prose-only guidance:
+- `assets/pipeline.json`
+- `assets/PROVENANCE.md`
+- `assets/briefs/`, `assets/models/`, `assets/sprites/`, `assets/audio/`, `assets/fonts/`, `assets/themes/`
+- `.opencode/meta/asset-pipeline-bootstrap.json`
+
 The generated workflow layer includes the stack adapter registry inside `environment_bootstrap`, so generated bootstrap guidance should reflect the detected stack instead of assuming a Python-only repo.
 
 ### Derive script arguments from the canonical brief
@@ -65,6 +71,7 @@ The arguments should come from the canonical brief and user decisions:
 - `--model-provider` from the brief's Tooling/Model Constraints
 - `--planner-model` and `--implementer-model` from user decisions
 - `--stack-label` from the brief's Constraints (or "framework-agnostic" if unresolved)
+- When the brief describes a game/content pipeline, pass the Product Finish Contract fields (`deliverable_kind`, `placeholder_policy`, `content_source_plan`, `licensing_or_provenance_constraints`, `finish_acceptance_signals`) so the seeded asset-pipeline metadata is specific on first render.
 
 ## Phase B: Customize with project-specific content (agent-driven)
 
@@ -112,7 +119,7 @@ python3 scripts/verify_generated_scaffold.py <repo-root> --verification-kind boo
 
 That early gate must prove one canonical bootstrap ticket, one valid bootstrap status, and one aligned bootstrap-first route across restart, workflow, and tool surfaces before `project-skill-bootstrap` begins.
 
-The final verifier now also rejects placeholder residue, invalid canonical JSON or JSONC, broken generated agent references, and project-name drift across key handoff surfaces.
+The final verifier now also rejects placeholder residue, invalid canonical JSON or JSONC, broken generated agent references, project-name drift across key handoff surfaces, and missing asset-pipeline starter surfaces for generated game repos.
 
 Then continue to `../project-skill-bootstrap/SKILL.md` for the full greenfield local-skill pass, and later use `scripts/verify_generated_scaffold.py` again with the default verification kind as the final immediate-continuation gate before handoff.
 

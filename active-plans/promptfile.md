@@ -33,6 +33,12 @@ Core downstream validation targets:
 Additional repo in scope for asset-pipeline / MCP capability work:
 - blender-agent
 
+Blender-agent scope clarification:
+- blender-agent is fully within direct implementation scope
+- you may inspect, modify, build, test, and repair blender-agent directly
+- blender-agent work is not constrained by the downstream no-hand-edit rule that applies to glitch, GPTTalker, and spinner
+- treat blender-agent as a Scafforge-adjacent tool/product that is intended to be folded into Scafforge capability over time
+
 Additional accessible context/state locations:
 - .codex global folder
 - .copilot global folder
@@ -136,7 +142,7 @@ You must validate through real agent execution.
 Reconcile them.
 
 5. You may implement changes in Scafforge.
-You may implement changes in blender-agent if required to bring it up to a working standard for this pipeline effort.
+You may implement changes in blender-agent directly and broadly where required to bring it to full working standard for this pipeline effort and future Scafforge integration.
 
 6. You must NOT directly hand-edit downstream product code in glitch, GPTTalker, or spinner.
 Any changes to those repos must happen only through the intended agent-driven path using the relevant skills in headless / non-interactive / exec-style mode or equivalent.

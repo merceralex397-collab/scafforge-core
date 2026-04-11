@@ -1,6 +1,7 @@
 import { type Plugin } from "@opencode-ai/plugin"
 import {
   allowsPreBootstrapWriteClaim,
+  extractArtifactVerdict,
   getTicket,
   getProcessVerificationState,
   getTicketWorkflowState,
@@ -9,14 +10,19 @@ import {
   hasPendingRepairFollowOn,
   hasWriteLeaseForTicketPath,
   hasWriteLeaseForTicket,
+  isBlockingArtifactVerdict,
   isPlanApprovedForTicket,
+  latestArtifact,
   loadManifest,
   loadWorkflowState,
+  readArtifactContent,
   resolveRequestedTicketProgress,
+  ticketEligibleForTrustRestoration,
   ticketClaimBlockerArgs,
   throwWorkflowBlocker,
   validateLifecycleStageStatus,
   validateImplementationArtifactEvidence,
+  validateReviewArtifactEvidence,
   validateQaArtifactEvidence,
   validateSmokeTestArtifactEvidence,
 } from "../lib/workflow"
@@ -105,6 +111,22 @@ function isWorkflowProcessVerificationClearOnly(args: Record<string, unknown>): 
     typeof args.summary === "undefined" &&
     typeof args.activate === "undefined" &&
     typeof args.approved_plan === "undefined"
+  )
+}
+
+function isBlockedTicketUnblockOnly(
+  ticket: ReturnType<typeof getTicket>,
+  requested: { stage: string, status: string },
+  args: Record<string, unknown>,
+): boolean {
+  return (
+    ticket.status === "blocked" &&
+    requested.status === "todo" &&
+    requested.stage === ticket.stage &&
+    typeof args.summary === "undefined" &&
+    typeof args.activate === "undefined" &&
+    typeof args.approved_plan === "undefined" &&
+    typeof args.pending_process_verification === "undefined"
   )
 }
 
@@ -261,7 +283,6 @@ export const StageGateEnforcer: Plugin = async () => {
       if (input.tool === "ticket_reopen") {
         const manifest = await loadManifest()
         const ticketId = typeof output.args.ticket_id === "string" ? output.args.ticket_id : manifest.active_ticket
-        await ensureTargetTicketWriteLease(ticketId)
         const ticket = getTicket(manifest, ticketId)
         if (ticket.status !== "done" && ticket.resolution_state !== "done") {
           throw new Error(`Ticket ${ticket.id} must already be done before ticket_reopen can resume it.`)
@@ -319,8 +340,8 @@ export const StageGateEnforcer: Plugin = async () => {
         const manifest = await loadManifest()
         const ticketId = typeof output.args.ticket_id === "string" ? output.args.ticket_id : manifest.active_ticket
         const ticket = getTicket(manifest, ticketId)
-        if (ticket.status !== "done") {
-          throw new Error(`Ticket ${ticket.id} must already be done before ticket_reverify can restore trust.`)
+        if (!ticketEligibleForTrustRestoration(ticket)) {
+          throw new Error(`Ticket ${ticket.id} must still be a historical done or reopened ticket before ticket_reverify can restore trust.`)
         }
         const hasEvidenceArtifactPath = typeof output.args.evidence_artifact_path === "string" && output.args.evidence_artifact_path.trim()
         const hasVerificationContent = typeof output.args.verification_content === "string" && output.args.verification_content.trim()
@@ -379,14 +400,15 @@ export const StageGateEnforcer: Plugin = async () => {
         const ticketId = typeof output.args.ticket_id === "string" ? output.args.ticket_id : manifest.active_ticket
         const processVerificationClearOnly = isWorkflowProcessVerificationClearOnly(output.args)
         const processVerification = getProcessVerificationState(manifest, workflow, ticketId)
-        if (!(processVerificationClearOnly && processVerification.clearable_now)) {
-          await ensureTargetTicketWriteLease(ticketId)
-        }
         const ticket = getTicket(manifest, ticketId)
         const requested = resolveRequestedTicketProgress(ticket, {
           stage: typeof output.args.stage === "string" ? output.args.stage : undefined,
           status: typeof output.args.status === "string" ? output.args.status : undefined,
         })
+        const blockedTicketUnblockOnly = isBlockedTicketUnblockOnly(ticket, requested, output.args)
+        if (!(processVerificationClearOnly && processVerification.clearable_now) && !blockedTicketUnblockOnly) {
+          await ensureTargetTicketWriteLease(ticketId)
+        }
         const lifecycleBlocker = validateLifecycleStageStatus(requested.stage, requested.status)
         if (lifecycleBlocker) {
           throwWorkflowBlocker({
@@ -412,7 +434,29 @@ export const StageGateEnforcer: Plugin = async () => {
         }
 
         if (requested.stage === "implementation" && ticket.stage !== "plan_review") {
-          throw new Error(`Cannot move ${ticket.id} to implementation before it passes through plan_review.`)
+          if (ticket.stage !== "review" && ticket.stage !== "qa") {
+            throw new Error(
+              `Cannot move ${ticket.id} to implementation from ${ticket.stage}. Allowed source stages: plan_review (normal path), review or qa (on FAIL verdict only).`,
+            )
+          }
+          const backwardStage = ticket.stage as "review" | "qa"
+          if (!hasArtifact(ticket, { stage: backwardStage })) {
+            throw new Error(
+              `Cannot route ${ticket.id} back to implementation from ${backwardStage} — no ${backwardStage} artifact exists. Produce an artifact with a blocking verdict before routing backward.`,
+            )
+          }
+          const latestBackwardArtifact = latestArtifact(ticket, { stage: backwardStage, trust_state: "current" })
+          const backwardVerdict = extractArtifactVerdict(await readArtifactContent(latestBackwardArtifact))
+          if (backwardVerdict.verdict_unclear) {
+            throw new Error(
+              `Cannot route ${ticket.id} back to implementation from ${backwardStage} — artifact verdict is unclear. Inspect the artifact manually before routing backward.`,
+            )
+          }
+          if (!isBlockingArtifactVerdict(backwardVerdict.verdict)) {
+            throw new Error(
+              `Cannot route ${ticket.id} back to implementation from ${backwardStage} — latest artifact verdict is ${backwardVerdict.verdict}, not a blocking verdict. Only FAIL verdicts permit backward routing.`,
+            )
+          }
         }
 
         if (requested.stage === "review") {
@@ -422,6 +466,11 @@ export const StageGateEnforcer: Plugin = async () => {
 
         if (requested.stage === "qa" && !hasReviewArtifact(ticket)) {
           throw new Error("Cannot move to qa before at least one review artifact exists.")
+        }
+
+        if (requested.stage === "qa") {
+          const reviewBlocker = await validateReviewArtifactEvidence(ticket)
+          if (reviewBlocker) throw new Error(reviewBlocker)
         }
 
         if (requested.stage === "smoke-test") {

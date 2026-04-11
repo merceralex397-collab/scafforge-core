@@ -67,6 +67,12 @@ For CLI/library projects:
 - API surface reviewer
 - Documentation specialist
 
+For game or asset-heavy projects:
+- Read `.opencode/meta/asset-pipeline-bootstrap.json` if it exists before finalizing the agent set.
+- If the seeded routes include `blender-mcp`, add a dedicated `blender-asset-creator` implementer/subagent scoped to Blender-MCP work.
+- If the seeded routes include `free-open`, consider an `asset-sourcer` specialist for license-aware sourcing and import prep.
+- If the repo relies on Godot-native finish work, ensure at least one implementer prompt explicitly owns theme/VFX/import polish under the repo's asset pipeline.
+
 You may create multiple implementer-type agents for different domains within a single project, but keep the total agent count conservative unless the canonical brief proves genuinely disjoint domains.
 
 Default to one visible team leader with a shallow hidden specialist topology. Keep `lane-executor` as the default hidden worker for bounded parallel implementation. Only introduce a manager or section-leader hierarchy when the canonical brief shows strong non-overlapping domains that justify the extra coordination layer. Treat that hierarchy as advanced project-specific customization, not as a first-class scaffold profile.
@@ -93,6 +99,7 @@ For EVERY agent, rewrite the generic prompt to be project-specific:
 - **Skill allowlists**: reference only repo-local skills that already exist
 - **Task allowlists**: reference the actual agents that exist (including any new ones)
 - **Bash allowlists**: add project-specific commands (e.g., `cargo test*` for Rust, `flutter test*` for Flutter)
+- When asset-pipeline metadata exists, delegation briefs must mention the seeded asset surfaces and route-specific ownership instead of generic "art/content" wording.
 
 **Inject stack-specific implementation notes:**
 - Rewrite the implementer template's `Stack-specific notes` block so it no longer contains scaffold placeholder text.
@@ -122,6 +129,7 @@ Verify:
 - Tool permissions are explicit (deny by default, allow specifically)
 - Skill allowlists reference only skills that already exist in `.opencode/skills/`
 - Task allowlists reference only agents that exist in `.opencode/agents/`
+- When `.opencode/meta/asset-pipeline-bootstrap.json` exists, the generated agent set and delegation doc agree with its route hints instead of ignoring them.
 - Read-only agents (planner, reviewers, QA) have `write: false, edit: false`
 - Only implementer and docs-handoff have `write: true, edit: true`
 - The team leader resolves `ticket_lookup.transition_guidance` before changing lifecycle state

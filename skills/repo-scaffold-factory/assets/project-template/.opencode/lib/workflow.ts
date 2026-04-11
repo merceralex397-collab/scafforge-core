@@ -27,6 +27,7 @@ export type RepairFollowOnOutcome = "managed_blocked" | "source_follow_up" | "cl
 export type Artifact = {
   kind: string
   path: string
+  source_path?: string
   stage: string
   summary?: string
   created_at: string
@@ -325,6 +326,12 @@ const EXECUTION_EVIDENCE_PATTERNS = [
   /\b(?:exit[_ -]?code|pass(?:ed)?|fail(?:ed)?|ok)\b/i,
 ]
 const INSPECTION_ONLY_PATTERNS = [/code inspection/i, /inspection only/i]
+const REMEDIATION_REVIEW_COMMAND_PATTERN = /(?:^|\n)(?:-\s*)?(?:(?:\*\*|__)?(?:command|command run|verbatim commands?)?(?:\*\*|__)?\s*:|(?:\*\*|__)?(?:command|command run|verbatim commands?)(?:\*\*|__)?)\s*(?:`[^`]+`|```[\s\S]*?```)?/i
+const REMEDIATION_REVIEW_COMMAND_BLOCK_PATTERN = /```(?:bash|sh|shell|console|text)?\n[\s\S]*?(?:godot(?:4)?|npm|pnpm|yarn|bun|pytest|cargo|go test|go vet|python(?:3)? -m|node(?:\s|$)|tsc(?:\s|$)|make(?:\s|$)|gradle|\.\/gradlew|adb|unzip)\b[\s\S]*?```/i
+const REMEDIATION_REVIEW_COMMAND_SUMMARY_TABLE_PATTERN = /^\|\s*#\s*\|\s*Command\s*\|\s*Exit Code\s*\|\s*Result\s*\|/im
+const REMEDIATION_REVIEW_OUTPUT_HEADING_PATTERN = /(?:raw(?:\s+command)?\s+output|raw\s+output|command\s+output|raw\s+stdout|raw\s+stderr|stdout|stderr)(?:\s*\([^)]*\))?/i
+const REMEDIATION_REVIEW_RESULT_PATTERN = /(?:^|\n)(?:-\s*)?(?:(?:\*\*|__)?(?:overall\s+result|overall\s+verdict|verdict|result|post-fix\s+result|pass\/fail\s+result)(?:\*\*|__)?\s*:|(?:\*\*|__)?(?:overall\s+result|overall\s+verdict|verdict|result|post-fix\s+result|pass\/fail\s+result):(?:\*\*|__)?)\s*(?:\*\*|__|`)?(?:PASS|PASSES|FAIL|FAILED|BLOCKED|ERROR|APPROVED|REJECT)(?:\*\*|__|`)?/i
+const CODE_BLOCK_PATTERN = /```(?:[^\n]*)\n([\s\S]*?)```/g
 
 export function rootPath(): string { return process.cwd() }
 export function normalizeRepoPath(pathValue: string): string { return pathValue.replace(/\\/g, "/").replace(/^\.\//, "").replace(/\/+/g, "/") }
@@ -557,15 +564,28 @@ function normalizeLaneLeases(value: unknown): LaneLease[] {
     return normalized ? [normalized] : []
   })
 }
-function normalizeArtifact(value: unknown, index: number): Artifact {
+function isArtifactHistoryPath(pathValue: string): boolean {
+  return pathValue.startsWith(`${ARTIFACT_HISTORY_ROOT}/`) || pathValue === ARTIFACT_HISTORY_ROOT
+}
+function deriveArtifactSourcePath(ticketId: string, artifact: { stage: string; kind: string; path: string; trust_state: ArtifactTrustState }): string | undefined {
+  if (artifact.trust_state !== "current" || !isArtifactHistoryPath(artifact.path)) return undefined
+  return defaultArtifactPath(ticketId, artifact.stage, artifact.kind)
+}
+function normalizeArtifact(ticketId: string, value: unknown, index: number): Artifact {
   const artifact = expectObject(value, `ticket.artifacts[${index}]`)
+  const normalizedPath = normalizeRepoPath(expectNonEmptyString(artifact, "path", `ticket.artifacts[${index}]`))
+  const normalizedStage = expectNonEmptyString(artifact, "stage", `ticket.artifacts[${index}]`)
+  const normalizedKind = expectNonEmptyString(artifact, "kind", `ticket.artifacts[${index}]`)
+  const normalizedTrustState = normalizeArtifactTrustState(artifact.trust_state)
+  const sourcePath = normalizeNullableString(artifact.source_path)
   return {
-    kind: expectNonEmptyString(artifact, "kind", `ticket.artifacts[${index}]`),
-    path: normalizeRepoPath(expectNonEmptyString(artifact, "path", `ticket.artifacts[${index}]`)),
-    stage: expectNonEmptyString(artifact, "stage", `ticket.artifacts[${index}]`),
+    kind: normalizedKind,
+    path: normalizedPath,
+    source_path: sourcePath ? normalizeRepoPath(sourcePath) : deriveArtifactSourcePath(ticketId, { path: normalizedPath, stage: normalizedStage, kind: normalizedKind, trust_state: normalizedTrustState }),
+    stage: normalizedStage,
     summary: normalizeNullableString(artifact.summary) ?? undefined,
     created_at: expectNonEmptyString(artifact, "created_at", `ticket.artifacts[${index}]`),
-    trust_state: normalizeArtifactTrustState(artifact.trust_state),
+    trust_state: normalizedTrustState,
     superseded_at: normalizeNullableString(artifact.superseded_at) ?? undefined,
     superseded_by: normalizeNullableString(artifact.superseded_by) ?? undefined,
     supersession_reason: normalizeNullableString(artifact.supersession_reason) ?? undefined,
@@ -588,7 +608,7 @@ function migrateTicket(raw: unknown): Ticket {
     summary: expectNonEmptyString(ticket, "summary", `Ticket ${id}`),
     acceptance: expectStringArray(ticket, "acceptance", `Ticket ${id}`),
     decision_blockers: normalizeStringArray(ticket.decision_blockers),
-    artifacts: Array.isArray(ticket.artifacts) ? ticket.artifacts.map((artifact, index) => normalizeArtifact(artifact, index)) : [],
+    artifacts: Array.isArray(ticket.artifacts) ? ticket.artifacts.map((artifact, index) => normalizeArtifact(id, artifact, index)) : [],
     resolution_state: normalizeResolutionState(ticket.resolution_state, status),
     verification_state: normalizeVerificationState(ticket.verification_state, status),
     finding_source: normalizeNullableString(ticket.finding_source) ?? undefined,
@@ -835,8 +855,18 @@ export function getTicket(manifest: Manifest, ticketId?: string): Ticket {
 export function isPlanApprovedForTicket(workflow: WorkflowState, ticketId: string): boolean { return ensureTicketWorkflowState(workflow, ticketId).approved_plan }
 export function setPlanApprovedForTicket(workflow: WorkflowState, ticketId: string, approved: boolean): void { ensureTicketWorkflowState(workflow, ticketId).approved_plan = approved }
 export function getTicketWorkflowState(workflow: WorkflowState, ticketId: string): TicketWorkflowState { return ensureTicketWorkflowState(workflow, ticketId) }
+export function selectForegroundTicket(manifest: Manifest, workflow: WorkflowState, currentTicketId = manifest.active_ticket): Ticket {
+  const currentTicket = manifest.tickets.find((item) => item.id === currentTicketId)
+  if (currentTicket && currentTicket.status !== "done") return currentTicket
+  const nextOpenTicket = nextTicketForProcessVerificationClear(manifest, currentTicketId)
+  if (nextOpenTicket) return nextOpenTicket
+  if (currentTicket) return currentTicket
+  if (manifest.tickets.length === 0) throw new Error("Manifest does not contain any tickets.")
+  return manifest.tickets[0]
+}
 export function syncWorkflowSelection(workflow: WorkflowState, manifest: Manifest): void {
-  const activeTicket = getTicket(manifest, manifest.active_ticket)
+  const activeTicket = selectForegroundTicket(manifest, workflow, manifest.active_ticket)
+  manifest.active_ticket = activeTicket.id
   ensureTicketWorkflowState(workflow, activeTicket.id)
   workflow.active_ticket = activeTicket.id
   workflow.stage = activeTicket.stage
@@ -891,7 +921,8 @@ function validateTicketGraphInvariants(manifest: Manifest): void {
       if (!sourceTicket) {
         throw new Error(`Ticket ${ticket.id} references missing source ticket ${ticket.source_ticket_id}.`)
       }
-      if (!sourceTicket.follow_up_ticket_ids.includes(ticket.id)) {
+      const supersededFollowUp = ticket.status === "done" && ticket.resolution_state === "superseded"
+      if (!supersededFollowUp && !sourceTicket.follow_up_ticket_ids.includes(ticket.id)) {
         throw new Error(`Ticket ${ticket.id} is missing symmetric follow-up linkage from ${sourceTicket.id}.`)
       }
       if (ticket.source_mode === "process_verification" && sourceTicket.status !== "done") {
@@ -908,6 +939,9 @@ function validateTicketGraphInvariants(manifest: Manifest): void {
       }
       if (followUpTicket.source_ticket_id !== ticket.id) {
         throw new Error(`Ticket ${ticket.id} does not have symmetric source ownership for follow-up ticket ${followUpTicketId}.`)
+      }
+      if (followUpTicket.status === "done" && followUpTicket.resolution_state === "superseded") {
+        throw new Error(`Ticket ${ticket.id} retains superseded follow-up ticket ${followUpTicketId}. Remove stale follow_up_ticket_ids linkage.`)
       }
     }
     for (const dependencyId of dependsOn) {
@@ -1032,6 +1066,16 @@ export function currentRegistryArtifact(registry: ArtifactRegistry, artifactPath
   const normalized = normalizeRepoPath(artifactPath)
   return [...registry.artifacts].reverse().find((artifact) => artifact.path === normalized && artifact.trust_state === "current")
 }
+export function currentStageArtifactForAlias(ticket: Ticket, stage: string, kind: string, artifactPath: string): Artifact | undefined {
+  const normalized = normalizeRepoPath(artifactPath)
+  return [...ticket.artifacts].reverse().find(
+    (artifact) =>
+      artifact.stage === stage
+      && artifact.kind === kind
+      && artifact.trust_state === "current"
+      && (artifact.path === normalized || artifact.source_path === normalized),
+  )
+}
 export function hasArtifact(ticket: Ticket, options: ArtifactMatcher): boolean {
   return latestArtifact(ticket, { ...options, trust_state: options.trust_state ?? "current" }) !== undefined
 }
@@ -1051,29 +1095,50 @@ function normalizeArtifactVerdictToken(token: string): ArtifactVerdict | null {
   if (normalized === "BLOCKED" || normalized === "BLOCKER") return "BLOCKED"
   return null
 }
+const ARTIFACT_VERDICT_LABEL_PATTERN =
+  "(?:overall(?:\\s+qa)?\\s+(?:result|verdict)|qa\\s+verdict|review\\s+verdict|blocker\\s+or\\s+approval\\s+signal|approval\\s+signal|verdict|result)"
 export function extractArtifactVerdict(content: string): ArtifactVerdictInspection {
   const lines = content.split(/\r?\n/)
   for (let i = 0; i < lines.length; i++) {
     const trimmed = lines[i].trim()
     if (!trimmed) continue
-    const labeled = trimmed.match(/^(?:[-*]\s*)?(?:\*\*|__)?(?:overall(?:\s+result)?|verdict|result|approval\s+signal)(?:\*\*|__)?\s*:\s*(?:\*\*|__)?\s*(pass|fail|reject|approved?|blocked?|blocker)(?:\*\*|__)?\b/i)
+    const plain = trimmed.replace(/(?:\*\*|__|`)/g, "")
+    const labeled = plain.match(
+      new RegExp(
+        `^(?:[-*]\\s*)?${ARTIFACT_VERDICT_LABEL_PATTERN}\\s*:\\s*(pass|fail|reject|approved?|blocked?|blocker)\\b`,
+        "i",
+      ),
+    )
     if (labeled) {
       const verdict = normalizeArtifactVerdictToken(labeled[1] || "")
       if (verdict) return { verdict, verdict_unclear: false, matched_line: trimmed }
     }
     // Heading with inline verdict: ## Verdict: APPROVE / ## Overall Result: PASS
-    const headingInline = trimmed.match(/^#{1,4}\s+(?:overall(?:\s+result)?|verdict|result|approval\s+signal)\s*:\s*(?:\*\*|__)?\s*(pass|fail|reject|approved?|blocked?|blocker)\s*(?:\*\*|__)?\s*$/i)
+    const headingInline = plain.match(
+      new RegExp(
+        `^#{1,4}\\s+(?:(?:\\d+|[A-Za-z]+)[.)]\\s+)?${ARTIFACT_VERDICT_LABEL_PATTERN}\\s*:\\s*(pass|fail|reject|approved?|blocked?|blocker)\\b`,
+        "i",
+      ),
+    )
     if (headingInline) {
       const verdict = normalizeArtifactVerdictToken(headingInline[1] || "")
       if (verdict) return { verdict, verdict_unclear: false, matched_line: trimmed }
     }
-    // Heading-style verdict: ## Verdict / **APPROVE** on next non-empty line
-    const headingLabel = trimmed.match(/^#{1,4}\s+(?:overall(?:\s+result)?|verdict|result|approval\s+signal)\s*$/i)
+    // Heading-style verdict: ## Verdict / ### **APPROVE** on next non-empty line
+    const headingLabel = plain.match(
+      new RegExp(
+        `^#{1,4}\\s+(?:(?:\\d+|[A-Za-z]+)[.)]\\s+)?${ARTIFACT_VERDICT_LABEL_PATTERN}\\s*$`,
+        "i",
+      ),
+    )
     if (headingLabel) {
       for (let j = i + 1; j < lines.length; j++) {
         const nextTrimmed = lines[j].trim()
         if (!nextTrimmed) continue
-        const headingVerdict = nextTrimmed.match(/^(?:\*\*|__)?\s*(pass|fail|reject|approved?|blocked?|blocker)\s*(?:\*\*|__)?$/i)
+        const nextPlain = nextTrimmed.replace(/(?:\*\*|__|`)/g, "")
+        const headingVerdict = nextPlain.match(
+          /^(?:#{1,4}\s+)?\s*(pass|fail|reject|approved?|blocked?|blocker)\b/i,
+        )
         if (headingVerdict) {
           const verdict = normalizeArtifactVerdictToken(headingVerdict[1] || "")
           if (verdict) return { verdict, verdict_unclear: false, matched_line: nextTrimmed }
@@ -1106,11 +1171,36 @@ export function isPassingArtifactVerdict(verdict: ArtifactVerdict | null): boole
 function artifactByteLength(content: string): number { return Buffer.byteLength(content, "utf8") }
 function hasExecutionEvidence(content: string): boolean { return EXECUTION_EVIDENCE_PATTERNS.some((pattern) => pattern.test(content)) }
 function claimsInspectionOnly(content: string): boolean { return INSPECTION_ONLY_PATTERNS.some((pattern) => pattern.test(content)) }
+function remediationReviewMissingEvidence(content: string): string[] {
+  const missing: string[] = []
+  const hasCommandRecord = (
+    REMEDIATION_REVIEW_COMMAND_PATTERN.test(content) ||
+    REMEDIATION_REVIEW_COMMAND_BLOCK_PATTERN.test(content) ||
+    REMEDIATION_REVIEW_COMMAND_SUMMARY_TABLE_PATTERN.test(content)
+  )
+  if (!hasCommandRecord) missing.push("exact command record")
+  const outputBlocks = [...content.matchAll(CODE_BLOCK_PATTERN)].map((match) => (match[1] || "").trim())
+  const hasInlineOutput = /(?:raw\s+stdout|raw\s+stderr|stdout|stderr)\s*:/i.test(content)
+  const hasOutput = REMEDIATION_REVIEW_OUTPUT_HEADING_PATTERN.test(content) && (outputBlocks.some(Boolean) || hasInlineOutput)
+  if (!hasOutput) missing.push("raw command output")
+  if (!REMEDIATION_REVIEW_RESULT_PATTERN.test(content)) missing.push("explicit PASS/FAIL result")
+  return missing
+}
 export async function validateImplementationArtifactEvidence(ticket: Ticket, root = rootPath()): Promise<string | null> {
   const artifact = latestArtifact(ticket, { stage: "implementation", trust_state: "current" })
   if (!artifact) return "Cannot move to review before an implementation artifact exists."
   const content = await readArtifactContent(artifact, root)
   return hasExecutionEvidence(content) ? null : "Implementation artifact must include compile, syntax, or import-check command output before review."
+}
+export async function validateReviewArtifactEvidence(ticket: Ticket, root = rootPath()): Promise<string | null> {
+  const artifact = latestReviewArtifact(ticket)
+  if (!artifact) return "Cannot move to qa before at least one review artifact exists."
+  if (!ticket.finding_source?.trim()) return null
+  const content = await readArtifactContent(artifact, root)
+  const missing = remediationReviewMissingEvidence(content)
+  return missing.length
+    ? `Remediation review artifact must include ${missing.join(", ")} before QA.`
+    : null
 }
 export async function validateQaArtifactEvidence(ticket: Ticket, root = rootPath()): Promise<string | null> {
   const artifact = latestArtifact(ticket, { stage: "qa", trust_state: "current" })
@@ -1140,6 +1230,22 @@ export function dependentContinuationAction(ticket: Ticket, blockedDependents: T
     return "Continue the required internal lifecycle from the current ticket stage."
   }
   return `Current ticket is already closed. Activate dependent ticket ${nextDependent.id} and continue that lane instead of trying to mutate ${ticket.id} again.`
+}
+export function nextTicketForProcessVerificationClear(manifest: Manifest, ticketId: string): Ticket | null {
+  const directDependent = blockedDependentTickets(manifest, ticketId)[0]
+  if (directDependent) return directDependent
+  const ticketsById = new Map(manifest.tickets.map((item) => [item.id, item]))
+  const readyOpen = manifest.tickets.find(
+    (item) =>
+      item.id !== ticketId &&
+      item.status !== "done" &&
+      item.resolution_state !== "superseded" &&
+      item.depends_on.every((depId) => ticketsById.get(depId)?.status === "done"),
+  )
+  if (readyOpen) return readyOpen
+  return manifest.tickets.find(
+    (item) => item.id !== ticketId && item.status !== "done" && item.resolution_state !== "superseded",
+  ) || null
 }
 export function splitScopeChildren(manifest: Manifest, ticketId: string): Ticket[] {
   return manifest.tickets.filter((item) => item.source_ticket_id === ticketId && item.source_mode === "split_scope")
@@ -1302,10 +1408,36 @@ export function hasWriteLeaseForTicket(workflow: WorkflowState, ticketId: string
 export function getWriteLeaseForTicket(workflow: WorkflowState, ticketId: string, ownerAgent?: string): LaneLease | undefined {
   return workflow.lane_leases.find((lease) => lease.ticket_id === ticketId && lease.write_lock && (!ownerAgent || lease.owner_agent === ownerAgent))
 }
+function allowedPathUsesGlob(pattern: string): boolean {
+  return /[*?]/.test(pattern)
+}
+function globPatternToRegExp(pattern: string): RegExp {
+  let regex = "^"
+  for (let index = 0; index < pattern.length; index += 1) {
+    const char = pattern[index]
+    if (char === "*") {
+      if (pattern[index + 1] === "*") {
+        regex += ".*"
+        index += 1
+      } else {
+        regex += "[^/]*"
+      }
+      continue
+    }
+    if (char === "?") {
+      regex += "[^/]"
+      continue
+    }
+    regex += /[\\^$+?.()|{}\[\]]/.test(char) ? `\\${char}` : char
+  }
+  regex += "$"
+  return new RegExp(regex)
+}
 function pathCoveredByAllowedPath(pathValue: string, allowedPath: string): boolean {
   const normalizedPath = normalizeRepoPath(pathValue).replace(/\/+$/g, "")
   const normalizedAllowed = normalizeRepoPath(allowedPath).replace(/\/+$/g, "")
   if (!normalizedAllowed) return true
+  if (allowedPathUsesGlob(normalizedAllowed)) return globPatternToRegExp(normalizedAllowed).test(normalizedPath)
   return normalizedPath === normalizedAllowed || normalizedPath.startsWith(`${normalizedAllowed}/`)
 }
 export function hasWriteLeaseForPath(workflow: WorkflowState, pathValue: string, ownerAgent?: string): boolean {
@@ -1462,7 +1594,7 @@ export async function registerArtifactSnapshot(spec: ArtifactRegistrationSpec, r
       artifact.supersession_reason = `Replaced by newer ${spec.stage}/${spec.kind} artifact.`
     }
   }
-  const artifact: Artifact = { kind: spec.kind, path: snapshotPath, stage: spec.stage, summary: spec.summary, created_at: createdAt, trust_state: "current" }
+  const artifact: Artifact = { kind: spec.kind, path: snapshotPath, source_path: sourcePath, stage: spec.stage, summary: spec.summary, created_at: createdAt, trust_state: "current" }
   spec.ticket.artifacts.push(artifact)
   spec.registry.artifacts.push({ ticket_id: spec.ticket.id, ...artifact })
   return artifact
@@ -1554,6 +1686,9 @@ export function getProcessVerificationState(manifest: Manifest, workflow: Workfl
 export function ticketNeedsHistoricalReconciliation(ticket: Ticket): boolean {
   return ticket.status === "done" && ticket.resolution_state === "superseded" && ticket.verification_state === "invalidated"
 }
+export function ticketEligibleForTrustRestoration(ticket: Ticket): boolean {
+  return ticket.status === "done" || (ticket.resolution_state === "reopened" && ticket.verification_state === "invalidated")
+}
 export function ticketNeedsTrustRestoration(ticket: Ticket, workflow: WorkflowState): boolean {
   if (ticket.status !== "done") return false
   if (ticketNeedsHistoricalReconciliation(ticket)) return false
@@ -1562,13 +1697,15 @@ export function ticketNeedsTrustRestoration(ticket: Ticket, workflow: WorkflowSt
 }
 export function hasPendingRepairFollowOn(workflow: WorkflowState): boolean {
   if (workflow.repair_follow_on.outcome !== "managed_blocked") return false
-  // Auto-resolve: if all required stages are completed, treat as resolved
   const rfo = workflow.repair_follow_on
+  const requiredStages = Array.isArray(rfo.required_stages) ? rfo.required_stages : []
+  const completedStages = Array.isArray(rfo.completed_stages) ? rfo.completed_stages : []
+  const requiredStagesCompleted = requiredStages.every((stage: string) => completedStages.includes(stage))
   if (
-    Array.isArray(rfo.required_stages) &&
-    Array.isArray(rfo.completed_stages) &&
-    rfo.required_stages.length > 0 &&
-    rfo.required_stages.every((s: string) => rfo.completed_stages.includes(s))
+    requiredStagesCompleted &&
+    rfo.blocking_reasons.length === 0 &&
+    rfo.verification_passed === true &&
+    rfo.handoff_allowed === true
   ) {
     return false
   }
@@ -1682,8 +1819,12 @@ export function renderContextSnapshot(manifest: Manifest, workflow: WorkflowStat
 }
 export function renderStartHere(manifest: Manifest, workflow: WorkflowState, pivot: PivotState, options: StartHereOptions = {}): string {
   const ticket = getTicket(manifest, workflow.active_ticket)
+  const ticketState = getTicketWorkflowState(workflow, ticket.id)
   const reopened = manifest.tickets.filter((item) => item.resolution_state === "reopened")
   const processVerification = getProcessVerificationState(manifest, workflow, ticket.id)
+  const processVerificationActivationTicket = processVerification.clearable_now
+    ? nextTicketForProcessVerificationClear(manifest, ticket.id)
+    : null
   const activeTicketNeedsHistoricalReconciliation = ticketNeedsHistoricalReconciliation(ticket)
   const activeTicketNeedsTrustRestoration = ticketNeedsTrustRestoration(ticket, workflow)
   const suspectDone = processVerification.done_but_not_fully_trusted
@@ -1717,17 +1858,21 @@ export function renderStartHere(manifest: Manifest, workflow: WorkflowState, piv
             : "Complete the remaining pivot follow-on work and republish the restart surfaces before resuming normal ticket lifecycle work.")
       : repairFollowOnPending
         ? (repairBlocker || (repairNextStage ? `Complete the required repair follow-on stage \`${repairNextStage}\` before resuming normal ticket lifecycle work.` : "Complete the required repair follow-on stages before resuming normal ticket lifecycle work."))
-        : splitChildren.length > 0
-          ? `Keep ${ticket.id} open as a split parent and continue the child ticket lane${splitChildren.length > 1 ? "s" : ""}: ${splitChildren.map((item) => item.id).join(", ")}.`
-          : ticket.status !== "done"
-            ? `Keep ${ticket.id} as the foreground ticket and continue its lifecycle from ${ticket.stage}. Historical done-ticket reverification stays secondary until the active open ticket is resolved.`
-            : activeTicketNeedsHistoricalReconciliation
-              ? `Ticket is already closed, but its historical lineage is still contradictory. Use ticket_reconcile with current registered evidence to repair ${ticket.id} instead of trying to reopen or reclaim it.`
-            : activeTicketNeedsTrustRestoration
+          : splitChildren.length > 0
+            ? `Keep ${ticket.id} open as a split parent and continue the child ticket lane${splitChildren.length > 1 ? "s" : ""}: ${splitChildren.map((item) => item.id).join(", ")}.`
+            : ticket.status !== "done"
+              ? ticket.resolution_state === "reopened" && ticket.verification_state === "invalidated" && ticketState.needs_reverification
+                ? `Keep ${ticket.id} as the foreground ticket, but verify whether the reopened defect still reproduces. If current inspection disproves it, produce current evidence and run ticket_reverify on ${ticket.id} instead of manufacturing no-op implementation churn; otherwise continue its lifecycle from ${ticket.stage}. Historical done-ticket reverification stays secondary until the active open ticket is resolved.`
+                : `Keep ${ticket.id} as the foreground ticket and continue its lifecycle from ${ticket.stage}. Historical done-ticket reverification stays secondary until the active open ticket is resolved.`
+             : activeTicketNeedsHistoricalReconciliation
+               ? `Ticket is already closed, but its historical lineage is still contradictory. Use ticket_reconcile with current registered evidence to repair ${ticket.id} instead of trying to reopen or reclaim it.`
+             : activeTicketNeedsTrustRestoration
               ? `Ticket is already closed, but historical trust still needs restoration. Use ${verifierLabel} to produce current evidence, then run ticket_reverify on ${ticket.id} instead of trying to reclaim it.`
               : processVerification.pending
                 ? processVerification.clearable_now
-                ? "Use ticket_update to clear pending_process_verification now that no historical done tickets still require process verification, then rerun ticket_lookup."
+                  ? processVerificationActivationTicket
+                    ? `No historical done tickets remain affected by process verification. Foreground open ticket ${processVerificationActivationTicket.id} and clear pending_process_verification via ticket_update on that writable ticket instead of trying to mutate closed ${ticket.id} again.`
+                    : "Use ticket_update to clear pending_process_verification now that no historical done tickets still require process verification, then rerun ticket_lookup."
                 : `Use the team leader to route ${verifierLabel} across done tickets whose trust predates the current process contract: ${processVerification.affected_done_tickets.map((item) => item.id).join(", ")}.`
                 : blockedDependents.length > 0
                   ? dependentContinuationAction(ticket, blockedDependents)

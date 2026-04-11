@@ -909,6 +909,56 @@ def greenfield_integration(workspace: Path) -> None:
             "Finish-contract greenfield integration should pass continuation verification after seeding explicit finish ownership."
         )
 
+    asset_pipeline_dest = workspace / "greenfield-asset-pipeline"
+    bootstrap_scaffold(
+        asset_pipeline_dest,
+        project_name="Asset Pipeline Probe",
+        project_slug="asset-pipeline-probe",
+        agent_prefix="asset-pipeline-probe",
+        stack_label="godot-3d-android-game",
+        deliverable_kind="android apk with authored or licensed game content",
+        placeholder_policy="no_placeholders",
+        visual_finish_target="ship-ready low-poly visuals with no placeholder character or arena art",
+        audio_finish_target="licensed UI and battle audio only",
+        content_source_plan="blender-mcp for characters and props, godot builtin for VFX and UI themes, free-open audio/fonts",
+        licensing_or_provenance_constraints="Allow CC0, CC-BY, MIT, and OFL only; every generated or sourced asset must be logged.",
+        finish_acceptance_signals="Release proof requires a debug APK plus complete asset provenance coverage for every committed asset.",
+    )
+    make_stack_skill_non_placeholder(asset_pipeline_dest)
+    pipeline_manifest = read_json(asset_pipeline_dest / "assets" / "pipeline.json")
+    if not isinstance(pipeline_manifest, dict):
+        raise RuntimeError("Asset-pipeline integration expected assets/pipeline.json to be valid JSON.")
+    routes = pipeline_manifest.get("routes")
+    if not isinstance(routes, dict):
+        raise RuntimeError("Asset-pipeline integration expected pipeline routes to be recorded.")
+    characters = routes.get("characters")
+    if not isinstance(characters, dict) or characters.get("primary") != "blender-mcp":
+        raise RuntimeError(
+            "Asset-pipeline integration should infer blender-mcp as the primary character route when the content plan names Blender."
+        )
+    bootstrap_meta = read_json(asset_pipeline_dest / ".opencode" / "meta" / "asset-pipeline-bootstrap.json")
+    if not isinstance(bootstrap_meta, dict):
+        raise RuntimeError("Asset-pipeline integration expected asset bootstrap metadata to exist.")
+    suggested_agents = bootstrap_meta.get("suggested_agents")
+    if not isinstance(suggested_agents, list) or "blender-asset-creator" not in suggested_agents:
+        raise RuntimeError(
+            "Asset-pipeline integration should suggest a blender asset subagent when the seeded routes include blender-mcp."
+        )
+    provenance_text = (asset_pipeline_dest / "assets" / "PROVENANCE.md").read_text(encoding="utf-8")
+    if "| asset_path | source_or_workflow | license | author | acquired_or_generated_on | notes |" not in provenance_text:
+        raise RuntimeError("Asset-pipeline integration expected a canonical provenance table header.")
+    asset_verify = run_json(
+        [sys.executable, str(VERIFY_GENERATED), str(asset_pipeline_dest), "--format", "json"],
+        ROOT,
+    )
+    if (
+        asset_verify.get("immediately_continuable") is not True
+        or asset_verify.get("finding_count") != 0
+    ):
+        raise RuntimeError(
+            "Asset-pipeline greenfield integration should pass continuation verification after seeding game asset surfaces."
+        )
+
 
 def repair_integration(workspace: Path) -> None:
     require_host_prerequisite("uv", context="Scafforge repair integration")

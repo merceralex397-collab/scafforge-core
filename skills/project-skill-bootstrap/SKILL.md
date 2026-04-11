@@ -25,6 +25,7 @@ Use this skill to create the repo-local `.opencode/skills/` layer with actual pr
 - If this skill is reached from `scaffold-kickoff` during greenfield generation, use the full greenfield pass. Do not split baseline population and synthesis into separate revisits.
 - If invoked directly for an existing repo, use repair or regeneration.
 - If the repo is missing `.opencode/skills/`, do not start here. Run `../opencode-team-bootstrap/SKILL.md` first so the local skill layer exists before you rewrite it.
+- In repair or regeneration mode, refresh required synthesized skills as well as baseline skills. Do not leave an existing synthesized skill untouched when current repo evidence or metadata shows it is required and stale.
 
 ## Greenfield full-pass procedure
 
@@ -72,13 +73,21 @@ For each baseline skill in `.opencode/skills/`, rewrite the SKILL.md with actual
 - State the exact stage order: `planning -> plan_review -> implementation -> review -> qa -> smoke-test -> closeout`
 - Tell agents to read `ticket_lookup.transition_guidance` before calling `ticket_update`
 - Tell agents that bootstrap readiness is a pre-lifecycle gate: when `ticket_lookup.bootstrap.status` is not `ready`, the next required action is `environment_bootstrap`, then a fresh `ticket_lookup`
+- State that only Wave 0 setup work may claim a write-capable lease before bootstrap is ready
+- State that the team leader owns `ticket_claim` and `ticket_release`, while specialists write only inside the already-active lease
 - Tell agents to stop on repeated lifecycle errors instead of probing alternate stage or status values
 - Define stage-artifact ownership by specialist
 - State that `smoke_test` is the only legal producer of smoke-test artifacts
+- State that smoke-test scope comes from the ticket acceptance criteria when they already name executable smoke commands
+- State that process-remediation and reverification tickets must keep smoke-test scope limited to commands that are valid at the repo's current backlog state instead of broadening into product boot checks that are expected to fail while prerequisite feature tickets remain unfinished
 - State that if execution or validation cannot run, the agent must return a blocker instead of manufacturing PASS evidence
 - State that missing host prerequisites such as `uv`, `pytest`, `rg`, git identity, or service binaries are blockers that must be classified explicitly instead of worked around
+- Include an explicit `Failure recovery paths` section covering review, QA, and smoke-test FAIL / REJECT / BLOCKED / unclear-verdict routing
+- State that when `ticket_lookup.transition_guidance.recovery_action` is present, agents must follow that recovery path instead of the normal happy-path transition
+- State that `smoke_test` is the only stage that may produce passing smoke evidence and that agents must not fabricate expected-results-as-PASS artifacts
 - Clarify that slash commands are human entrypoints, not internal autonomous workflow tools
 - Add remediation closeout rules: tickets created from audit or review findings must record `finding_source`, rerun the original failing check before closeout, and refuse closure when the finding-specific check still fails
+- Preserve the canonical ticket-execution structure from the scaffold template; extend it with repo-specific command expectations instead of replacing it with a thinner summary
 
 **review-audit-bridge** — Keep this generated skill repo-local and advisory-only, then add project-specific review and QA expectations:
 - Repo-specific review commands, validation commands, and artifact paths
@@ -105,13 +114,29 @@ For each baseline skill in `.opencode/skills/`, rewrite the SKILL.md with actual
 
 From the canonical brief, generated repo structure, and local references, identify whether the project needs additional stack- or domain-specific skills beyond the baseline pack.
 
-When the canonical brief includes a Product Finish Contract (section 13) with `placeholder_policy: no_placeholders`, identify whether a finish-pipeline skill is warranted. This skill should encode:
+When the canonical brief includes a Product Finish Contract (section 13) that forbids placeholder output in the final product, identify whether a finish-pipeline skill is warranted. This skill should encode:
 - the stack-specific content pipeline for the repo (asset formats, tooling, import conventions)
 - the finish acceptance signals from the canonical brief
 - guidance on what constitutes placeholder versus real output for this project's stack
 - any licensing or provenance gates that must be verified before content is committed
 
 Do not synthesize a finish-pipeline skill when the finish contract explicitly allows placeholder or procedural output as final output.
+
+When `.opencode/meta/asset-pipeline-bootstrap.json` exists, treat it as the canonical machine-readable summary of the repo's seeded asset routes. Use it to decide whether the repo needs synthesized skills such as:
+- `asset-description`
+- `blender-mcp-workflow`
+- a stack-specific finish-pipeline or game-content skill
+
+Those synthesized skills must reference the actual seeded repo surfaces (`assets/pipeline.json`, `assets/PROVENANCE.md`, `assets/briefs/`) instead of re-describing a hypothetical directory layout.
+When the metadata's `suggested_skills` includes one of these synthesized skills, that skill is required output for the current generation or repair pass and must be rewritten if the existing file is stale, generic, or inconsistent with current repo/tool evidence.
+
+When synthesizing **`blender-mcp-workflow`** for repos that route assets through `blender-agent`, treat `Scafforge/skills/asset-pipeline/SKILL.md` and `Scafforge/skills/asset-pipeline/agents/blender-asset-creator.md` as the authoritative operating contract. The generated local skill must:
+- describe Blender mutating calls as **stateless** unless the repo evidence explicitly proves a different execution model
+- require `output_blend` on every mutating call and require the next mutating call to reuse the returned `persistence.saved_blend` as `input_blend`
+- tell agents to stop and retry the same step when a mutating response is ephemeral, omits `output_blend`, or returns no `persistence.saved_blend`
+- use the seeded repo asset surfaces (`assets/briefs/`, `assets/models/`, `assets/PROVENANCE.md`) and the actual MCP tool names present in the repo
+- classify inline Python as a blocker unless `environment_probe` or current config evidence shows it is enabled
+- avoid invented session-based guidance such as `blender_session_*` tools unless those tools are actually present and documented in the repo
 
 ### 4. Review reference patterns
 
@@ -140,6 +165,7 @@ Examples:
 - Every synthesized skill description must be concrete and selection-specific
 - Do not use vague descriptions such as "help with this stack" or "general project guidance"
 - No generated local skill may retain scaffold placeholder text after greenfield generation or repair/regeneration
+- Synthesized `blender-mcp-workflow` skills must preserve the stateless persistence contract exactly; a session-oriented Blender skill that omits `input_blend` / `output_blend` chaining is invalid
 
 ### 7. Write updated skills
 
@@ -152,7 +178,8 @@ If `review-audit-bridge` needs heavier examples or review policy detail, place t
 Before leaving this skill, confirm all of these are true:
 - every baseline local skill exists under `.opencode/skills/` and no baseline skill still contains scaffold placeholder text
 - `.opencode/skills/model-operating-profile/SKILL.md` exists and matches the selected downstream model profile
-- `.opencode/skills/ticket-execution/SKILL.md` matches the current lifecycle contract, artifact ownership rules, bootstrap-first routing, and blocker behavior
+- `.opencode/skills/ticket-execution/SKILL.md` matches the current lifecycle contract, lease ownership rules, bootstrap-first routing, repeated-contradiction stop rules, failure recovery paths, smoke ownership rules, and blocker behavior
+- every synthesized skill required by `.opencode/meta/asset-pipeline-bootstrap.json` or equivalent repo evidence exists and has been refreshed for the current repair/generation pass
 - any synthesized skill is repo-specific, has valid frontmatter, and is justified by project evidence
 
 ## Repair follow-on artifact
@@ -198,3 +225,4 @@ Continue to `../opencode-team-bootstrap/SKILL.md` as directed by scaffold-kickof
 
 - `references/local-skill-catalog.md` for the baseline skill list
 - `assets/templates/SKILL.template.md` for the skill file template
+- `references/blender-mcp-workflow-reference.md` when a repo needs synthesized Blender-MCP asset guidance

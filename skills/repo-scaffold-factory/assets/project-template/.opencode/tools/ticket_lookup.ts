@@ -21,6 +21,7 @@ import {
   latestReviewArtifact,
   loadManifest,
   loadWorkflowState,
+  nextTicketForProcessVerificationClear,
   nextRepairFollowOnStage,
   openParallelSplitChildren,
   openSequentialSplitChildren,
@@ -32,6 +33,7 @@ import {
   ticketNeedsTrustRestoration,
   ticketNeedsProcessVerification,
   validateImplementationArtifactEvidence,
+  validateReviewArtifactEvidence,
   validateLifecycleStageStatus,
   validateQaArtifactEvidence,
   validateSmokeTestArtifactEvidence,
@@ -41,7 +43,8 @@ async function buildTransitionGuidance(ticket: ReturnType<typeof getTicket>, wor
   const manifest = await loadManifest()
   const blocker = validateLifecycleStageStatus(ticket.stage, ticket.status)
   const approvedPlan = isPlanApprovedForTicket(workflow, ticket.id)
-  const needsProcessVerification = ticketNeedsProcessVerification(ticket, workflow)
+  const processVerification = getProcessVerificationState(manifest, workflow, ticket.id)
+  const needsProcessVerification = processVerification.current_ticket_requires_verification
   const ticketNeedsReconciliation = ticketNeedsHistoricalReconciliation(ticket)
   const ticketTrustNeedsRestoration = ticketNeedsTrustRestoration(ticket, workflow)
   const bootstrapStatus = workflow.bootstrap.status
@@ -53,6 +56,9 @@ async function buildTransitionGuidance(ticket: ReturnType<typeof getTicket>, wor
   const sequentialSplitChildren = openSequentialSplitChildren(manifest, ticket.id)
   const staleStageReconciliation = reconcileStaleStageIfNeeded(ticket)
   const blockedDependents = blockedDependentTickets(manifest, ticket.id)
+  const processVerificationActivationTicket = processVerification.clearable_now
+    ? nextTicketForProcessVerificationClear(manifest, ticket.id)
+    : null
   const base = {
     current_stage: ticket.stage,
     current_status: ticket.status,
@@ -279,6 +285,25 @@ async function buildTransitionGuidance(ticket: ReturnType<typeof getTicket>, wor
         }
       }
       {
+        const reviewBlocker = await validateReviewArtifactEvidence(ticket)
+        if (reviewBlocker) {
+          return {
+            ...base,
+            next_allowed_stages: ["review"],
+            required_artifacts: ["review"],
+            next_action_kind: "write_artifact",
+            next_action_tool: "artifact_write",
+            delegate_to_agent: "reviewer-code",
+            required_owner: "team-leader",
+            canonical_artifact_path: defaultArtifactPath(ticket.id, "review", "review"),
+            artifact_stage: "review",
+            artifact_kind: "review",
+            recommended_action: "Keep the ticket in review until the remediation review artifact records the rerun command, raw command output, and explicit PASS/FAIL result.",
+            current_state_blocker: reviewBlocker,
+          }
+        }
+      }
+      {
         const reviewArtifact = latestReviewArtifact(ticket)
         const reviewVerdictInfo = extractArtifactVerdict(await readArtifactContent(reviewArtifact))
         if (reviewVerdictInfo.verdict_unclear) {
@@ -453,6 +478,39 @@ async function buildTransitionGuidance(ticket: ReturnType<typeof getTicket>, wor
           artifact_kind: "backlog-verification",
           recommended_action: "Ticket is already closed, but historical trust still needs restoration. Use the backlog verifier to produce current evidence, then run ticket_reverify on this closed ticket instead of trying to reclaim it.",
           recommended_ticket_update: null,
+        }
+      }
+      if (ticket.status === "done" && processVerification.clearable_now && processVerificationActivationTicket) {
+        return {
+          ...base,
+          next_allowed_stages: [processVerificationActivationTicket.stage],
+          required_artifacts: [],
+          next_action_kind: "ticket_update",
+          next_action_tool: "ticket_update",
+          delegate_to_agent: null,
+          required_owner: "team-leader",
+          recommended_action: `No historical done tickets remain affected by process verification. Foreground open ticket ${processVerificationActivationTicket.id} and clear pending_process_verification there instead of trying to reclaim closed ticket ${ticket.id}.`,
+          recommended_ticket_update: {
+            ticket_id: processVerificationActivationTicket.id,
+            activate: true,
+            pending_process_verification: false,
+          },
+        }
+      }
+      if (ticket.status === "done" && processVerification.clearable_now) {
+        return {
+          ...base,
+          next_allowed_stages: [],
+          required_artifacts: [],
+          next_action_kind: "ticket_update",
+          next_action_tool: "ticket_update",
+          delegate_to_agent: null,
+          required_owner: "team-leader",
+          recommended_action: "No historical done tickets remain affected by process verification. Use ticket_update to clear pending_process_verification now, then rerun ticket_lookup.",
+          recommended_ticket_update: {
+            ticket_id: ticket.id,
+            pending_process_verification: false,
+          },
         }
       }
       if (ticket.status === "done" && blockedDependents.length > 0) {

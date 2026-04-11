@@ -448,6 +448,10 @@ function classifyMissingPrerequisites(command: CommandSpec, result: CommandResul
 	return []
 }
 
+function isAdvisoryBootstrapFailure(command: CommandSpec, result: CommandResult): boolean {
+	return command.label === "make query" && result.failure_classification === "command_error"
+}
+
 function renderArtifact(
 	ticketId: string,
 	fingerprint: string,
@@ -926,6 +930,7 @@ export default tool({
 		const unsafeWarnings = detection.commands.filter((command) => !isSafeBootstrapCommand(command)).map((command) => `Rejected unsafe bootstrap command: ${renderCommand(command)}`)
 		const commands = detection.commands.filter((command) => isSafeBootstrapCommand(command))
 		const results: CommandResult[] = []
+		const warnings = unique([...detection.warnings, ...unsafeWarnings])
 		const missingPrerequisites = new Set(detection.missingPrerequisites)
 		let hostSurfaceClassification: "none" | "missing_executable" | "permission_restriction" | "command_error" = detection.blockers.length > 0 || detection.missingPrerequisites.length > 0
 			? "missing_executable"
@@ -936,6 +941,10 @@ export default tool({
 			for (const command of commands) {
 				const result = await runCommand(root, command)
 				results.push(result)
+				if (isAdvisoryBootstrapFailure(command, result)) {
+					warnings.push(`Ignoring non-fatal advisory bootstrap probe failure: ${renderCommand(command)}`)
+					continue
+				}
 				if (hostSurfaceClassification === "none" && result.failure_classification) {
 					hostSurfaceClassification = result.failure_classification
 				}
@@ -951,7 +960,6 @@ export default tool({
 
 		const fingerprint = await computeBootstrapFingerprint(root)
 		const blockers = detection.blockers
-		const warnings = unique([...detection.warnings, ...unsafeWarnings])
 		if (missingPrerequisites.size > 0) {
 			passed = false
 		}

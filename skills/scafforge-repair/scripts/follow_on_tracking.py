@@ -206,7 +206,12 @@ def canonical_stage_evidence_path(stage: str) -> str | None:
     return value if isinstance(value, str) and value else None
 
 
-def validate_recorded_execution_evidence(repo_root: Path, state: dict[str, Any]) -> dict[str, Any]:
+def validate_recorded_execution_evidence(
+    repo_root: Path,
+    state: dict[str, Any],
+    *,
+    expected_repair_package_commit: str | None = None,
+) -> dict[str, Any]:
     stage_records = state.get("stage_records") if isinstance(state.get("stage_records"), dict) else {}
     history = state.get("history") if isinstance(state.get("history"), list) else []
     now = current_iso_timestamp()
@@ -217,6 +222,12 @@ def validate_recorded_execution_evidence(repo_root: Path, state: dict[str, Any])
             continue
         evidence_paths = record.get("evidence_paths") if isinstance(record.get("evidence_paths"), list) else []
         missing_recorded_evidence = not evidence_paths
+        recorded_package_commit = (
+            record.get("repair_package_commit").strip()
+            if isinstance(record.get("repair_package_commit"), str)
+            else ""
+        )
+        package_commit_mismatch = bool(expected_repair_package_commit) and recorded_package_commit != expected_repair_package_commit
         cycle_id = state.get("cycle_id") if isinstance(state.get("cycle_id"), str) else ""
         canonical_evidence_path = canonical_stage_evidence_path(stage)
         canonical_cycle_mismatch = False
@@ -227,7 +238,7 @@ def validate_recorded_execution_evidence(repo_root: Path, state: dict[str, Any])
             for path in evidence_paths
             if not isinstance(path, str) or not (repo_root / path).exists()
         ]
-        if not missing and not missing_recorded_evidence and not canonical_cycle_mismatch:
+        if not missing and not missing_recorded_evidence and not canonical_cycle_mismatch and not package_commit_mismatch:
             continue
         previous_missing = record.get("missing_evidence_paths") if isinstance(record.get("missing_evidence_paths"), list) else []
         evidence_validation_error = (
@@ -235,6 +246,8 @@ def validate_recorded_execution_evidence(repo_root: Path, state: dict[str, Any])
             if missing_recorded_evidence
             else "canonical_evidence_cycle_mismatch"
             if canonical_cycle_mismatch
+            else "repair_package_commit_mismatch"
+            if package_commit_mismatch
             else None
         )
         stage_records[stage] = {
@@ -242,6 +255,7 @@ def validate_recorded_execution_evidence(repo_root: Path, state: dict[str, Any])
             "status": "evidence_missing",
             "missing_evidence_paths": sorted(set(path for path in missing if isinstance(path, str))),
             "evidence_validation_error": evidence_validation_error,
+            "expected_repair_package_commit": expected_repair_package_commit,
             "last_checked_at": now,
             "last_updated_at": now,
         }
@@ -298,7 +312,11 @@ def update_follow_on_tracking_state(
         for item in required_follow_on
     ]
     state = load_follow_on_tracking_state(repo_root)
-    state = validate_recorded_execution_evidence(repo_root, state)
+    state = validate_recorded_execution_evidence(
+        repo_root,
+        state,
+        expected_repair_package_commit=repair_package_commit,
+    )
     stage_records = state["stage_records"]
     required_reason_map = {item["stage"]: item["reason"] for item in required_follow_on}
     now = current_iso_timestamp()
@@ -406,7 +424,11 @@ def auto_record_stage_completion_from_canonical_evidence(
         required_stage_names
         + [stage for stage in OPTIONAL_RECORDABLE_FOLLOW_ON_STAGES if canonical_stage_evidence_path(stage)]
     )
-    state = validate_recorded_execution_evidence(repo_root, state)
+    state = validate_recorded_execution_evidence(
+        repo_root,
+        state,
+        expected_repair_package_commit=repair_package_commit,
+    )
     persist_follow_on_tracking_state(repo_root, state)
 
     auto_recorded: list[str] = []
@@ -419,6 +441,12 @@ def auto_record_stage_completion_from_canonical_evidence(
         if not evidence_path:
             continue
         existing = state.get("stage_records", {}).get(stage, {})
+        if (
+            isinstance(existing, dict)
+            and existing.get("status") == "evidence_missing"
+            and existing.get("evidence_validation_error") == "repair_package_commit_mismatch"
+        ):
+            continue
         if (
             isinstance(existing, dict)
             and existing.get("status") == "completed"
@@ -521,6 +549,7 @@ def record_follow_on_stage_completion(
         "completed_by": normalized_completed_by,
         "summary": normalized_summary,
         "evidence_paths": evidence_paths,
+        "repair_package_commit": repair_package_commit,
         "first_recorded_at": existing.get("first_recorded_at") if isinstance(existing.get("first_recorded_at"), str) and existing.get("first_recorded_at").strip() else now,
         "last_recorded_at": now,
         "last_checked_at": now,

@@ -216,7 +216,10 @@ def audit_markdown_verdict_parser_mismatch(
         return
 
     workflow_text = ctx.read_text(workflow_tool)
-    if "(?:\\*\\*|__)?" in workflow_text:
+    plain_label_parser_fragment = (
+        "labeled = trimmed.match(/^(?:overall(?:\\s+result)?|verdict|result|approval\\s+signal)\\s*:"
+    )
+    if plain_label_parser_fragment not in workflow_text:
         return
 
     emphasized_verdict = re.compile(
@@ -428,6 +431,13 @@ def _latest_current_stage_artifact(ticket: dict[str, Any], stage: str) -> dict[s
     return current[-1]
 
 
+def _current_artifact_file_path(artifact: dict[str, Any]) -> str:
+    source_path = str(artifact.get("source_path", "")).strip()
+    if source_path:
+        return source_path
+    return str(artifact.get("path", "")).strip()
+
+
 def audit_remediation_review_evidence(
     root: Path, findings: list[Finding], ctx: LifecycleContractAuditContext
 ) -> None:
@@ -440,9 +450,9 @@ def audit_remediation_review_evidence(
     if not tickets:
         return
 
-    command_pattern = re.compile(r"(?:^|\n)(?:-\s*)?(?:command|command run)\s*:\s*`[^`]+`", re.IGNORECASE)
-    output_heading_pattern = re.compile(r"(?:raw\s+command\s+output|command\s+output)", re.IGNORECASE)
-    result_pattern = re.compile(r"(?:^|\n)(?:-\s*)?(?:result|post-fix\s+result|pass/fail\s+result)\s*:\s*(?:`)?(?:PASS|FAIL|BLOCKED|ERROR)(?:`)?", re.IGNORECASE)
+    command_pattern = re.compile(r"(?:^|\n)(?:-\s*)?(?:(?:\*\*|__)?(?:command|command run)(?:\*\*|__)?\s*:|(?:\*\*|__)?(?:command|command run):(?:\*\*|__)?)\s*(?:`[^`]+`|```[\s\S]*?```)", re.IGNORECASE)
+    output_heading_pattern = re.compile(r"(?:raw(?:\s+command)?\s+output|raw\s+output|command\s+output)(?:\s*\([^)]*\))?", re.IGNORECASE)
+    result_pattern = re.compile(r"(?:^|\n)(?:-\s*)?(?:(?:\*\*|__)?(?:overall\s+result|overall\s+verdict|verdict|result|post-fix\s+result|pass/fail\s+result)(?:\*\*|__)?\s*:|(?:\*\*|__)?(?:overall\s+result|overall\s+verdict|verdict|result|post-fix\s+result|pass/fail\s+result):(?:\*\*|__)?)\s*(?:\*\*|__|`)?(?:PASS|PASSES|FAIL|FAILED|BLOCKED|ERROR|APPROVED|REJECT)(?:\*\*|__|`)?", re.IGNORECASE)
     code_block_pattern = re.compile(r"```(?:[^\n]*)\n([\s\S]*?)```", re.MULTILINE)
 
     for ticket in tickets:
@@ -454,7 +464,7 @@ def audit_remediation_review_evidence(
         artifact = _latest_current_stage_artifact(ticket, "review")
         if artifact is None:
             continue
-        artifact_path_value = str(artifact.get("path", "")).strip()
+        artifact_path_value = _current_artifact_file_path(artifact)
         if not artifact_path_value:
             continue
         artifact_path = root / artifact_path_value

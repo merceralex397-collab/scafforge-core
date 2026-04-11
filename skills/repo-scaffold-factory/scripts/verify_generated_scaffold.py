@@ -204,6 +204,10 @@ def _is_godot_android_target(repo_root: Path) -> bool:
     return repo_declares_godot_android(repo_root)
 
 
+def _asset_pipeline_expected(repo_root: Path) -> bool:
+    return _is_godot_android_target(repo_root)
+
+
 def godot_android_export_surface_findings(repo_root: Path) -> list[object]:
     """Fail when a Godot Android repo is missing its repo-managed Android surfaces."""
     if not _is_godot_android_target(repo_root):
@@ -234,6 +238,63 @@ def godot_android_export_surface_findings(repo_root: Path) -> list[object]:
     ]
 
 
+def asset_pipeline_surface_findings(repo_root: Path) -> list[object]:
+    if not _asset_pipeline_expected(repo_root):
+        return []
+    required_paths = (
+        "assets/pipeline.json",
+        "assets/PROVENANCE.md",
+        "assets/briefs",
+        "assets/models",
+        "assets/sprites",
+        "assets/audio",
+        "assets/fonts",
+        "assets/themes",
+        ".opencode/meta/asset-pipeline-bootstrap.json",
+    )
+    missing: list[str] = []
+    for relative in required_paths:
+        path = repo_root / relative
+        if not path.exists():
+            missing.append(relative)
+    invalid: list[str] = []
+    for relative in ("assets/pipeline.json", ".opencode/meta/asset-pipeline-bootstrap.json"):
+        path = repo_root / relative
+        if not path.exists():
+            continue
+        try:
+            json.loads(path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError as exc:
+            invalid.append(f"{relative}: {exc}")
+    provenance_path = repo_root / "assets" / "PROVENANCE.md"
+    if provenance_path.exists():
+        provenance_text = provenance_path.read_text(encoding="utf-8")
+        if "| asset_path | source_or_workflow |" not in provenance_text:
+            invalid.append("assets/PROVENANCE.md: missing canonical provenance table header")
+    if not missing and not invalid:
+        return []
+    evidence: list[str] = []
+    if missing:
+        evidence.append(f"Missing asset-pipeline surfaces: {', '.join(missing)}")
+    evidence.extend(invalid)
+    return [
+        scaffold_finding(
+            code="SCAFFOLD-006",
+            problem="A generated game scaffold is missing its asset-pipeline starter surfaces.",
+            root_cause=(
+                "Game repos need deterministic asset pipeline structure, provenance tracking, and route metadata so later "
+                "skills can configure asset work without improvising their own repo layout."
+            ),
+            files=missing or ["assets/pipeline.json"],
+            safer_pattern=(
+                "Seed assets/pipeline.json, assets/PROVENANCE.md, the asset subdirectories, and "
+                ".opencode/meta/asset-pipeline-bootstrap.json during scaffold generation."
+            ),
+            evidence=evidence,
+        )
+    ]
+
+
 def scaffold_content_findings(repo_root: Path) -> list[object]:
     return [
         *placeholder_findings(repo_root),
@@ -241,6 +302,7 @@ def scaffold_content_findings(repo_root: Path) -> list[object]:
         *agent_reference_findings(repo_root),
         *project_name_consistency_findings(repo_root),
         *godot_android_export_surface_findings(repo_root),
+        *asset_pipeline_surface_findings(repo_root),
     ]
 
 

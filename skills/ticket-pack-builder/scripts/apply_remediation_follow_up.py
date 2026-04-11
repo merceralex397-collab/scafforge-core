@@ -33,6 +33,10 @@ def read_json(path: Path) -> Any:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+def write_json(path: Path, payload: Any) -> None:
+    path.write_text(json.dumps(payload, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+
+
 def normalize_path(path: Path, root: Path) -> str:
     return str(path.relative_to(root)).replace("\\", "/")
 
@@ -120,21 +124,94 @@ def active_open_ticket(manifest: dict[str, Any]) -> dict[str, Any] | None:
     return None
 
 
+def ticket_can_be_split_scope_parent(ticket: dict[str, Any] | None) -> bool:
+    if not isinstance(ticket, dict):
+        return False
+    status = str(ticket.get("status", "")).strip().lower()
+    resolution_state = str(ticket.get("resolution_state", "")).strip().lower()
+    if status == "done":
+        return False
+    if resolution_state in {"done", "closed", "superseded"}:
+        return False
+    return True
+
+
+IMMUTABLE_HISTORY_PREFIX = ".opencode/state/artifacts/history/"
+
+
+def collect_source_files(recommendation: dict[str, Any]) -> list[str]:
+    raw_source_files = recommendation.get("affected_files") or recommendation.get("source_files") or []
+    if not isinstance(raw_source_files, list):
+        return []
+    normalized: list[str] = []
+    for item in raw_source_files:
+        value = str(item).strip()
+        if not value or value in normalized:
+            continue
+        normalized.append(value)
+    return normalized
+
+
+def split_source_files(source_files: list[str]) -> tuple[list[str], list[str]]:
+    mutable_sources: list[str] = []
+    history_sources: list[str] = []
+    for path in source_files:
+        if path.startswith(IMMUTABLE_HISTORY_PREFIX):
+            history_sources.append(path)
+        else:
+            mutable_sources.append(path)
+    return mutable_sources, history_sources
+
+
+def build_summary(description: str, source_files: list[str]) -> str:
+    mutable_sources, history_sources = split_source_files(source_files)
+    surface_display = (
+        ", ".join(mutable_sources)
+        if mutable_sources
+        else "the current writable remediation surfaces for this finding"
+    )
+    parts = [
+        description.strip(),
+        f"Affected surfaces: {surface_display}.",
+    ]
+    if history_sources:
+        parts.append(
+            "Historical evidence sources: "
+            + ", ".join(history_sources)
+            + ". Treat these history paths as read-only context and record superseding current evidence on this remediation ticket instead of editing immutable history artifacts directly."
+        )
+    return " ".join(part for part in parts if part)
+
+
 def build_acceptance(recommendation: dict[str, Any]) -> list[str]:
     code = str(recommendation.get("source_finding_code") or recommendation.get("id") or "unknown")
     summary = str(recommendation.get("summary") or recommendation.get("suggested_fix_approach") or "Re-run the relevant quality checks.")
-    return [
+    acceptance = [
         f"The validated finding `{code}` no longer reproduces.",
         f"Current quality checks rerun with evidence tied to the fix approach: {summary}",
     ]
+    _, history_sources = split_source_files(collect_source_files(recommendation))
+    if history_sources:
+        acceptance.append(
+            "When the finding cites `.opencode/state/artifacts/history/...`, treat those paths as read-only evidence sources and capture the fix on current writable repo surfaces or current ticket artifacts instead of mutating immutable history artifacts directly."
+        )
+    return acceptance
+
+
+def remediation_split_kind(recommendation: dict[str, Any], source_ticket_id: str | None) -> str | None:
+    if not source_ticket_id:
+        return None
+    finding_code = str(recommendation.get("source_finding_code") or recommendation.get("id") or "").strip()
+    if finding_code == "EXEC-REMED-001":
+        return "parallel_independent"
+    return "sequential_dependent"
 
 
 def build_ticket_record(recommendation: dict[str, Any], manifest: dict[str, Any], active_ticket: dict[str, Any] | None, wave: int) -> dict[str, Any]:
     source_ticket_id = active_ticket["id"] if active_ticket else None
     source_mode = "split_scope" if source_ticket_id else "net_new_scope"
-    split_kind = "sequential_dependent" if source_ticket_id else None
-    source_files = recommendation.get("affected_files") or recommendation.get("source_files") or []
-    files_display = ", ".join(str(item) for item in source_files) if source_files else "the affected repo area"
+    split_kind = remediation_split_kind(recommendation, source_ticket_id)
+    source_files = collect_source_files(recommendation)
     description = str(recommendation.get("description") or recommendation.get("summary") or recommendation.get("title") or "")
     return {
         "id": str(recommendation["id"]),
@@ -146,7 +223,7 @@ def build_ticket_record(recommendation: dict[str, Any], manifest: dict[str, Any]
         "stage": "planning",
         "status": "todo",
         "depends_on": [],
-        "summary": f"{description} Affected surfaces: {files_display}.",
+        "summary": build_summary(description, source_files),
         "acceptance": build_acceptance(recommendation),
         "decision_blockers": [],
         "artifacts": [],
@@ -158,6 +235,342 @@ def build_ticket_record(recommendation: dict[str, Any], manifest: dict[str, Any]
         "source_mode": source_mode,
         "split_kind": split_kind,
     }
+
+
+def extract_ticket_notes(existing: str) -> str:
+    marker = "\n## Notes\n\n"
+    if marker not in existing:
+        return ""
+    return existing.split(marker, 1)[1].rstrip("\n")
+
+
+def render_artifact_line(artifact: dict[str, Any]) -> str:
+    summary = f" - {artifact.get('summary')}" if artifact.get("summary") else ""
+    trust_state = str(artifact.get("trust_state") or "current")
+    trust = f" [{trust_state}]" if trust_state != "current" else ""
+    return (
+        f"- {artifact.get('kind', 'artifact')}: {artifact.get('path', '')} "
+        f"({artifact.get('stage', '')}){trust}{summary}"
+    )
+
+
+def render_artifact_lines(ticket: dict[str, Any]) -> str:
+    artifacts = ticket.get("artifacts")
+    if not isinstance(artifacts, list) or not artifacts:
+        return "- None yet"
+    return "\n".join(
+        render_artifact_line(artifact)
+        for artifact in artifacts
+        if isinstance(artifact, dict)
+    )
+
+
+def render_board(manifest: dict[str, Any]) -> str:
+    rows: list[str] = []
+    for ticket in manifest.get("tickets", []):
+        if not isinstance(ticket, dict):
+            continue
+        depends_on = ticket.get("depends_on") if isinstance(ticket.get("depends_on"), list) else []
+        follow_ups = (
+            ticket.get("follow_up_ticket_ids")
+            if isinstance(ticket.get("follow_up_ticket_ids"), list)
+            else []
+        )
+        rows.append(
+            "| {wave} | {id} | {title} | {lane} | {stage} | {status} | {resolution} | {verification} | {parallel} | {overlap} | {depends_on} | {follow_ups} |".format(
+                wave=ticket.get("wave", ""),
+                id=ticket.get("id", ""),
+                title=ticket.get("title", ""),
+                lane=ticket.get("lane", ""),
+                stage=ticket.get("stage", ""),
+                status=ticket.get("status", ""),
+                resolution=ticket.get("resolution_state", ""),
+                verification=ticket.get("verification_state", ""),
+                parallel="yes" if ticket.get("parallel_safe") else "no",
+                overlap=ticket.get("overlap_risk", ""),
+                depends_on=", ".join(str(item) for item in depends_on) if depends_on else "-",
+                follow_ups=", ".join(str(item) for item in follow_ups) if follow_ups else "-",
+            )
+        )
+    return (
+        "# Ticket Board\n\n"
+        "| Wave | ID | Title | Lane | Stage | Status | Resolution | Verification | Parallel Safe | Overlap Risk | Depends On | Follow-ups |\n"
+        "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |\n"
+        + "\n".join(rows)
+        + "\n"
+    )
+
+
+def render_ticket_document(ticket: dict[str, Any], notes: str = "") -> str:
+    depends_on = ticket.get("depends_on") if isinstance(ticket.get("depends_on"), list) else []
+    blockers = (
+        ticket.get("decision_blockers")
+        if isinstance(ticket.get("decision_blockers"), list)
+        else []
+    )
+    acceptance = (
+        ticket.get("acceptance") if isinstance(ticket.get("acceptance"), list) else []
+    )
+    follow_ups = (
+        ticket.get("follow_up_ticket_ids")
+        if isinstance(ticket.get("follow_up_ticket_ids"), list)
+        else []
+    )
+    return (
+        f"# {ticket.get('id', '')}: {ticket.get('title', '')}\n\n"
+        "## Summary\n\n"
+        f"{ticket.get('summary', '')}\n\n"
+        "## Wave\n\n"
+        f"{ticket.get('wave', '')}\n\n"
+        "## Lane\n\n"
+        f"{ticket.get('lane', '')}\n\n"
+        "## Parallel Safety\n\n"
+        f"- parallel_safe: {'true' if ticket.get('parallel_safe') else 'false'}\n"
+        f"- overlap_risk: {ticket.get('overlap_risk', '')}\n\n"
+        "## Stage\n\n"
+        f"{ticket.get('stage', '')}\n\n"
+        "## Status\n\n"
+        f"{ticket.get('status', '')}\n\n"
+        "## Trust\n\n"
+        f"- resolution_state: {ticket.get('resolution_state', '')}\n"
+        f"- verification_state: {ticket.get('verification_state', '')}\n"
+        f"- finding_source: {ticket.get('finding_source') or 'None'}\n"
+        f"- source_ticket_id: {ticket.get('source_ticket_id') or 'None'}\n"
+        f"- source_mode: {ticket.get('source_mode') or 'None'}\n\n"
+        "## Depends On\n\n"
+        f"{', '.join(str(item) for item in depends_on) if depends_on else 'None'}\n\n"
+        "## Follow-up Tickets\n\n"
+        f"{chr(10).join(f'- {item}' for item in follow_ups) if follow_ups else 'None'}\n\n"
+        "## Decision Blockers\n\n"
+        f"{chr(10).join(f'- {item}' for item in blockers) if blockers else 'None'}\n\n"
+        "## Acceptance Criteria\n\n"
+        f"{chr(10).join(f'- [ ] {item}' for item in acceptance) if acceptance else 'None'}\n\n"
+        "## Artifacts\n\n"
+        f"{render_artifact_lines(ticket)}\n\n"
+        "## Notes\n\n"
+        f"{notes.rstrip() + chr(10) if notes.strip() else ''}"
+    )
+
+
+def save_manifest_surfaces(repo_root: Path, manifest: dict[str, Any]) -> None:
+    manifest["version"] = max(int(manifest.get("version", 0) or 0), 3)
+    tickets_dir = repo_root / "tickets"
+    write_json(tickets_dir / "manifest.json", manifest)
+    (tickets_dir / "BOARD.md").write_text(render_board(manifest), encoding="utf-8")
+    for ticket in manifest.get("tickets", []):
+        if not isinstance(ticket, dict):
+            continue
+        ticket_path = tickets_dir / f"{ticket.get('id', '')}.md"
+        existing = ticket_path.read_text(encoding="utf-8") if ticket_path.exists() else ""
+        ticket_path.write_text(
+            render_ticket_document(ticket, extract_ticket_notes(existing)),
+            encoding="utf-8",
+        )
+
+
+def remove_split_blockers(source_ticket: dict[str, Any], child_ticket_id: str) -> bool:
+    blockers = source_ticket.get("decision_blockers")
+    if not isinstance(blockers, list):
+        return False
+    ticket_id = str(source_ticket.get("id", "")).strip()
+    sequential_note = (
+        f"Sequential split: this ticket ({ticket_id}) must complete its parent-owned work before child ticket {child_ticket_id} may be foregrounded."
+    )
+    parallel_note = (
+        f"Parallel split: scope delegated to follow-up ticket {child_ticket_id}. Keep the parent open and non-foreground until the child work lands."
+    )
+    updated_blockers = [
+        item
+        for item in blockers
+        if str(item).strip() not in {sequential_note, parallel_note}
+    ]
+    if updated_blockers == blockers:
+        return False
+    source_ticket["decision_blockers"] = updated_blockers
+    return True
+
+
+def canonicalize_follow_up_parent_links(
+    manifest: dict[str, Any],
+    *,
+    child_ticket_id: str,
+    canonical_source_ticket_id: str | None,
+) -> bool:
+    tickets = manifest.get("tickets")
+    if not isinstance(tickets, list):
+        return False
+    changed = False
+    canonical_source = (canonical_source_ticket_id or "").strip()
+    for ticket in tickets:
+        if not isinstance(ticket, dict):
+            continue
+        follow_ups = ticket.get("follow_up_ticket_ids")
+        if not isinstance(follow_ups, list):
+            continue
+        ticket_id = str(ticket.get("id", "")).strip()
+        contains_child = any(str(item).strip() == child_ticket_id for item in follow_ups)
+        if ticket_id == canonical_source:
+            if not contains_child:
+                follow_ups.append(child_ticket_id)
+                changed = True
+            continue
+        if contains_child:
+            ticket["follow_up_ticket_ids"] = [
+                item for item in follow_ups if str(item).strip() != child_ticket_id
+            ]
+            changed = True
+        if remove_split_blockers(ticket, child_ticket_id):
+            changed = True
+    return changed
+
+
+def supersede_stale_remediation_tickets(
+    manifest: dict[str, Any],
+    *,
+    recommended_ids: set[str],
+    recommended_finding_codes: set[str],
+) -> list[str]:
+    tickets = manifest.get("tickets")
+    if not isinstance(tickets, list):
+        return []
+    tickets_by_id = {
+        str(ticket.get("id", "")).strip(): ticket
+        for ticket in tickets
+        if isinstance(ticket, dict) and str(ticket.get("id", "")).strip()
+    }
+    superseded_ids: list[str] = []
+    for ticket in tickets:
+        if not isinstance(ticket, dict):
+            continue
+        ticket_id = str(ticket.get("id", "")).strip()
+        if not ticket_id or ticket_id in recommended_ids:
+            continue
+        if str(ticket.get("lane", "")).strip() != "remediation":
+            continue
+        resolution_state = str(ticket.get("resolution_state", "")).strip()
+        already_superseded = ticket.get("status") == "done" and resolution_state == "superseded"
+        if ticket.get("status") == "done" and not already_superseded:
+            continue
+        finding_source = str(ticket.get("finding_source", "")).strip()
+        if not finding_source or finding_source not in recommended_finding_codes:
+            continue
+        changed = False
+        if canonicalize_follow_up_parent_links(
+            manifest,
+            child_ticket_id=ticket_id,
+            canonical_source_ticket_id=None,
+        ):
+            changed = True
+        if not already_superseded:
+            ticket["stage"] = "closeout"
+            ticket["status"] = "done"
+            ticket["resolution_state"] = "superseded"
+            ticket["verification_state"] = "reverified"
+            changed = True
+        if changed:
+            superseded_ids.append(ticket_id)
+    return superseded_ids
+
+
+def reconcile_existing_ticket(
+    *,
+    repo_root: Path,
+    ticket_id: str,
+    recommendation: dict[str, Any],
+    manifest: dict[str, Any],
+    active_ticket: dict[str, Any] | None,
+    wave: int,
+) -> bool:
+    tickets = manifest.get("tickets")
+    if not isinstance(tickets, list):
+        return False
+    refreshed = build_ticket_record(recommendation, manifest, active_ticket, wave)
+    existing_ticket = next(
+        (
+            ticket
+            for ticket in tickets
+            if isinstance(ticket, dict) and str(ticket.get("id", "")).strip() == ticket_id
+        ),
+        None,
+    )
+    if not isinstance(existing_ticket, dict):
+        return False
+    changed = False
+    previous_source_ticket_id = str(existing_ticket.get("source_ticket_id", "")).strip()
+    for field in (
+        "title",
+        "summary",
+        "acceptance",
+        "decision_blockers",
+        "finding_source",
+        "source_ticket_id",
+        "source_mode",
+        "split_kind",
+        "parallel_safe",
+        "overlap_risk",
+    ):
+        if existing_ticket.get(field) != refreshed.get(field):
+            existing_ticket[field] = refreshed.get(field)
+            changed = True
+    canonical_source_ticket_id = str(existing_ticket.get("source_ticket_id", "")).strip()
+    if canonicalize_follow_up_parent_links(
+        manifest,
+        child_ticket_id=ticket_id,
+        canonical_source_ticket_id=canonical_source_ticket_id or None,
+    ):
+        changed = True
+    if previous_source_ticket_id and previous_source_ticket_id != canonical_source_ticket_id:
+        changed = True
+    if changed:
+        save_manifest_surfaces(repo_root, manifest)
+    return changed
+
+
+def reconcile_manifest_ticket_record(
+    manifest: dict[str, Any],
+    *,
+    ticket_id: str,
+    refreshed: dict[str, Any],
+) -> bool:
+    tickets = manifest.get("tickets")
+    if not isinstance(tickets, list):
+        return False
+    existing_ticket = next(
+        (
+            ticket
+            for ticket in tickets
+            if isinstance(ticket, dict) and str(ticket.get("id", "")).strip() == ticket_id
+        ),
+        None,
+    )
+    if not isinstance(existing_ticket, dict):
+        return False
+    changed = False
+    for field in (
+        "title",
+        "lane",
+        "parallel_safe",
+        "overlap_risk",
+        "depends_on",
+        "summary",
+        "acceptance",
+        "decision_blockers",
+        "finding_source",
+        "source_ticket_id",
+        "source_mode",
+        "split_kind",
+    ):
+        if existing_ticket.get(field) != refreshed.get(field):
+            existing_ticket[field] = refreshed.get(field)
+            changed = True
+    canonical_source_ticket_id = str(existing_ticket.get("source_ticket_id", "")).strip()
+    if canonicalize_follow_up_parent_links(
+        manifest,
+        child_ticket_id=ticket_id,
+        canonical_source_ticket_id=canonical_source_ticket_id or None,
+    ):
+        changed = True
+    return changed
 
 
 def create_ticket_via_runtime(repo_root: Path, ticket: dict[str, Any], *, activate: bool | None = None) -> dict[str, Any]:
@@ -376,9 +789,12 @@ def ensure_android_target_completion_tickets(
             next_wave(current_manifest if isinstance(current_manifest, dict) else manifest),
             int(android_record.get("wave", 0)) + 1,
         )
+        signing_source_ticket_id = (
+            ANDROID_EXPORT_TICKET_ID if ticket_can_be_split_scope_parent(android_record) else None
+        )
         signing_ticket = build_android_signing_ticket(
             wave=signing_wave,
-            source_ticket_id=ANDROID_EXPORT_TICKET_ID,
+            source_ticket_id=signing_source_ticket_id,
         )
         create_ticket_via_runtime(repo_root, signing_ticket, activate=False)
         created_or_updated.append(ANDROID_SIGNING_TICKET_ID)
@@ -386,15 +802,60 @@ def ensure_android_target_completion_tickets(
         current_tickets = current_manifest.get("tickets", []) if isinstance(current_manifest, dict) else []
         signing_exists = True
 
+    if isinstance(android_record, dict) and release_exists:
+        release_record = next(
+            (
+                item
+                for item in current_tickets
+                if isinstance(item, dict)
+                and str(item.get("id", "")).strip() == ANDROID_RELEASE_TICKET_ID
+            ),
+            None,
+        )
+        if isinstance(release_record, dict):
+            release_source_ticket_id = (
+                ANDROID_SIGNING_TICKET_ID
+                if needs_deliverable and signing_exists
+                else (
+                    ANDROID_EXPORT_TICKET_ID
+                    if ticket_can_be_split_scope_parent(android_record)
+                    else None
+                )
+            )
+            normalized_release_ticket = build_android_release_ticket(
+                wave=int(release_record.get("wave", 0)) or next_wave(current_manifest if isinstance(current_manifest, dict) else manifest),
+                source_ticket_id=release_source_ticket_id,
+                repo_root=repo_root,
+                feature_gate_ids=_terminal_feature_ids_from_manifest(
+                    current_tickets, ANDROID_RELEASE_TICKET_ID
+                ),
+            )
+            if reconcile_manifest_ticket_record(
+                current_manifest,
+                ticket_id=ANDROID_RELEASE_TICKET_ID,
+                refreshed=normalized_release_ticket,
+            ):
+                save_manifest_surfaces(repo_root, current_manifest)
+                created_or_updated.append(ANDROID_RELEASE_TICKET_ID)
+                current_manifest = read_json(manifest_path)
+                current_tickets = (
+                    current_manifest.get("tickets", [])
+                    if isinstance(current_manifest, dict)
+                    else []
+                )
+
     if isinstance(android_record, dict) and not release_exists:
         release_wave = max(
             next_wave(current_manifest if isinstance(current_manifest, dict) else manifest),
             int(android_record.get("wave", 0)) + (2 if needs_deliverable and signing_exists else 1),
         )
         feature_gate_ids = _terminal_feature_ids_from_manifest(current_tickets, ANDROID_RELEASE_TICKET_ID)
+        release_source_ticket_id = (
+            ANDROID_EXPORT_TICKET_ID if ticket_can_be_split_scope_parent(android_record) else None
+        )
         release_ticket = build_android_release_ticket(
             wave=release_wave,
-            source_ticket_id=ANDROID_EXPORT_TICKET_ID,
+            source_ticket_id=release_source_ticket_id,
             repo_root=repo_root,
             feature_gate_ids=feature_gate_ids,
         )
@@ -523,6 +984,7 @@ def main() -> int:
         manifest = {"tickets": []}
     existing_ids = {str(ticket.get("id")) for ticket in manifest.get("tickets", []) if isinstance(ticket, dict)}
     created_ids: list[str] = []
+    superseded_ids: list[str] = []
     active_ticket = active_open_ticket(manifest)
     wave = next_wave(manifest)
 
@@ -531,12 +993,24 @@ def main() -> int:
         if not ticket_id:
             continue
         if ticket_id in existing_ids:
+            reconcile_existing_ticket(
+                repo_root=repo_root,
+                ticket_id=ticket_id,
+                recommendation=recommendation,
+                manifest=manifest,
+                active_ticket=active_ticket,
+                wave=wave,
+            )
+            manifest = read_json(manifest_path)
             append_unique(created_ids, ticket_id)
             continue
         ticket = build_ticket_record(recommendation, manifest, active_ticket, wave)
         create_ticket_via_runtime(repo_root, ticket, activate=bool(args.activate_new_ticket and not created_ids))
         created_ids.append(ticket_id)
         existing_ids.add(ticket_id)
+        manifest = read_json(manifest_path)
+        active_ticket = active_open_ticket(manifest)
+        wave = next_wave(manifest)
 
     android_follow_up_ids = ensure_android_target_completion_tickets(
         repo_root=repo_root,
@@ -546,13 +1020,35 @@ def main() -> int:
     for ticket_id in android_follow_up_ids:
         append_unique(created_ids, ticket_id)
 
-    if not created_ids:
+    manifest = read_json(manifest_path)
+    if not isinstance(manifest, dict):
+        manifest = {"tickets": []}
+    recommendation_ids = {
+        str(item.get("id", "")).strip()
+        for item in recommendations
+        if str(item.get("id", "")).strip()
+    }
+    recommendation_codes = {
+        str(item.get("source_finding_code") or item.get("id") or "").strip()
+        for item in recommendations
+        if str(item.get("source_finding_code") or item.get("id") or "").strip()
+    }
+    superseded_ids = supersede_stale_remediation_tickets(
+        manifest,
+        recommended_ids=recommendation_ids,
+        recommended_finding_codes=recommendation_codes,
+    )
+    if superseded_ids:
+        save_manifest_surfaces(repo_root, manifest)
+
+    if not created_ids and not superseded_ids:
         return 0
 
     print(
         json.dumps(
             {
                 "created_tickets": created_ids,
+                "superseded_tickets": superseded_ids,
                 "diagnosis_manifest": normalize_path(diagnosis_manifest, repo_root) if diagnosis_manifest.is_relative_to(repo_root) else str(diagnosis_manifest),
             },
             indent=2,

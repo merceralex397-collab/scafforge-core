@@ -2,6 +2,7 @@ import { tool } from "@opencode-ai/plugin"
 import { stat } from "node:fs/promises"
 import {
   canonicalizeRepoPath,
+  currentStageArtifactForAlias,
   defaultArtifactPath,
   describeArtifactPathMismatch,
   getTicket,
@@ -26,8 +27,9 @@ export default tool({
     const ticket = getTicket(manifest, args.ticket_id)
     const resolved = canonicalizeRepoPath(args.path)
     const expectedPath = defaultArtifactPath(ticket.id, args.stage, args.kind)
+    const aliasedCurrentArtifact = currentStageArtifactForAlias(ticket, args.stage, args.kind, resolved.path)
 
-    if (resolved.path !== expectedPath) {
+    if (resolved.path !== expectedPath && !(resolved.mismatch_class === "history_path" && aliasedCurrentArtifact?.source_path === expectedPath)) {
       throw new Error(
         describeArtifactPathMismatch({
           provided_path: args.path,
@@ -37,16 +39,16 @@ export default tool({
       )
     }
 
-    const fileInfo = await stat(resolved.path).catch(() => undefined)
+    const fileInfo = await stat(expectedPath).catch(() => undefined)
     if (!fileInfo?.isFile()) {
-      throw new Error(`Artifact file does not exist at ${resolved.path}. Write it with artifact_write before registering it.`)
+      throw new Error(`Artifact file does not exist at ${expectedPath}. Write it with artifact_write before registering it.`)
     }
 
     const registry = await loadArtifactRegistry()
     const artifact = await registerArtifactSnapshot({
       ticket,
       registry,
-      source_path: resolved.path,
+      source_path: expectedPath,
       kind: args.kind,
       stage: args.stage,
       summary: args.summary,

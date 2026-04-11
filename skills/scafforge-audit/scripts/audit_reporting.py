@@ -4,6 +4,7 @@ import json
 import os
 import subprocess
 import tempfile
+import hashlib
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -32,7 +33,10 @@ def read_text(path: Path) -> str:
 
 
 def normalize_path(path: Path, root: Path) -> str:
-    return str(path.relative_to(root)).replace("\\", "/")
+    try:
+        return str(path.relative_to(root)).replace("\\", "/")
+    except ValueError:
+        return str(path).replace("\\", "/")
 
 
 def path_is_writable(path: Path) -> bool:
@@ -261,7 +265,13 @@ def package_has_verdict_parser_fix(ctx: AuditReportingContext) -> bool:
         / "workflow.ts"
     )
     lifecycle_audit = read_text(ctx.package_root / "skills" / "scafforge-audit" / "scripts" / "audit_lifecycle_contracts.py")
-    return "(?:\\*\\*|__)?" in workflow_lib and "WFLOW026" in lifecycle_audit
+    parser_supports_extended_verdict_labels = (
+        "ARTIFACT_VERDICT_LABEL_PATTERN" in workflow_lib
+        and "qa\\\\s+verdict" in workflow_lib
+        and "review\\\\s+verdict" in workflow_lib
+        and "blocker\\\\s+or\\\\s+approval\\\\s+signal" in workflow_lib
+    )
+    return parser_supports_extended_verdict_labels and "WFLOW026" in lifecycle_audit
 
 
 def package_has_split_scope_deadlock_fix(ctx: AuditReportingContext) -> bool:
@@ -893,4 +903,32 @@ def resolve_current_package_commit(package_root: Path) -> str:
     )
     if result.returncode != 0:
         return "missing_provenance"
-    return result.stdout.strip() or "missing_provenance"
+    commit = result.stdout.strip() or "missing_provenance"
+    dirty = subprocess.run(
+        ["git", "status", "--porcelain=v1"],
+        cwd=package_root,
+        check=False,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+    )
+    if dirty.returncode != 0:
+        return commit
+    dirty_state = dirty.stdout.strip()
+    if not dirty_state:
+        return commit
+    diff = subprocess.run(
+        ["git", "diff", "--no-ext-diff", "HEAD", "--"],
+        cwd=package_root,
+        check=False,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+    )
+    fingerprint_source = dirty_state
+    if diff.returncode == 0 and diff.stdout:
+        fingerprint_source = f"{dirty_state}\n{diff.stdout}"
+    fingerprint = hashlib.sha256(fingerprint_source.encode("utf-8")).hexdigest()[:12]
+    return f"{commit}+dirty:{fingerprint}"

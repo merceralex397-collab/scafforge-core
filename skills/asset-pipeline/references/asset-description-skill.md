@@ -43,14 +43,16 @@ proportions, colors, distinctive features. Avoid subjective terms like
 - Accent: #FF4444 (glowing eyes, if enemy variant)
 
 ## Blender-MCP Tool Sequence (Route C only)
-1. project_initialize — new file, metric units
-2. mesh_edit_batch — create body from cube, extrude legs/neck/head
-3. mesh_edit_batch — loop cuts for joints, edge flow cleanup
-4. material_pbr_build — base color from palette, roughness 0.7
-5. uv_workflow — smart UV project, pack islands
-6. render_preview — front + side orthographic
-7. quality_validate — check tri count, manifold, scale
-8. export_asset — .glb, apply modifiers, Godot preset
+1. project_initialize — new file, metric units, `output_blend=tmp/<asset>-01.blend`
+2. mesh_edit_batch — create body from cube, extrude legs/neck/head, `input_blend=<saved>`, `output_blend=tmp/<asset>-02.blend`
+3. mesh_edit_batch — loop cuts for joints, edge flow cleanup, `input_blend=<saved>`, `output_blend=tmp/<asset>-03.blend`
+4. material_pbr_build — base color from palette, roughness 0.7, `input_blend=<saved>`, `output_blend=tmp/<asset>-04.blend`
+5. uv_workflow — smart UV project, pack islands, `input_blend=<saved>`, `output_blend=tmp/<asset>-05.blend`
+6. render_preview — front + side orthographic from the latest saved blend
+7. quality_validate — check tri count, manifold, scale against the latest saved blend
+8. export_asset — .glb, apply modifiers, Godot preset, from the latest saved blend
+
+Critical rule: every mutating Blender-MCP call is stateless. Never continue after a mutating call unless it returned `persistence.saved_blend`, and never send `input_blend: null` or `output_blend: null` on a mutating call.
 
 ## Acceptance Criteria
 - [ ] Triangle count within budget

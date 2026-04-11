@@ -25,6 +25,7 @@ import {
   ticketsNeedingProcessVerification,
   validateLifecycleStageStatus,
   validateImplementationArtifactEvidence,
+  validateReviewArtifactEvidence,
   validateQaArtifactEvidence,
   validateSmokeTestArtifactEvidence,
   workflowStatePath,
@@ -134,6 +135,10 @@ export default tool({
     }
 
     if (targetStage === "qa") {
+      const reviewBlocker = await validateReviewArtifactEvidence(ticket)
+      if (reviewBlocker) {
+        throw new Error(reviewBlocker)
+      }
       const latestReview = latestArtifact(ticket, { stage: "review", trust_state: "current" })
       const reviewVerdict = extractArtifactVerdict(await readArtifactContent(latestReview))
       if (reviewVerdict.verdict_unclear) {

@@ -774,6 +774,31 @@ def audit_placeholder_local_skills(root: Path, findings: list[Finding], ctx: Con
             continue
         offenders.append(ctx.normalize_path(path, root))
         evidence.extend(f"{ctx.normalize_path(path, root)} -> {hit}" for hit in hits)
+    blender_skill = skills_dir / "blender-mcp-workflow" / "SKILL.md"
+    blender_text = ctx.read_text(blender_skill)
+    blender_hits: list[str] = []
+    if blender_text:
+        lowered = blender_text.lower()
+        if "blender_session_create" in lowered:
+            blender_hits.append("mentions blender_session_create even though the repo workflow is stateless")
+        if "blender_session_attach" in lowered:
+            blender_hits.append("mentions blender_session_attach even though the repo workflow is stateless")
+        if "blender_session_checkpoint" in lowered:
+            blender_hits.append("mentions blender_session_checkpoint even though the repo workflow is stateless")
+        if "blender_session_close" in lowered:
+            blender_hits.append("mentions blender_session_close even though the repo workflow is stateless")
+        if "active blender session" in lowered:
+            blender_hits.append("tells agents to rely on an active Blender session instead of chained saved_blend paths")
+        required_snippets = ("stateless", "input_blend", "output_blend", "persistence.saved_blend")
+        for snippet in required_snippets:
+            if snippet not in blender_text:
+                blender_hits.append(f"missing required Blender persistence contract snippet: {snippet}")
+    if blender_hits:
+        offenders.append(ctx.normalize_path(blender_skill, root))
+        evidence.extend(
+            f"{ctx.normalize_path(blender_skill, root)} -> {hit}"
+            for hit in blender_hits
+        )
     if not offenders:
         return
     ctx.add_finding(
@@ -781,10 +806,10 @@ def audit_placeholder_local_skills(root: Path, findings: list[Finding], ctx: Con
         Finding(
             code="SKILL001",
             severity="warning",
-            problem="One or more repo-local skills still contain generic placeholder text instead of project-specific guidance.",
-            root_cause="project-skill-bootstrap or later managed-surface repair left baseline local skills in a scaffold placeholder state, so agents lose concrete stack and validation guidance.",
+            problem="One or more repo-local skills still contain generic placeholder text or stale synthesized guidance instead of current project-specific procedure.",
+            root_cause="project-skill-bootstrap or later managed-surface repair left repo-local skills in a placeholder or stale state, so agents lose concrete stack, validation, or asset-workflow guidance.",
             files=offenders,
-            safer_pattern="Populate every baseline local skill with concrete repo-specific rules and validation commands; generated `.opencode/skills/` files must not retain template filler.",
+            safer_pattern="Populate every required repo-local skill with concrete current rules and validation commands; generated `.opencode/skills/` files must not retain template filler or stale synthesized workflow guidance.",
             evidence=evidence,
             provenance="script",
         ),

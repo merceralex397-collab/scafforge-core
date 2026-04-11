@@ -1,7 +1,9 @@
 # Implementation Plan — Scafforge Recovery
 
+> Superseded as the primary live plan. Use `active-plans/fullassessment1104261519.md` for the current repo-wide assessment, scope reconciliation, downstream-status review, and Scafforge remediation plan.
+
 Generated: 2026-04-10
-Status: Active
+Status: Historical / superseded
 
 ---
 

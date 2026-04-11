@@ -88,6 +88,22 @@ def _placeholder_skill_hits(root: Path) -> list[str]:
             or "When the project stack is confirmed, replace this file's Universal Standards section with stack-specific rules using the `project-skill-bootstrap` skill." in text
         ):
             hits.append(_normalize(path, root))
+    blender_skill = skills_root / "blender-mcp-workflow" / "SKILL.md"
+    blender_text = _read_text(blender_skill)
+    if blender_text:
+        lowered = blender_text.lower()
+        if (
+            "blender_session_create" in lowered
+            or "blender_session_attach" in lowered
+            or "blender_session_checkpoint" in lowered
+            or "blender_session_close" in lowered
+            or "active blender session" in lowered
+            or not _contains_all(
+                blender_text,
+                ("stateless", "input_blend", "output_blend", "persistence.saved_blend"),
+            )
+        ):
+            hits.append(_normalize(blender_skill, root))
     return hits
 
 
@@ -95,9 +111,50 @@ def _contains_all(text: str, required_snippets: tuple[str, ...]) -> bool:
     return all(snippet in text for snippet in required_snippets)
 
 
+def _finish_policy_requires_owned_work(policy: str) -> bool:
+    lowered = " ".join(policy.lower().split())
+    if any(
+        marker in lowered
+        for marker in (
+            "placeholder_ok",
+            "placeholder ok",
+            "placeholders ok",
+            "placeholder acceptable",
+            "placeholders acceptable",
+            "placeholder allowed",
+            "placeholders allowed",
+        )
+    ):
+        return False
+    return any(
+        marker in lowered
+        for marker in (
+            "no_placeholders",
+            "no placeholder",
+            "no placeholders",
+            "placeholder-free",
+            "placeholder free",
+        )
+    )
+
+
+def _extract_finish_placeholder_policy(brief: str) -> str:
+    for raw_line in brief.splitlines():
+        line = raw_line.strip()
+        if "placeholder_policy" not in line.lower():
+            continue
+        if ":" in line:
+            return line.split(":", 1)[1].strip()
+        return line
+    return ""
+
+
 def _finish_contract_requires_owned_work(root: Path) -> bool:
-    brief = _read_text(root / "docs" / "spec" / "CANONICAL-BRIEF.md").lower()
-    return "product finish contract" in brief and "placeholder_policy" in brief and "no_placeholders" in brief
+    brief = _read_text(root / "docs" / "spec" / "CANONICAL-BRIEF.md")
+    lowered = brief.lower()
+    if "product finish contract" not in lowered or "placeholder_policy" not in lowered:
+        return False
+    return _finish_policy_requires_owned_work(_extract_finish_placeholder_policy(brief))
 
 
 def _finish_ownership_ticket_ids(manifest: dict[object, object]) -> list[str]:
@@ -402,11 +459,11 @@ def verify_greenfield_continuation(root: Path) -> list[Finding]:
         findings.append(
             _finding(
                 code="VERIFY007",
-                problem="The generated repo still contains placeholder local skills at handoff time.",
-                root_cause="A scaffold with placeholder local skills is not immediately continuable because weaker models cannot trust the repo-local operating guidance.",
+                problem="The generated repo still contains placeholder or stale repo-local skills at handoff time.",
+                root_cause="A scaffold with placeholder baseline skills or stale synthesized operating guidance is not immediately continuable because weaker models cannot trust the repo-local procedure.",
                 files=placeholder_hits,
-                safer_pattern="Run project-skill-bootstrap until scaffold placeholder text is removed from repo-local skills before treating greenfield generation as complete.",
-                evidence=[f"placeholder skills: {', '.join(placeholder_hits)}"],
+                safer_pattern="Run project-skill-bootstrap until scaffold placeholder text and stale synthesized workflow guidance are removed from repo-local skills before treating greenfield generation as complete.",
+                evidence=[f"stale or placeholder skills: {', '.join(placeholder_hits)}"],
             )
         )
 
@@ -547,7 +604,7 @@ def verify_greenfield_continuation(root: Path) -> list[Finding]:
                     problem="The generated repo records a non-placeholder Product Finish Contract but does not seed any finish-ownership tickets.",
                     root_cause="Consumer-facing repos that forbid placeholder output need explicit backlog ownership for finish work. Without those tickets, the finish bar exists in canonical truth but not in executable workflow state.",
                     files=[_normalize(manifest_path, root), _normalize(root / "docs" / "spec" / "CANONICAL-BRIEF.md", root)],
-                    safer_pattern="Seed explicit finish-direction, visual, audio, or content ownership tickets whenever the Product Finish Contract records `placeholder_policy: no_placeholders`.",
+                    safer_pattern="Seed explicit finish-direction, visual, audio, or content ownership tickets whenever the Product Finish Contract forbids placeholder output in the final product.",
                     evidence=["Product Finish Contract requires non-placeholder output, but no finish-ownership ticket was found in tickets/manifest.json."],
                 )
             )

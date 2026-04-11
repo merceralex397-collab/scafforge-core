@@ -15,6 +15,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECTS_DIR="/home/pc/projects"
+SCAFFORGE_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 LOG_DIR="${SCRIPT_DIR}/../active-plans/agent-logs"
 mkdir -p "$LOG_DIR"
 
@@ -22,12 +23,20 @@ declare -A REPO_PATHS=(
   [gpttalker]="${PROJECTS_DIR}/GPTTalker"
   [spinner]="${PROJECTS_DIR}/spinner"
   [glitch]="${PROJECTS_DIR}/Scafforge/livetesting/glitch"
+  [wvhva]="${PROJECTS_DIR}/womanvshorseVA"
+  [wvhvb]="${PROJECTS_DIR}/womanvshorseVB"
+  [wvhvc]="${PROJECTS_DIR}/womanvshorseVC"
+  [wvhvd]="${PROJECTS_DIR}/womanvshorseVD"
 )
 
 declare -A AGENT_NAMES=(
   [gpttalker]="gpttalker-team-leader"
   [spinner]="spinner-team-leader"
   [glitch]="glitch-team-leader"
+  [wvhva]="wvhva-team-leader"
+  [wvhvb]="wvhvb-team-leader"
+  [wvhvc]="wvhvc-team-leader"
+  [wvhvd]="wvhvd-team-leader"
 )
 
 MODEL="minimax-coding-plan/MiniMax-M2.7"
@@ -37,7 +46,7 @@ usage() {
   cat <<USAGE
 Usage: $0 <repo> [options]
 
-Repos: gpttalker, spinner, glitch
+Repos: gpttalker, spinner, glitch, wvhva, wvhvb, wvhvc, wvhvd
 
 Modes (pick one):
   (default)         Run opencode ticket lifecycle via team-leader
@@ -55,6 +64,8 @@ Examples:
   $0 glitch --audit                            # codex audit
   $0 glitch --repair                           # codex repair
   $0 spinner --continue                        # resume last opencode session
+  $0 wvhva                                     # resume womanvshorseVA
+  $0 wvhvc --prompt "Focus on MODEL-002"       # custom prompt for womanvshorseVC
   $0 glitch --prompt "Focus on CORE-002"       # custom opencode prompt
 USAGE
   exit 1
@@ -69,7 +80,11 @@ DRY_RUN=false
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    gpttalker|spinner|glitch) REPO="$1"; shift ;;
+    gpttalker|spinner|glitch|wvhva|wvhvb|wvhvc|wvhvd) REPO="$1"; shift ;;
+    womanvshorseVA|womanvshorseva) REPO="wvhva"; shift ;;
+    womanvshorseVB|womanvshorsevb) REPO="wvhvb"; shift ;;
+    womanvshorseVC|womanvshorsevc) REPO="wvhvc"; shift ;;
+    womanvshorseVD|womanvshorsevd) REPO="wvhvd"; shift ;;
     --audit)   MODE="audit";  shift ;;
     --repair)  MODE="repair"; shift ;;
     --continue) CONTINUE_FLAG="--continue"; shift ;;
@@ -117,21 +132,24 @@ If you encounter a blocker you cannot resolve after 3 attempts, stop and report 
   echo "Model:   ${MODEL}"
 
 elif [[ "$MODE" == "audit" ]]; then
-  AUDIT_PROMPT="You are a Scafforge auditor. Use the scafforge-audit skill to run a full diagnosis on this repository at ${REPO_PATH}.
+  AUDIT_PROMPT="You are a Scafforge auditor operating from the Scafforge package repo.
 
-Produce the four-report diagnosis pack:
-1. Workflow health report
-2. Contract compliance report
-3. Process smell report
-4. Recommendation report with evidence-backed ticket suggestions
+Run the canonical shipped audit flow against ${REPO_PATH} using Scafforge-owned scripts under ${SCAFFORGE_ROOT}.
 
-Write all reports to the repo's diagnosis/ directory.
-Do not modify any source code or ticket state."
+Required behavior:
+1. Read the latest diagnosis state in ${REPO_PATH}/diagnosis/ and current workflow metadata.
+2. Run the canonical Scafforge audit command for the downstream repo.
+3. Emit the four-report diagnosis pack into the downstream repo's diagnosis/ directory.
+4. Do not modify source code, ticket state, or workflow state.
+
+Use command-backed evidence only and avoid improvised package-root wrappers."
 
   CMD=(codex exec "$AUDIT_PROMPT"
-    -C "$REPO_PATH"
+    -C "$SCAFFORGE_ROOT"
+    --add-dir "$REPO_PATH"
     -m "$CODEX_MODEL"
-    --full-auto
+    --skip-git-repo-check
+    --dangerously-bypass-approvals-and-sandbox
   )
 
   echo "=== Scafforge Agent Runner (codex audit) ==="
@@ -139,19 +157,28 @@ Do not modify any source code or ticket state."
   echo "Model:   ${CODEX_MODEL}"
 
 elif [[ "$MODE" == "repair" ]]; then
-  REPAIR_PROMPT="You are a Scafforge repair operator. Use the scafforge-repair skill to apply managed repair to this repository at ${REPO_PATH}.
+  REPAIR_PROMPT="You are a Scafforge repair operator operating from the Scafforge package repo.
 
-1. Read the latest diagnosis pack from diagnosis/
-2. Apply the repair flow with full provenance
-3. Record all stage completions with evidence paths
-4. Do not skip follow-on stages
+Run the canonical shipped repair flow against ${REPO_PATH} using Scafforge-owned scripts under ${SCAFFORGE_ROOT}.
 
-Write repair artifacts and update workflow state as the repair skill directs."
+Required behavior:
+1. Read the latest diagnosis pack from ${REPO_PATH}/diagnosis/.
+2. Confirm the latest diagnosis does not require package_work_required_first.
+3. Run the canonical managed repair runner with full provenance.
+4. If the repair cycle declares required follow-on stages like project-skill-bootstrap, opencode-team-bootstrap, agent-prompt-engineering, or ticket-pack-builder, continue into those stages using the shipped Scafforge skill instructions and emit/record the canonical completion evidence for the current cycle.
+5. After the last required follow-on stage is recorded, run the canonical reconciler to update workflow-state.json and restart surfaces.
+6. If you need a verification rerun after follow-on completion, use the managed repair runner with --skip-deterministic-refresh so you verify the current cycle without reopening a fresh deterministic refresh cycle.
+7. Do NOT rerun the full public repair runner after follow-on completion unless you are intentionally starting a brand-new repair cycle from new diagnosis evidence. A full rerun after follow-on completion can recreate placeholder-skill drift and managed_blocked state.
+8. Report whether repair converged and what managed/source follow-up still remains.
+
+Do not hand-edit downstream product code directly."
 
   CMD=(codex exec "$REPAIR_PROMPT"
-    -C "$REPO_PATH"
+    -C "$SCAFFORGE_ROOT"
+    --add-dir "$REPO_PATH"
     -m "$CODEX_MODEL"
-    --full-auto
+    --skip-git-repo-check
+    --dangerously-bypass-approvals-and-sandbox
   )
 
   echo "=== Scafforge Agent Runner (codex repair) ==="

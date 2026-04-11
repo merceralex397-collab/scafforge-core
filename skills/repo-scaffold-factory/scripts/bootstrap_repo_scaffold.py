@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 import argparse
+from importlib.util import module_from_spec, spec_from_file_location
 import json
 import os
 import re
 import shutil
 import subprocess
 from pathlib import Path
+import sys
 
 from android_scaffold import (
     normalize_android_package_name,
@@ -57,6 +59,9 @@ DEFAULT_LICENSING_OR_PROVENANCE_CONSTRAINTS = "record any asset or content prove
 DEFAULT_FINISH_ACCEPTANCE_SIGNALS = (
     "record the explicit finish-proof signals that must be met before the repo is treated as finished"
 )
+ASSET_PIPELINE_INIT_PATH = (
+    Path(__file__).resolve().parents[2] / "asset-pipeline" / "scripts" / "init_asset_pipeline.py"
+)
 
 
 def slugify(value: str) -> str:
@@ -75,6 +80,19 @@ def render_text(content: str, replacements: dict[str, str]) -> str:
 def render_relative_path(path: Path, replacements: dict[str, str]) -> Path:
     rendered_parts = [render_text(part, replacements) for part in path.parts]
     return Path(*rendered_parts)
+
+
+def load_asset_pipeline_initializer():
+    spec = spec_from_file_location("scafforge_asset_pipeline_init", ASSET_PIPELINE_INIT_PATH)
+    if spec is None or spec.loader is None:
+        raise RuntimeError(f"Unable to load asset pipeline initializer from {ASSET_PIPELINE_INIT_PATH}")
+    module = module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+ASSET_PIPELINE_INIT = load_asset_pipeline_initializer()
 
 
 def build_model_operating_profile(*, model_tier: str) -> dict[str, str]:
@@ -174,6 +192,32 @@ def copy_template(template_root: Path, dest_root: Path, replacements: dict[str, 
     return created
 
 
+def ensure_asset_pipeline_surfaces(
+    dest_root: Path,
+    *,
+    scope: str,
+    stack_label: str,
+    deliverable_kind: str,
+    placeholder_policy: str,
+    content_source_plan: str,
+    licensing_or_provenance_constraints: str,
+    finish_acceptance_signals: str,
+    force: bool,
+) -> list[Path]:
+    if scope != "full" or not renders_godot_android_assets(stack_label):
+        return []
+    return ASSET_PIPELINE_INIT.initialize_asset_pipeline(
+        dest_root,
+        stack_label=stack_label,
+        deliverable_kind=deliverable_kind,
+        placeholder_policy=placeholder_policy,
+        content_source_plan=content_source_plan,
+        licensing_or_provenance_constraints=licensing_or_provenance_constraints,
+        finish_acceptance_signals=finish_acceptance_signals,
+        force=force,
+    )
+
+
 def copy_dir(source_dir: Path, dest_dir: Path, replacements: dict[str, str], force: bool) -> list[Path]:
     created: list[Path] = []
     dest_dir.mkdir(parents=True, exist_ok=True)
@@ -248,7 +292,30 @@ def requires_packaged_android_delivery(deliverable_kind: str) -> bool:
 
 
 def requires_finish_ownership(placeholder_policy: str) -> bool:
-    return "no_placeholders" in placeholder_policy.lower()
+    lowered = " ".join(placeholder_policy.lower().split())
+    if any(
+        marker in lowered
+        for marker in (
+            "placeholder_ok",
+            "placeholder ok",
+            "placeholders ok",
+            "placeholder acceptable",
+            "placeholders acceptable",
+            "placeholder allowed",
+            "placeholders allowed",
+        )
+    ):
+        return False
+    return any(
+        marker in lowered
+        for marker in (
+            "no_placeholders",
+            "no placeholder",
+            "no placeholders",
+            "placeholder-free",
+            "placeholder free",
+        )
+    )
 
 
 def target_is_intentionally_absent(target: str, *, absent_marker: str) -> bool:
@@ -529,6 +596,26 @@ def ensure_finish_ownership_tickets(
                 "follow_up_ticket_ids": [],
             }
         )
+
+    release_ticket = next(
+        (
+            ticket
+            for ticket in tickets
+            if isinstance(ticket, dict) and str(ticket.get("id", "")).strip() == "RELEASE-001"
+        ),
+        None,
+    )
+    if isinstance(release_ticket, dict) and "FINISH-VALIDATE-001" in {
+        str(ticket.get("id", "")).strip() for ticket in tickets if isinstance(ticket, dict)
+    }:
+        release_depends_on = [
+            str(dep).strip()
+            for dep in release_ticket.get("depends_on", [])
+            if isinstance(dep, str) and str(dep).strip()
+        ]
+        if "FINISH-VALIDATE-001" not in release_depends_on:
+            release_depends_on.append("FINISH-VALIDATE-001")
+            release_ticket["depends_on"] = release_depends_on
 
     manifest_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
 
@@ -842,11 +929,18 @@ def main() -> int:
 
     dest_root.mkdir(parents=True, exist_ok=True)
     created = copy_template(template_root, dest_root, replacements, args.scope, args.force)
-    ensure_godot_android_completion_tickets(
-        dest_root,
-        slug,
-        args.stack_label,
-        deliverable_kind=args.deliverable_kind,
+    created.extend(
+        ensure_asset_pipeline_surfaces(
+            dest_root,
+            scope=args.scope,
+            stack_label=args.stack_label,
+            deliverable_kind=args.deliverable_kind,
+            placeholder_policy=args.placeholder_policy,
+            content_source_plan=args.content_source_plan,
+            licensing_or_provenance_constraints=args.licensing_or_provenance_constraints,
+            finish_acceptance_signals=args.finish_acceptance_signals,
+            force=args.force,
+        )
     )
     ensure_finish_ownership_tickets(
         dest_root,
@@ -855,6 +949,12 @@ def main() -> int:
         audio_finish_target=args.audio_finish_target,
         content_source_plan=args.content_source_plan,
         finish_acceptance_signals=args.finish_acceptance_signals,
+    )
+    ensure_godot_android_completion_tickets(
+        dest_root,
+        slug,
+        args.stack_label,
+        deliverable_kind=args.deliverable_kind,
     )
     ensure_state_directories(dest_root)
     write_bootstrap_provenance(
