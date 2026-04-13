@@ -51,7 +51,8 @@ permission:
     "npm test*": allow
     "pnpm test*": allow
     "node -e *": allow
-    "/home/pc/.local/bin/godot *": allow
+    "godot *": allow
+    "godot4 *": allow
     "cargo check*": allow
     "cargo test*": allow
     "go vet*": allow

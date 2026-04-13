@@ -85,7 +85,17 @@ def _export_presets_template_path() -> Path:
 
 
 def _render_android_template(template_text: str, project_slug: str, package_name: str) -> str:
-    return template_text.replace("__PROJECT_SLUG__", project_slug).replace("__PACKAGE_NAME__", package_name)
+    rendered = template_text.replace("__PROJECT_SLUG__", project_slug).replace("__PACKAGE_NAME__", package_name)
+    if "__ANDROID_DEBUG_KEYSTORE__" in rendered:
+        # Resolve keystore path at repair time using host discovery
+        try:
+            from discover_host_paths import discover_android_debug_keystore
+            keystore = discover_android_debug_keystore() or ""
+        except ImportError:
+            # discover_host_paths may not be on sys.path in all contexts
+            keystore = ""
+        rendered = rendered.replace("__ANDROID_DEBUG_KEYSTORE__", keystore)
+    return rendered
 
 
 def _template_root() -> Path:

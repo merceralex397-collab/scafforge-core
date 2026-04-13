@@ -1,11 +1,11 @@
 {
-  "generated_at": "2026-04-08T10:50:10.431658+00:00",
-  "source_repo_path": "/tmp/scafforge-gpttalker-fixture-2zalqxs7/restart-surface-drift-after-repair",
-  "source_repo_git_status": "git status unavailable for /tmp/scafforge-gpttalker-fixture-2zalqxs7/restart-surface-drift-after-repair: fatal: not a git repository (or any of the parent directories): .git",
+  "generated_at": "2026-04-13T14:02:18.513605+00:00",
+  "source_repo_path": "/tmp/scafforge-gpttalker-fixture-4ux56v_u/restart-surface-drift-after-repair",
+  "source_repo_git_status": "git status unavailable for /tmp/scafforge-gpttalker-fixture-4ux56v_u/restart-surface-drift-after-repair: fatal: not a git repository (or any of the parent directories): .git",
   "scenarios": [
     {
       "scenario": "control",
-      "probe_root": "/tmp/scafforge-gpttalker-validation-control-gsct1ap_/restart-surface-drift-after-repair",
+      "probe_root": "/tmp/scafforge-gpttalker-validation-control-9hju12d_/restart-surface-drift-after-repair",
       "audit": {
         "finding_count": 2,
         "codes": [
@@ -91,11 +91,11 @@
           "repair_history_count": 1,
           "migration_history_latest": null,
           "repair_history_latest": {
-            "repair_id": "2026-04-08T10:50:04Z",
-            "repaired_at": "2026-04-08T10:50:04Z",
+            "repair_id": "2026-04-13T14:02:10Z",
+            "repaired_at": "2026-04-13T14:02:11Z",
             "repair_type": "managed-surface-replacement",
             "repair_kind": "deterministic-workflow-engine-replacement",
-            "repair_package_commit": "0a35f090117d96a627ba55093bdb7d8da1fe00bf",
+            "repair_package_commit": "8802e089a22a48bccaffb5b9ff30c166828d5019",
             "summary": "Managed Scafforge repair runner refreshed deterministic workflow surfaces and evaluated downstream repair obligations.",
             "surfaces_replaced": [
               "opencode.jsonc",
@@ -104,6 +104,7 @@
               ".opencode/plugins",
               ".opencode/commands",
               "scaffold-managed .opencode/skills",
+              ".opencode/agents",
               "docs/process/workflow.md",
               "docs/process/tooling.md",
               "docs/process/model-matrix.md",
@@ -117,6 +118,7 @@
               ".opencode/plugins",
               ".opencode/commands",
               "scaffold-managed .opencode/skills",
+              ".opencode/agents",
               "docs/process/workflow.md",
               "docs/process/tooling.md",
               "docs/process/model-matrix.md",
@@ -127,8 +129,19 @@
               "files_added": [],
               "files_removed": [],
               "files_modified": [
+                ".opencode/commands/bootstrap-check.md",
+                ".opencode/commands/issue-triage.md",
+                ".opencode/commands/join-lanes.md",
+                ".opencode/commands/kickoff.md",
+                ".opencode/commands/plan-wave.md",
+                ".opencode/commands/resume.md",
+                ".opencode/commands/reverify-ticket.md",
+                ".opencode/commands/run-lane.md",
+                ".opencode/skills/model-operating-profile/SKILL.md",
                 ".opencode/skills/stack-standards/SKILL.md",
-                "START-HERE.md"
+                "START-HERE.md",
+                "docs/process/model-matrix.md",
+                "opencode.jsonc"
               ]
             },
             "audit_findings_addressed": [],
@@ -159,7 +172,8 @@
               "codes": [
                 "SKILL001"
               ],
-              "blocking_codes": [
+              "blocking_codes": [],
+              "manual_prerequisite_codes": [
                 "SKILL001"
               ],
               "source_follow_up_codes": [],
@@ -170,7 +184,7 @@
               "basis_requires_causal_replay": false,
               "repair_basis_path": null,
               "current_state_clean": false,
-              "causal_regression_verified": false,
+              "causal_regression_verified": true,
               "source_regression_summary": {
                 "comparison_available": false,
                 "pre_existing_codes": [],
@@ -238,7 +252,7 @@
         "repair_escalation": null
       },
       "managed_repair": {
-        "repair_package_commit": "0a35f090117d96a627ba55093bdb7d8da1fe00bf",
+        "repair_package_commit": "8802e089a22a48bccaffb5b9ff30c166828d5019+dirty:12e69b1dff02",
         "repair_basis_path": null,
         "required_follow_on_stages": [
           "project-skill-bootstrap"
@@ -265,7 +279,8 @@
           "codes": [
             "SKILL001"
           ],
-          "blocking_codes": [
+          "blocking_codes": [],
+          "manual_prerequisite_codes": [
             "SKILL001"
           ],
           "source_follow_up_codes": [],
@@ -276,7 +291,7 @@
           "basis_requires_causal_replay": false,
           "repair_basis_path": null,
           "current_state_clean": false,
-          "causal_regression_verified": false,
+          "causal_regression_verified": true,
           "source_regression_summary": {
             "comparison_available": false,
             "pre_existing_codes": [],
@@ -334,6 +349,7 @@
           "repo_local_skills": {
             "status": "regenerate",
             "surfaces": [
+              ".opencode/skills/stack-standards/SKILL.md",
               "scaffold-managed .opencode/skills"
             ],
             "reason": "Repo-local skills need regeneration when scaffold-managed skills were replaced or placeholder/model drift remains.",
@@ -369,12 +385,12 @@
         "ticket_recommendations": [
           {
             "id": "REMED-001",
-            "title": "One or more repo-local skills still contain generic placeholder text instead of project-specific guidance",
+            "title": "One or more repo-local skills still contain generic placeholder text or stale synthesized guidance instead of current project-specific procedure",
             "description": "Remediate SKILL001 by correcting the validated issue and rerunning the relevant quality checks.",
             "affected_files": [
               ".opencode/skills/stack-standards/SKILL.md"
             ],
-            "suggested_fix_approach": "Populate every baseline local skill with concrete repo-specific rules and validation commands; generated `.opencode/skills/` files must not retain template filler.",
+            "suggested_fix_approach": "Populate every required repo-local skill with concrete current rules and validation commands; generated `.opencode/skills/` files must not retain template filler or stale synthesized workflow guidance.",
             "assignee": "implementer",
             "source_finding_code": "SKILL001",
             "source_finding_codes": [
@@ -383,7 +399,7 @@
             "severity": "warning",
             "route": "scafforge-repair",
             "repair_class": "safe Scafforge package change",
-            "summary": "Populate every baseline local skill with concrete repo-specific rules and validation commands; generated `.opencode/skills/` files must not retain template filler.",
+            "summary": "Populate every required repo-local skill with concrete current rules and validation commands; generated `.opencode/skills/` files must not retain template filler or stale synthesized workflow guidance.",
             "source_files": [
               ".opencode/skills/stack-standards/SKILL.md"
             ]
@@ -393,7 +409,7 @@
     },
     {
       "scenario": "safe-legacy-upgrade",
-      "probe_root": "/tmp/scafforge-gpttalker-validation-safe-legacy-upgrade-gevjp6i3/restart-surface-drift-after-repair",
+      "probe_root": "/tmp/scafforge-gpttalker-validation-safe-legacy-upgrade-t5q9vcjn/restart-surface-drift-after-repair",
       "audit": {
         "finding_count": 1,
         "codes": [
@@ -461,15 +477,15 @@
             "compatibility_shim_temporary": true,
             "reasons": [],
             "summary": "Recent legacy repo can auto-upgrade safely through the dedicated migration stage.",
-            "migration_id": "2026-04-08T10:50:06Z",
-            "repair_id": "2026-04-08T10:50:07Z",
-            "migrated_at": "2026-04-08T10:50:08Z",
+            "migration_id": "2026-04-13T14:02:13Z",
+            "repair_id": "2026-04-13T14:02:14Z",
+            "migrated_at": "2026-04-13T14:02:16Z",
             "migration_history_recorded": true,
             "repair_follow_on_outcome": "managed_blocked",
             "handoff_allowed": false,
             "verification_passed": false,
             "current_state_clean": false,
-            "causal_regression_verified": false,
+            "causal_regression_verified": true,
             "verification_summary": {
               "performed": true,
               "finding_count": 1,
@@ -478,7 +494,8 @@
               "codes": [
                 "SKILL001"
               ],
-              "blocking_codes": [
+              "blocking_codes": [],
+              "manual_prerequisite_codes": [
                 "SKILL001"
               ],
               "source_follow_up_codes": [],
@@ -489,7 +506,7 @@
               "basis_requires_causal_replay": false,
               "repair_basis_path": null,
               "current_state_clean": false,
-              "causal_regression_verified": false,
+              "causal_regression_verified": true,
               "source_regression_summary": {
                 "comparison_available": false,
                 "pre_existing_codes": [],
@@ -516,11 +533,11 @@
             "process_version_after": 7
           },
           "repair_history_latest": {
-            "repair_id": "2026-04-08T10:50:07Z",
-            "repaired_at": "2026-04-08T10:50:07Z",
+            "repair_id": "2026-04-13T14:02:14Z",
+            "repaired_at": "2026-04-13T14:02:14Z",
             "repair_type": "managed-surface-replacement",
             "repair_kind": "deterministic-workflow-engine-replacement",
-            "repair_package_commit": "0a35f090117d96a627ba55093bdb7d8da1fe00bf",
+            "repair_package_commit": "8802e089a22a48bccaffb5b9ff30c166828d5019",
             "summary": "Managed Scafforge repair runner refreshed deterministic workflow surfaces and evaluated downstream repair obligations.",
             "surfaces_replaced": [
               "opencode.jsonc",
@@ -529,6 +546,7 @@
               ".opencode/plugins",
               ".opencode/commands",
               "scaffold-managed .opencode/skills",
+              ".opencode/agents",
               "docs/process/workflow.md",
               "docs/process/tooling.md",
               "docs/process/model-matrix.md",
@@ -542,6 +560,7 @@
               ".opencode/plugins",
               ".opencode/commands",
               "scaffold-managed .opencode/skills",
+              ".opencode/agents",
               "docs/process/workflow.md",
               "docs/process/tooling.md",
               "docs/process/model-matrix.md",
@@ -552,8 +571,19 @@
               "files_added": [],
               "files_removed": [],
               "files_modified": [
+                ".opencode/commands/bootstrap-check.md",
+                ".opencode/commands/issue-triage.md",
+                ".opencode/commands/join-lanes.md",
+                ".opencode/commands/kickoff.md",
+                ".opencode/commands/plan-wave.md",
+                ".opencode/commands/resume.md",
+                ".opencode/commands/reverify-ticket.md",
+                ".opencode/commands/run-lane.md",
+                ".opencode/skills/model-operating-profile/SKILL.md",
                 ".opencode/skills/stack-standards/SKILL.md",
-                "START-HERE.md"
+                "START-HERE.md",
+                "docs/process/model-matrix.md",
+                "opencode.jsonc"
               ]
             },
             "audit_findings_addressed": [],
@@ -584,7 +614,8 @@
               "codes": [
                 "SKILL001"
               ],
-              "blocking_codes": [
+              "blocking_codes": [],
+              "manual_prerequisite_codes": [
                 "SKILL001"
               ],
               "source_follow_up_codes": [],
@@ -595,7 +626,7 @@
               "basis_requires_causal_replay": false,
               "repair_basis_path": null,
               "current_state_clean": false,
-              "causal_regression_verified": false,
+              "causal_regression_verified": true,
               "source_regression_summary": {
                 "comparison_available": false,
                 "pre_existing_codes": [],
@@ -632,15 +663,15 @@
               "compatibility_shim_temporary": true,
               "reasons": [],
               "summary": "Recent legacy repo can auto-upgrade safely through the dedicated migration stage.",
-              "migration_id": "2026-04-08T10:50:06Z",
-              "repair_id": "2026-04-08T10:50:07Z",
-              "migrated_at": "2026-04-08T10:50:08Z",
+              "migration_id": "2026-04-13T14:02:13Z",
+              "repair_id": "2026-04-13T14:02:14Z",
+              "migrated_at": "2026-04-13T14:02:16Z",
               "migration_history_recorded": true,
               "repair_follow_on_outcome": "managed_blocked",
               "handoff_allowed": false,
               "verification_passed": false,
               "current_state_clean": false,
-              "causal_regression_verified": false
+              "causal_regression_verified": true
             }
           },
           "restart_truth": {
@@ -666,20 +697,20 @@
           "compatibility_shim_temporary": true,
           "reasons": [],
           "summary": "Recent legacy repo can auto-upgrade safely through the dedicated migration stage.",
-          "migration_id": "2026-04-08T10:50:06Z",
-          "repair_id": "2026-04-08T10:50:07Z",
-          "migrated_at": "2026-04-08T10:50:08Z",
+          "migration_id": "2026-04-13T14:02:13Z",
+          "repair_id": "2026-04-13T14:02:14Z",
+          "migrated_at": "2026-04-13T14:02:16Z",
           "migration_history_recorded": true,
           "repair_follow_on_outcome": "managed_blocked",
           "handoff_allowed": false,
           "verification_passed": false,
           "current_state_clean": false,
-          "causal_regression_verified": false
+          "causal_regression_verified": true
         },
         "repair_escalation": null
       },
       "managed_repair": {
-        "repair_package_commit": "0a35f090117d96a627ba55093bdb7d8da1fe00bf",
+        "repair_package_commit": "8802e089a22a48bccaffb5b9ff30c166828d5019+dirty:12e69b1dff02",
         "repair_basis_path": null,
         "required_follow_on_stages": [
           "project-skill-bootstrap"
@@ -706,7 +737,8 @@
           "codes": [
             "SKILL001"
           ],
-          "blocking_codes": [
+          "blocking_codes": [],
+          "manual_prerequisite_codes": [
             "SKILL001"
           ],
           "source_follow_up_codes": [],
@@ -717,7 +749,7 @@
           "basis_requires_causal_replay": false,
           "repair_basis_path": null,
           "current_state_clean": false,
-          "causal_regression_verified": false,
+          "causal_regression_verified": true,
           "source_regression_summary": {
             "comparison_available": false,
             "pre_existing_codes": [],
@@ -754,15 +786,15 @@
           "compatibility_shim_temporary": true,
           "reasons": [],
           "summary": "Recent legacy repo can auto-upgrade safely through the dedicated migration stage.",
-          "migration_id": "2026-04-08T10:50:06Z",
-          "repair_id": "2026-04-08T10:50:07Z",
-          "migrated_at": "2026-04-08T10:50:08Z",
+          "migration_id": "2026-04-13T14:02:13Z",
+          "repair_id": "2026-04-13T14:02:14Z",
+          "migrated_at": "2026-04-13T14:02:16Z",
           "migration_history_recorded": true,
           "repair_follow_on_outcome": "managed_blocked",
           "handoff_allowed": false,
           "verification_passed": false,
           "current_state_clean": false,
-          "causal_regression_verified": false
+          "causal_regression_verified": true
         },
         "stale_surface_map": {
           "workflow_tools_and_prompts": {
@@ -783,6 +815,7 @@
           "repo_local_skills": {
             "status": "regenerate",
             "surfaces": [
+              ".opencode/skills/stack-standards/SKILL.md",
               "scaffold-managed .opencode/skills"
             ],
             "reason": "Repo-local skills need regeneration when scaffold-managed skills were replaced or placeholder/model drift remains.",
@@ -818,12 +851,12 @@
         "ticket_recommendations": [
           {
             "id": "REMED-001",
-            "title": "One or more repo-local skills still contain generic placeholder text instead of project-specific guidance",
+            "title": "One or more repo-local skills still contain generic placeholder text or stale synthesized guidance instead of current project-specific procedure",
             "description": "Remediate SKILL001 by correcting the validated issue and rerunning the relevant quality checks.",
             "affected_files": [
               ".opencode/skills/stack-standards/SKILL.md"
             ],
-            "suggested_fix_approach": "Populate every baseline local skill with concrete repo-specific rules and validation commands; generated `.opencode/skills/` files must not retain template filler.",
+            "suggested_fix_approach": "Populate every required repo-local skill with concrete current rules and validation commands; generated `.opencode/skills/` files must not retain template filler or stale synthesized workflow guidance.",
             "assignee": "implementer",
             "source_finding_code": "SKILL001",
             "source_finding_codes": [
@@ -832,7 +865,7 @@
             "severity": "warning",
             "route": "scafforge-repair",
             "repair_class": "safe Scafforge package change",
-            "summary": "Populate every baseline local skill with concrete repo-specific rules and validation commands; generated `.opencode/skills/` files must not retain template filler.",
+            "summary": "Populate every required repo-local skill with concrete current rules and validation commands; generated `.opencode/skills/` files must not retain template filler or stale synthesized workflow guidance.",
             "source_files": [
               ".opencode/skills/stack-standards/SKILL.md"
             ]
@@ -842,7 +875,7 @@
     },
     {
       "scenario": "too-old-escalation",
-      "probe_root": "/tmp/scafforge-gpttalker-validation-too-old-escalation-byl7g648/restart-surface-drift-after-repair",
+      "probe_root": "/tmp/scafforge-gpttalker-validation-too-old-escalation-f051017r/restart-surface-drift-after-repair",
       "audit": {
         "finding_count": 1,
         "codes": [
@@ -926,7 +959,7 @@
           "migration_id": null
         },
         "repair_escalation": {
-          "escalated_at": "2026-04-08T10:50:09Z",
+          "escalated_at": "2026-04-13T14:02:17Z",
           "change_summary": "Managed Scafforge repair runner refreshed deterministic workflow surfaces and evaluated downstream repair obligations.",
           "attempted_operation": "legacy-contract-migration",
           "status": "approval_required",
@@ -959,7 +992,7 @@
         }
       },
       "managed_repair": {
-        "repair_package_commit": "0a35f090117d96a627ba55093bdb7d8da1fe00bf",
+        "repair_package_commit": "8802e089a22a48bccaffb5b9ff30c166828d5019+dirty:12e69b1dff02",
         "repair_basis_path": null,
         "required_follow_on_stages": [],
         "required_follow_on_stage_details": [],
@@ -996,7 +1029,7 @@
     },
     {
       "scenario": "structural-mismatch-escalation",
-      "probe_root": "/tmp/scafforge-gpttalker-validation-structural-mismatch-escalation-07e5xh44/restart-surface-drift-after-repair",
+      "probe_root": "/tmp/scafforge-gpttalker-validation-structural-mismatch-escalation-q4l239_6/restart-surface-drift-after-repair",
       "audit": {
         "finding_count": 1,
         "codes": [
@@ -1080,7 +1113,7 @@
           "migration_id": null
         },
         "repair_escalation": {
-          "escalated_at": "2026-04-08T10:50:10Z",
+          "escalated_at": "2026-04-13T14:02:18Z",
           "change_summary": "Managed Scafforge repair runner refreshed deterministic workflow surfaces and evaluated downstream repair obligations.",
           "attempted_operation": "legacy-contract-migration",
           "status": "approval_required",
@@ -1113,7 +1146,7 @@
         }
       },
       "managed_repair": {
-        "repair_package_commit": "0a35f090117d96a627ba55093bdb7d8da1fe00bf",
+        "repair_package_commit": "8802e089a22a48bccaffb5b9ff30c166828d5019+dirty:12e69b1dff02",
         "repair_basis_path": null,
         "required_follow_on_stages": [],
         "required_follow_on_stage_details": [],

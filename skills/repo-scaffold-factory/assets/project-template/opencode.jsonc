@@ -25,12 +25,12 @@
     },
     "blender_agent": {
       "type": "local",
-      "command": ["uv", "run", "--project", "/home/pc/projects/blender-agent/mcp-server", "blender-mcp-server"],
-      "enabled": true,
+      "command": ["uv", "run", "--project", "__BLENDER_MCP_PROJECT_PATH__", "blender-mcp-server"],
+      "enabled": __BLENDER_MCP_ENABLED__,
       "timeout": 30000,
       "environment": {
         "BLENDER_MCP_TRANSPORT": "stdio",
-        "BLENDER_MCP_BLENDER_EXECUTABLE": "/home/pc/blender-4.5.0/blender",
+        "BLENDER_MCP_BLENDER_EXECUTABLE": "__BLENDER_EXECUTABLE__",
         "BLENDER_MCP_TRUST_PROFILE": "unrestricted",
         "BLENDER_MCP_ENABLE_AUDIT_LOGGING": "true"
       }

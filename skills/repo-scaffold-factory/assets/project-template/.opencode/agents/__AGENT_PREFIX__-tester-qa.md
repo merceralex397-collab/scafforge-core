@@ -75,7 +75,6 @@ permission:
     "make lint*": allow
     "make check*": allow
     "make build*": allow
-    "/home/pc/.local/bin/godot *": allow
     "godot *": allow
     "godot4 *": allow
 ---

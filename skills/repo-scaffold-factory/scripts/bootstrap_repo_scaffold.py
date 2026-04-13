@@ -14,6 +14,7 @@ from android_scaffold import (
     normalize_android_package_name,
     renders_godot_android_assets,
 )
+from discover_host_paths import discover_host_paths
 
 
 TEXT_SUFFIXES = {
@@ -27,6 +28,7 @@ TEXT_SUFFIXES = {
     ".cjs",
     ".yaml",
     ".yml",
+    ".cfg",
 }
 
 FULL_SCOPE_FILES = {
@@ -1039,6 +1041,15 @@ def main() -> int:
         "__LICENSING_OR_PROVENANCE_CONSTRAINTS__": args.licensing_or_provenance_constraints,
         "__FINISH_ACCEPTANCE_SIGNALS__": finish_acceptance_signals,
     }
+
+    # Host-discovered paths for MCP servers, keystores, and executables
+    host_paths = discover_host_paths()
+    blender_found = bool(host_paths.get("blender_executable") and host_paths.get("blender_mcp_project"))
+    replacements["__BLENDER_EXECUTABLE__"] = host_paths.get("blender_executable") or "blender"
+    replacements["__BLENDER_MCP_PROJECT_PATH__"] = host_paths.get("blender_mcp_project") or "/path/to/blender-agent/mcp-server"
+    replacements["__BLENDER_MCP_ENABLED__"] = "true" if blender_found else "false"
+    replacements["__ANDROID_DEBUG_KEYSTORE__"] = host_paths.get("android_debug_keystore") or ""
+
     validate_replacement_values(replacements)
 
     dest_root.mkdir(parents=True, exist_ok=True)

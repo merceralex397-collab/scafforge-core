@@ -544,6 +544,11 @@ function isConfigurationErrorOutput(output: string): boolean {
   return /configuration error|invalid config|misconfig|unknown option|invalid argument|requires a value/i.test(output)
 }
 
+function isGodotFatalDiagnosticOutput(output: string): boolean {
+  return /SCRIPT ERROR:.*(?:not declared in the current scope|not found in base self)/i.test(output)
+    || /Failed to load script "res:\/\//i.test(output)
+}
+
 function classifyCommandFailure(args: {
   argv: string[]
   exitCode: number
@@ -555,9 +560,12 @@ function classifyCommandFailure(args: {
   const output = `${args.stdout}\n${args.stderr}`
   if (args.missingExecutable) return "missing_executable"
   if (args.blockedByPermissions) return "permission_restriction"
+  if (args.exitCode === 0) {
+    if (isGodotFatalDiagnosticOutput(output)) return "syntax_error"
+    return undefined
+  }
   if (isSyntaxErrorOutput(output)) return "syntax_error"
   if (isConfigurationErrorOutput(output)) return "configuration_error"
-  if (args.exitCode === 0) return undefined
   if (output.trim()) return "test_failure"
   return "command_error"
 }

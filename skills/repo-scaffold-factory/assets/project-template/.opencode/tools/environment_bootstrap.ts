@@ -695,7 +695,31 @@ async function detectGodotBootstrap(root: string): Promise<StackDetectionResult>
 		if (!hasMeaningfulAndroidSupportSurface(root)) {
 			detection.warnings.push(`Android target declared in canonical brief, but repo prerequisite ${androidExpectation.repo_prerequisites[1]} is still missing.`)
 		}
+
+		// Debug keystore detection for Android export
+		const keystoreCandidates = [
+			join(homedir(), ".android", "debug.keystore"),
+			join(homedir(), ".local", "share", "godot", "keystores", "debug.keystore"),
+		]
+		const foundKeystore = keystoreCandidates.find((k) => existsSync(k))
+		if (foundKeystore) {
+			detection.version_info.android_debug_keystore = foundKeystore
+		} else {
+			detection.blockers.push(createBlocker(
+				"android-debug-keystore",
+				"No Android debug keystore found. Required for Godot Android debug APK export. " +
+				"Generate one with: keytool -genkeypair -v -keystore ~/.android/debug.keystore -alias androiddebugkey -keyalg RSA -keysize 2048 -validity 10000 -storepass android -keypass android",
+				"keytool -genkeypair -v -keystore ~/.android/debug.keystore -alias androiddebugkey -keyalg RSA -keysize 2048 -validity 10000 -storepass android -keypass android",
+			))
+		}
 	}
+
+	// Blender detection for game projects with asset pipelines
+	const blenderExecutable = await firstAvailableExecutable(["blender"], ["--version"])
+	if (blenderExecutable) {
+		detection.version_info.blender_executable = blenderExecutable
+	}
+
 	return finalizeDetection(detection)
 }
 

@@ -881,7 +881,7 @@ export function getTicket(manifest: Manifest, ticketId?: string): Ticket {
 export function isPlanApprovedForTicket(workflow: WorkflowState, ticketId: string): boolean { return ensureTicketWorkflowState(workflow, ticketId).approved_plan }
 export function setPlanApprovedForTicket(workflow: WorkflowState, ticketId: string, approved: boolean): void { ensureTicketWorkflowState(workflow, ticketId).approved_plan = approved }
 export function getTicketWorkflowState(workflow: WorkflowState, ticketId: string): TicketWorkflowState { return ensureTicketWorkflowState(workflow, ticketId) }
-export function selectForegroundTicket(manifest: Manifest, workflow: WorkflowState, currentTicketId = manifest.active_ticket): Ticket {
+export function selectForegroundTicket(manifest: Manifest, currentTicketId = manifest.active_ticket): Ticket {
   const currentTicket = manifest.tickets.find((item) => item.id === currentTicketId)
   if (currentTicket && currentTicket.status !== "done") return currentTicket
   const nextOpenTicket = nextTicketForProcessVerificationClear(manifest, currentTicketId)
@@ -891,7 +891,7 @@ export function selectForegroundTicket(manifest: Manifest, workflow: WorkflowSta
   return manifest.tickets[0]
 }
 export function syncWorkflowSelection(workflow: WorkflowState, manifest: Manifest): void {
-  const activeTicket = selectForegroundTicket(manifest, workflow, manifest.active_ticket)
+  const activeTicket = selectForegroundTicket(manifest, manifest.active_ticket)
   manifest.active_ticket = activeTicket.id
   ensureTicketWorkflowState(workflow, activeTicket.id)
   workflow.active_ticket = activeTicket.id

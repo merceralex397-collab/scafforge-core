@@ -65,7 +65,6 @@ permission:
     "cargo *": allow
     "go *": allow
     "make *": allow
-    "/home/pc/.local/bin/godot *": allow
     "godot *": allow
     "godot4 *": allow
     "rm *": deny

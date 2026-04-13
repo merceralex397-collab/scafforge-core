@@ -108,11 +108,11 @@ def run_config_surface_audits(root: Path, findings: list[Finding], ctx: ConfigSu
         ))
         return
 
-    # CONFIG001: model field
+    # CONFIG006: model field missing
     model_value = config.get("model")
     if not isinstance(model_value, str) or not model_value.strip():
         findings.append(Finding(
-            code="CONFIG001",
+            code="CONFIG006",
             severity="error",
             problem="opencode.jsonc is missing the 'model' field.",
             root_cause="The template used to scaffold this repo did not include a model assignment, "
@@ -125,8 +125,9 @@ def run_config_surface_audits(root: Path, findings: list[Finding], ctx: ConfigSu
             remediation_target=config_file,
         ))
     elif "__" in model_value:
+        # CONFIG007: unsubstituted placeholder in model field
         findings.append(Finding(
-            code="CONFIG001",
+            code="CONFIG007",
             severity="error",
             problem=f"opencode.jsonc 'model' field contains unsubstituted placeholder: {model_value}",
             root_cause="Template placeholder substitution failed during scaffold or repair.",
@@ -137,8 +138,9 @@ def run_config_surface_audits(root: Path, findings: list[Finding], ctx: ConfigSu
             remediation_target=config_file,
         ))
     elif "/" not in model_value:
+        # CONFIG008: model field not in provider/model format
         findings.append(Finding(
-            code="CONFIG001",
+            code="CONFIG008",
             severity="warning",
             problem=f"opencode.jsonc 'model' field is not in provider/model format: {model_value}",
             root_cause="The model field should use provider/model format (e.g. 'minimax-coding-plan/MiniMax-M2.7') "

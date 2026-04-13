@@ -26,7 +26,6 @@ permission:
     "test -d *": allow
     "[ -f *": allow
     "[ -d *": allow
-    "/home/pc/.local/bin/godot *": allow
     "godot *": allow
     "godot4 *": allow
     "git status*": allow

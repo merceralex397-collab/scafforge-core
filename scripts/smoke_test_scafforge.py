@@ -2721,7 +2721,7 @@ def main() -> int:
             '"echo *": allow',
             '"test -f *": allow',
             '"[ -f *": allow',
-            '"/home/pc/.local/bin/godot *": allow',
+            '"godot *": allow',
         ):
             if expected not in tester_qa_prompt:
                 raise RuntimeError(
