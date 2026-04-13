@@ -671,64 +671,95 @@ def ensure_finish_ownership_tickets(
             added_finish_ids.append("CONTENT-001")
             wave += 1
 
-    finish_dependencies = [ticket_id for ticket_id in ("VISUAL-001", "AUDIO-001", "CONTENT-001") if ticket_id in existing_ids]
-    finish_validation_dependencies = finish_dependencies or _bootstrap_terminal_feature_ids(tickets)
-    if (
-        finish_validation_dependencies
-        and "FINISH-VALIDATE-001" not in existing_ids
-        and not finish_contract_value_is_placeholder(finish_acceptance_signals)
-    ):
-        finish_validation_acceptance = build_finish_validation_acceptance(
-            finish_acceptance_signals=finish_acceptance_signals,
-            interactive_required=interactive_finish_proof_required(
-                stack_label=stack_label,
-                deliverable_kind=deliverable_kind,
-                finish_acceptance_signals=finish_acceptance_signals,
-            ),
-        )
-        tickets.append(
-            {
-                "id": "FINISH-VALIDATE-001",
-                "title": "Validate product finish contract",
-                "wave": wave,
-                "lane": "finish-validation",
-                "parallel_safe": False,
-                "overlap_risk": "medium",
-                "stage": "planning",
-                "status": "todo",
-                "resolution_state": "open",
-                "verification_state": "suspect",
-                "depends_on": finish_validation_dependencies,
-                "summary": "Prove that the declared Product Finish Contract is satisfied with current runnable evidence before release closeout.",
-                "acceptance": finish_validation_acceptance,
-                "decision_blockers": [],
-                "artifacts": [],
-                "follow_up_ticket_ids": [],
-            }
-        )
-        existing_ids.add("FINISH-VALIDATE-001")
+    manifest_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
 
+
+def ensure_finish_validation_lane(
+    dest_root: Path,
+    *,
+    stack_label: str,
+    deliverable_kind: str,
+    finish_acceptance_signals: str,
+) -> None:
+    """Create FINISH-VALIDATE-001 and wire RELEASE-001 dependency.
+
+    Must run after ALL ticket seeding functions so that every ticket
+    (including android infra tickets) is already present in the manifest.
+    """
+    if finish_contract_value_is_placeholder(finish_acceptance_signals):
+        return
+
+    manifest_path = dest_root / "tickets" / "manifest.json"
+    if not manifest_path.exists():
+        return
+
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    tickets = manifest.get("tickets")
+    if not isinstance(tickets, list):
+        return
+
+    existing_ids = {str(t.get("id", "")).strip() for t in tickets if isinstance(t, dict)}
+    if "FINISH-VALIDATE-001" in existing_ids:
+        _patch_release_depends_on_finish_validate(tickets)
+        manifest_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+        return
+
+    finish_dependencies = [
+        tid for tid in ("VISUAL-001", "AUDIO-001", "CONTENT-001") if tid in existing_ids
+    ]
+    finish_validation_dependencies = (
+        finish_dependencies
+        or _bootstrap_terminal_feature_ids(tickets)
+        or (["SETUP-001"] if "SETUP-001" in existing_ids else [])
+    )
+    if not finish_validation_dependencies:
+        return
+
+    wave = next_ticket_wave(tickets)
+    tickets.append(
+        {
+            "id": "FINISH-VALIDATE-001",
+            "title": "Validate product finish contract",
+            "wave": wave,
+            "lane": "finish-validation",
+            "parallel_safe": False,
+            "overlap_risk": "medium",
+            "stage": "planning",
+            "status": "todo",
+            "resolution_state": "open",
+            "verification_state": "suspect",
+            "depends_on": finish_validation_dependencies,
+            "summary": "Prove that the declared Product Finish Contract is satisfied with current runnable evidence before release closeout.",
+            "acceptance": build_finish_validation_acceptance(
+                finish_acceptance_signals=finish_acceptance_signals,
+                interactive_required=interactive_finish_proof_required(
+                    stack_label=stack_label,
+                    deliverable_kind=deliverable_kind,
+                    finish_acceptance_signals=finish_acceptance_signals,
+                ),
+            ),
+            "decision_blockers": [],
+            "artifacts": [],
+            "follow_up_ticket_ids": [],
+        }
+    )
+    _patch_release_depends_on_finish_validate(tickets)
+    manifest_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+
+
+def _patch_release_depends_on_finish_validate(tickets: list[dict[str, object]]) -> None:
     release_ticket = next(
-        (
-            ticket
-            for ticket in tickets
-            if isinstance(ticket, dict) and str(ticket.get("id", "")).strip() == "RELEASE-001"
-        ),
+        (t for t in tickets if isinstance(t, dict) and str(t.get("id", "")).strip() == "RELEASE-001"),
         None,
     )
-    if isinstance(release_ticket, dict) and "FINISH-VALIDATE-001" in {
-        str(ticket.get("id", "")).strip() for ticket in tickets if isinstance(ticket, dict)
-    }:
-        release_depends_on = [
-            str(dep).strip()
-            for dep in release_ticket.get("depends_on", [])
-            if isinstance(dep, str) and str(dep).strip()
-        ]
-        if "FINISH-VALIDATE-001" not in release_depends_on:
-            release_depends_on.append("FINISH-VALIDATE-001")
-            release_ticket["depends_on"] = release_depends_on
-
-    manifest_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+    if not isinstance(release_ticket, dict):
+        return
+    if "FINISH-VALIDATE-001" not in {str(t.get("id", "")).strip() for t in tickets if isinstance(t, dict)}:
+        return
+    deps = [str(d).strip() for d in release_ticket.get("depends_on", []) if isinstance(d, str) and str(d).strip()]
+    if "FINISH-VALIDATE-001" not in deps:
+        deps.append("FINISH-VALIDATE-001")
+        release_ticket["depends_on"] = deps
 
 
 def managed_repo_root() -> Path:
@@ -1082,6 +1113,12 @@ def main() -> int:
         slug,
         args.stack_label,
         deliverable_kind=args.deliverable_kind,
+    )
+    ensure_finish_validation_lane(
+        dest_root,
+        stack_label=args.stack_label,
+        deliverable_kind=args.deliverable_kind,
+        finish_acceptance_signals=finish_acceptance_signals,
     )
     ensure_state_directories(dest_root)
     write_bootstrap_provenance(
