@@ -232,6 +232,63 @@ function inferAcceptanceSmokeCommands(ticket: { acceptance?: unknown }): Command
   return commands
 }
 
+function extractQaArtifactCommandCandidates(text: string): string[] {
+  const candidates = new Set<string>()
+  for (const match of text.matchAll(/^\s*[-*]?\s*"command"\s*:\s*("(?:(?:\\.)|[^"])*")\s*,?\s*$/gim)) {
+    try {
+      const candidate = JSON.parse(match[1] || "")
+      if (!candidate || !looksLikeSmokeCommand(candidate)) continue
+      candidates.add(candidate)
+    } catch {
+      // Ignore malformed JSON command lines and keep scanning for other usable command evidence.
+    }
+  }
+
+  for (const pattern of [
+    /^\s*[-*]?\s*(?:Run|Command):\s*`?(.+?)`?\s*$/gim,
+    /^\s*[-*]?\s*command:\s*(.+?)\s*$/gim,
+    /^\s*\$\s+(.+?)\s*$/gm,
+  ]) {
+    for (const match of text.matchAll(pattern)) {
+      const candidate = (match[1] || "").trim().replace(/,$/, "")
+      if (!candidate || !looksLikeSmokeCommand(candidate)) continue
+      candidates.add(candidate)
+    }
+  }
+
+  for (const candidate of extractBacktickedCommands(text)) {
+    const normalized = candidate.trim()
+    if (!normalized || !looksLikeSmokeCommand(normalized)) continue
+    candidates.add(normalized)
+  }
+
+  return [...candidates]
+}
+
+function inferQaArtifactSmokeCommands(qaArtifactText: string): CommandSpec[] {
+  const commands: CommandSpec[] = []
+  const seen = new Set<string>()
+
+  for (const candidate of extractQaArtifactCommandCandidates(qaArtifactText)) {
+    let parsed: CommandSpec
+    try {
+      parsed = parseCommandOverride([candidate])[0]
+    } catch {
+      continue
+    }
+    const key = renderCommand(parsed).toLowerCase()
+    if (seen.has(key)) continue
+    seen.add(key)
+    commands.push({
+      ...parsed,
+      label: `qa artifact command ${commands.length + 1}`,
+      reason: "Current QA artifact records a deterministic smoke-test command.",
+    })
+  }
+
+  return commands
+}
+
 async function detectPythonRunner(root: string, pyprojectText: string): Promise<PythonRunner> {
   if (await exists(join(root, "uv.lock"))) {
     return {
@@ -540,13 +597,17 @@ function parseCommandOverride(rawOverride: string[]): CommandSpec[] {
   return rawOverride.map((command, index) => parseOverrideTokens(tokenizeCommandString(command), `command override ${index + 1}`))
 }
 
-async function detectCommands(root: string, ticket: { acceptance?: unknown }, args: SmokeArgs): Promise<CommandSpec[]> {
+async function detectCommands(root: string, ticket: { acceptance?: unknown }, args: SmokeArgs, qaArtifactText: string): Promise<CommandSpec[]> {
   if (Array.isArray(args.command_override) && args.command_override.length > 0) {
     return augmentGodotReleaseCommands(root, ticket, parseCommandOverride(args.command_override))
   }
   const acceptanceCommands = await detectAcceptanceCommands(root, ticket)
   if (acceptanceCommands.length > 0) {
     return augmentGodotReleaseCommands(root, ticket, acceptanceCommands)
+  }
+  const qaArtifactCommands = inferQaArtifactSmokeCommands(qaArtifactText)
+  if (qaArtifactCommands.length > 0) {
+    return augmentGodotReleaseCommands(root, ticket, qaArtifactCommands)
   }
   const makeOverride = await detectMakeSmokeTarget(root)
   if (makeOverride.length > 0) {
@@ -755,10 +816,11 @@ export default tool({
     if (!latestQaArtifact) {
       throw new Error(`Cannot run smoke tests for ${ticket.id} before a QA artifact exists.`)
     }
+    const qaArtifactText = await readText(join(root, latestQaArtifact.path))
 
     let commands: CommandSpec[] = []
     try {
-      commands = await detectCommands(root, ticket, args)
+      commands = await detectCommands(root, ticket, args, qaArtifactText)
     } catch (error) {
       const body = renderArtifact(
         ticket.id,

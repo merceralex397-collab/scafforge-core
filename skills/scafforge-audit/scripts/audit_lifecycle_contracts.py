@@ -488,6 +488,10 @@ def audit_remediation_review_evidence(
 
     command_pattern = re.compile(r"(?:^|\n)(?:-\s*)?(?:(?:\*\*|__)?(?:exact\s+command\s+run|command|command run)(?:\*\*|__)?\s*:|(?:\*\*|__)?(?:exact\s+command\s+run|command|command run):(?:\*\*|__)?)\s*(?:`[^`]+`|```[\s\S]*?```)", re.IGNORECASE)
     output_heading_pattern = re.compile(r"(?:raw(?:\s+command)?\s+output|raw\s+output|command\s+output)(?:\s*\([^)]*\))?", re.IGNORECASE)
+    inline_output_pattern = re.compile(
+        r"(?:^|\n)(?:-\s*)?(?:(?:\*\*|__)?(?:raw(?:\s+command)?\s+output|raw\s+output|command\s+output|raw\s+stdout|raw\s+stderr|stdout|stderr)(?:\s*\([^)]*\))?(?:\*\*|__)?\s*:|(?:\*\*|__)?(?:raw(?:\s+command)?\s+output|raw\s+output|command\s+output|raw\s+stdout|raw\s+stderr|stdout|stderr)(?:\s*\([^)]*\))?(?:\*\*|__)?:)",
+        re.IGNORECASE,
+    )
     result_pattern = re.compile(
         r"(?:(?:^|\n)(?:-\s*)?(?:(?:\*\*|__)?(?:overall\s+result|overall\s+verdict|verdict|result|post-fix\s+result|pass/fail\s+result)(?:\*\*|__)?\s*:|(?:\*\*|__)?(?:overall\s+result|overall\s+verdict|verdict|result|post-fix\s+result|pass/fail\s+result):(?:\*\*|__)?)\s*(?:\*\*|__|`)?(?:PASS|PASSES|FAIL|FAILED|BLOCKED|ERROR|APPROVED|REJECT)(?:\*\*|__|`)?|(?:^|\n)#{1,6}\s*(?:overall\s+result|overall\s+verdict|review\s+verdict|verdict|result|post-fix\s+result|pass/fail\s+result|blocker\s+or\s+approval\s+signal)\s*(?:\r?\n\s*)+(?:\*\*|__|`)?(?:PASS|PASSES|FAIL|FAILED|BLOCKED|ERROR|APPROVED|REJECT)(?:\*\*|__|`)?)",
         re.IGNORECASE,
@@ -515,10 +519,10 @@ def audit_remediation_review_evidence(
         if not command_pattern.search(artifact_text):
             missing.append("missing exact command record")
         output_blocks = [match.group(1).strip() for match in code_block_pattern.finditer(artifact_text)]
-        has_inline_output = bool(re.search(r"(?:raw(?:\s+command)?\s+output|raw\s+output|command\s+output|raw\s+stdout|raw\s+stderr|stdout|stderr)\s*:", artifact_text, re.IGNORECASE))
+        has_inline_output = bool(inline_output_pattern.search(artifact_text))
         has_output = bool(output_heading_pattern.search(artifact_text)) and (any(block for block in output_blocks) or has_inline_output)
         if not has_output:
-            missing.append("missing raw command output section with non-empty code block")
+            missing.append("missing raw command output evidence")
         if not result_pattern.search(artifact_text):
             missing.append("missing explicit post-fix PASS/FAIL result")
 

@@ -104,7 +104,9 @@ Headless persistence and completion discipline:
 - if a fresh `ticket_lookup.transition_guidance` still yields a legal next action, execute it in the same run unless a listed stop condition or concrete blocker prevents it
 - do not end your response with a self-addressed "Next Steps" summary while the active ticket is still open, while the current stage still has an unfinished legal transition, or while another ready child ticket can be claimed legally
 - after each successful `ticket_update`, specialist delegation, or `smoke_test`, re-run `ticket_lookup` and continue lifecycle advancement until the current ticket reaches closeout, a listed stop condition, or an explicit blocker
+- a delegated specialist task is not a stop condition; wait for the task result, confirm the expected artifact or failure, then immediately re-run `ticket_lookup` and continue in the same run
 - for split parents, stale-follow-up sweeps, and remediation child batches, keep draining ready child tickets in the same run until no writable child can advance legally or a listed stop condition fires
+- do not restart long Goal / Instructions / Discoveries / Accomplished / Next Steps recap blocks after routine progress; if you are not reporting a blocker, keep progress narration to one or two short lines
 
 Advancement rules:
 
@@ -151,9 +153,10 @@ Bounded parallel work:
 Process-change verification:
 
 - if `pending_process_verification` is true in workflow state, treat `ticket_lookup.process_verification.affected_done_tickets` as the authoritative list of done tickets that still require verification
-- do not let process verification preempt an already-open active ticket whose dependencies remain trusted
+- do not let process verification preempt an already-open active ticket whose dependencies remain trusted, except when `ticket_lookup.process_verification.clearable_now` is `true` and the only required action is clearing the stale `pending_process_verification` flag on the current writable ticket
 - route those affected done tickets through `__AGENT_PREFIX__-backlog-verifier` before treating old completion as fully trusted
 - only route to `__AGENT_PREFIX__-ticket-creator` after you read the backlog-verifier artifact content and confirm the verification decision is `NEEDS_FOLLOW_UP`
+- when `ticket_lookup.process_verification.clearable_now` is `true`, treat the recommended `ticket_update(..., pending_process_verification: false)` as required cleanup and execute it before any split-parent handoff or ordinary lifecycle advancement
 - clear `pending_process_verification` only after `ticket_lookup.process_verification.affected_done_tickets` is empty
 - when `ticket_lookup.process_verification.clearable_now` is true but the foreground ticket is already closed, do not try to reclaim the closed ticket; foreground an open writable ticket, claim it, and carry `pending_process_verification: false` through `ticket_update` on that open ticket instead
 - treat `repair_follow_on` as separate from `pending_process_verification`; historical trust restoration does not mean managed repair follow-on is complete
@@ -179,6 +182,7 @@ Rules:
 - do not skip stages
 - do not implement before plan review approves
 - use `ticket_lookup` and `ticket_update` for workflow state instead of raw file edits
+- lifecycle status map: `plan_review -> plan_review`, `review -> review`, `qa -> qa`, `smoke-test -> smoke_test`, `closeout -> done`
 - do not probe alternate stage or status values when a lifecycle error repeats; re-run `ticket_lookup`, inspect `transition_guidance`, load `ticket-execution` if needed, and return a blocker instead of inventing a workaround
 - when `ticket_lookup.transition_guidance` identifies a valid next action, you must either execute that tool path, delegate that exact action, or report a concrete blocker; summary-only stopping is invalid
 - when you have already written a self-directed "next steps" or "continue with the next steps" summary, treat that text as an execution checklist for the same run, not as a handoff that lets you stop

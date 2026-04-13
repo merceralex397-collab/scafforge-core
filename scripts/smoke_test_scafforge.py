@@ -3204,11 +3204,39 @@ def main() -> int:
                 "team-leader agent template should forbid headless self-handoff summaries before the active ticket is actually blocked or closed"
             )
         if (
+            "lifecycle status map: `plan_review -> plan_review`, `review -> review`, `qa -> qa`, `smoke-test -> smoke_test`, `closeout -> done`"
+            not in team_leader_template
+        ):
+            raise RuntimeError(
+                "team-leader agent template should spell out the exact lifecycle status values, including closeout -> done"
+            )
+        if (
             "when `ticket_lookup.transition_guidance.next_action_kind` is `write_artifact`, do not attempt `artifact_write` or `artifact_register` yourself"
             not in team_leader_template
         ):
             raise RuntimeError(
                 "team-leader agent template should route write_artifact guidance directly through the owning specialist instead of attempting coordinator artifact calls first"
+            )
+        if (
+            "when `ticket_lookup.process_verification.clearable_now` is `true`, treat the recommended `ticket_update(..., pending_process_verification: false)` as required cleanup and execute it before any split-parent handoff or ordinary lifecycle advancement"
+            not in team_leader_template
+        ):
+            raise RuntimeError(
+                "team-leader agent template should prioritize clearable pending_process_verification cleanup before split-parent or ordinary lifecycle routing"
+            )
+        if (
+            "a delegated specialist task is not a stop condition; wait for the task result, confirm the expected artifact or failure, then immediately re-run `ticket_lookup` and continue in the same run"
+            not in team_leader_template
+        ):
+            raise RuntimeError(
+                "team-leader agent template should keep headless runs alive across specialist delegation boundaries"
+            )
+        if (
+            "do not restart long Goal / Instructions / Discoveries / Accomplished / Next Steps recap blocks after routine progress; if you are not reporting a blocker, keep progress narration to one or two short lines"
+            not in team_leader_template
+        ):
+            raise RuntimeError(
+                "team-leader agent template should suppress repeated recap blocks during routine progress"
             )
         generated_audit_reporting = (
             ROOT
@@ -3514,6 +3542,13 @@ def main() -> int:
                 "Generated team leader prompt should own the lease claim path"
             )
         if (
+            "lifecycle status map: `plan_review -> plan_review`, `review -> review`, `qa -> qa`, `smoke-test -> smoke_test`, `closeout -> done`"
+            not in generated_team_leader
+        ):
+            raise RuntimeError(
+                "Generated team leader prompt should spell out the exact lifecycle status values, including closeout -> done"
+            )
+        if (
             'do not end your response with a self-addressed "Next Steps" summary while the active ticket is still open'
             not in generated_team_leader
         ):
@@ -3533,6 +3568,20 @@ def main() -> int:
         ):
             raise RuntimeError(
                 "Generated team leader prompt should delegate write_artifact actions directly to the owning specialist"
+            )
+        if (
+            "a delegated specialist task is not a stop condition; wait for the task result, confirm the expected artifact or failure, then immediately re-run `ticket_lookup` and continue in the same run"
+            not in generated_team_leader
+        ):
+            raise RuntimeError(
+                "Generated team leader prompt should keep running after specialist delegation completes"
+            )
+        if (
+            "do not restart long Goal / Instructions / Discoveries / Accomplished / Next Steps recap blocks after routine progress; if you are not reporting a blocker, keep progress narration to one or two short lines"
+            not in generated_team_leader
+        ):
+            raise RuntimeError(
+                "Generated team leader prompt should suppress repeated recap blocks during normal progress"
             )
         if (
             "ticket_create: allow" not in generated_team_leader
@@ -7275,6 +7324,65 @@ def main() -> int:
             raise RuntimeError(
                 "ticket_lookup should explain that the team leader must switch to an open ticket before clearing pending_process_verification"
             )
+        process_clearable_open_dest = workspace / "executed-process-clearable-open"
+        shutil.copytree(process_clearable_dest, process_clearable_open_dest)
+        process_clearable_open_manifest_path = (
+            process_clearable_open_dest / "tickets" / "manifest.json"
+        )
+        process_clearable_open_workflow_path = (
+            process_clearable_open_dest / ".opencode" / "state" / "workflow-state.json"
+        )
+        process_clearable_open_manifest = json.loads(
+            process_clearable_open_manifest_path.read_text(encoding="utf-8")
+        )
+        process_clearable_open_workflow = json.loads(
+            process_clearable_open_workflow_path.read_text(encoding="utf-8")
+        )
+        process_clearable_open_manifest["active_ticket"] = "PROC-001"
+        process_clearable_open_workflow["active_ticket"] = "PROC-001"
+        process_clearable_open_workflow["stage"] = "planning"
+        process_clearable_open_workflow["status"] = "todo"
+        process_clearable_open_manifest_path.write_text(
+            json.dumps(process_clearable_open_manifest, indent=2) + "\n",
+            encoding="utf-8",
+        )
+        process_clearable_open_workflow_path.write_text(
+            json.dumps(process_clearable_open_workflow, indent=2) + "\n",
+            encoding="utf-8",
+        )
+        process_clearable_open_lookup = run_generated_tool(
+            process_clearable_open_dest,
+            ".opencode/tools/ticket_lookup.ts",
+            {},
+        )
+        if process_clearable_open_lookup["process_verification"]["clearable_now"] is not True:
+            raise RuntimeError(
+                "ticket_lookup should keep reporting clearable_now when the workflow has already rotated to an open writable ticket"
+            )
+        process_clearable_open_guidance = process_clearable_open_lookup[
+            "transition_guidance"
+        ]
+        if process_clearable_open_guidance["next_action_tool"] != "ticket_update":
+            raise RuntimeError(
+                "ticket_lookup should route stale clearable process verification through ticket_update on the current open ticket"
+            )
+        if process_clearable_open_guidance["recommended_ticket_update"] != {
+            "ticket_id": "PROC-001",
+            "activate": True,
+            "pending_process_verification": False,
+        }:
+            raise RuntimeError(
+                "ticket_lookup should clear pending_process_verification on the current open ticket once the affected done-ticket set is empty"
+            )
+        process_clearable_open_update = run_generated_tool(
+            process_clearable_open_dest,
+            ".opencode/tools/ticket_update.ts",
+            process_clearable_open_guidance["recommended_ticket_update"],
+        )
+        if process_clearable_open_update["workflow"]["pending_process_verification"]:
+            raise RuntimeError(
+                "ticket_update should clear pending_process_verification when ticket_lookup routes the cleanup through the current open ticket"
+            )
         register_current_ticket_artifact(
             executed_lifecycle_dest,
             ticket_id="SETUP-001",
@@ -8563,6 +8671,150 @@ def main() -> int:
         ):
             raise RuntimeError(
                 "smoke_test should record the passing result and executed command in the smoke-test artifact"
+            )
+        smoke_from_qa_dest = workspace / "executed-smoke-from-qa"
+        shutil.copytree(executed_smoke_test_dest, smoke_from_qa_dest)
+        smoke_from_qa_registry_path = (
+            smoke_from_qa_dest / ".opencode" / "state" / "artifacts" / "registry.json"
+        )
+        smoke_from_qa_manifest_path = smoke_from_qa_dest / "tickets" / "manifest.json"
+        smoke_from_qa_registry = json.loads(
+            smoke_from_qa_registry_path.read_text(encoding="utf-8")
+        )
+        smoke_from_qa_manifest = json.loads(
+            smoke_from_qa_manifest_path.read_text(encoding="utf-8")
+        )
+        smoke_from_qa_ticket = next(
+            ticket
+            for ticket in smoke_from_qa_manifest["tickets"]
+            if ticket["id"] == "SETUP-001"
+        )
+        for artifact in smoke_from_qa_registry.get("artifacts", []):
+            if artifact.get("ticket_id") != "SETUP-001":
+                continue
+            if artifact.get("stage") == "smoke-test":
+                artifact["trust_state"] = "historical"
+                artifact["is_current"] = False
+            if artifact.get("stage") == "qa":
+                artifact["path"] = ".opencode/state/qa/setup-001-qa-report.md"
+                artifact["summary"] = (
+                    "Synthetic QA artifact with deterministic command evidence."
+                )
+        for artifact in smoke_from_qa_ticket.get("artifacts", []):
+            if artifact.get("stage") == "smoke-test":
+                artifact["trust_state"] = "historical"
+                artifact["is_current"] = False
+            if artifact.get("stage") == "qa":
+                artifact["path"] = ".opencode/state/qa/setup-001-qa-report.md"
+                artifact["summary"] = (
+                    "Synthetic QA artifact with deterministic command evidence."
+                )
+        smoke_from_qa_registry_path.write_text(
+            json.dumps(smoke_from_qa_registry, indent=2) + "\n",
+            encoding="utf-8",
+        )
+        smoke_from_qa_manifest_path.write_text(
+            json.dumps(smoke_from_qa_manifest, indent=2) + "\n",
+            encoding="utf-8",
+        )
+        seed_minimal_godot_project(smoke_from_qa_dest)
+        smoke_from_qa_command = (
+            f"godot4 --headless --path {smoke_from_qa_dest} --quit"
+        )
+        (
+            smoke_from_qa_dest / ".opencode" / "state" / "qa" / "setup-001-qa-report.md"
+        ).write_text(
+            f"""# QA Report
+
+## Commands Executed
+
+```json
+[
+  {{
+    "command": "{smoke_from_qa_command}",
+    "cwd": ".",
+    "exit_code": 0,
+    "result": "PASS"
+  }}
+]
+```
+
+## Raw Command Output
+
+```
+smoke from qa
+```
+
+Overall Result: PASS
+""",
+            encoding="utf-8",
+        )
+        smoke_from_qa_result = run_generated_tool(
+            smoke_from_qa_dest,
+            ".opencode/tools/smoke_test.ts",
+            {
+                "ticket_id": "SETUP-001",
+                "scope": "ticket",
+            },
+        )
+        if smoke_from_qa_result["passed"] is not True:
+            raise RuntimeError(
+                "smoke_test should infer deterministic commands from the current QA artifact when no explicit override is supplied"
+            )
+        if smoke_from_qa_result["commands"][0]["command"] != smoke_from_qa_command:
+            raise RuntimeError(
+                "smoke_test should execute the deterministic command extracted from the current QA artifact"
+            )
+        smoke_closeout_manifest_path = executed_smoke_test_dest / "tickets" / "manifest.json"
+        smoke_closeout_manifest = json.loads(
+            smoke_closeout_manifest_path.read_text(encoding="utf-8")
+        )
+        smoke_closeout_ticket = next(
+            ticket
+            for ticket in smoke_closeout_manifest["tickets"]
+            if ticket["id"] == "SETUP-001"
+        )
+        smoke_closeout_ticket["stage"] = "smoke-test"
+        smoke_closeout_ticket["status"] = "smoke_test"
+        smoke_closeout_manifest_path.write_text(
+            json.dumps(smoke_closeout_manifest, indent=2) + "\n", encoding="utf-8"
+        )
+        smoke_closeout_workflow_path = (
+            executed_smoke_test_dest / ".opencode" / "state" / "workflow-state.json"
+        )
+        smoke_closeout_workflow = json.loads(
+            smoke_closeout_workflow_path.read_text(encoding="utf-8")
+        )
+        smoke_closeout_workflow["stage"] = "smoke-test"
+        smoke_closeout_workflow["status"] = "smoke_test"
+        smoke_closeout_workflow_path.write_text(
+            json.dumps(smoke_closeout_workflow, indent=2) + "\n", encoding="utf-8"
+        )
+        post_smoke_lookup = run_generated_tool(
+            executed_smoke_test_dest,
+            ".opencode/tools/ticket_lookup.ts",
+            {},
+        )
+        if post_smoke_lookup["transition_guidance"]["recommended_ticket_update"] != {
+            "ticket_id": "SETUP-001",
+            "stage": "closeout",
+            "status": "done",
+            "activate": True,
+        }:
+            raise RuntimeError(
+                "ticket_lookup should recommend closeout with status done after a passing smoke test"
+            )
+        post_smoke_closeout = run_generated_tool(
+            executed_smoke_test_dest,
+            ".opencode/tools/ticket_update.ts",
+            post_smoke_lookup["transition_guidance"]["recommended_ticket_update"],
+        )
+        if (
+            post_smoke_closeout["updated_ticket"]["stage"] != "closeout"
+            or post_smoke_closeout["updated_ticket"]["status"] != "done"
+        ):
+            raise RuntimeError(
+                "ticket_update should accept the guided closeout payload after a passing smoke test"
             )
 
         executed_smoke_fatal_stderr_dest = workspace / "executed-smoke-test-fatal-stderr"

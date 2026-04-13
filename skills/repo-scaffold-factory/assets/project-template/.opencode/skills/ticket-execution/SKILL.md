@@ -62,7 +62,7 @@ Transition contract:
   - latest QA verdict must be PASS or APPROVED; FAIL, REJECT, BLOCKED, or an unclear verdict must route back to implementation or manual inspection before smoke-test
 - `smoke-test`:
   - required proof before exit: a current smoke-test artifact produced by `smoke_test`
-  - next legal transition: `ticket_update stage=closeout`
+  - next legal transition: `ticket_update stage=closeout status=done`
 - `closeout`:
   - required proof before exit: a passing smoke-test artifact
   - expected final state: `status=done`
@@ -101,7 +101,8 @@ Parallel rules:
 
 Process-change rules:
 
-- if `pending_process_verification` is `true`, verify affected done tickets before trusting their completion
+- if `pending_process_verification` is `true` and `ticket_lookup.process_verification.clearable_now` is `true`, clear the stale flag immediately via the recommended `ticket_update(..., pending_process_verification: false)` on the current writable ticket before any other lifecycle or split-parent action
+- if `pending_process_verification` is `true` and `ticket_lookup.process_verification.clearable_now` is not `true`, verify affected done tickets before trusting their completion
 - if `repair_follow_on.outcome` is `managed_blocked`, stop ordinary lifecycle routing and surface the canonical blocker before continuing ticket work
 - `repair_follow_on.outcome == source_follow_up` does not by itself block the active open ticket from continuing
 - migration follow-up tickets must come from backlog-verifier proof through `ticket_create`, not raw manifest edits

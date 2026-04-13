@@ -313,12 +313,16 @@ if [[ "$MODE" == "opencode" ]]; then
 1. Run ticket_lookup to get the current active ticket and workflow state
 2. Read transition_guidance carefully — it is your executable contract
 3. If pending_process_verification is true, check affected_done_tickets
-4. Execute the next action specified by transition_guidance
-5. Do not skip stages. Do not invent workarounds. Follow the workflow.
-6. Keep narration terse. Do not emit long self-handoff sections like Goal / Instructions / Discoveries / Accomplished / Next Steps unless you are reporting a real blocker.
-7. If you can name the next legal tool call, execute it in the same run instead of stopping after a summary.
-8. Continue working until the active ticket reaches closeout, you hit a team-leader stop condition, or no legal next action remains.
-9. For split parents, remediation batches, and stale-follow-up sweeps, keep draining ready child tickets in the same run while legal next actions remain.
+4. If ticket_lookup.process_verification.clearable_now is true, clear pending_process_verification on the current writable ticket immediately via the recommended ticket_update before any split-parent or other lifecycle action
+5. Execute the next action specified by transition_guidance
+6. Do not skip stages. Do not invent workarounds. Follow the workflow.
+7. Lifecycle status map: review -> review, qa -> qa, smoke-test -> smoke_test, closeout -> done.
+8. Keep narration terse. Do not emit long self-handoff sections like Goal / Instructions / Discoveries / Accomplished / Next Steps unless you are reporting a real blocker.
+9. If you can name the next legal tool call, execute it in the same run instead of stopping after a summary.
+10. Continue working until the active ticket reaches closeout, you hit a team-leader stop condition, or no legal next action remains.
+11. For split parents, remediation batches, and stale-follow-up sweeps, keep draining ready child tickets in the same run while legal next actions remain.
+12. After delegating a specialist task, wait for the result, confirm the expected artifact or failure, then rerun ticket_lookup and continue in the same run.
+13. Do not restart long Goal / Instructions / Discoveries / Accomplished / Next Steps recap blocks after routine progress; use one or two terse lines unless reporting a blocker.
 
 If you encounter a blocker you cannot resolve after 3 attempts, stop and report it clearly with the exact error and what you tried."
   fi

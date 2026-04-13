@@ -1812,7 +1812,37 @@ def validate_template_surfaces(findings: list[Finding]) -> None:
     require_contains(
         findings,
         TEMPLATE_ROOT / ".opencode" / "agents" / "__AGENT_PREFIX__-team-leader.md",
+        "except when `ticket_lookup.process_verification.clearable_now` is `true` and the only required action is clearing the stale `pending_process_verification` flag on the current writable ticket",
+    )
+    require_contains(
+        findings,
+        TEMPLATE_ROOT / ".opencode" / "agents" / "__AGENT_PREFIX__-team-leader.md",
+        "when `ticket_lookup.process_verification.clearable_now` is `true`, treat the recommended `ticket_update(..., pending_process_verification: false)` as required cleanup and execute it before any split-parent handoff or ordinary lifecycle advancement",
+    )
+    require_contains(
+        findings,
+        ROOT / "scripts" / "run_agent.sh",
+        "If ticket_lookup.process_verification.clearable_now is true, clear pending_process_verification on the current writable ticket immediately via the recommended ticket_update before any split-parent or other lifecycle action",
+    )
+    require_contains(
+        findings,
+        TEMPLATE_ROOT / ".opencode" / "skills" / "ticket-execution" / "SKILL.md",
+        "if `pending_process_verification` is `true` and `ticket_lookup.process_verification.clearable_now` is `true`, clear the stale flag immediately via the recommended `ticket_update(..., pending_process_verification: false)` on the current writable ticket before any other lifecycle or split-parent action",
+    )
+    require_contains(
+        findings,
+        TEMPLATE_ROOT / ".opencode" / "skills" / "ticket-execution" / "SKILL.md",
+        "if `pending_process_verification` is `true` and `ticket_lookup.process_verification.clearable_now` is not `true`, verify affected done tickets before trusting their completion",
+    )
+    require_contains(
+        findings,
+        TEMPLATE_ROOT / ".opencode" / "agents" / "__AGENT_PREFIX__-team-leader.md",
         'do not end your response with a self-addressed "Next Steps" summary while the active ticket is still open',
+    )
+    require_contains(
+        findings,
+        TEMPLATE_ROOT / ".opencode" / "agents" / "__AGENT_PREFIX__-team-leader.md",
+        "lifecycle status map: `plan_review -> plan_review`, `review -> review`, `qa -> qa`, `smoke-test -> smoke_test`, `closeout -> done`",
     )
     require_contains(
         findings,
@@ -1822,7 +1852,22 @@ def validate_template_surfaces(findings: list[Finding]) -> None:
     require_contains(
         findings,
         TEMPLATE_ROOT / ".opencode" / "agents" / "__AGENT_PREFIX__-team-leader.md",
+        "a delegated specialist task is not a stop condition; wait for the task result, confirm the expected artifact or failure, then immediately re-run `ticket_lookup` and continue in the same run",
+    )
+    require_contains(
+        findings,
+        TEMPLATE_ROOT / ".opencode" / "agents" / "__AGENT_PREFIX__-team-leader.md",
+        "do not restart long Goal / Instructions / Discoveries / Accomplished / Next Steps recap blocks after routine progress; if you are not reporting a blocker, keep progress narration to one or two short lines",
+    )
+    require_contains(
+        findings,
+        TEMPLATE_ROOT / ".opencode" / "agents" / "__AGENT_PREFIX__-team-leader.md",
         "when `ticket_lookup.transition_guidance.next_action_kind` is `write_artifact`, do not attempt `artifact_write` or `artifact_register` yourself",
+    )
+    require_contains(
+        findings,
+        ROOT / "scripts" / "run_agent.sh",
+        "Lifecycle status map: review -> review, qa -> qa, smoke-test -> smoke_test, closeout -> done.",
     )
     require_contains(
         findings,
@@ -1833,6 +1878,16 @@ def validate_template_surfaces(findings: list[Finding]) -> None:
         findings,
         ROOT / "scripts" / "run_agent.sh",
         "Continue working until the active ticket reaches closeout, you hit a team-leader stop condition, or no legal next action remains.",
+    )
+    require_contains(
+        findings,
+        ROOT / "scripts" / "run_agent.sh",
+        "After delegating a specialist task, wait for the result, confirm the expected artifact or failure, then rerun ticket_lookup and continue in the same run.",
+    )
+    require_contains(
+        findings,
+        ROOT / "scripts" / "run_agent.sh",
+        "Do not restart long Goal / Instructions / Discoveries / Accomplished / Next Steps recap blocks after routine progress; use one or two terse lines unless reporting a blocker.",
     )
     require_contains(
         findings,
