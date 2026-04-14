@@ -24,18 +24,20 @@ This plan treats operator or agent confusion as package evidence. If an agent ca
 ### 2.2 Live package baseline captured during planning
 
 - `npm run validate:contract` -> pass
-- `npm run validate:smoke` -> fail
-- `python3 scripts/integration_test_scafforge.py` -> pass
+- `npm run validate:smoke` -> pass
+- `python3 scripts/integration_test_scafforge.py` -> fail (`proof-python-cli` currently trips `EXEC002` because the seeded test/import shape uses `src.proof_python_cli` even though `src` is not importable during pytest collection)
 - `python3 scripts/validate_gpttalker_migration.py` -> pass, but the report still proves a fixture-backed `/tmp` migration path rather than live downstream smoothness
 
 ### 2.3 Concrete planning evidence
 
 - `GPTTalker/gpttalkerstuck1.md`
-- `active-plans/root-cause-map.md`
-- `active-plans/blocker-register.md`
-- `active-plans/bug-and-structural-flaw-register.md`
-- `active-plans/validation-log.md`
-- `active-plans/fullassessment1104261519.md`
+- `archive/archived-diagnosis-plans/active-plans-review-2026-04-14/root-cause-map.md`
+- `archive/archived-diagnosis-plans/active-plans-review-2026-04-14/blocker-register.md`
+- `archive/archived-diagnosis-plans/active-plans-review-2026-04-14/bug-and-structural-flaw-register.md`
+- `archive/archived-diagnosis-plans/active-plans-review-2026-04-14/validation-log.md`
+- `archive/archived-diagnosis-plans/active-plans-review-2026-04-14/fullassessment1104261519.md`
+- `active-plans/asset-pipeline-agent-research-2026-04-14.md`
+- `active-plans/scafforge-present-state-research-report-2026-04-14.md`
 - latest downstream diagnosis manifests for `GPTTalker`, `spinner`, `glitch`, and `womanvshorseVA/VB/VC/VD`
 - direct branch diff and full-history churn analysis
 
@@ -63,6 +65,14 @@ This plan treats operator or agent confusion as package evidence. If an agent ca
 - references to `artifact_write` / `artifact_register` across prompts and skills: `32`
 
 These numbers matter because weak models are not navigating a tiny state machine. They are navigating a large, multi-authority rule system with many chances to choose the wrong surface.
+
+### 2.6 Additional report-backed evidence now folded into the plan
+
+- the current smoke regression is not only "red"; the live repro specifically drops `host_surface_classification: missing_executable` because the explicit-missing-executable path is surfacing as `Error: spawn EIO` with `missing_executable: null`
+- package-root operating docs currently describe root `tickets/` and `IMPLEMENTATION-HANDOFF.md` as active truth surfaces even though real package work is happening through `active-plans/`, `active-audits/`, and archived references
+- the canonical validation quartet is not backed by checked-in repo-local CI, so markdown "green again" claims can drift away from actual `HEAD`
+- `scripts/run_agent.sh` currently amplifies `active-plans/agent-logs/` sprawl by treating the planning directory as a long-lived log sink
+- the asset-pipeline redesign needs a capability taxonomy, machine-readable compliance surfaces, and separate tool-license versus model-license provenance rather than only coarse source-route labels
 
 ## 3. Current diagnosis summary
 
@@ -116,10 +126,18 @@ These numbers matter because weak models are not navigating a tiny state machine
    - Some proof still depends on string presence instead of round-trip state invariants.
    - The smoke system still has a live failing semantic regression.
 
+5. **Post-closeout pointer convergence is still unreliable.**
+   - Historical downstream evidence shows multiple repos finishing or superseding a lane while `tickets/manifest.json`, workflow active-ticket pointers, and restart surfaces still point at stale closed work.
+   - This is a direct violation of the "one legal next move" contract because the package leaves contradictory active-ticket truth after closeout.
+   - Current GPTTalker evidence shows the failure is not only stale pointers: `START-HERE.md` can still recommend "Continue the required internal lifecycle from the current ticket stage." while the active ticket is already `done`, `open_remediation_tickets` is `0`, and `repair_follow_on.outcome` is `source_follow_up`.
+   - The present audit flow did not flag that illegal next action, which means restart-surface validation is still checking rendered fields more than legal-move semantics.
+
 ### 3.3 Smoke, proof, and validation failures
 
-1. **`validate:smoke` is currently red.**
-   - The missing-explicit-executable case is not being classified the way the harness expects.
+1. **Smoke regressions still matter even though the current command is green.**
+   - On the current `2026-04-14` package run, `npm run validate:smoke` passes.
+   - The earlier missing-explicit-executable regression still belongs in scope because it shaped the smoke contract work: the child-process layer was surfacing `Error: spawn EIO` and the logic only promoted a narrower `missing_executable` host-surface classification for `ENOENT`, exit `127`, or matching stderr text.
+   - The smoke workstream should now focus on making that regression stay dead and on finishing the remaining resume/checkpoint and coverage gaps, not on pretending the top-level smoke command is still the package's current red gate.
 
 2. **Smoke architecture is still fail-fast.**
    - This conflicts with the architecture goal that smoke should collect all actionable failures, not mask later ones.
@@ -128,6 +146,37 @@ These numbers matter because weak models are not navigating a tiny state machine
    - GPTTalker migration validation is fixture-heavy and `/tmp`-based.
    - Godot proof exists, but the package still needs stronger release/finish and import/load guarantees.
    - Public audits are not yet clearly proving asset-pipeline starter surfaces on live game repos.
+   - Current Spinner evidence shows that "Godot headless load passes" is still too weak as a game-quality proxy: the shared spinner core still uses frame-dependent interaction math (`_current_velocity *= friction` each physics frame, drag velocity divided by a hardcoded `0.016`), and exported `hit_radius` values are being treated as verified toddler-safe interaction zones even though the current `InputDetector` never uses `hit_radius` at all.
+   - The latest Spinner audit no longer surfaces those shared gameplay defects, which means Scafforge's current game review/audit path can lose real code-quality findings while continuing to validate workflow surfaces.
+   - Current `glitch` evidence shows the Godot reference-integrity and execution audits are still not extension-boundary-safe: valid `res://...gdshader` references are being truncated to `.gd`, which produces false `EXEC-GODOT-002` and `REF-001` failures against repos whose shader files actually exist.
+   - That means the package can still block a truthful Godot repo on a parser defect inside the audit layer rather than a real missing-file condition.
+   - Current `glitch` evidence also shows that Scafforge can still certify Godot gameplay features by file inspection and method presence even when the live scene wiring is broken: `TouchControls.tscn` has no button `pressed`/`released` hookups into `TouchController`, `Checkpoint.tscn` has no `body_entered` hookup into `Checkpoint.gd`, and `PlayerController._jump_state()` currently falls through to `FALL` immediately on `not is_on_floor()`.
+   - Historical review and QA artifacts still marked those surfaces as passing, which means present Godot review coverage is still too structural and does not yet prove scene-signal integrity or basic controller-state viability.
+   - Current `womanvshorseVA` evidence shows the same weakness at the API-contract layer: review artifacts allowed runtime-incompatible Godot code patterns such as `CanvasLayer` scripts calling `draw_circle()` / `queue_redraw()`, `Node` scripts calling `get_viewport_rect()`, and signal wiring built against `hud.get_script()` instead of the live HUD instance.
+   - `godot4 --headless --path /home/rowan/womanvshorseVA --quit` still fails today with those parse errors, which means present package review/QA still does not systematically prove script-base compatibility, node/script attachment compatibility, or instance-vs-script callable correctness before runtime.
+   - Current `womanvshorseVB` evidence shows that Godot "clean load" proof is still too forgiving at the warning layer: headless startup exits `0` but emits an invalid UID warning and silently falls back from a stale `uid://...` reference in `title_screen.tscn` to the asset path.
+   - The latest VB diagnosis still reported `warnings: 0`, which means current import/load validation is not surfacing warning-level resource-identity drift even when the engine is already recovering from it at runtime.
+   - The package's own multi-stack validation is also currently not green end-to-end: `python3 scripts/integration_test_scafforge.py` fails because `seed_python_cli_target()` writes `from src.proof_python_cli import format_message` into both `tests/test_cli.py` and `src/proof_python_cli/__main__.py`, but the generated package layout does not make `src` importable during pytest collection.
+   - Reproducing the current proof target still yields `ModuleNotFoundError: No module named 'src'`, so the greenfield continuation verifier correctly reports `EXEC002` for the generated Python CLI probe.
+
+4. **Regression control is still too manual.**
+   - The repo defines a canonical validation quartet, but those release-gate commands are not yet enforced by checked-in repo-local CI.
+   - Validation-log narratives are therefore acting as a soft release ledger instead of a continuously enforced guardrail.
+   - On the current host run, the quartet is not green end-to-end because `integration_test_scafforge.py` is still failing even while `validate:contract`, `validate:smoke`, and `validate_gpttalker_migration.py` pass.
+
+5. **Smoke does not yet have explicit resume/checkpoint semantics.**
+   - The current monolith does not persist partial execution checkpoints or idempotency markers, which weakens post-failure diagnosis and resume-style headless execution.
+
+6. **Proof-command validity is still under-policed.**
+   - Current GPTTalker evidence shows that historically accepted migration proof commands can be non-runnable against the repo's real runtime contract.
+   - The recorded `FIX-018` command shape uses `sqlite3.connect(':memory:')` and a sync-style call into an async `DatabaseManager` / `run_migrations` path; rerunning that command against the current repo still fails with `TypeError: object sqlite3.Cursor can't be used in 'await' expression`.
+   - This means the package still allows tickets, audits, and review artifacts to treat command-shaped prose as proof even when the command is type-invalid or drifted away from the actual runtime API.
+   - Current Godot release evidence shows this is also a live package inconsistency: `skills/ticket-pack-builder/SKILL.md` and `skills/ticket-pack-builder/scripts/apply_remediation_follow_up.py` still emit `godot --headless --path . --export-debug Android ...` while the template and audit now expect `Android Debug`.
+   - Rerunning that stale command shape against the current `glitch` repo fails immediately with `Invalid export preset name: Android.`, proving the package can still generate acceptance commands that are syntactically wrong for the repo surfaces it just produced.
+
+7. **Host/path leakage still reaches durable repo surfaces.**
+   - Current Spinner evidence shows operator-specific absolute paths still land in live ticket acceptance and validation commands such as `godot4 --headless --path /home/pc/projects/spinner ...`.
+   - That leakage is not confined to archived diagnosis packs; it remains in current repo ticket surfaces (`BUGFIX-NAV-004`, `BUGFIX-NAV-005`, and corresponding manifest entries), which weakens portability, makes copied evidence less truthful on another machine, and obscures whether a command is meant to be repo-relative or host-specific.
 
 ### 3.4 Asset-pipeline failures
 
@@ -172,6 +221,19 @@ These numbers matter because weak models are not navigating a tiny state machine
    - the current flow leans on stack-label and keyword inference
    - the womanvshorse repos show that canonical brief route truth is not being fully propagated into seeded metadata, route-specific agents, route-specific skills, and tickets
 
+8. **The pipeline still collapses tool provenance and model provenance together.**
+   - local AI generation stacks can be open-source while the actual checkpoint or model weights carry different commercial, attribution, or non-commercial restrictions
+   - the current provenance story does not yet enforce tool-level versus model-level license policy separately
+
+9. **The seeded asset surfaces are too small for serious compliance and import QA.**
+   - `assets/pipeline.json` and `assets/PROVENANCE.md` are not enough on their own for route selection, attribution generation, workflow capture, import QA, or license-policy enforcement
+
+10. **Asset-role decomposition is too coarse for weak-model downstream execution.**
+   - the current starter hints do not yet split route strategy, sourcing, generation, optimization, and provenance audit into narrow enough responsibilities
+
+11. **Route-specific finish proof is still underdefined.**
+   - historical womanvshorse evidence shows that export success or route presence is not enough; the route also needs route-appropriate runtime/playability/visual proof and, where relevant, screenshot-backed or artifact-backed finish review
+
 ### 3.5 Womanvshorse learnings already visible
 
 1. **VA** proves that procedural/programmatic art is a real route, not a placeholder route.
@@ -180,10 +242,13 @@ These numbers matter because weak models are not navigating a tiny state machine
 2. **VB** proves that provenance-heavy free/open sourcing works, but it needs deeper license/credits/import tooling.
    - `assets/PROVENANCE.md` is rich and concrete here.
    - it also shows repo-bloat and sanitization problems that the package should help prevent.
+   - Current live VB evidence also shows import validation must cover Godot resource-identity cleanliness, not just file presence: `title_screen.tscn` still carries a stale texture UID that headless load downgrades into a warning and a path fallback.
 
 3. **VC** proves that Blender-MCP is viable as a route, but it needs stronger briefs, richer provenance, persistence discipline, import validation, and budgets.
    - Current provenance is only two lines for the two generated models.
    - it also needs a clearer workfile policy so intermediate Blender files do not leak into final runtime asset areas.
+   - Current live VC evidence shows the route can still outrun the runnable baseline entirely: `MODEL-001` and `MODEL-002` are marked done while `SETUP-001` and `SETUP-002` remain open, `project.godot` still has no `run/main_scene`, and the repo has no `scenes/` or `scripts/` surfaces at all.
+   - The current VC ticket graph even inverts the dependency spine (`SETUP-001` depends on `MODEL-006`, while `MODEL-*` tickets depend on nothing), which means the package still needs an explicit "minimal runnable baseline before specialization" contract for Blender-MCP and other asset-heavy routes.
 
 4. **VD** proves that Godot-native creation is also a first-class route.
    - The pipeline must still record the route explicitly even when there are no external assets to track.
@@ -195,6 +260,11 @@ These numbers matter because weak models are not navigating a tiny state machine
 2. `.running-pids` and temp-path coupling suggest process debris and host-specific assumptions are still leaking into durable evidence.
 3. Live repos appear to lag template truth.
 4. Some reports describe stale optimistic states that no longer match live validators.
+5. Package-root documentation and actual operating surfaces have drifted apart.
+6. `active-plans/agent-logs/` is currently mixed into the same tree as live planning documents.
+7. The repo still depends too much on markdown validation narratives instead of automated regression enforcement.
+8. Historical session evidence shows that downstream no-hand-edit governance is still too easy to violate when package and repo truth surfaces drift.
+9. Project-scoped discovery tools versus external SDK/template paths remain an under-specified friction point for headless game validation.
 
 ## 4. Non-negotiable design decisions for the repair
 
@@ -274,10 +344,10 @@ Start implementation from live truth, not from stale documents or optimistic mem
 
 #### Primary files
 
-- `active-plans/validation-log.md`
-- `active-plans/root-cause-map.md`
-- `active-plans/blocker-register.md`
-- `active-plans/fullassessment1104261519.md`
+- `archive/archived-diagnosis-plans/active-plans-review-2026-04-14/validation-log.md`
+- `archive/archived-diagnosis-plans/active-plans-review-2026-04-14/root-cause-map.md`
+- `archive/archived-diagnosis-plans/active-plans-review-2026-04-14/blocker-register.md`
+- `archive/archived-diagnosis-plans/active-plans-review-2026-04-14/fullassessment1104261519.md`
 - `reports/gpttalker-validation/latest.*`
 
 #### Verification
@@ -357,6 +427,18 @@ Make lifecycle truth live in one authoritative runtime contract instead of being
   - team-leader prompt
   - `docs/process/workflow.md`
   - restart surfaces
+- explicitly converge post-closeout and post-supersede truth so:
+  - `tickets/manifest.json`
+  - workflow active-ticket pointers
+  - stage/status
+  - restart surfaces
+  all foreground the same next live lane instead of a closed ticket
+- make recommended next-action generation fail closed when the active ticket is already `done`:
+  - if split children or blocked dependents remain, foreground them
+  - if historical reconciliation or trust restoration remains, name `ticket_reconcile` or `ticket_reverify`
+  - if `repair_follow_on.outcome == source_follow_up`, route to the actual source-follow-up target instead of the closed ticket's prior stage
+  - never emit the generic "continue the current ticket stage" fallback for a closed ticket with no legal lifecycle move
+- add an audit-visible invariant for restart-surface legality, not only rendered-field agreement, so audits fail when `Next Action` points at a closed ticket or impossible tool path
 
 #### Planned simplification move
 
@@ -384,6 +466,9 @@ Also explicitly separate **legal-next-move state** from **audit/repair telemetry
 - snapshot tests prove one legal next move for every stage and relevant blocker state
 - stage/status mismatches become mechanically hard to produce
 - `ticket_lookup`, prompts, workflow docs, and restart surfaces agree on the same next action
+- post-closeout and post-supersede proofs keep manifest/workflow/restart pointers converged on the same current lane
+- closed-ticket + `source_follow_up` states never emit a restart instruction that tells the operator to continue the closed ticket's lifecycle stage
+- audit checks fail if `START-HERE.md` presents a next action that is inconsistent with the legal action card derived from canonical state
 
 ### Workstream 4: Simplify artifact production without losing rigor
 
@@ -496,13 +581,16 @@ End the current multi-authority drift.
 - verify that repair-side and runtime-side restart publication do not reintroduce duplicate authority
 - collapse restart guidance toward one primary next-action surface, with any secondary restart documents strictly derived and minimal
 - treat `START-HERE.md` as the primary human restart surface and require all other restart documents to stay strictly derived from the same next-action contract
+- make restart-surface validation distinguish "field parity" from "action legality" so a surface can fail even when copied fields match but the named next move is impossible
+- teach audit and repair to detect the GPTTalker-class contradiction: active ticket already closed, no open remediation tickets, `source_follow_up` visible, but restart prose still tells the agent to continue the closed ticket stage
 
 #### Verification
 
 - drift tests fail when docs/prompts/tools disagree on stage order, artifact ownership, or next action
 - restart surfaces always match canonical state after mutation and repair
+- restart surfaces also expose a legally executable next move, not just a textually synchronized summary
 
-### Workstream 7: Fix the live smoke failure and harden the broader proof architecture
+### Workstream 7: Fix the remaining proof-gate failures and harden the broader proof architecture
 
 #### Goal
 
@@ -511,12 +599,22 @@ Get the package green again, then make green actually mean something.
 #### Actions
 
 - fix the current missing-executable classification regression
+- normalize platform-specific missing-executable failures such as `spawn EIO` into the same canonical host-surface classification as `ENOENT`
+- preflight executable resolution where possible so explicit-missing-executable cases are classified before command launch semantics distort the signal
 - remove fail-fast masking from the generated smoke tool
+- add resume/checkpoint semantics so partial smoke execution can be resumed or at least diagnosed without losing already-captured command evidence
 - strengthen failure classification semantics
 - ensure stack-specific smoke and finish proof stay truthful
+- fix the current `proof-python-cli` integration fixture so seeded Python CLI probes use an import/package shape that actually collects under pytest
+- make external dependency discovery and explicit command overrides truthful for non-project-scoped assets such as Godot export templates, Android tooling, and other SDK paths
 - strengthen package validation sequencing so the manual validators are part of the standard convergence bar, not hidden extras
+- add checked-in repo-local CI for the canonical validation quartet so release claims are not carried only by markdown logs
+- add regression coverage for the live `spawn EIO` path and any equivalent provider/runtime-specific missing-executable paths
 - compare package green to downstream reality so package green cannot hide live repo drift
 - add audit-stability checks so the same package commit and same repo state do not oscillate between different public findings
+- require remediation acceptance commands and review-command evidence to be executable against the repo's real runtime contract, not just command-shaped text
+- store and validate proof commands as structured runnable inputs (`argv`, env, cwd, interpreter/runtime expectations) so audit and repair can rerun them exactly
+- add a validator path that rejects historically accepted commands when they are sync/async-invalid, target the wrong interpreter, or no longer match the repo's actual entrypoint/API contract
 
 #### Primary files
 
@@ -529,8 +627,15 @@ Get the package green again, then make green actually mean something.
 #### Verification
 
 - `npm run validate:smoke` passes
+- `python3 scripts/integration_test_scafforge.py` passes
 - smoke runs all planned commands and preserves all findings
+- explicit-missing-executable probes classify as `missing_executable` even on the currently observed `spawn EIO` path
+- interrupted or partially completed smoke runs preserve enough checkpoint/evidence state to support deterministic diagnosis and resume
+- Godot/Android smoke probes capture both export success and post-export artifact inspection where the route requires shipped outputs
+- repo-local CI runs the canonical validation quartet and fails closed on regressions
 - package green plus downstream delta checks agree
+- remediation review proof fails closed when the recorded command cannot be rerun successfully on the current repo contract
+- validators distinguish "raw command recorded" from "raw command was actually runnable and produced the claimed outcome"
 
 ### Workstream 8: Eliminate template-live drift and backfill current repos
 
@@ -654,6 +759,71 @@ Turn `asset-pipeline` from a thin generic skill into a robust game-content strat
    - route-aware QA/reviewer support
    - absorb or replicate useful `possibleassethelp` capabilities such as sprite normalization/preview, 3D shipping optimization, and playtest/visual QA guidance
 
+10. **Replace coarse route labels with a capability taxonomy**
+   - `source-open-curated`
+   - `source-mixed-license`
+   - `procedural-2d`
+   - `procedural-layout`
+   - `procedural-world`
+   - `local-ai-2d`
+   - `local-ai-audio`
+   - `reconstruct-3d`
+   - `dcc-assembly`
+   - `optimize-import`
+   - `provenance-compliance`
+
+11. **Seed stronger machine-readable asset surfaces**
+   - `assets/requirements.json`
+   - `assets/manifest.json`
+   - `assets/ATTRIBUTION.md`
+   - `assets/workflows/`
+   - `assets/previews/`
+   - `assets/qa/import-report.json`
+   - `assets/qa/license-report.json`
+   - `.opencode/meta/asset-provenance-lock.json`
+
+12. **Make compliance and import validation first-class**
+   - enforce allowed and denied licenses by policy
+   - distinguish tool license from model-weight license
+   - require author/source URL, tool name, model ID, workflow ID, and version/hash where feasible
+   - validate asset budgets for meshes, textures, and audio
+   - validate Godot import success and version-controlled import metadata where applicable
+   - require preview artifacts for human audit
+
+13. **Split asset work into weaker-model-safe operating roles**
+   - `asset-strategist`
+   - `asset-sourcer`
+   - `texture-ui-generator`
+   - `audio-generator`
+   - `world-builder`
+   - `blender-asset-creator`
+   - `import-optimizer`
+   - `provenance-auditor`
+
+14. **Encode fallback ladders by asset class**
+   - UI/fonts/icons: curated sources first, composition/reskinning second, AI only for bespoke splash art
+   - 2D tiles/sprites: curated packs first, tileset/layout synthesis second, targeted generation only to fill gaps
+   - VFX: Godot-native particles and shaders first
+   - audio: procedural SFX first, curated sourcing second, AI only behind explicit policy
+   - low-poly props: curated low-poly sources plus Blender cleanup
+   - terrain/environments: procedural terrain/layout plus open materials and selective DCC work
+
+15. **Model the asset pipeline as a router plus specialist operating pack**
+   - keep one umbrella entrypoint for asset strategy and route choice
+   - immediately hand off to narrow route-specific specialists instead of one monolithic "make assets" skill
+   - keep runtime/engine architecture, asset shipping, UI/frontend, and playtest/finish review as separate bounded concerns
+
+16. **Require route-appropriate visual and playtest proof**
+   - screenshot-backed or artifact-backed finish review for visible game routes
+   - route-specific runtime import/load validation
+   - playfield/HUD readability checks where the route affects presentation
+   - keep optimization upstream so runtime loaders stay simple and predictable
+
+17. **Harden Blender route operational readiness**
+   - add an asset-description/briefing surface that turns game needs into Blender route tasks
+   - add a registry bridge from Blender outputs into Scafforge asset manifests
+   - automate or at least verify add-on/runtime setup requirements instead of assuming a manually prepared Blender host forever
+
 #### Primary files
 
 - `skills/asset-pipeline/SKILL.md`
@@ -665,13 +835,16 @@ Turn `asset-pipeline` from a thin generic skill into a robust game-content strat
 - `skills/repo-scaffold-factory/scripts/bootstrap_repo_scaffold.py`
 - `skills/repo-scaffold-factory/scripts/verify_generated_scaffold.py`
 - public audit scripts that should inspect live game repos
-- `active-plans/possibleassethelp/*`
+- `archive/archived-diagnosis-plans/active-plans-review-2026-04-14/possibleassethelp/*`
 
 #### Verification
 
 - route scaffolds exist for every game greenfield probe
 - route-specific local skills and agents are generated when metadata demands them
 - public audit can detect missing asset starter surfaces and provenance drift in live game repos
+- route probes distinguish tool-license versus model-license provenance
+- generated asset manifests, attribution, workflow capture, and QA reports stay mutually consistent
+- route-specific finish review uses visual/runtime evidence that matches the selected route rather than generic export success alone
 
 ### Workstream 10: Learn from and backfill all four womanvshorse repos
 
@@ -749,11 +922,26 @@ Prove the simplified workflow on representative repo categories, not only on the
 - restart surfaces match runtime contract
 - interrupted-run resume/hydration returns to canonical state instead of fresh-starting
 - audit reruns are stable for the same package commit and same repo state
+- stack-specific behavior checks actually exercise the representative failure modes of that stack instead of stopping at generic boot success
+- for Godot repos specifically, validation covers interaction invariants such as frame-rate independence, input-zone gating, and UI-overlay isolation from gameplay touch handlers
+- for Godot repos specifically, reference-integrity scanning is extension-boundary-safe and correctly distinguishes scripts from other engine resource types such as shaders instead of truncating valid paths into false missing-script errors
+- for Godot repos specifically, validation proves scene signal hookups for declared gameplay/UI handlers instead of only checking that matching methods exist in `.gd` files
+- for Godot repos specifically, controller-state checks catch impossible or trivially collapsing transitions such as a jump state that immediately demotes itself to fall on every airborne frame
+- for Godot repos specifically, validation proves runtime API compatibility between the attached node type, the script base type, and the methods called in that script instead of assuming any parsed `.gd` body is semantically attachable
+- for Godot repos specifically, load/import proof distinguishes clean success from warningful fallback and surfaces invalid resource UIDs or import-identity drift as actionable findings
+- for Blender-MCP and other asset-heavy game routes specifically, specialization tickets cannot outrun the runnable baseline: `SETUP-001`, `run/main_scene`, and minimal scene/script surfaces must exist before model-generation tickets can close
 
 #### Verification
 
 - each representative probe has explicit expected outputs and pass criteria
 - no stack silently falls back to Python-shaped assumptions
+- Godot probes fail when shared gameplay helpers accept dead tuning vars as "verified" or when interaction behavior changes materially across frame rates
+- Godot audit probes do not emit `EXEC-GODOT-002` / `REF-001` false positives for valid non-script engine resources such as `.gdshader`
+- Godot probes fail when scene-owned input or checkpoint behavior depends on unwired `.tscn` signal connections that review/QA artifacts claimed were already verified
+- Godot release proofs fail when package-generated export commands use a preset name that does not match the repo's actual `export_presets.cfg`
+- Godot probes fail when scripts rely on APIs that do not exist on their declared base type or on the node type they are attached to
+- Godot probes surface warning-level resource UID/import drift instead of silently treating warningful loads as clean proof
+- asset-heavy route probes fail when model/content tickets can complete ahead of a runnable baseline (`run/main_scene`, minimal scene tree, and setup ticket chain)
 
 ### Workstream 12: Run the downstream proof loop until smooth
 
@@ -809,6 +997,12 @@ Make Scafforge itself easier to audit, reason about, and bisect.
 - relocate or archive stale logs and heavy evidence that no longer belong in active canonical locations
 - clean `.running-pids` handling and other process debris
 - reduce hardcoded host/tmp path assumptions where they are still leaking into proof
+- eliminate operator-specific absolute paths from durable generated repo surfaces such as ticket acceptance text, review instructions, audit manifests, and canned validation commands unless the path is explicitly categorized as host-local evidence
+- reconcile package-root docs with the actual package operating surfaces so `AGENTS.md`, `README.md`, and archive references stop telling different stories about where package work lives
+- separate active planning documents from long-lived execution logs so `active-plans/` no longer doubles as the default runtime log sink
+- stop treating markdown validation narratives as sufficient release truth without automated corroboration
+- strengthen runner/docs/contract language so no-direct-downstream governance is explicit, checkable, and hard to accidentally violate during package work
+- document and validate when agents must use `bash` rather than project-scoped discovery tools for external SDK/template discovery
 - update:
   - `README.md`
   - `architecture.md`
@@ -821,6 +1015,9 @@ Make Scafforge itself easier to audit, reason about, and bisect.
 - docs match code truth
 - active evidence surfaces are clearly canonical or historical
 - runtime debris is no longer confusing code review
+- the package repo itself exposes one clear legal next move for package work with no root-surface contradiction
+- active planning docs and archived log evidence are clearly separated
+- governance docs and runner prompts consistently forbid direct downstream edits for governed repos
 
 ### Workstream 14: Final convergence gate
 
@@ -831,11 +1028,14 @@ End only when the package, the generated contract, and the live downstream repos
 #### Final gate requirements
 
 - package validators pass
+- repo-local CI for the canonical validation quartet is green
 - new workflow simplification regressions pass
 - asset-pipeline route probes pass
 - representative cross-stack probes pass
 - downstream audits no longer show package-owned workflow defects
 - downstream continuation is smooth in practice
+- post-closeout pointer convergence is green on all proof repos
+- finish proof is route-appropriate and not satisfied by export existence alone
 - docs and restart surfaces match runtime truth
 - repeated audits on the same package commit and same repo state do not oscillate
 - resume/hydration proof is green
@@ -868,6 +1068,8 @@ Build or expand replayable proofs for:
 - stage-owner mismatch
 - coordinator artifact authorship traps
 - bootstrap-not-ready routing
+- post-closeout pointer convergence
+- supersede/reopen pointer convergence
 
 ### 6.3 Weak-model "would an idiot know what to do?" proofs
 
@@ -913,6 +1115,7 @@ For each, prove:
 - machine-readable provenance and human-readable provenance remain aligned
 - route-specific verification actually runs
 - public audit can detect missing package-owned asset surfaces
+- route-specific finish review uses visual/runtime evidence that matches the selected route rather than generic export success alone
 
 ### 6.5 Cross-stack proofs
 
@@ -926,6 +1129,7 @@ Run representative probes across supported stack families and verify:
 - repair behavior
 - interrupted-run resume/hydration behavior
 - audit stability under repeated runs on the same state
+- the proof fixtures and seeded representative repos are themselves import-valid, runnable, and aligned with the packaging/layout conventions they claim to represent
 
 ### 6.6 Live downstream proofs
 
@@ -935,6 +1139,8 @@ For `GPTTalker`, `spinner`, `glitch`, and `womanvshorseVA/VB/VC/VD`:
 - repair if needed
 - continue
 - observe whether the repo now runs smoothly
+- verify post-closeout active-ticket/workflow/restart convergence
+- verify diagnosis freshness after package changes instead of trusting stale packs
 
 Use explicit live proof commands where applicable, not just package fixtures. At minimum the plan must cover:
 
@@ -942,13 +1148,24 @@ Use explicit live proof commands where applicable, not just package fixtures. At
 - `./scripts/run_agent.sh {gpttalker,spinner,glitch,wvhva,wvhvb,wvhvc,wvhvd} --repair`
 - `./scripts/run_agent.sh {gpttalker,spinner,glitch,wvhva,wvhvb,wvhvc,wvhvd} --continue`
 - GPTTalker startup/tool exposure proof
+- GPTTalker restart-surface legality proof for the closed-ticket + `source_follow_up` state
+- GPTTalker migration-proof command validity proof against the repo's actual async database contract
 - Godot headless load proof for game repos
 - Godot Android export proof where required
 - APK inspection for produced Android artifacts
+- Godot audit-finding truthfulness proof for game repos, including a fixture that contains valid shader/resource references and must not trip missing-script or missing-resource findings
+- Godot command-truthfulness proof that package-generated Android export commands use the same preset name the scaffold actually emitted
 
 For `GPTTalker`, specifically verify the workflow that produced `gpttalkerstuck1.md` no longer traps the agent in formatting/lifecycle confusion.
+Also verify that no generated or repaired GPTTalker state can surface a closed-ticket `Next Action`, and that any remediation acceptance command preserved in tickets or review artifacts still executes successfully under the live runtime contract.
 
 For `spinner`, `glitch`, and womanvshorse game repos, verify both workflow smoothness and route-appropriate game/asset proof.
+For `spinner`, specifically verify that shared gameplay helpers no longer pass package review with frame-dependent interaction math, dead `hit_radius` configuration, or adult-control touches that can still route into toy-spin handling.
+For `glitch`, specifically verify that valid Godot shader/resource references no longer trip false `EXEC-GODOT-002` or `REF-001` findings during audit reruns.
+Also verify that game-scene signal wiring is real rather than implied by method names, and that package-generated Godot release commands still match the preset name and arguments the repo actually exposes.
+For `womanvshorseVA`, specifically verify that runtime-incompatible Godot API usage (wrong base class, wrong attached node type, or Script-resource callable misuse) cannot pass review/QA before the repo hits runtime.
+For `womanvshorseVB`, specifically verify that headless Godot proof no longer treats invalid UID fallback warnings as a clean pass.
+For `womanvshorseVC`, specifically verify that Blender-route model-generation work cannot outrun `SETUP-001` / `run/main_scene` / minimal scene-script baseline creation.
 
 ### 6.7 Propagation and version proofs
 
@@ -963,6 +1180,7 @@ For every generated or repaired repo in proof scope, verify:
 Verify that:
 
 - host-specific or `/tmp`-specific assumptions do not leak into durable contract truth
+- generated tickets, acceptance criteria, restart guidance, and canned validation commands use repo-relative paths or explicit placeholders instead of machine-specific absolute paths
 - provider fallback behaves in the required order: Codex -> Kilo -> Copilot
 - skill sync is performed before proof on every changed skill family
 
@@ -983,7 +1201,7 @@ Verify that:
 4. simplify artifact submission
 5. redesign `repair_follow_on` and `managed_blocked`
 6. align prompts, tools, docs, and restart surfaces
-7. fix the live smoke failure and harden proof architecture
+7. fix the remaining proof-gate failures and harden proof architecture
 8. eliminate template-live drift and backfill current repos
 9. redesign the asset pipeline
 10. synthesize womanvshorse route learnings and backfill those repos
@@ -991,6 +1209,30 @@ Verify that:
 12. run downstream proof loops until smooth
 13. repair evidence hygiene and docs drift
 14. hold the final convergence gate only when all proof layers agree
+
+### 8.1 Section-addressable todo index
+
+- `TODO-01` — Execute **Workstream 1: Rebuild the baseline and freeze a truth ledger** and close it only after **6.1 Package validators** is rerun with current evidence recorded.
+- `TODO-02` — Execute **Workstream 2: Build a workflow cognition inventory and failure taxonomy** and close it only after the simplification proofs in **6.2** and weak-model routing proofs in **6.3** show the new taxonomy is actually usable.
+- `TODO-03` — Execute **Workstream 3: Centralize lifecycle, next-action, and ownership truth** and close it only after **6.2** and the restart-surface portions of **6.6** show one legal next move with no contradictory owners.
+- `TODO-04` — Execute **Workstream 4: Simplify artifact production without losing rigor** and close it only after artifact evidence quality passes **6.2**, **6.3**, and the package validator reruns in **6.1**.
+- `TODO-05` — Execute **Workstream 5: Redesign `repair_follow_on` and `managed_blocked`** and close it only after **6.2**, **6.6**, and **6.7** prove truthful restart routing and versioned follow-on state.
+- `TODO-06` — Execute **Workstream 6: Align stage-gate, ticket tools, prompts, docs, and restart surfaces** and close it only after **6.2**, **6.3**, and **6.7** all agree on the same lifecycle contract.
+- `TODO-07` — Execute **Workstream 7: Fix the remaining proof-gate failures and harden the broader proof architecture** and close it only after every command in **6.1** is green and the smoke/proof-specific requirements in **6.5** and **6.6** are satisfied.
+- `TODO-08` — Execute **Workstream 8: Eliminate template-live drift and backfill current repos** and close it only after **6.6** and **6.7** show current downstream repos actually match current package truth.
+- `TODO-09` — Execute **Workstream 9: Redesign the asset pipeline into a serious game-content framework** and close it only after **6.4 Asset-pipeline proofs** pass for every supported route family.
+- `TODO-10` — Execute **Workstream 10: Learn from and backfill all four womanvshorse repos** and close it only after the womanvshorse-specific checks in **6.6** pass on live repos.
+- `TODO-11` — Execute **Workstream 11: Extend validation to cover any repo type, not just current downstreams** and close it only after **6.5 Cross-stack proofs** passes on every representative probe.
+- `TODO-12` — Execute **Workstream 12: Run the downstream proof loop until smooth** and close it only after the downstream matrix in **6.6** is green without hand-edited exceptions.
+- `TODO-13` — Execute **Workstream 13: Repair evidence hygiene, host coupling, and documentation drift** and close it only after **6.8 Host/path and provider-fallback proofs** passes and the evidence/command contracts in **6.1** and **6.6** remain green.
+- `TODO-14` — Execute **Workstream 14: Final convergence gate** and close it only after the full verification matrix in **6.1-6.8** passes and the no-regression rules in **7** still hold.
+
+### 8.2 Todo completion contract
+
+- A todo is not done when code lands; it is done only when the linked workstream actions are complete, the linked verification section passes, and the evidence is current for the package commit being evaluated.
+- Any todo that changes generated behavior must include at least one rerun from **6.5** or **6.6** plus the relevant package validator reruns from **6.1**.
+- Any todo that changes restart, lifecycle, ticket, or repair truth must prove that `START-HERE.md`, workflow state, and ticket state remain convergent under **6.2**, **6.3**, and **6.7**.
+- Any todo that changes asset or game routes must prove route-specific validation under **6.4** and live downstream behavior under **6.6** before it can be marked complete.
 
 ## 9. Notes and constraints
 

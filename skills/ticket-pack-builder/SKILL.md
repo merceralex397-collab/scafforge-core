@@ -126,7 +126,7 @@ For Godot Android repos, always create:
 
 `RELEASE-001` acceptance must cover:
 
-- `godot --headless --path . --export-debug Android build/android/<project-slug>-debug.apk` or the exact resolved Godot-binary equivalent succeeds (runnable proof)
+- `godot --headless --path . --export-debug "Android Debug" build/android/<project-slug>-debug.apk` or the exact resolved Godot-binary equivalent succeeds (runnable proof)
 - the APK exists at `build/android/<project-slug>-debug.apk`
 - `unzip -l` confirms Android manifest plus compiled classes or resources content
 - when the finish contract requires packaged delivery: a signed release APK or AAB exists and `SIGNING-001` is closed

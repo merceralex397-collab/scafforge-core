@@ -53,7 +53,7 @@ This is more than cosmetic drift. The competence contract defines Scafforge as i
 
 Scafforge defines its own package release-gate commands clearly: `npm run validate:contract`, `npm run validate:smoke`, `python3 scripts/integration_test_scafforge.py`, and `python3 scripts/validate_gpttalker_migration.py` are the canonical package-level validators.[^1][^14] But there are no checked-in GitHub workflow files under `.github/` that run those commands on push or PR; the remote Actions inventory only shows dynamic Copilot review/agent workflows and CodeQL, and the GitHub issue tracker is empty.[^8]
 
-In practice, the repo is using markdown logs as a manual validation ledger. `active-plans/validation-log.md` records “package validation is green again” across many working-tree changes, but those green claims were not enough to prevent today’s smoke regression from sitting at `HEAD`.[^3][^9] The result is a release process where regressions can coexist with recent “validated” narratives, which is exactly the kind of trust gap Scafforge is supposed to remove from generated repos.[^7]
+In practice, the repo is using markdown logs as a manual validation ledger. `archive/archived-diagnosis-plans/active-plans-review-2026-04-14/validation-log.md` records “package validation is green again” across many working-tree changes, but those green claims were not enough to prevent today’s smoke regression from sitting at `HEAD`.[^3][^9] The result is a release process where regressions can coexist with recent “validated” narratives, which is exactly the kind of trust gap Scafforge is supposed to remove from generated repos.[^7]
 
 ### 4. The smoke subsystem is still structurally brittle even aside from today’s regression
 
@@ -117,14 +117,14 @@ That matters because a lot of Scafforge’s archived plans are intentionally his
 [^6]: `/home/pc/projects/Scafforge/AGENTS.md:55-72`; `/home/pc/projects/Scafforge/README.md:46-52`; `/home/pc/.copilot/session-state/c55ec71d-3cd5-464b-a412-acd49aa80b86/files/research-evidence.md:72-76`; `/home/pc/projects/Scafforge/references/archived-diagnosis-plans/IMPLEMENTATION-HANDOFF.md:1-18`.
 [^7]: `/home/pc/projects/Scafforge/references/competence-contract.md:1-15`.
 [^8]: `/home/pc/projects/Scafforge/package.json:28-30`; `/home/pc/.copilot/session-state/c55ec71d-3cd5-464b-a412-acd49aa80b86/files/research-evidence.md:78-83`.
-[^9]: `/home/pc/projects/Scafforge/active-plans/validation-log.md:7-12`; commit `6db058fa37699ee0694fff0a2ec76b63e5a8fced`.
-[^10]: `/home/pc/projects/Scafforge/active-plans/bug-and-structural-flaw-register.md:54-72`; `/home/pc/projects/Scafforge/active-plans/root-cause-map.md:34-43,73-82,86-108`; `/home/pc/projects/Scafforge/active-plans/blocker-register.md:8-24`; `/home/pc/projects/Scafforge/skills/skill-flow-manifest.json:12-24`.
+[^9]: `/home/pc/projects/Scafforge/archive/archived-diagnosis-plans/active-plans-review-2026-04-14/validation-log.md:7-12`; commit `6db058fa37699ee0694fff0a2ec76b63e5a8fced`.
+[^10]: `/home/pc/projects/Scafforge/archive/archived-diagnosis-plans/active-plans-review-2026-04-14/bug-and-structural-flaw-register.md:54-72`; `/home/pc/projects/Scafforge/archive/archived-diagnosis-plans/active-plans-review-2026-04-14/root-cause-map.md:34-43,73-82,86-108`; `/home/pc/projects/Scafforge/archive/archived-diagnosis-plans/active-plans-review-2026-04-14/blocker-register.md:8-24`; `/home/pc/projects/Scafforge/skills/skill-flow-manifest.json:12-24`.
 [^11]: `/home/pc/projects/Scafforge/skills/scafforge-repair/scripts/apply_repo_process_repair.py:765-801,1451-1635`.
-[^12]: `/home/pc/projects/Scafforge/active-plans/bug-and-structural-flaw-register.md:3-40`.
-[^13]: `/home/pc/projects/Scafforge/active-plans/fullassessment1104261519.md:177-252`; `/home/pc/.copilot/session-state/c55ec71d-3cd5-464b-a412-acd49aa80b86/files/research-evidence.md:60-70`.
+[^12]: `/home/pc/projects/Scafforge/archive/archived-diagnosis-plans/active-plans-review-2026-04-14/bug-and-structural-flaw-register.md:3-40`.
+[^13]: `/home/pc/projects/Scafforge/archive/archived-diagnosis-plans/active-plans-review-2026-04-14/fullassessment1104261519.md:177-252`; `/home/pc/.copilot/session-state/c55ec71d-3cd5-464b-a412-acd49aa80b86/files/research-evidence.md:60-70`.
 [^14]: `/home/pc/projects/Scafforge/AGENTS.md:86-94`; `/home/pc/projects/Scafforge/README.md:22-29`.
-[^15]: `/home/pc/projects/Scafforge/architecture.md:199-215`; `/home/pc/projects/Scafforge/active-plans/smoke-tool-decomposition.md:1-27`; `/home/pc/projects/Scafforge/skills/repo-scaffold-factory/assets/project-template/.opencode/tools/smoke_test.ts:878-886`.
-[^16]: `/home/pc/projects/Scafforge/active-plans/implementation-log.md:5-15`.
+[^15]: `/home/pc/projects/Scafforge/architecture.md:199-215`; `/home/pc/projects/Scafforge/archive/archived-diagnosis-plans/active-plans-review-2026-04-14/smoke-tool-decomposition.md:1-27`; `/home/pc/projects/Scafforge/skills/repo-scaffold-factory/assets/project-template/.opencode/tools/smoke_test.ts:878-886`.
+[^16]: `/home/pc/projects/Scafforge/archive/archived-diagnosis-plans/active-plans-review-2026-04-14/implementation-log.md:5-15`.
 [^17]: `/home/pc/projects/Scafforge/scripts/run_agent.sh:17-20,127-148,151-260`.
-[^18]: `/home/pc/projects/Scafforge/architecture.md:123-131`; `/home/pc/projects/Scafforge/active-plans/bug-and-structural-flaw-register.md:5-10`.
-[^19]: `/home/pc/projects/Scafforge/active-plans/validation-log.md:24-30,36-37`; `/home/pc/projects/Scafforge/active-plans/fullassessment1104261519.md:13-24,49-52`.
+[^18]: `/home/pc/projects/Scafforge/architecture.md:123-131`; `/home/pc/projects/Scafforge/archive/archived-diagnosis-plans/active-plans-review-2026-04-14/bug-and-structural-flaw-register.md:5-10`.
+[^19]: `/home/pc/projects/Scafforge/archive/archived-diagnosis-plans/active-plans-review-2026-04-14/validation-log.md:24-30,36-37`; `/home/pc/projects/Scafforge/archive/archived-diagnosis-plans/active-plans-review-2026-04-14/fullassessment1104261519.md:13-24,49-52`.

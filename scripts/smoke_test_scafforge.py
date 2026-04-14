@@ -308,6 +308,36 @@ def seed_minimal_godot_project(dest: Path) -> None:
     )
 
 
+def seed_godot_shader_reference_fixture(dest: Path) -> None:
+    seed_minimal_godot_project(dest)
+    (dest / "scenes" / "main.tscn").write_text(
+        "\n".join(
+            [
+                '[gd_scene format=3]',
+                "",
+                '[ext_resource type="Shader" path="res://shaders/glitch_pulse.gdshader" id="1"]',
+                '[ext_resource type="Script" path="res://scripts/player.gd" id="2"]',
+                "",
+                '[node name="Main" type="Node2D"]',
+                'material = ExtResource("1")',
+                'script = ExtResource("2")',
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    (dest / "shaders").mkdir(parents=True, exist_ok=True)
+    (dest / "shaders" / "glitch_pulse.gdshader").write_text(
+        "shader_type canvas_item;\n",
+        encoding="utf-8",
+    )
+    (dest / "scripts").mkdir(parents=True, exist_ok=True)
+    (dest / "scripts" / "player.gd").write_text(
+        "extends Node2D\n",
+        encoding="utf-8",
+    )
+
+
 def append_manifest_ticket(dest: Path, ticket: dict[str, Any]) -> None:
     manifest_path = dest / "tickets" / "manifest.json"
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
@@ -5338,6 +5368,13 @@ def main() -> int:
             raise RuntimeError(
                 "Managed repair follow-on should create the canonical Android export and release tickets for Godot Android repos"
             )
+        release_acceptance = "\n".join(
+            item for item in release_ticket.get("acceptance", []) if isinstance(item, str)
+        )
+        if '--export-debug "Android Debug"' not in release_acceptance:
+            raise RuntimeError(
+                "RELEASE-001 acceptance should use the exact Android Debug preset name emitted by the scaffold and audit contract"
+            )
         missing_repair_surfaces = [
             relative
             for relative in ("export_presets.cfg", "android/scafforge-managed.json")
@@ -10120,6 +10157,22 @@ Overall Result: PASS
         if "node_modules" in ref_evidence:
             raise RuntimeError(
                 "Reference-integrity audit should ignore broken imports under excluded dependency trees such as node_modules"
+            )
+
+        godot_shader_ref_dest = workspace / "godot-shader-reference-fixture"
+        shutil.copytree(full_dest, godot_shader_ref_dest)
+        make_stack_skill_non_placeholder(godot_shader_ref_dest)
+        seed_godot_shader_reference_fixture(godot_shader_ref_dest)
+        godot_shader_ref_audit = run_json(
+            [sys.executable, str(AUDIT), str(godot_shader_ref_dest), "--format", "json"],
+            ROOT,
+        )
+        godot_shader_ref_codes = {
+            finding["code"] for finding in godot_shader_ref_audit.get("findings", [])
+        }
+        if "EXEC-GODOT-002" in godot_shader_ref_codes or "REF-001" in godot_shader_ref_codes:
+            raise RuntimeError(
+                "Audit should not truncate valid .gdshader references into false EXEC-GODOT-002 or REF-001 findings"
             )
 
         broken_venv_dest = workspace / "broken-venv"

@@ -57,6 +57,7 @@ SMOKE_GODOT_ERROR_PATTERN = re.compile(
     re.IGNORECASE,
 )
 SMOKE_PASS_SAFE_FAILURE_CLASSIFICATIONS: frozenset[str] = frozenset({"none", "null", "undefined", "n/a"})
+GODOT_RESOURCE_PATH_PATTERN = re.compile(r'res://([^"\r\n]+)')
 
 
 def iter_source_files(root: Path, suffixes: tuple[str, ...]) -> list[Path]:
@@ -70,6 +71,18 @@ def iter_source_files(root: Path, suffixes: tuple[str, ...]) -> list[Path]:
                 continue
             results.append(path)
     return results
+
+
+def iter_godot_resource_paths(text: str) -> list[str]:
+    seen: set[str] = set()
+    paths: list[str] = []
+    for match in GODOT_RESOURCE_PATH_PATTERN.finditer(text):
+        resource_path = match.group(1).strip().rstrip(",)]}")
+        if not resource_path or resource_path in seen:
+            continue
+        seen.add(resource_path)
+        paths.append(resource_path)
+    return paths
 
 
 @dataclass(frozen=True)
@@ -917,10 +930,10 @@ def audit_godot_execution(root: Path, findings: list[Finding], ctx: ExecutionSur
     broken_scene_refs: list[str] = []
     for path in list(root.rglob("*.tscn")) + list(root.rglob("*.tres")):
         text = ctx.read_text(path)
-        for match in re.finditer(r'res://([^"\n]+\.(?:gd|cs|tscn|tres))', text):
-            target = root / match.group(1)
+        for resource_path in iter_godot_resource_paths(text):
+            target = root / resource_path
             if not target.exists():
-                broken_scene_refs.append(f"{ctx.normalize_path(path, root)} -> res://{match.group(1)}")
+                broken_scene_refs.append(f"{ctx.normalize_path(path, root)} -> res://{resource_path}")
     if broken_scene_refs:
         _add_execution_finding(findings, ctx, code="EXEC-GODOT-002", severity="error", problem="Godot scenes or resources reference missing files.", root_cause="Scene/resource manifests contain res:// links that no longer resolve, so the project cannot load those assets or scripts deterministically.", files=[project_file], safer_pattern="Scan Godot scene and resource manifests for res:// references and fail audit when the target file is missing.", evidence=broken_scene_refs[:8], root=root)
 
@@ -1246,10 +1259,12 @@ def audit_reference_integrity(root: Path, findings: list[Finding], ctx: Executio
     scene_missing: list[str] = []
     for path in list(root.rglob("*.tscn")) + list(root.rglob("*.tres")):
         text = ctx.read_text(path)
-        for match in re.finditer(r'res://([^"\n]+\.(?:gd|cs))', text):
-            target = root / match.group(1)
+        for resource_path in iter_godot_resource_paths(text):
+            if Path(resource_path).suffix not in {".gd", ".cs"}:
+                continue
+            target = root / resource_path
             if not target.exists():
-                scene_missing.append(f"{ctx.normalize_path(path, root)} -> res://{match.group(1)}")
+                scene_missing.append(f"{ctx.normalize_path(path, root)} -> res://{resource_path}")
     if scene_missing:
         _add_execution_finding(findings, ctx, code="REF-001", severity="error", problem="Scene or resource files reference missing script files.", root_cause="Engine-managed scene and resource surfaces contain file references that do not resolve in the repo tree.", files=[root / path.split(" -> ", 1)[0] for path in scene_missing[:1] if " -> " in path], safer_pattern="Audit scene and resource manifests for referenced scripts and fail when the referenced file is absent.", evidence=scene_missing[:8], root=root)
 

@@ -324,7 +324,7 @@ What it still should not promise is full autonomous free AAA-grade character/wor
 [^skill]: `skills/asset-pipeline/SKILL.md` lines 17-88 and 92-202.
 [^init]: `skills/asset-pipeline/scripts/init_asset_pipeline.py` lines 75-250.
 [^prov]: `skills/asset-pipeline/scripts/validate_provenance.py` lines 14-81.
-[^blend]: `active-plans/blender-agent-assessment.md` lines 28-33 and 63-87.
+[^blend]: `archive/archived-diagnosis-plans/active-plans-review-2026-04-14/blender-agent-assessment.md` lines 28-33 and 63-87.
 [^kenney]: Kenney support page: <https://kenney.nl/support>
 [^quaternius]: Quaternius FAQ: <https://quaternius.com/faq.html>
 [^polyhaven]: Poly Haven license page: <https://polyhaven.com/license>

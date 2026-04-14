@@ -713,7 +713,7 @@ def build_android_signing_ticket(*, wave: int, source_ticket_id: str | None) -> 
 
 def build_android_release_ticket(*, wave: int, source_ticket_id: str | None, repo_root: Path, feature_gate_ids: list[str] | None = None) -> dict[str, Any]:
     apk_relpath = expected_android_debug_apk_relpath(repo_root)
-    export_command = f"godot --headless --path . --export-debug Android {apk_relpath}"
+    export_command = f'godot --headless --path . --export-debug "Android Debug" {apk_relpath}'
     needs_deliverable = requires_packaged_android_product(repo_root)
     gate_ids: list[str] = list(feature_gate_ids) if feature_gate_ids else []
     depends_on: list[str] = ([ANDROID_SIGNING_TICKET_ID] + gate_ids) if needs_deliverable else gate_ids
