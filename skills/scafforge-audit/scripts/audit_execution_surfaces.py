@@ -58,6 +58,33 @@ SMOKE_GODOT_ERROR_PATTERN = re.compile(
 )
 SMOKE_PASS_SAFE_FAILURE_CLASSIFICATIONS: frozenset[str] = frozenset({"none", "null", "undefined", "n/a"})
 GODOT_RESOURCE_PATH_PATTERN = re.compile(r'res://([^"\r\n]+)')
+GODOT_SIGNAL_CONNECTION_METHOD_PATTERN = re.compile(r'^\[connection\s+[^\]]*method="([^"]+)"', re.MULTILINE)
+GODOT_EXT_RESOURCE_PATTERN = re.compile(r'^\[ext_resource\s+[^\]]*path="res://([^"]+)"[^\]]*id=(?:"([^"]+)"|([0-9]+))', re.MULTILINE)
+GODOT_SCRIPT_EXT_RESOURCE_PATTERN = re.compile(r'script\s*=\s*ExtResource\(\s*"?(?P<id>[^"\)\s]+)"?\s*\)')
+GODOT_SIGNAL_HANDLER_PATTERN = re.compile(r'^\s*func\s+(_on_[A-Za-z0-9_]+)\s*\(', re.MULTILINE)
+GODOT_UID_WARNING_PATTERN = re.compile(r'WARNING:\s+.+invalid UID:.+using text path instead:.+', re.IGNORECASE)
+GODOT_SCENE_SIGNAL_SUFFIXES: frozenset[str] = frozenset({
+    "pressed",
+    "released",
+    "body_entered",
+    "body_exited",
+    "area_entered",
+    "area_exited",
+    "animation_finished",
+    "button_down",
+    "button_up",
+    "timeout",
+    "toggled",
+    "gui_input",
+    "input_event",
+    "mouse_entered",
+    "mouse_exited",
+})
+GODOT_BASE_METHOD_DISALLOWED_EXTENDS: dict[str, frozenset[str]] = {
+    "draw_circle": frozenset({"CanvasLayer", "Node"}),
+    "queue_redraw": frozenset({"CanvasLayer", "Node"}),
+    "get_viewport_rect": frozenset({"CanvasLayer", "Node"}),
+}
 
 
 def iter_source_files(root: Path, suffixes: tuple[str, ...]) -> list[Path]:
@@ -83,6 +110,68 @@ def iter_godot_resource_paths(text: str) -> list[str]:
         seen.add(resource_path)
         paths.append(resource_path)
     return paths
+
+
+def parse_godot_scene_ext_resources(text: str) -> dict[str, str]:
+    resources: dict[str, str] = {}
+    for match in GODOT_EXT_RESOURCE_PATTERN.finditer(text):
+        resource_id = match.group(2) or match.group(3)
+        if resource_id:
+            resources[resource_id] = match.group(1)
+    return resources
+
+
+def parse_godot_scene_script_paths(text: str) -> list[str]:
+    ext_resources = parse_godot_scene_ext_resources(text)
+    paths: list[str] = []
+    seen: set[str] = set()
+    for match in GODOT_SCRIPT_EXT_RESOURCE_PATTERN.finditer(text):
+        resource_id = match.group("id")
+        resource_path = ext_resources.get(resource_id)
+        if not resource_path or resource_path in seen:
+            continue
+        seen.add(resource_path)
+        paths.append(resource_path)
+    return paths
+
+
+def parse_godot_scene_connection_methods(text: str) -> set[str]:
+    return {match.group(1) for match in GODOT_SIGNAL_CONNECTION_METHOD_PATTERN.finditer(text)}
+
+
+def script_declared_signal_handlers(text: str) -> list[str]:
+    handlers: list[str] = []
+    seen: set[str] = set()
+    for match in GODOT_SIGNAL_HANDLER_PATTERN.finditer(text):
+        handler = match.group(1)
+        if not any(handler.endswith(f"_{suffix}") for suffix in GODOT_SCENE_SIGNAL_SUFFIXES):
+            continue
+        if handler in seen:
+            continue
+        seen.add(handler)
+        handlers.append(handler)
+    return handlers
+
+
+def script_dynamically_connects_handler(text: str, handler: str) -> bool:
+    escaped = re.escape(handler)
+    return (
+        re.search(rf'Callable\(\s*self\s*,\s*"{escaped}"\s*\)', text) is not None
+        or re.search(rf'connect\([^\n]*"{escaped}"', text) is not None
+        or re.search(rf'connect\([^\n]*{escaped}', text) is not None
+    )
+
+
+def gdscript_declared_base_type(text: str) -> str | None:
+    for line in text.splitlines():
+        stripped = line.strip()
+        if not stripped.startswith("extends "):
+            continue
+        target = stripped[len("extends "):].strip()
+        if not target or target.startswith('"res://'):
+            return None
+        return target.split(".", 1)[0]
+    return None
 
 
 @dataclass(frozen=True)
@@ -949,11 +1038,59 @@ def audit_godot_execution(root: Path, findings: list[Finding], ctx: ExecutionSur
     if broken_extends:
         _add_execution_finding(findings, ctx, code="EXEC-GODOT-003", severity="error", problem="GDScript extends declarations reference missing base scripts.", root_cause="At least one GDScript file extends a base script that is not present in the repo, which breaks script inheritance before runtime.", files=[project_file], safer_pattern="Check quoted GDScript extends targets during audit and keep Godot repos blocked until every referenced base script exists.", evidence=broken_extends[:8], root=root)
 
+    unwired_handlers: list[str] = []
+    unwired_files: list[Path] = []
+    for path in root.rglob("*.tscn"):
+        text = ctx.read_text(path)
+        connection_methods = parse_godot_scene_connection_methods(text)
+        for script_path in parse_godot_scene_script_paths(text):
+            script_file = root / script_path
+            script_text = ctx.read_text(script_file)
+            handlers = script_declared_signal_handlers(script_text)
+            if not handlers:
+                continue
+            missing = [
+                handler
+                for handler in handlers
+                if handler not in connection_methods and not script_dynamically_connects_handler(script_text, handler)
+            ]
+            if not missing:
+                continue
+            unwired_files.extend([path, script_file])
+            unwired_handlers.append(
+                f"{ctx.normalize_path(path, root)} -> {script_path}: missing scene connection for {', '.join(missing[:4])}"
+            )
+    if unwired_handlers:
+        _add_execution_finding(findings, ctx, code="EXEC-GODOT-007", severity="error", problem="Godot scene scripts declare signal-style handlers without matching scene connections.", root_cause="Scene-owned behavior is relying on `_on_*` signal handlers that are never wired in the `.tscn`, so the repo can look structurally complete while gameplay or UI interactions silently never fire.", files=[project_file, *unwired_files[:3]], safer_pattern="When a scene-owned script declares `_on_*` signal handlers, keep the corresponding `[connection ...]` entries in the scene file or connect those handlers explicitly in code instead of leaving them inert.", evidence=unwired_handlers[:8], root=root)
+
+    incompatible_api_calls: list[str] = []
+    incompatible_files: list[Path] = []
+    for path in root.rglob("*.gd"):
+        text = ctx.read_text(path)
+        base_type = gdscript_declared_base_type(text)
+        if not base_type:
+            continue
+        for method_name, disallowed_bases in GODOT_BASE_METHOD_DISALLOWED_EXTENDS.items():
+            if base_type not in disallowed_bases:
+                continue
+            if re.search(rf"\b{re.escape(method_name)}\s*\(", text) is None:
+                continue
+            incompatible_files.append(path)
+            incompatible_api_calls.append(
+                f"{ctx.normalize_path(path, root)}: extends {base_type} but calls {method_name}()"
+            )
+    if incompatible_api_calls:
+        _add_execution_finding(findings, ctx, code="EXEC-GODOT-009", severity="error", problem="GDScript calls APIs that are unavailable on the script's declared base type.", root_cause="The audit found script methods that only exist on CanvasItem-style nodes being called from scripts that extend incompatible bases such as Node or CanvasLayer, which guarantees runtime parse/load failure even before gameplay starts.", files=[project_file, *incompatible_files[:3]], safer_pattern="Validate GDScript method calls against the declared base type and move draw/redraw or viewport-rect logic onto compatible CanvasItem-derived nodes before treating headless load as trustworthy.", evidence=incompatible_api_calls[:8], root=root)
+
     godot_cmd = next((candidate for candidate in ("godot4", "godot") if _command_available(candidate)), None)
     if godot_cmd:
         rc, output = ctx.run_command([godot_cmd, "--headless", "--path", ".", "--quit"], root, 120)
         if rc != 0:
             _add_execution_finding(findings, ctx, code="EXEC-GODOT-004", severity="error", problem="Godot headless validation fails.", root_cause="The project cannot complete a deterministic headless Godot load pass on the current host, indicating broken project configuration or scripts.", files=[project_file], safer_pattern="Run a deterministic `godot --headless --path . --quit` validation during audit and keep the repo blocked until it succeeds or returns an explicit environment blocker instead.", evidence=_collect_first_error_lines(output), root=root)
+        else:
+            uid_warnings = [line.strip() for line in output.splitlines() if GODOT_UID_WARNING_PATTERN.search(line)]
+            if uid_warnings:
+                _add_execution_finding(findings, ctx, code="EXEC-GODOT-008", severity="warning", problem="Godot headless load only succeeds by falling back from stale resource UIDs.", root_cause="The project still contains invalid `uid://...` references in scene or resource manifests, so Godot is recovering at runtime by ignoring the recorded UID and loading the text path instead.", files=[project_file], safer_pattern="Treat invalid UID fallback warnings as actionable load drift: refresh the affected scene/resource references or import metadata until `godot --headless --path . --quit` succeeds with no UID fallback warnings.", evidence=uid_warnings[:8], root=root)
 
     manifest = load_manifest(root)
     if not declares_godot_android_target(root):

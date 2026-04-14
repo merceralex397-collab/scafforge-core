@@ -1,6 +1,6 @@
 ---
 name: asset-pipeline
-description: Design and configure the asset acquisition, generation, and import pipeline for game projects. Covers free/open asset sourcing, Blender-MCP generation, Godot import validation, and provenance tracking. Use after repo-scaffold-factory when the project type is a game with asset requirements.
+description: Design and configure the asset acquisition, generation, and import pipeline for game projects. Covers route selection, free/open sourcing, Blender-MCP generation, Godot-native authoring, route-specific validation, and provenance/compliance tracking. Use after repo-scaffold-factory when the project type is a game with asset requirements.
 ---
 
 # Asset Pipeline
@@ -14,21 +14,26 @@ Use this skill to configure the asset acquisition and generation pipeline for a 
 - The project needs provenance tracking for asset licensing
 - The project uses blender-agent MCP for 3D asset generation
 
-## Pipeline Routes
+## Route Families
 
-There are four supported asset acquisition routes. A project may use one or more:
+Treat the asset pipeline as a route map, not a single-source toggle. A repo may use multiple
+route families at once, but every asset category must have one explicit primary route.
 
-### Route A: Codex-Derived Ideas
-Adapt game design patterns from the Codex game-studio plugin material. This route focuses on
-gameplay mechanics, UI patterns, and architectural decisions rather than raw assets. Assets
-are simple/procedural (colored shapes, programmatic sprites, basic particles).
+### Route family A: Procedural / repo-authored
+Use repo-owned code, engine resources, or simple authored content instead of external packs.
+This is the correct route for repos that intentionally ship with no external art pack, no
+downloaded content, and no generator dependency beyond the repo toolchain itself.
 
-**Best for**: Prototypes, mechanic-focused games, jam-style projects.
+**Best for**: mechanic-first prototypes, abstract visual styles, programmatic UI, procedural VFX.
 
-**Assets produced**: GDScript procedural generation, simple `.tres` resources, placeholder sprites.
+**Outputs**:
+- GDScript-driven sprites or meshes
+- Godot `.tres` / `.res` resources
+- repo-authored shader and particle content
+- generated placeholder or final procedural content when the brief allows it
 
-### Route B: Free/Open Source Assets
-Source assets from curated open repositories with compatible licenses.
+### Route family B: Third-party open / licensed
+Source assets from curated external repositories with compatible licenses.
 
 **Verified sources (prioritized)**:
 1. **Kenney.nl** — CC0 game assets (sprites, 3D models, audio, UI). Godot-ready.
@@ -43,7 +48,7 @@ Source assets from curated open repositories with compatible licenses.
 - Entry format: `| asset_path | source_url | license | author | date_acquired |`
 - CC-BY assets require attribution in the game credits scene
 
-### Route C: Blender-MCP Generation
+### Route family C: Blender-MCP generated
 Use the blender-agent MCP server to generate 3D assets via AI-orchestrated Blender operations.
 
 **Prerequisites**:
@@ -74,7 +79,7 @@ Use the blender-agent MCP server to generate 3D assets via AI-orchestrated Blend
 - Complex organic models require skilled prompt engineering via asset-description skill.
 - Best for: hard-surface models, simple props, architectural elements, basic characters.
 
-### Route D: Godot Built-in Tools
+### Route family D: Godot-native authored
 Use Godot's native capabilities for asset creation.
 
 **Capabilities**:
@@ -85,7 +90,19 @@ Use Godot's native capabilities for asset creation.
 - TileMap/TileSet for 2D level design
 - Theme resources for UI styling
 
-**Best for**: Particle effects, procedural backgrounds, UI themes, tilemaps.
+**Best for**: particle effects, procedural backgrounds, UI themes, tilemaps, authored scene dressing.
+
+### Route family E: Hybrid mixed-route
+Use this when the repo intentionally combines multiple route families. The key is not merely to
+list multiple sources; it is to map each asset category to one primary route and one fallback
+route so downstream ticketing and review stay unambiguous.
+
+Use hybrid mode when:
+- characters come from Blender-MCP but UI comes from open packs
+- gameplay props are third-party while VFX are procedural
+- the repo is intentionally "no external art" except for fonts or audio
+
+The route map must still stay category-specific. "mixed" is not enough on its own.
 
 ## Procedure
 
@@ -112,6 +129,8 @@ Read the canonical brief and extract:
 - Required asset categories (characters, environments, props, UI, audio, VFX)
 - Target platform constraints (mobile = smaller textures, fewer polygons)
 - License requirements (commercial? attribution-ok? copyleft-ok?)
+- Whether tool-license policy and model-license policy need to be tracked separately
+- Whether the repo is allowed to ship with procedural-only or intentionally no external assets
 
 ### 3. Select Routes Per Asset Category
 
@@ -119,23 +138,23 @@ Map each asset category to the best route:
 
 ```
 characters:
-  primary: route_b (Kenney/OpenGameArt) or route_c (Blender-MCP)
-  fallback: route_d (CSG prototypes)
+  primary: blender-mcp or third-party-open-licensed
+  fallback: godot-native-authored
 environments:
-  primary: route_d (Godot tilemaps/CSG) or route_b
-  fallback: route_a (procedural)
+  primary: godot-native-authored or third-party-open-licensed
+  fallback: procedural-repo-authored
 props:
-  primary: route_b or route_c
-  fallback: route_d (CSG)
+  primary: blender-mcp or third-party-open-licensed
+  fallback: godot-native-authored
 ui:
-  primary: route_d (Godot Theme) or route_b (Kenney UI pack)
-  fallback: route_a (programmatic)
+  primary: godot-native-authored or third-party-open-licensed
+  fallback: procedural-repo-authored
 audio:
-  primary: route_b (Freesound)
-  fallback: none (silence is acceptable for prototypes)
+  primary: third-party-open-licensed
+  fallback: procedural-repo-authored
 vfx:
-  primary: route_d (Godot particles/shaders)
-  fallback: route_a (procedural)
+  primary: godot-native-authored
+  fallback: procedural-repo-authored
 ```
 
 ### 4. Refine the seeded asset pipeline configuration
@@ -145,15 +164,24 @@ Update the seeded `assets/pipeline.json` instead of inventing a new layout:
 {
   "art_style": "low-poly",
   "target_platform": "android",
+  "route_mode": "hybrid",
   "routes": {
-    "characters": { "primary": "blender-mcp", "fallback": "free-open" },
-    "environments": { "primary": "godot-builtin", "fallback": "free-open" },
-    "props": { "primary": "free-open", "fallback": "godot-builtin" },
-    "ui": { "primary": "godot-builtin" },
-    "audio": { "primary": "free-open" },
-    "vfx": { "primary": "godot-builtin" }
+    "characters": { "primary": "blender-mcp-generated", "fallback": "third-party-open-licensed" },
+    "environments": { "primary": "godot-native-authored", "fallback": "third-party-open-licensed" },
+    "props": { "primary": "third-party-open-licensed", "fallback": "godot-native-authored" },
+    "ui": { "primary": "godot-native-authored" },
+    "audio": { "primary": "third-party-open-licensed" },
+    "vfx": { "primary": "procedural-repo-authored" }
   },
   "provenance_tracking": true,
+  "tool_license_policy": {
+    "allow_open_source_tools": true,
+    "allow_commercial_tools": false
+  },
+  "model_license_policy": {
+    "allow_open_weights": true,
+    "allow_noncommercial_weights": false
+  },
   "license_filter": ["CC0", "CC-BY", "MIT", "OFL"],
   "texture_max_size": 1024,
   "model_max_tris": 5000
@@ -162,13 +190,17 @@ Update the seeded `assets/pipeline.json` instead of inventing a new layout:
 
 ### 5. Generate Tickets for Asset Work
 
-For each asset category with `primary: "blender-mcp"`:
+For each asset category with `primary: "blender-mcp-generated"`:
 - Create an asset brief in `assets/briefs/`
 - Create a ticket for the Blender-MCP generation pipeline
 
-For each asset category with `primary: "free-open"`:
+For each asset category with `primary: "third-party-open-licensed"`:
 - Create a ticket for asset sourcing and import
 - Include license verification in acceptance criteria
+
+For each asset category with `primary: "procedural-repo-authored"` or `primary: "godot-native-authored"`:
+- Create a route-specific implementation ticket that names the authored surfaces
+- Define route-appropriate finish proof beyond generic export success
 
 For all assets:
 - Create a ticket for Godot import validation
@@ -185,7 +217,7 @@ Add to the team's agent configuration:
 
 ## Outputs
 
-- `assets/pipeline.json` — Pipeline configuration
+- `assets/pipeline.json` — Route map, compliance policy, and pipeline configuration
 - `assets/PROVENANCE.md` — Asset provenance tracking (initialized)
 - `assets/briefs/*.md` — Asset description documents (if route C)
 - Asset directory structure created
@@ -195,7 +227,7 @@ Add to the team's agent configuration:
 
 ## Validation
 
-- `pipeline.json` is valid JSON with all required fields
+- `pipeline.json` is valid JSON with route, provenance, and license-policy fields
 - Asset directories exist
 - PROVENANCE.md template is valid
 - If route C: blender-agent MCP server is reachable

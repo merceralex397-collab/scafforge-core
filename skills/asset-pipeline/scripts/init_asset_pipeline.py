@@ -66,6 +66,29 @@ def _route_choice(primary: str, *fallbacks: str | None) -> dict[str, str]:
     return payload
 
 
+def _canonical_route_name(route: str) -> str:
+    mapping = {
+        "codex-derived": "procedural-repo-authored",
+        "free-open": "third-party-open-licensed",
+        "blender-mcp": "blender-mcp-generated",
+        "godot-builtin": "godot-native-authored",
+    }
+    return mapping.get(route, route)
+
+
+def _route_family(route: str) -> str:
+    route = _canonical_route_name(route)
+    if route == "procedural-repo-authored":
+        return "procedural"
+    if route == "third-party-open-licensed":
+        return "third_party"
+    if route == "blender-mcp-generated":
+        return "generated"
+    if route == "godot-native-authored":
+        return "godot_native"
+    return "mixed"
+
+
 def _license_filter(text: str) -> list[str]:
     lowered = text.lower()
     found = [license_name for license_name in KNOWN_LICENSES if license_name.lower() in lowered]
@@ -154,8 +177,18 @@ def _infer_routes(stack_label: str, content_source_plan: str) -> tuple[dict[str,
             "free-open" if uses_free_open else None,
         ),
     }
-    brief_targets = [category for category, choice in routes.items() if choice["primary"] == "blender-mcp"]
-    return routes, brief_targets
+    canonical_routes: dict[str, dict[str, str]] = {}
+    for category, choice in routes.items():
+        canonical_choice = {
+            key: _canonical_route_name(value)
+            for key, value in choice.items()
+        }
+        canonical_routes[category] = canonical_choice
+    brief_targets = [
+        category for category, choice in canonical_routes.items()
+        if choice["primary"] == "blender-mcp-generated"
+    ]
+    return canonical_routes, brief_targets
 
 
 def _pipeline_payload(
@@ -177,12 +210,30 @@ def _pipeline_payload(
         "placeholder_policy": placeholder_policy,
         "art_style": _art_style(stack_label, content_source_plan),
         "target_platform": target_platform,
+        "route_mode": "hybrid" if len({choice["primary"] for choice in routes.values()}) > 1 else "single-route",
         "content_source_plan": content_source_plan,
         "licensing_or_provenance_constraints": licensing_or_provenance_constraints,
         "finish_acceptance_signals": finish_acceptance_signals,
         "routes": routes,
+        "route_families": sorted({_route_family(choice["primary"]) for choice in routes.values()}),
         "brief_targets": brief_targets,
         "provenance_tracking": True,
+        "provenance_requirements": {
+            "machine_readable": "assets/pipeline.json",
+            "human_readable": "assets/PROVENANCE.md",
+            "briefs_dir": "assets/briefs",
+            "route_specific_finish_proof_required": True,
+        },
+        "tool_license_policy": {
+            "allow_open_source_tools": True,
+            "allow_commercial_tools": False,
+            "notes": "Record tool licenses separately from model/checkpoint licenses when AI-assisted generation is used.",
+        },
+        "model_license_policy": {
+            "allow_open_weights": True,
+            "allow_noncommercial_weights": False,
+            "notes": "If AI-assisted generation is used, record the exact model or checkpoint license separately from the tool stack.",
+        },
         "license_filter": _license_filter(licensing_or_provenance_constraints),
         "texture_max_size": 1024 if is_mobile else 2048,
         "model_max_tris": 5000 if is_mobile else 12000,
@@ -199,13 +250,15 @@ def _bootstrap_metadata(pipeline: dict[str, object]) -> dict[str, object]:
     }
     suggested_agents: list[str] = []
     suggested_skills: list[str] = []
-    if "blender-mcp" in primary_routes.values():
+    if "blender-mcp-generated" in primary_routes.values():
         suggested_agents.append("blender-asset-creator")
         suggested_skills.extend(["asset-description", "blender-mcp-workflow"])
-    if "free-open" in primary_routes.values():
+    if "third-party-open-licensed" in primary_routes.values():
         suggested_agents.append("asset-sourcer")
-    if "godot-builtin" in primary_routes.values():
+    if "godot-native-authored" in primary_routes.values():
         suggested_agents.append("godot-finish-implementer")
+    if "procedural-repo-authored" in primary_routes.values():
+        suggested_agents.append("gameplay-implementer")
     return {
         "version": 1,
         "asset_root": "assets",
@@ -214,10 +267,15 @@ def _bootstrap_metadata(pipeline: dict[str, object]) -> dict[str, object]:
         "briefs_dir": "assets/briefs",
         "stack_label": pipeline.get("stack_label"),
         "target_platform": pipeline.get("target_platform"),
+        "route_mode": pipeline.get("route_mode"),
         "routes": primary_routes,
+        "route_families": pipeline.get("route_families", []),
         "brief_targets": pipeline.get("brief_targets", []),
         "suggested_agents": suggested_agents,
         "suggested_skills": sorted(set(suggested_skills)),
+        "provenance_requirements": pipeline.get("provenance_requirements", {}),
+        "tool_license_policy": pipeline.get("tool_license_policy", {}),
+        "model_license_policy": pipeline.get("model_license_policy", {}),
         "initialized_by": "skills/asset-pipeline/scripts/init_asset_pipeline.py",
     }
 
@@ -239,6 +297,8 @@ def _provenance_markdown(
             "- Every entry must use a repo-relative path under `assets/` or a Godot `res://` import path.",
             "- Generated assets must record the exact workflow or tool used to create them.",
             "- Third-party assets must keep the source URL and precise license value.",
+            "- Record tool-stack license policy separately from model/checkpoint license policy when AI-assisted generation is used.",
+            "- Procedural or intentionally no-external-asset repos must still record the active route and any generated runtime content surfaces.",
             f"- Placeholder policy: {placeholder_policy}",
             f"- Licensing/provenance constraints: {licensing_or_provenance_constraints}",
             f"- Finish acceptance signals: {finish_acceptance_signals}",
@@ -262,6 +322,7 @@ def _briefs_readme(pipeline: dict[str, object]) -> str:
             f"- Current brief-target categories: {route_line}",
             "- Store briefs as `assets/briefs/<asset-name>.md`.",
             "- Include silhouette, proportions, materials, triangle budget, export target, and finish constraints.",
+            "- Record the route family, tool stack, and any model/checkpoint provenance needed to regenerate the asset later.",
             "- Keep the brief aligned with `assets/pipeline.json` and update `assets/PROVENANCE.md` after generation.",
             "",
         )

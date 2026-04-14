@@ -14,20 +14,11 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECTS_DIR="/home/pc/projects"
 SCAFFORGE_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
-LOG_DIR="${SCRIPT_DIR}/../active-plans/agent-logs"
+DEFAULT_PROJECTS_DIR="${SCAFFORGE_PROJECTS_DIR:-${HOME}}"
+DEFAULT_LOG_DIR="${SCAFFORGE_RUN_LOG_DIR:-${SCAFFORGE_ROOT}/reports/agent-runs}"
+LOG_DIR="${DEFAULT_LOG_DIR}"
 mkdir -p "$LOG_DIR"
-
-declare -A REPO_PATHS=(
-  [gpttalker]="${PROJECTS_DIR}/GPTTalker"
-  [spinner]="${PROJECTS_DIR}/spinner"
-  [glitch]="${PROJECTS_DIR}/Scafforge/livetesting/glitch"
-  [wvhva]="${PROJECTS_DIR}/womanvshorseVA"
-  [wvhvb]="${PROJECTS_DIR}/womanvshorseVB"
-  [wvhvc]="${PROJECTS_DIR}/womanvshorseVC"
-  [wvhvd]="${PROJECTS_DIR}/womanvshorseVD"
-)
 
 declare -A AGENT_NAMES=(
   [gpttalker]="gpttalker-team-leader"
@@ -70,6 +61,11 @@ Options:
   --provider "p"    audit/repair host: auto|codex|kilo|copilot (default: auto)
   --dry-run         Print command without executing
 
+Environment overrides:
+  SCAFFORGE_PROJECTS_DIR   Preferred parent directory for downstream repos
+  SCAFFORGE_RUN_LOG_DIR    Directory for runner logs (default: reports/agent-runs/)
+  SCAFFORGE_<REPO>_PATH    Explicit repo override, e.g. SCAFFORGE_GPTTALKER_PATH
+
 Examples:
   $0 glitch                                    # opencode ticket work
   $0 glitch --audit                            # codex -> kilo -> copilot audit
@@ -81,6 +77,90 @@ Examples:
   $0 glitch --prompt "Focus on CORE-002"       # custom opencode prompt
 USAGE
   exit 1
+}
+
+repo_env_var_name() {
+  local repo="$1"
+  case "$repo" in
+    gpttalker) echo "SCAFFORGE_GPTTALKER_PATH" ;;
+    spinner) echo "SCAFFORGE_SPINNER_PATH" ;;
+    glitch) echo "SCAFFORGE_GLITCH_PATH" ;;
+    wvhva) echo "SCAFFORGE_WVHVA_PATH" ;;
+    wvhvb) echo "SCAFFORGE_WVHVB_PATH" ;;
+    wvhvc) echo "SCAFFORGE_WVHVC_PATH" ;;
+    wvhvd) echo "SCAFFORGE_WVHVD_PATH" ;;
+    *) return 1 ;;
+  esac
+}
+
+resolve_repo_path() {
+  local repo="$1"
+  local env_var
+  env_var="$(repo_env_var_name "$repo")"
+  local explicit_path="${!env_var:-}"
+  local root_parent
+  root_parent="$(cd "${SCAFFORGE_ROOT}/.." && pwd)"
+  local -a candidates=()
+
+  if [[ -n "$explicit_path" ]]; then
+    candidates+=("$explicit_path")
+  fi
+
+  case "$repo" in
+    gpttalker)
+      candidates+=(
+        "${DEFAULT_PROJECTS_DIR}/GPTTalker"
+        "${HOME}/GPTTalker"
+        "${root_parent}/GPTTalker"
+      )
+      ;;
+    spinner)
+      candidates+=(
+        "${DEFAULT_PROJECTS_DIR}/spinner"
+        "${HOME}/spinner"
+        "${root_parent}/spinner"
+      )
+      ;;
+    glitch)
+      candidates+=(
+        "${SCAFFORGE_ROOT}/livetesting/glitch"
+        "${DEFAULT_PROJECTS_DIR}/glitch"
+        "${HOME}/glitch"
+        "${root_parent}/glitch"
+      )
+      ;;
+    wvhva|wvhvb|wvhvc|wvhvd)
+      local full_name=""
+      case "$repo" in
+        wvhva) full_name="womanvshorseVA" ;;
+        wvhvb) full_name="womanvshorseVB" ;;
+        wvhvc) full_name="womanvshorseVC" ;;
+        wvhvd) full_name="womanvshorseVD" ;;
+      esac
+      candidates+=(
+        "${DEFAULT_PROJECTS_DIR}/${full_name}"
+        "${HOME}/${full_name}"
+        "${root_parent}/${full_name}"
+      )
+      ;;
+    *)
+      echo "Unknown repo key: ${repo}" >&2
+      return 1
+      ;;
+  esac
+
+  local candidate
+  for candidate in "${candidates[@]}"; do
+    [[ -z "$candidate" ]] && continue
+    if [[ -d "$candidate" ]]; then
+      printf '%s\n' "$(cd "$candidate" && pwd)"
+      return 0
+    fi
+  done
+
+  echo "Unable to locate repo '${repo}'. Checked ${#candidates[@]} candidate paths." >&2
+  printf '  %s\n' "${candidates[@]}" >&2
+  return 1
 }
 
 # Parse args
@@ -111,7 +191,8 @@ done
 
 [[ -z "$REPO" ]] && { echo "Error: repo name required"; usage; }
 
-REPO_PATH="${REPO_PATHS[$REPO]}"
+REPO_PATH="$(resolve_repo_path "$REPO")"
+REPO_PARENT_DIR="$(dirname "$REPO_PATH")"
 AGENT="${AGENT_NAMES[$REPO]}"
 TIMESTAMP="$(date +%Y-%m-%dT%H-%M-%S)"
 LOG_FILE="${LOG_DIR}/${REPO}-${MODE}-${TIMESTAMP}.log"
@@ -198,7 +279,7 @@ run_kilo_exec() {
     if run_logged_cmd \
       "kilo ${kilo_model}" \
       kilo run "$EXEC_PROMPT" \
-        --dir "$PROJECTS_DIR" \
+        --dir "$REPO_PARENT_DIR" \
         --model "$kilo_model" \
         --variant "$KILO_VARIANT" \
         --auto \
@@ -338,6 +419,7 @@ If you encounter a blocker you cannot resolve after 3 attempts, stop and report 
   echo "Repo:    ${REPO} (${REPO_PATH})"
   echo "Agent:   ${AGENT}"
   echo "Model:   ${MODEL}"
+  echo "Logs:    ${LOG_DIR}"
 
 elif [[ "$MODE" == "audit" ]]; then
   AUDIT_PROMPT="You are a Scafforge auditor operating from the Scafforge package repo.
@@ -360,6 +442,7 @@ Use command-backed evidence only and avoid improvised package-root wrappers."
   echo "Codex:   ${CODEX_MODEL} reasoning=${CODEX_REASONING}"
   echo "Kilo:    ${KILO_MODELS[0]} -> ${KILO_MODELS[1]} variant=${KILO_VARIANT}"
   echo "Copilot: ${COPILOT_MODEL} reasoning=${COPILOT_REASONING}"
+  echo "Logs:    ${LOG_DIR}"
 
 elif [[ "$MODE" == "repair" ]]; then
   REPAIR_PROMPT="You are a Scafforge repair operator operating from the Scafforge package repo.
@@ -387,6 +470,7 @@ Do not hand-edit downstream product code directly."
   echo "Codex:   ${CODEX_MODEL} reasoning=${CODEX_REASONING}"
   echo "Kilo:    ${KILO_MODELS[0]} -> ${KILO_MODELS[1]} variant=${KILO_VARIANT}"
   echo "Copilot: ${COPILOT_MODEL} reasoning=${COPILOT_REASONING}"
+  echo "Logs:    ${LOG_DIR}"
 
 else
   echo "Error: unknown mode '$MODE'"
@@ -405,7 +489,7 @@ if $DRY_RUN; then
   else
     echo "  provider order: ${EXEC_PROVIDER}"
     echo "  codex: codex exec ... -c model_reasoning_effort=\"${CODEX_REASONING}\" ..."
-    echo "  kilo:  kilo run ... --dir ${PROJECTS_DIR} --variant ${KILO_VARIANT} ..."
+    echo "  kilo:  kilo run ... --dir ${REPO_PARENT_DIR} --variant ${KILO_VARIANT} ..."
     echo "  copilot: copilot --reasoning-effort ${COPILOT_REASONING} -p ..."
   fi
   exit 0

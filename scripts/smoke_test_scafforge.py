@@ -338,6 +338,133 @@ def seed_godot_shader_reference_fixture(dest: Path) -> None:
     )
 
 
+def seed_godot_signal_connection_gap(dest: Path) -> None:
+    seed_minimal_godot_project(dest)
+    (dest / "scenes" / "ui").mkdir(parents=True, exist_ok=True)
+    (dest / "scenes" / "ui" / "TouchControls.tscn").write_text(
+        "\n".join(
+            [
+                "[gd_scene load_steps=2 format=3]",
+                "",
+                '[ext_resource type="Script" path="res://scripts/ui/TouchController.gd" id="1"]',
+                "",
+                '[node name="TouchControls" type="CanvasLayer"]',
+                'script = ExtResource("1")',
+                "",
+                '[node name="LeftButton" type="Button" parent="."]',
+                'text = "LEFT"',
+                "",
+                '[node name="RightButton" type="Button" parent="."]',
+                'text = "RIGHT"',
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    (dest / "scripts" / "ui").mkdir(parents=True, exist_ok=True)
+    (dest / "scripts" / "ui" / "TouchController.gd").write_text(
+        "\n".join(
+            [
+                "extends CanvasLayer",
+                "",
+                "func _on_left_pressed() -> void:",
+                '    Input.action_press("move_left")',
+                "",
+                "func _on_right_pressed() -> void:",
+                '    Input.action_press("move_right")',
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+
+def seed_godot_api_contract_gap(dest: Path) -> None:
+    seed_minimal_godot_project(dest)
+    (dest / "scenes" / "ui").mkdir(parents=True, exist_ok=True)
+    (dest / "scenes" / "ui" / "HUD.tscn").write_text(
+        "\n".join(
+            [
+                "[gd_scene load_steps=2 format=3]",
+                "",
+                '[ext_resource type="Script" path="res://scripts/ui/HUD.gd" id="1"]',
+                "",
+                '[node name="HUD" type="CanvasLayer"]',
+                'script = ExtResource("1")',
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    (dest / "scripts" / "ui").mkdir(parents=True, exist_ok=True)
+    (dest / "scripts" / "ui" / "HUD.gd").write_text(
+        "\n".join(
+            [
+                "extends CanvasLayer",
+                "",
+                "func _draw() -> void:",
+                "    draw_circle(Vector2.ZERO, 8.0, Color(1, 0, 0))",
+                "",
+                "func refresh() -> void:",
+                "    queue_redraw()",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+
+def seed_godot_uid_warning_fixture(dest: Path) -> None:
+    seed_minimal_godot_project(dest)
+    (dest / "project.godot").write_text(
+        "\n".join(
+            [
+                "; Engine configuration file.",
+                "[application]",
+                'config/name="UID Warning Fixture"',
+                'run/main_scene="res://scenes/ui/title_screen.tscn"',
+                "",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    (dest / "scenes" / "ui").mkdir(parents=True, exist_ok=True)
+    (dest / "scenes" / "ui" / "title_screen.tscn").write_text(
+        "\n".join(
+            [
+                "[gd_scene load_steps=2 format=3]",
+                "",
+                '[ext_resource type="Texture2D" uid="uid://stale-texture-uid" path="res://icon.svg" id="1"]',
+                "",
+                '[node name="TitleScreen" type="Control"]',
+                "",
+                '[node name="Preview" type="TextureRect" parent="."]',
+                'texture = ExtResource("1")',
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    shutil.copyfile(
+        ROOT / "livetesting" / "glitch" / "icon.svg",
+        dest / "icon.svg",
+    )
+    shutil.copyfile(
+        ROOT / "livetesting" / "glitch" / "icon.svg.import",
+        dest / "icon.svg.import",
+    )
+    (dest / ".godot" / "imported").mkdir(parents=True, exist_ok=True)
+    shutil.copyfile(
+        ROOT / "livetesting" / "glitch" / ".godot" / "imported" / "icon.svg-218a8f2b3041327d8a5756f3a245f83b.ctex",
+        dest / ".godot" / "imported" / "icon.svg-218a8f2b3041327d8a5756f3a245f83b.ctex",
+    )
+    shutil.copyfile(
+        ROOT / "livetesting" / "glitch" / ".godot" / "imported" / "icon.svg-218a8f2b3041327d8a5756f3a245f83b.md5",
+        dest / ".godot" / "imported" / "icon.svg-218a8f2b3041327d8a5756f3a245f83b.md5",
+    )
+
+
 def append_manifest_ticket(dest: Path, ticket: dict[str, Any]) -> None:
     manifest_path = dest / "tickets" / "manifest.json"
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
@@ -3151,6 +3278,9 @@ def main() -> int:
             "SCAN_EXCLUDED_DIRS",
             "iter_source_files",
             "EXEC-GODOT-002",
+            "EXEC-GODOT-007",
+            "EXEC-GODOT-008",
+            "EXEC-GODOT-009",
             "EXEC-GODOT-005a",
             "EXEC-GODOT-005b",
             "PROJ-VER-001",
@@ -3310,6 +3440,10 @@ def main() -> int:
             "failure_classification",
             "blocked_by_permissions",
             "permission_restriction",
+            "smoke_checkpoint",
+            "resumed_from_checkpoint",
+            "commands_completed",
+            "SMOKE_CHECKPOINT_VERSION",
         ):
             if expected not in generated_smoke_test:
                 raise RuntimeError(
@@ -9033,13 +9167,195 @@ Overall Result: PASS
             raise RuntimeError(
                 "smoke_test should reject release-readiness Godot export output that records parse/load errors even when the export exits 0"
             )
-        if len(godot_release_guard_result.get("commands", [])) != 1:
+        if not godot_release_guard_result.get("commands"):
             raise RuntimeError(
-                "smoke_test should stop the release-readiness command sequence as soon as the export command records parse/load failures"
+                "smoke_test should preserve the release-readiness command results when a Godot export reports parse/load failures"
             )
         if godot_release_guard_result["commands"][0]["failure_classification"] != "syntax_error":
             raise RuntimeError(
                 "Godot release-readiness export validation should classify parse/load errors as syntax_error even when export itself exits 0"
+            )
+
+        executed_smoke_all_commands_dest = workspace / "executed-smoke-test-all-commands"
+        shutil.copytree(full_dest, executed_smoke_all_commands_dest)
+        seed_ready_bootstrap(executed_smoke_all_commands_dest)
+        register_current_ticket_artifact(
+            executed_smoke_all_commands_dest,
+            ticket_id="SETUP-001",
+            kind="qa",
+            stage="qa",
+            relative_path=".opencode/state/artifacts/setup-001-qa-all-commands.md",
+            summary="Synthetic QA artifact for smoke all-commands coverage.",
+            content="# QA\n\nCommand: python3 -m py_compile scripts/smoke_test_scafforge.py\n\nQA evidence is current.\n",
+        )
+        write_executable(
+            executed_smoke_all_commands_dest / "scripts" / "fail_smoke.py",
+            "\n".join(
+                [
+                    "#!/usr/bin/env python3",
+                    "import sys",
+                    "sys.stderr.write('synthetic smoke failure\\n')",
+                    "sys.exit(2)",
+                ]
+            )
+            + "\n",
+        )
+        write_executable(
+            executed_smoke_all_commands_dest / "scripts" / "write_marker.py",
+            "\n".join(
+                [
+                    "#!/usr/bin/env python3",
+                    "from pathlib import Path",
+                    "Path('all-commands-marker.txt').write_text('executed\\n', encoding='utf-8')",
+                    "print('marker written')",
+                ]
+            )
+            + "\n",
+        )
+        smoke_all_commands_result = run_generated_tool(
+            executed_smoke_all_commands_dest,
+            ".opencode/tools/smoke_test.ts",
+            {
+                "ticket_id": "SETUP-001",
+                "command_override": [
+                    "python3 scripts/fail_smoke.py",
+                    "python3 scripts/write_marker.py",
+                ],
+            },
+        )
+        if smoke_all_commands_result["passed"] is not False:
+            raise RuntimeError(
+                "smoke_test should still fail when one of multiple planned commands fails"
+            )
+        if len(smoke_all_commands_result.get("commands", [])) != 2:
+            raise RuntimeError(
+                "smoke_test should run all planned commands and preserve every result instead of stopping at the first failure"
+            )
+        if not (executed_smoke_all_commands_dest / "all-commands-marker.txt").exists():
+            raise RuntimeError(
+                "smoke_test should keep running later planned commands even after an earlier smoke command fails"
+            )
+        checkpoint_path = executed_smoke_all_commands_dest / str(
+            smoke_all_commands_result["smoke_checkpoint"]
+        )
+        if not checkpoint_path.exists():
+            raise RuntimeError(
+                "smoke_test should persist a checkpoint file alongside the final smoke artifact"
+            )
+        checkpoint_payload = json.loads(checkpoint_path.read_text(encoding="utf-8"))
+        if checkpoint_payload.get("commands_completed") != 2 or checkpoint_payload.get("completed") is not True:
+            raise RuntimeError(
+                "smoke_test checkpoints should preserve completed command counts and final completion state"
+            )
+
+        resumed_smoke_dest = workspace / "executed-smoke-test-resume-checkpoint"
+        shutil.copytree(full_dest, resumed_smoke_dest)
+        seed_ready_bootstrap(resumed_smoke_dest)
+        qa_relpath = ".opencode/state/artifacts/setup-001-qa-resume.md"
+        register_current_ticket_artifact(
+            resumed_smoke_dest,
+            ticket_id="SETUP-001",
+            kind="qa",
+            stage="qa",
+            relative_path=qa_relpath,
+            summary="Synthetic QA artifact for smoke checkpoint resume coverage.",
+            content="# QA\n\nCommand: python3 -m py_compile scripts/smoke_test_scafforge.py\n\nQA evidence is current.\n",
+        )
+        write_executable(
+            resumed_smoke_dest / "scripts" / "first_marker.py",
+            "\n".join(
+                [
+                    "#!/usr/bin/env python3",
+                    "from pathlib import Path",
+                    "Path('first-marker.txt').write_text('ran\\n', encoding='utf-8')",
+                    "print('first marker')",
+                ]
+            )
+            + "\n",
+        )
+        write_executable(
+            resumed_smoke_dest / "scripts" / "second_marker.py",
+            "\n".join(
+                [
+                    "#!/usr/bin/env python3",
+                    "from pathlib import Path",
+                    "Path('second-marker.txt').write_text('ran\\n', encoding='utf-8')",
+                    "print('second marker')",
+                ]
+            )
+            + "\n",
+        )
+        checkpoint_resume_path = (
+            resumed_smoke_dest
+            / ".opencode"
+            / "state"
+            / "smoke-tests"
+            / "setup-001-smoke-checkpoint.json"
+        )
+        checkpoint_resume_path.parent.mkdir(parents=True, exist_ok=True)
+        checkpoint_resume_path.write_text(
+            json.dumps(
+                {
+                    "version": 1,
+                    "ticket_id": "SETUP-001",
+                    "qa_artifact": qa_relpath,
+                    "scope": "full-suite",
+                    "test_paths": [],
+                    "command_signatures": [
+                        "python3 scripts/first_marker.py",
+                        "python3 scripts/second_marker.py",
+                    ],
+                    "commands_total": 2,
+                    "commands_completed": 1,
+                    "completed": False,
+                    "passed": None,
+                    "updated_at": "2099-01-01T00:00:00.000Z",
+                    "commands": [
+                        {
+                            "label": "command override 1",
+                            "argv": ["python3", "scripts/first_marker.py"],
+                            "reason": "Explicit smoke-test command override supplied by the caller.",
+                            "exit_code": 0,
+                            "duration_ms": 1,
+                            "stdout": "checkpointed\n",
+                            "stderr": "",
+                        }
+                    ],
+                },
+                indent=2,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        resumed_smoke_result = run_generated_tool(
+            resumed_smoke_dest,
+            ".opencode/tools/smoke_test.ts",
+            {
+                "ticket_id": "SETUP-001",
+                "command_override": [
+                    "python3 scripts/first_marker.py",
+                    "python3 scripts/second_marker.py",
+                ],
+            },
+        )
+        if resumed_smoke_result.get("resumed_from_checkpoint") is not True:
+            raise RuntimeError(
+                "smoke_test should resume from a matching incomplete checkpoint instead of discarding prior command results"
+            )
+        if (resumed_smoke_dest / "first-marker.txt").exists():
+            raise RuntimeError(
+                "smoke_test resume should not rerun checkpointed commands that were already recorded as complete"
+            )
+        if not (resumed_smoke_dest / "second-marker.txt").exists():
+            raise RuntimeError(
+                "smoke_test resume should continue with the remaining planned commands after the checkpointed prefix"
+            )
+        resumed_checkpoint_payload = json.loads(
+            checkpoint_resume_path.read_text(encoding="utf-8")
+        )
+        if resumed_checkpoint_payload.get("commands_completed") != 2 or resumed_checkpoint_payload.get("completed") is not True:
+            raise RuntimeError(
+                "smoke_test should update the resumed checkpoint to reflect the completed run"
             )
 
         executed_smoke_missing_exec_dest = (
@@ -10174,6 +10490,64 @@ Overall Result: PASS
             raise RuntimeError(
                 "Audit should not truncate valid .gdshader references into false EXEC-GODOT-002 or REF-001 findings"
             )
+
+        godot_signal_gap_dest = workspace / "godot-signal-connection-gap"
+        shutil.copytree(full_dest, godot_signal_gap_dest)
+        make_stack_skill_non_placeholder(godot_signal_gap_dest)
+        seed_godot_signal_connection_gap(godot_signal_gap_dest)
+        godot_signal_gap_audit = run_json(
+            [sys.executable, str(AUDIT), str(godot_signal_gap_dest), "--format", "json"],
+            ROOT,
+        )
+        godot_signal_gap_codes = {
+            finding["code"] for finding in godot_signal_gap_audit.get("findings", [])
+        }
+        if "EXEC-GODOT-007" not in godot_signal_gap_codes:
+            raise RuntimeError(
+                "Audit should emit EXEC-GODOT-007 when scene-owned _on_* signal handlers are declared without matching scene connections"
+            )
+
+        godot_api_gap_dest = workspace / "godot-api-contract-gap"
+        shutil.copytree(full_dest, godot_api_gap_dest)
+        make_stack_skill_non_placeholder(godot_api_gap_dest)
+        seed_godot_api_contract_gap(godot_api_gap_dest)
+        godot_api_gap_audit = run_json(
+            [sys.executable, str(AUDIT), str(godot_api_gap_dest), "--format", "json"],
+            ROOT,
+        )
+        godot_api_gap_codes = {
+            finding["code"] for finding in godot_api_gap_audit.get("findings", [])
+        }
+        if "EXEC-GODOT-009" not in godot_api_gap_codes:
+            raise RuntimeError(
+                "Audit should emit EXEC-GODOT-009 when scripts call methods that are unavailable on their declared Godot base type"
+            )
+
+        live_uid_warning_repo = Path("/home/rowan/womanvshorseVB")
+        if (shutil.which("godot4") or shutil.which("godot")) and live_uid_warning_repo.exists():
+            godot_uid_warning_audit = run_json(
+                [sys.executable, str(AUDIT), str(live_uid_warning_repo), "--format", "json", "--no-diagnosis-pack"],
+                ROOT,
+            )
+            uid_warning_findings = [
+                finding
+                for finding in godot_uid_warning_audit.get("findings", [])
+                if isinstance(finding, dict) and finding.get("code") == "EXEC-GODOT-008"
+            ]
+            if not uid_warning_findings:
+                raise RuntimeError(
+                    "Audit should emit EXEC-GODOT-008 when Godot headless load succeeds only by falling back from stale resource UIDs"
+                )
+            uid_warning_evidence = "\n".join(
+                line
+                for finding in uid_warning_findings
+                for line in finding.get("evidence", [])
+                if isinstance(line, str)
+            )
+            if "invalid UID" not in uid_warning_evidence or "using text path instead" not in uid_warning_evidence:
+                raise RuntimeError(
+                    "EXEC-GODOT-008 should preserve the actual invalid UID fallback warning evidence from Godot output"
+                )
 
         broken_venv_dest = workspace / "broken-venv"
         shutil.copytree(full_dest, broken_venv_dest)

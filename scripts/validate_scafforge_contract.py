@@ -218,6 +218,15 @@ def require_script_help_runs(findings: list[Finding], path: Path) -> None:
         )
 
 
+def validate_repo_ci(findings: list[Finding]) -> None:
+    workflow = ROOT / ".github" / "workflows" / "validate.yml"
+    require_paths(findings, [workflow])
+    require_contains(findings, workflow, "npm run validate:contract")
+    require_contains(findings, workflow, "npm run validate:smoke")
+    require_contains(findings, workflow, "python3 scripts/integration_test_scafforge.py")
+    require_contains(findings, workflow, "python3 scripts/validate_gpttalker_migration.py")
+
+
 def split_sequence_step(step: object) -> tuple[str | None, str | None]:
     if not isinstance(step, str) or not step.strip():
         return None, None
@@ -4094,6 +4103,7 @@ def main() -> int:
     validate_audit_repair_surfaces(findings)
     validate_curated_fixtures(findings)
     validate_no_hidden_defaults(findings)
+    validate_repo_ci(findings)
 
     if findings:
         for finding in findings:

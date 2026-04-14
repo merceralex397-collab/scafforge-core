@@ -981,9 +981,9 @@ def greenfield_integration(workspace: Path) -> None:
     if not isinstance(routes, dict):
         raise RuntimeError("Asset-pipeline integration expected pipeline routes to be recorded.")
     characters = routes.get("characters")
-    if not isinstance(characters, dict) or characters.get("primary") != "blender-mcp":
+    if not isinstance(characters, dict) or characters.get("primary") != "blender-mcp-generated":
         raise RuntimeError(
-            "Asset-pipeline integration should infer blender-mcp as the primary character route when the content plan names Blender."
+            "Asset-pipeline integration should infer blender-mcp-generated as the primary character route when the content plan names Blender."
         )
     bootstrap_meta = read_json(asset_pipeline_dest / ".opencode" / "meta" / "asset-pipeline-bootstrap.json")
     if not isinstance(bootstrap_meta, dict):
@@ -991,7 +991,7 @@ def greenfield_integration(workspace: Path) -> None:
     suggested_agents = bootstrap_meta.get("suggested_agents")
     if not isinstance(suggested_agents, list) or "blender-asset-creator" not in suggested_agents:
         raise RuntimeError(
-            "Asset-pipeline integration should suggest a blender asset subagent when the seeded routes include blender-mcp."
+            "Asset-pipeline integration should suggest a blender asset subagent when the seeded routes include blender-mcp-generated."
         )
     provenance_text = (asset_pipeline_dest / "assets" / "PROVENANCE.md").read_text(encoding="utf-8")
     if "| asset_path | source_or_workflow | license | author | acquired_or_generated_on | notes |" not in provenance_text:

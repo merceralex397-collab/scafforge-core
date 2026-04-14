@@ -218,12 +218,13 @@ Planned decomposition into 5 layers:
 
 Extends Scafforge with game/creative asset support via 4 acquisition routes:
 
-| Route | Source | Example |
+| Route family | Source | Example |
 |-------|--------|---------|
-| A (codex-derived) | AI-generated via Codex prompts | Procedural sprites |
-| B (free-open) | CC0/CC-BY from Kenney, OpenGameArt | Sourced sprite sheets |
-| C (blender-mcp) | 3D models via blender-agent MCP | Low-poly GLB models |
-| D (godot-builtin) | Godot native features only | Shaders, particles, CSG |
+| Procedural / repo-authored | Repo code, procedural rendering, generated shapes, authored engine resources | Procedural sprites, repo-authored shaders |
+| Third-party open / licensed | CC0, attribution, commercial, or internal licensed packs | Kenney sprites, OpenGameArt audio |
+| Blender-MCP generated | Blender toolchain plus model/workflow provenance | Low-poly GLB props |
+| Godot-native authored | Godot-native particle, theme, tilemap, shader, or CSG work | Shaders, particles, CSG |
+| Hybrid mixed-route | Explicit category-level blend of the above | Sourced UI + Blender props + procedural VFX |
 
 All routes require provenance tracking in `assets/PROVENANCE.md`.
 
@@ -232,7 +233,7 @@ All routes require provenance tracking in `assets/PROVENANCE.md`.
 - `tests/` contains validation harnesses
 - `livetesting/` contains live test repos (e.g., glitch)
 - Active audit collections under `active-audits/`
-- Agent logs under `active-plans/agent-logs/`
+- Agent runner logs under `reports/agent-runs/`
 
 ## Key Invariants
 
