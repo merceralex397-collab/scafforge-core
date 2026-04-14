@@ -12609,6 +12609,56 @@ Overall Result: PASS
                 ],
                 ROOT,
             )
+            same_head_dirty_state = json.loads(
+                recorded_follow_on_state_path.read_text(encoding="utf-8")
+            )
+            current_provenance = package_commit()
+            current_base = current_provenance.split("+dirty:", 1)[0]
+            same_head_dirty_state["repair_package_commit"] = f"{current_base}+dirty:expected123456"
+            same_head_dirty_state["stage_records"]["ticket-pack-builder"][
+                "repair_package_commit"
+            ] = f"{current_base}+dirty:recorded654321"
+            recorded_follow_on_state_path.write_text(
+                json.dumps(same_head_dirty_state, indent=2) + "\n",
+                encoding="utf-8",
+            )
+            same_head_dirty_reuse_process = subprocess.run(
+                [
+                    sys.executable,
+                    str(PUBLIC_REPAIR),
+                    str(recorded_follow_on_dest),
+                    "--skip-deterministic-refresh",
+                ],
+                cwd=ROOT,
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            same_head_dirty_reuse = json.loads(same_head_dirty_reuse_process.stdout)
+            if "ticket-pack-builder" in same_head_dirty_reuse["execution_record"][
+                "invalidated_recorded_stages"
+            ]:
+                raise RuntimeError(
+                    "Managed repair should preserve recorded execution reuse when repair package provenance only differs by a same-HEAD dirty suffix"
+                )
+            if same_head_dirty_reuse["execution_record"][
+                "recorded_execution_completed_stages"
+            ] != ["ticket-pack-builder"]:
+                raise RuntimeError(
+                    "Managed repair should keep recorded execution completion when only same-HEAD dirty provenance drift occurred"
+                )
+            same_head_dirty_after_state = json.loads(
+                recorded_follow_on_state_path.read_text(encoding="utf-8")
+            )
+            if (
+                same_head_dirty_after_state["stage_records"]["ticket-pack-builder"][
+                    "status"
+                ]
+                != "completed"
+            ):
+                raise RuntimeError(
+                    "Follow-on tracking should keep completed status when repair package provenance only differs by a same-HEAD dirty suffix"
+                )
             recorded_evidence_path.write_text(
                 "# Repair Follow-On Completion\n\n"
                 "- completed_stage: ticket-pack-builder\n"
@@ -12847,6 +12897,47 @@ Overall Result: PASS
             ]:
                 raise RuntimeError(
                     "Repair verification classification should keep advisory findings out of the managed blocker path"
+                )
+
+            source_only_regression_status = {
+                "verification_passed": False,
+                "source_follow_up_codes": ["EXEC001"],
+                "manual_prerequisite_codes": [],
+                "process_state_codes": [],
+                "source_regression_summary": {
+                    "introduced_critical_codes": ["EXEC001"],
+                },
+            }
+            source_only_blocking_codes = (
+                run_managed_repair_module.introduced_blocking_regression_codes(
+                    source_only_regression_status
+                )
+            )
+            if source_only_blocking_codes:
+                raise RuntimeError(
+                    "Introduced EXEC findings that are already routed to source_follow_up must not be treated as managed repair blockers"
+                )
+            if (
+                run_managed_repair_module.determine_repair_follow_on_outcome(
+                    blocking_reasons=[],
+                    verification_status=source_only_regression_status,
+                    pending_process_verification=False,
+                )
+                != "source_follow_up"
+            ):
+                raise RuntimeError(
+                    "Managed repair should keep skip-refresh verification reruns in source_follow_up when new EXEC findings are source-layer follow-up only"
+                )
+            if (
+                run_managed_repair_module.determine_repair_follow_on_outcome(
+                    blocking_reasons=["ticket-pack-builder must still run: synthetic follow-up."],
+                    verification_status=source_only_regression_status,
+                    pending_process_verification=False,
+                )
+                != "managed_blocked"
+            ):
+                raise RuntimeError(
+                    "Managed repair should still report managed_blocked when required follow-on stages remain incomplete"
                 )
 
             authoritative_empty_bundle_manifest = {

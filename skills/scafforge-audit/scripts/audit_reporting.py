@@ -22,6 +22,19 @@ DIAGNOSIS_REPORTS = {
     "report_4": "04-live-repo-repair-plan.md",
 }
 
+# Package provenance should track package code and contract surfaces, not the
+# mutable downstream repos and proof artifacts that happen to live under the
+# Scafforge worktree.  Otherwise a managed-repair run against
+# `livetesting/<repo>` changes the package dirty fingerprint mid-cycle even when
+# no package code changed.
+PACKAGE_PROVENANCE_EXCLUDES = (
+    "active-audits",
+    "active-plans",
+    "archive",
+    "livetesting",
+    "reports",
+)
+
 
 @dataclass(frozen=True)
 class AuditReportingContext:
@@ -1021,9 +1034,10 @@ def resolve_current_package_commit(package_root: Path) -> str:
     if result.returncode != 0:
         return "missing_provenance"
     commit = result.stdout.strip() or "missing_provenance"
+    provenance_pathspec = [".", *[f":(exclude){path}" for path in PACKAGE_PROVENANCE_EXCLUDES]]
     try:
         dirty = subprocess.run(
-            ["git", "status", "--porcelain=v1"],
+            ["git", "status", "--porcelain=v1", "--", *provenance_pathspec],
             cwd=package_root,
             check=False,
             capture_output=True,
@@ -1040,7 +1054,7 @@ def resolve_current_package_commit(package_root: Path) -> str:
         return commit
     try:
         diff = subprocess.run(
-            ["git", "diff", "--no-ext-diff", "HEAD", "--"],
+            ["git", "diff", "--no-ext-diff", "HEAD", "--", *provenance_pathspec],
             cwd=package_root,
             check=False,
             capture_output=True,

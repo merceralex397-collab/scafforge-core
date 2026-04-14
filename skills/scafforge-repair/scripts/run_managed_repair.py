@@ -1054,6 +1054,41 @@ def summarize_verification(
     }
 
 
+def introduced_blocking_regression_codes(verification_status: dict[str, Any]) -> list[str]:
+    introduced_codes = [
+        str(code).strip()
+        for code in verification_status.get("source_regression_summary", {}).get("introduced_critical_codes", [])
+        if str(code).strip()
+    ]
+    if not introduced_codes:
+        return []
+    follow_up_codes = {
+        str(code).strip()
+        for key in ("source_follow_up_codes", "manual_prerequisite_codes", "process_state_codes")
+        for code in verification_status.get(key, [])
+        if str(code).strip()
+    }
+    return [code for code in introduced_codes if code not in follow_up_codes]
+
+
+def determine_repair_follow_on_outcome(
+    *,
+    blocking_reasons: list[str],
+    verification_status: dict[str, Any],
+    pending_process_verification: bool,
+) -> str:
+    if blocking_reasons:
+        return "managed_blocked"
+    if (
+        verification_status.get("source_follow_up_codes")
+        or verification_status.get("manual_prerequisite_codes")
+        or verification_status.get("process_state_codes")
+        or pending_process_verification
+    ):
+        return "source_follow_up"
+    return "clean" if verification_status.get("verification_passed") else "managed_blocked"
+
+
 def evaluate_repair_verification(
     verification_root: Path,
     *,
@@ -1472,14 +1507,15 @@ def main() -> int:
             )
 
         blocking_reasons = [f"{item['stage']} must still run: {item['reason']}" for item in skipped_stages]
+        introduced_blocking_codes = introduced_blocking_regression_codes(verification_status)
         if args.skip_verify:
             blocking_reasons.append("Post-repair verification was skipped; rerun scafforge-audit before handoff.")
         elif basis_requires_causal_replay and not final_verification["logs"]:
             blocking_reasons.append("Post-repair verification did not inherit the transcript-backed repair basis; rerun the public repair runner with the causal transcript evidence before handoff.")
-        elif verification_status["source_regression_summary"]["introduced_critical_codes"]:
+        elif introduced_blocking_codes:
             blocking_reasons.append(
                 "Post-repair verification introduced new critical execution or reference findings: "
-                + ", ".join(verification_status["source_regression_summary"]["introduced_critical_codes"])
+                + ", ".join(introduced_blocking_codes)
                 + "."
             )
         elif verification_status["contract_failures"]:
@@ -1491,17 +1527,12 @@ def main() -> int:
         elif finding_classes["managed_blockers"]:
             blocking_reasons.append("Post-repair verification still reports managed workflow or environment findings; handoff must remain blocked until they are resolved.")
 
-        repair_follow_on_outcome = (
-            "managed_blocked"
-            if blocking_reasons or not verification_status["verification_passed"]
-            else "source_follow_up"
-            if verification_status["source_follow_up_codes"]
-            or verification_status["manual_prerequisite_codes"]
-            or verification_status["process_state_codes"]
-            or pending_process_verification
-            else "clean"
+        repair_follow_on_outcome = determine_repair_follow_on_outcome(
+            blocking_reasons=blocking_reasons,
+            verification_status=verification_status,
+            pending_process_verification=pending_process_verification,
         )
-        handoff_allowed = verification_status["verification_passed"] and not blocking_reasons
+        handoff_allowed = repair_follow_on_outcome != "managed_blocked"
 
         # Build the explicit list of ticket IDs the repair has authorised for
         # lifecycle progression while managed_blocked is active.  This allows

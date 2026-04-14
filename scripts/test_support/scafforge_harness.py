@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-import hashlib
 import json
 import os
 import re
 import shutil
 import subprocess
 import sys
+from functools import lru_cache
 from importlib.util import module_from_spec, spec_from_file_location
 from pathlib import Path
 from typing import Any
@@ -97,43 +97,19 @@ def load_python_module(path: Path, module_name: str):
     return module
 
 
+@lru_cache(maxsize=1)
+def audit_reporting_module():
+    audit_scripts = ROOT / "skills" / "scafforge-audit" / "scripts"
+    if str(audit_scripts) not in sys.path:
+        sys.path.insert(0, str(audit_scripts))
+    return load_python_module(
+        audit_scripts / "audit_reporting.py",
+        "scafforge_smoke_audit_reporting",
+    )
+
+
 def package_commit() -> str:
-    result = subprocess.run(
-        ["git", "rev-parse", "HEAD"],
-        cwd=ROOT,
-        check=False,
-        capture_output=True,
-        text=True,
-    )
-    if result.returncode != 0:
-        raise RuntimeError(
-            f"Unable to resolve package commit for smoke tests:\nSTDERR:\n{result.stderr}"
-        )
-    commit = result.stdout.strip()
-    dirty = subprocess.run(
-        ["git", "status", "--porcelain=v1"],
-        cwd=ROOT,
-        check=False,
-        capture_output=True,
-        text=True,
-    )
-    if dirty.returncode != 0:
-        return commit
-    dirty_state = dirty.stdout.strip()
-    if not dirty_state:
-        return commit
-    diff = subprocess.run(
-        ["git", "diff", "--no-ext-diff", "HEAD", "--"],
-        cwd=ROOT,
-        check=False,
-        capture_output=True,
-        text=True,
-    )
-    fingerprint_source = dirty_state
-    if diff.returncode == 0 and diff.stdout:
-        fingerprint_source = f"{dirty_state}\n{diff.stdout}"
-    fingerprint = hashlib.sha256(fingerprint_source.encode("utf-8")).hexdigest()[:12]
-    return f"{commit}+dirty:{fingerprint}"
+    return audit_reporting_module().resolve_current_package_commit(ROOT)
 
 
 def run(command: list[str], cwd: Path, *, env: dict[str, str] | None = None) -> None:

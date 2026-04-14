@@ -206,6 +206,35 @@ def canonical_stage_evidence_path(stage: str) -> str | None:
     return value if isinstance(value, str) and value else None
 
 
+def package_commit_base(provenance: str | None) -> str | None:
+    if not isinstance(provenance, str):
+        return None
+    normalized = provenance.strip()
+    if not normalized:
+        return None
+    return normalized.split("+dirty:", 1)[0]
+
+
+def package_provenance_matches(recorded: str | None, expected: str | None) -> bool:
+    if not isinstance(expected, str) or not expected.strip():
+        return True
+    if not isinstance(recorded, str) or not recorded.strip():
+        return False
+    recorded_normalized = recorded.strip()
+    expected_normalized = expected.strip()
+    if recorded_normalized == expected_normalized:
+        return True
+
+    # Live proof repos under `livetesting/` mutate the Scafforge worktree while
+    # a repair cycle is running.  Older recorded stages may therefore carry a
+    # different dirty-suffix fingerprint even though the package HEAD stayed the
+    # same.  Treat same-commit dirty variants as compatible for stage reuse; a
+    # true stale-package case still changes the underlying commit.
+    recorded_base = package_commit_base(recorded_normalized)
+    expected_base = package_commit_base(expected_normalized)
+    return bool(recorded_base and expected_base and recorded_base == expected_base)
+
+
 def validate_recorded_execution_evidence(
     repo_root: Path,
     state: dict[str, Any],
@@ -227,7 +256,10 @@ def validate_recorded_execution_evidence(
             if isinstance(record.get("repair_package_commit"), str)
             else ""
         )
-        package_commit_mismatch = bool(expected_repair_package_commit) and recorded_package_commit != expected_repair_package_commit
+        package_commit_mismatch = bool(expected_repair_package_commit) and not package_provenance_matches(
+            recorded_package_commit,
+            expected_repair_package_commit,
+        )
         cycle_id = state.get("cycle_id") if isinstance(state.get("cycle_id"), str) else ""
         canonical_evidence_path = canonical_stage_evidence_path(stage)
         canonical_cycle_mismatch = False
