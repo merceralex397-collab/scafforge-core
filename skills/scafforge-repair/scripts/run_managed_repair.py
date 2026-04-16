@@ -50,6 +50,7 @@ from follow_on_tracking import (
 )
 from shared_verifier import audit_repo
 from regenerate_restart_surfaces import regenerate_restart_surfaces
+from shared_generated_tool_runtime import run_generated_tool
 
 SCAFFOLD_SCRIPT_DIR = Path(__file__).resolve().parents[2] / "repo-scaffold-factory" / "scripts"
 if str(SCAFFOLD_SCRIPT_DIR) not in sys.path:
@@ -68,6 +69,9 @@ RECENT_LEGACY_PROCESS_VERSION = 6
 LEGACY_MIGRATION_STAGE = "legacy-contract-migration"
 LEGACY_COMPATIBILITY_SHIM_SCOPE = "package-internal"
 _PUBLISH_IGNORE_NAMES = {".git", "node_modules", "__pycache__", ".codex"}
+EMPTY_BOOTSTRAP_ENVIRONMENT_FINGERPRINT = (
+    "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+)
 
 
 def _should_skip_publish_entry(path: Path) -> bool:
@@ -632,6 +636,93 @@ def read_json_file(path: Path) -> Any:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+def _manifest_tickets(repo_root: Path) -> list[dict[str, Any]]:
+    manifest_path = repo_root / "tickets" / "manifest.json"
+    if not manifest_path.exists():
+        return []
+    try:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except Exception:
+        return []
+    tickets = manifest.get("tickets") if isinstance(manifest, dict) else None
+    return [ticket for ticket in tickets if isinstance(ticket, dict)] if isinstance(tickets, list) else []
+
+
+def _ticket_is_open(ticket: dict[str, Any]) -> bool:
+    resolution_state = str(ticket.get("resolution_state", "")).strip().lower()
+    status = str(ticket.get("status", "")).strip().lower()
+    return status != "done" and resolution_state not in {"done", "superseded", "closed"}
+
+
+def _repo_has_open_finish_validation(repo_root: Path) -> bool:
+    return any(
+        str(ticket.get("id", "")).strip() == "FINISH-VALIDATE-001" and _ticket_is_open(ticket)
+        for ticket in _manifest_tickets(repo_root)
+    )
+
+
+def _repo_has_open_remediation_ticket(repo_root: Path) -> bool:
+    return any(
+        _ticket_is_open(ticket)
+        and (
+            str(ticket.get("id", "")).strip().startswith("REMED-")
+            or str(ticket.get("lane", "")).strip() == "remediation"
+        )
+        for ticket in _manifest_tickets(repo_root)
+    )
+
+
+def refresh_bootstrap_state_if_needed(repo_root: Path) -> dict[str, Any]:
+    workflow_path = repo_root / ".opencode" / "state" / "workflow-state.json"
+    if not workflow_path.exists():
+        return {"performed": False, "reason": "workflow state missing"}
+    try:
+        workflow_state = json.loads(workflow_path.read_text(encoding="utf-8"))
+    except Exception:
+        return {"performed": False, "reason": "workflow state unreadable"}
+    bootstrap = workflow_state.get("bootstrap") if isinstance(workflow_state, dict) else None
+    if not isinstance(bootstrap, dict):
+        return {"performed": False, "reason": "bootstrap state missing"}
+    bootstrap_status = str(bootstrap.get("status", "")).strip().lower()
+    fingerprint = str(bootstrap.get("environment_fingerprint", "")).strip()
+    needs_refresh = (
+        bootstrap_status in {"failed", "stale"}
+        or fingerprint == EMPTY_BOOTSTRAP_ENVIRONMENT_FINGERPRINT
+    )
+    if not needs_refresh:
+        return {"performed": False, "reason": "bootstrap already current"}
+    if find_placeholder_skills(repo_root):
+        return {"performed": False, "reason": "placeholder skills pending follow-on"}
+    if not (repo_root / ".opencode" / "tools" / "environment_bootstrap.ts").exists():
+        return {"performed": False, "reason": "environment bootstrap tool missing"}
+
+    tool_args: dict[str, Any] = {"recovery_mode": True}
+    manifest_path = repo_root / "tickets" / "manifest.json"
+    if manifest_path.exists():
+        try:
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        except Exception:
+            manifest = {}
+        active_ticket = manifest.get("active_ticket") if isinstance(manifest, dict) else None
+        if isinstance(active_ticket, str) and active_ticket.strip():
+            tool_args["ticket_id"] = active_ticket.strip()
+    raw_result = run_generated_tool(
+        repo_root, ".opencode/tools/environment_bootstrap.ts", tool_args
+    )
+    result_payload: Any = raw_result
+    if isinstance(raw_result, str) and raw_result.strip().startswith("{"):
+        try:
+            result_payload = json.loads(raw_result)
+        except json.JSONDecodeError:
+            result_payload = raw_result
+    return {
+        "performed": True,
+        "previous_status": bootstrap_status,
+        "previous_fingerprint": fingerprint,
+        "result": result_payload,
+    }
+
+
 def normalize_optional_process_version(value: Any) -> int | None:
     return value if isinstance(value, int) and value > 0 else None
 
@@ -993,13 +1084,30 @@ def create_remediation_follow_up_tickets(repo_root: Path, diagnosis_manifest_or_
     return payload
 
 
-def classify_verification_findings(findings: list[Any]) -> dict[str, list[Any]]:
+def classify_verification_findings(
+    findings: list[Any], repo_root: Path | None = None
+) -> dict[str, list[Any]]:
     managed_blockers: list[Any] = []
     source_follow_up: list[Any] = []
     manual_prerequisites: list[Any] = []
     process_state_only: list[Any] = []
     advisory: list[Any] = []
     for finding in findings:
+        if hasattr(finding, "code"):
+            code = str(getattr(finding, "code", "")).strip()
+        elif isinstance(finding, dict):
+            code = str(finding.get("code", "")).strip()
+        else:
+            code = ""
+        if code.startswith("SESSION"):
+            advisory.append(finding)
+            continue
+        if repo_root is not None and code == "EXEC-GODOT-006" and _repo_has_open_finish_validation(repo_root):
+            source_follow_up.append(finding)
+            continue
+        if repo_root is not None and code == "EXEC-REMED-001" and _repo_has_open_remediation_ticket(repo_root):
+            source_follow_up.append(finding)
+            continue
         disposition_class = disposition_class_for_finding(finding)
         if disposition_class == "source_follow_up":
             source_follow_up.append(finding)
@@ -1152,7 +1260,7 @@ def evaluate_repair_verification(
     logs = verification_logs(verification_root, explicit_logs, repair_basis)
     findings = [] if skip_verify else audit_repo(verification_root, logs=logs)
     pending_process_verification = load_pending_process_verification(verification_root)
-    finding_classes = classify_verification_findings(findings)
+    finding_classes = classify_verification_findings(findings, repo_root=verification_root)
     regression_summary = summarize_source_regressions(findings, repair_basis_manifest)
     disposition_shadow_mode = summarize_disposition_shadow_mode(repair_basis_manifest)
     verification_status = summarize_verification(
@@ -1252,6 +1360,7 @@ def main() -> int:
     repair_result: dict[str, Any] = {}
     stale_stage_reconciliation: dict[str, Any] | None = None
     android_surface_result: dict[str, Any] = {"performed": False}
+    bootstrap_refresh_result: dict[str, Any] = {"performed": False}
     workflow_selection_sync: dict[str, Any] | None = None
     ticket_graph_repair_changes: list[str] = []
     migration_stage: dict[str, Any] = {
@@ -1405,6 +1514,8 @@ def main() -> int:
         # Reconcile stale-stage drift: if any current artifact outpaces the manifest stage,
         # align stage/status now so verification and restart-surface generation see correct state.
         stale_stage_reconciliation = _reconcile_stale_stage_for_active_ticket(candidate_root)
+        workflow_selection_sync = _sync_workflow_selection(candidate_root) or workflow_selection_sync
+        bootstrap_refresh_result = refresh_bootstrap_state_if_needed(candidate_root)
         workflow_selection_sync = _sync_workflow_selection(candidate_root) or workflow_selection_sync
 
         regenerate_restart_surfaces(
@@ -1761,6 +1872,7 @@ def main() -> int:
             "workflow_selection_sync": workflow_selection_sync,
             "ticket_graph_repair_changes": ticket_graph_repair_changes,
             "stale_stage_reconciliation": stale_stage_reconciliation,
+            "bootstrap_refresh": bootstrap_refresh_result,
             "android_surface_result": android_surface_result,
             "stale_surface_map": stale_surface_map,
         },

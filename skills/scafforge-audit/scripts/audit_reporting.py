@@ -521,7 +521,11 @@ def package_work_required_first(recommendations: list[dict[str, Any]]) -> bool:
     )
 
 
-def recommended_next_step(findings: list[Finding], recommendations: list[dict[str, Any]]) -> str:
+def recommended_next_step(
+    findings: list[Finding],
+    recommendations: list[dict[str, Any]],
+    disposition_bundle: dict[str, Any] | None = None,
+) -> str:
     # WFLOW030 = managed_blocked deadlock with only host-only stages unresolved.
     # Running repair again would re-trigger the broad WFLOW trigger and deepen
     # the deadlock.  The correct action is host intervention, not another repair.
@@ -529,6 +533,21 @@ def recommended_next_step(findings: list[Finding], recommendations: list[dict[st
         return "host_intervention_required"
     if package_work_required_first(recommendations):
         return "scafforge_package_work"
+    if isinstance(disposition_bundle, dict):
+        bundle_findings = disposition_bundle.get("findings")
+        if isinstance(bundle_findings, list):
+            classes = {
+                str(item.get("disposition_class", "")).strip()
+                for item in bundle_findings
+                if isinstance(item, dict)
+            }
+            if "manual_prerequisite_blocker" in classes:
+                return "host_intervention_required"
+            if "managed_blocker" in classes:
+                return "subject_repo_repair"
+            if "source_follow_up" in classes or findings:
+                return "subject_repo_source_follow_up"
+            return "done"
     routes = {str(item.get("route", "")).strip() for item in recommendations if isinstance(item, dict)}
     if "manual-prerequisite" in routes:
         return "host_intervention_required"
@@ -566,6 +585,50 @@ def recommendation_linked_codes(item: dict[str, Any]) -> str:
     if isinstance(linked, list) and linked:
         return ", ".join(str(code) for code in linked)
     return str(item.get("source_finding_code", "unknown"))
+
+
+def recommendation_source_codes(item: dict[str, Any]) -> list[str]:
+    linked = item.get("source_finding_codes")
+    if isinstance(linked, list) and linked:
+        return [str(code).strip() for code in linked if str(code).strip()]
+    code = str(item.get("source_finding_code", "")).strip()
+    return [code] if code else []
+
+
+def disposition_lookup(bundle: dict[str, Any] | None) -> dict[str, str]:
+    if not isinstance(bundle, dict):
+        return {}
+    findings = bundle.get("findings")
+    if not isinstance(findings, list):
+        return {}
+    lookup: dict[str, str] = {}
+    for item in findings:
+        if not isinstance(item, dict):
+            continue
+        code = str(item.get("code", "")).strip()
+        disposition_class = str(item.get("disposition_class", "")).strip()
+        if code and disposition_class:
+            lookup[code] = disposition_class
+    return lookup
+
+
+def recommendation_disposition_class(item: dict[str, Any], bundle: dict[str, Any] | None) -> str:
+    lookup = disposition_lookup(bundle)
+    linked_classes = [lookup.get(code) for code in recommendation_source_codes(item) if lookup.get(code)]
+    if "manual_prerequisite_blocker" in linked_classes:
+        return "manual_prerequisite_blocker"
+    if "managed_blocker" in linked_classes:
+        return "managed_blocker"
+    if "source_follow_up" in linked_classes:
+        return "source_follow_up"
+    if "process_state_only" in linked_classes:
+        return "process_state_only"
+    route = str(item.get("route", "")).strip()
+    if route == "manual-prerequisite":
+        return "manual_prerequisite_blocker"
+    if route == "ticket-pack-builder":
+        return "source_follow_up"
+    return "managed_blocker" if route == "scafforge-repair" else "advisory"
 
 
 def recommendation_summary_for_finding(finding: Finding) -> dict[str, Any]:
@@ -894,12 +957,37 @@ def render_report_three(findings: list[Finding]) -> str:
     return "\n".join(lines)
 
 
-def render_report_four(root: Path, findings: list[Finding], recommendations: list[dict[str, Any]]) -> str:
-    safe_repairs = [item for item in recommendations if item["route"] == "scafforge-repair"]
-    source_follow_up = [item for item in recommendations if item["route"] == "ticket-pack-builder"]
-    manual_prerequisites = [item for item in recommendations if item["route"] == "manual-prerequisite"]
-    package_first = [item for item in recommendations if item["route"] in {"scafforge-repair", "manual-prerequisite"} and "Scafforge package work required" in item.get("repair_class", "")]
-    subject_repo_first = [item for item in recommendations if item["route"] == "ticket-pack-builder"]
+def render_report_four(
+    root: Path,
+    findings: list[Finding],
+    recommendations: list[dict[str, Any]],
+    disposition_bundle: dict[str, Any] | None = None,
+) -> str:
+    safe_repairs = [
+        item
+        for item in recommendations
+        if recommendation_disposition_class(item, disposition_bundle) == "managed_blocker"
+        and item["route"] == "scafforge-repair"
+    ]
+    source_follow_up = [
+        item
+        for item in recommendations
+        if recommendation_disposition_class(item, disposition_bundle) == "source_follow_up"
+    ]
+    manual_prerequisites = [
+        item
+        for item in recommendations
+        if recommendation_disposition_class(item, disposition_bundle) == "manual_prerequisite_blocker"
+        or item["route"] == "manual-prerequisite"
+    ]
+    package_first = [
+        item
+        for item in recommendations
+        if recommendation_disposition_class(item, disposition_bundle) in {"managed_blocker", "manual_prerequisite_blocker"}
+        and item["route"] in {"scafforge-repair", "manual-prerequisite"}
+        and "Scafforge package work required" in item.get("repair_class", "")
+    ]
+    subject_repo_first = source_follow_up
     requires_regeneration = any(
         finding.code in {"SKILL001", "SKILL002", "SKILL003", "MODEL001"} or any(token in " ".join(finding.files) for token in (".opencode/agents/", ".opencode/skills/"))
         for finding in findings
@@ -972,7 +1060,7 @@ def render_report_four(root: Path, findings: list[Finding], recommendations: lis
                 ]
             )
     else:
-        lines.extend(["- No safe managed-surface repair was identified from the current findings.", ""])
+        lines.extend(["- No safe managed-surface repair is still required from the current findings.", ""])
 
     lines.extend(["## Ticket Follow-Up", ""])
     if source_follow_up:
@@ -982,8 +1070,8 @@ def render_report_four(root: Path, findings: list[Finding], recommendations: lis
                     f"### {item['id']}",
                     "",
                     f"- linked_report_id: {recommendation_linked_codes(item)}",
-                    "- action_type: generated-repo remediation ticket/process repair",
-                    "- should_scafforge_repair_run: only after managed workflow repair converges",
+                    "- action_type: generated-repo remediation ticket or repo-owned follow-up",
+                    "- should_scafforge_repair_run: no further managed repair required before this follow-up",
                     "- carry_diagnosis_pack_into_scafforge_first: no",
                     "- target_repo: subject repo",
                     f"- summary: {item['summary']}",
@@ -1046,7 +1134,6 @@ def emit_diagnosis_pack(
     generated_at = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     destination.mkdir(parents=True, exist_ok=True)
     recommendations = build_ticket_recommendations(findings, ctx, root)
-    next_step = recommended_next_step(findings, recommendations)
     disposition_bundle = build_disposition_bundle(
         findings,
         recommendations,
@@ -1054,11 +1141,12 @@ def emit_diagnosis_pack(
         repo_root=str(root),
         audit_package_commit=ctx.current_package_commit,
     )
+    next_step = recommended_next_step(findings, recommendations, disposition_bundle)
     reports = {
         DIAGNOSIS_REPORTS["report_1"]: render_report_one(root, findings, generated_at, logs),
         DIAGNOSIS_REPORTS["report_2"]: render_report_two(findings),
         DIAGNOSIS_REPORTS["report_3"]: render_report_three(findings),
-        DIAGNOSIS_REPORTS["report_4"]: render_report_four(root, findings, recommendations),
+        DIAGNOSIS_REPORTS["report_4"]: render_report_four(root, findings, recommendations, disposition_bundle),
     }
     for filename, content in reports.items():
         (destination / filename).write_text(content + "\n", encoding="utf-8")

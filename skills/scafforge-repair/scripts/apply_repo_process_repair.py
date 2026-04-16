@@ -329,6 +329,40 @@ def backfill_missing_finish_contract(brief_text: str) -> str | None:
     return f"{body}\n\n{section}"
 
 
+def refresh_finish_validation_ticket(
+    manifest: dict[str, Any], brief_text: str
+) -> bool:
+    if not brief_is_consumer_facing(brief_text) or not brief_has_finish_contract(brief_text):
+        return False
+    tickets = manifest.get("tickets")
+    if not isinstance(tickets, list):
+        return False
+    finish_acceptance_signals = _finish_contract_field(
+        brief_text, "Interaction and gameplay proof"
+    ) or _finish_contract_field(brief_text, "finish_acceptance_signals")
+    if _finish_contract_value_is_placeholder(finish_acceptance_signals):
+        return False
+    finish_ticket = next(
+        (
+            ticket
+            for ticket in tickets
+            if isinstance(ticket, dict)
+            and str(ticket.get("id", "")).strip() == "FINISH-VALIDATE-001"
+        ),
+        None,
+    )
+    if not isinstance(finish_ticket, dict):
+        return False
+    expected_acceptance = build_finish_validation_acceptance(
+        brief_text=brief_text,
+        finish_acceptance_signals=finish_acceptance_signals,
+    )
+    if finish_ticket.get("acceptance") == expected_acceptance:
+        return False
+    finish_ticket["acceptance"] = expected_acceptance
+    return True
+
+
 _REPAIR_RELEASE_INFRA_LANES: frozenset[str] = frozenset(
     {"android-export", "signing-prerequisites", "release-readiness"}
 )
@@ -1761,11 +1795,11 @@ def apply_repair(
 
         rendered_agents_root = rendered_root / ".opencode" / "agents"
         target_agents_root = repo_root / ".opencode" / "agents"
-        if rendered_agents_root.exists() and target_agents_root.exists():
+        if rendered_agents_root.exists():
+            target_agents_root.mkdir(parents=True, exist_ok=True)
             for agent_file in sorted(rendered_agents_root.glob("*.md")):
                 target_file = target_agents_root / agent_file.name
-                if target_file.exists():
-                    replace_file_with_backup(agent_file, target_file)
+                replace_file_with_backup(agent_file, target_file)
             replaced_surfaces.append(".opencode/agents")
 
         for filename in DETERMINISTIC_PROCESS_DOCS:
@@ -1793,7 +1827,9 @@ def apply_repair(
         effective_brief = brief_after if brief_after is not None else brief_before
         if isinstance(manifest_before, dict):
             manifest_after = json.loads(json.dumps(manifest_before))
-            if ensure_finish_contract_tickets(manifest_after, effective_brief):
+            manifest_modified = ensure_finish_contract_tickets(manifest_after, effective_brief)
+            manifest_modified = refresh_finish_validation_ticket(manifest_after, effective_brief) or manifest_modified
+            if manifest_modified:
                 processed_records.append(backup_target(manifest_path, backup_root, repo_root))
                 write_json(manifest_path, manifest_after)
                 replaced_surfaces.append("tickets/manifest.json")

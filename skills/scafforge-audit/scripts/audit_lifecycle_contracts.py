@@ -561,6 +561,19 @@ def _latest_current_stage_artifact(ticket: dict[str, Any], stage: str) -> dict[s
     return current[-1]
 
 
+def _current_stage_artifacts(ticket: dict[str, Any], stage: str) -> list[dict[str, Any]]:
+    artifacts = ticket.get("artifacts") if isinstance(ticket.get("artifacts"), list) else []
+    current = [
+        artifact
+        for artifact in artifacts
+        if isinstance(artifact, dict)
+        and str(artifact.get("trust_state", "current")).strip() == "current"
+        and str(artifact.get("stage", "")).strip() == stage
+    ]
+    current.sort(key=lambda artifact: str(artifact.get("created_at", "")))
+    return current
+
+
 def _current_artifact_file_path(artifact: dict[str, Any]) -> str:
     source_path = str(artifact.get("source_path", "")).strip()
     if source_path:
@@ -572,6 +585,20 @@ def _is_remediation_ticket(ticket: dict[str, Any]) -> bool:
     ticket_id = str(ticket.get("id", "")).strip().upper()
     lane = str(ticket.get("lane", "")).strip().lower()
     return lane == "remediation" or ticket_id.startswith("REMED-")
+
+
+def _referenced_evidence_paths(text: str) -> list[str]:
+    matches = re.findall(
+        r"(?:^|\n)\s*(?:[-*]\s*)?(?:evidence_artifact_path|artifact_path)\s*:\s*([^\n]+)",
+        text,
+        flags=re.IGNORECASE,
+    )
+    paths: list[str] = []
+    for match in matches:
+        candidate = match.strip().strip("`")
+        if candidate:
+            paths.append(candidate)
+    return paths
 
 
 def audit_remediation_review_evidence(
@@ -586,17 +613,18 @@ def audit_remediation_review_evidence(
     if not tickets:
         return
 
-    command_pattern = re.compile(r"(?:^|\n)(?:-\s*)?(?:(?:\*\*|__)?(?:exact\s+command\s+run|command|command run)(?:\*\*|__)?\s*:|(?:\*\*|__)?(?:exact\s+command\s+run|command|command run):(?:\*\*|__)?)\s*(?:`[^`]+`|```[\s\S]*?```)", re.IGNORECASE)
-    output_heading_pattern = re.compile(r"(?:raw(?:\s+command)?\s+output|raw\s+output|command\s+output)(?:\s*\([^)]*\))?", re.IGNORECASE)
-    inline_output_pattern = re.compile(
-        r"(?:^|\n)(?:-\s*)?(?:(?:\*\*|__)?(?:raw(?:\s+command)?\s+output|raw\s+output|command\s+output|raw\s+stdout|raw\s+stderr|stdout|stderr)(?:\s*\([^)]*\))?(?:\*\*|__)?\s*:|(?:\*\*|__)?(?:raw(?:\s+command)?\s+output|raw\s+output|command\s+output|raw\s+stdout|raw\s+stderr|stdout|stderr)(?:\s*\([^)]*\))?(?:\*\*|__)?:)",
+    command_pattern = re.compile(
+        r"(?:(?:^|\n)(?:-\s*)?(?:(?:\*\*|__)?(?:exact\s+command\s+run|command|command run)(?:\*\*|__)?\s*:|(?:\*\*|__)?(?:exact\s+command\s+run|command|command run)\s*:(?:\*\*|__)?|#{1,6}\s*(?:exact\s+command\s+run|command|command run)\s*:?)\s*)(?:`(?P<inline>[^`]+)`|```(?:[^\n]*)\n(?P<body>[\s\S]*?)```|~~~~(?:[^\n]*)\n(?P<body_alt>[\s\S]*?)~~~~)",
+        re.IGNORECASE,
+    )
+    output_pattern = re.compile(
+        r"(?:(?:^|\n)(?:-\s*)?(?:(?:\*\*|__)?(?:raw(?:\s+command)?\s+output|raw\s+output|command\s+output|raw\s+stdout|raw\s+stderr|stdout|stderr)(?:\s*\([^)]*\))?(?:\*\*|__)?\s*:|(?:\*\*|__)?(?:raw(?:\s+command)?\s+output|raw\s+output|command\s+output|raw\s+stdout|raw\s+stderr|stdout|stderr)(?:\s*\([^)]*\))?\s*:(?:\*\*|__)?|#{1,6}\s*(?:raw(?:\s+command)?\s+output|raw\s+output|command\s+output|raw\s+stdout|raw\s+stderr|stdout|stderr)(?:\s*\([^)]*\))?\s*:?)\s*)(?:`(?P<inline>[^`]+)`|```(?:[^\n]*)\n(?P<body>[\s\S]*?)```|~~~~(?:[^\n]*)\n(?P<body_alt>[\s\S]*?)~~~~)",
         re.IGNORECASE,
     )
     result_pattern = re.compile(
         r"(?:(?:^|\n)(?:-\s*)?(?:(?:\*\*|__)?(?:overall\s+result|overall\s+verdict|verdict|result|post-fix\s+result|pass/fail\s+result)(?:\*\*|__)?\s*:|(?:\*\*|__)?(?:overall\s+result|overall\s+verdict|verdict|result|post-fix\s+result|pass/fail\s+result):(?:\*\*|__)?)\s*(?:\*\*|__|`|[✅❌✔✖]\s*)*(?:PASS|PASSES|FAIL|FAILED|BLOCKED|ERROR|APPROVED|REJECT)(?:\*\*|__|`)?|(?:^|\n)#{1,6}\s*(?:overall\s+result|overall\s+verdict|review\s+verdict|verdict|result|post-fix\s+result|pass/fail\s+result|blocker\s+or\s+approval\s+signal)\s*(?:\r?\n\s*)+(?:\*\*|__|`|[✅❌✔✖]\s*)*(?:PASS|PASSES|FAIL|FAILED|BLOCKED|ERROR|APPROVED|REJECT)(?:\*\*|__|`)?)",
         re.IGNORECASE,
     )
-    code_block_pattern = re.compile(r"```(?:[^\n]*)\n([\s\S]*?)```", re.MULTILINE)
 
     for ticket in tickets:
         if not isinstance(ticket, dict):
@@ -604,30 +632,69 @@ def audit_remediation_review_evidence(
         finding_source = str(ticket.get("finding_source", "")).strip()
         if not finding_source or not _is_remediation_ticket(ticket):
             continue
-        artifact = _latest_current_stage_artifact(ticket, "review")
-        if artifact is None:
+        review_artifacts = _current_stage_artifacts(ticket, "review")
+        if not review_artifacts:
             continue
-        artifact_path_value = _current_artifact_file_path(artifact)
-        if not artifact_path_value:
+        candidate_artifacts: list[tuple[Path, str]] = []
+        seen_paths: set[Path] = set()
+
+        def append_candidate(relative_path: str) -> None:
+            normalized = relative_path.strip()
+            if not normalized:
+                return
+            artifact_path = root / normalized
+            if artifact_path in seen_paths:
+                return
+            artifact_text = ctx.read_text(artifact_path)
+            if not artifact_text:
+                return
+            seen_paths.add(artifact_path)
+            candidate_artifacts.append((artifact_path, artifact_text))
+
+        for artifact in review_artifacts:
+            artifact_path_value = _current_artifact_file_path(artifact)
+            if artifact_path_value:
+                append_candidate(artifact_path_value)
+        for artifact in _current_stage_artifacts(ticket, "qa"):
+            artifact_path_value = _current_artifact_file_path(artifact)
+            if artifact_path_value:
+                append_candidate(artifact_path_value)
+        for artifact in _current_stage_artifacts(ticket, "smoke-test"):
+            artifact_path_value = _current_artifact_file_path(artifact)
+            if artifact_path_value:
+                append_candidate(artifact_path_value)
+        for _, artifact_text in list(candidate_artifacts):
+            for referenced_path in _referenced_evidence_paths(artifact_text):
+                append_candidate(referenced_path)
+
+        if not candidate_artifacts:
             continue
-        artifact_path = root / artifact_path_value
-        artifact_text = ctx.read_text(artifact_path)
-        if not artifact_text:
+        def has_labeled_evidence(text: str, pattern: re.Pattern[str]) -> bool:
+            for match in pattern.finditer(text):
+                inline = (match.groupdict().get("inline") or "").strip()
+                body = (match.groupdict().get("body") or match.groupdict().get("body_alt") or "").strip()
+                if inline or body:
+                    return True
+            return False
+
+        def artifact_has_complete_evidence(text: str) -> bool:
+            return (
+                has_labeled_evidence(text, command_pattern)
+                and has_labeled_evidence(text, output_pattern)
+                and bool(result_pattern.search(text))
+            )
+
+        if any(artifact_has_complete_evidence(text) for _, text in candidate_artifacts):
             continue
 
+        artifact_path, artifact_text = candidate_artifacts[0]
         missing: list[str] = []
-        if not command_pattern.search(artifact_text):
+        if not has_labeled_evidence(artifact_text, command_pattern):
             missing.append("missing exact command record")
-        output_blocks = [match.group(1).strip() for match in code_block_pattern.finditer(artifact_text)]
-        has_inline_output = bool(inline_output_pattern.search(artifact_text))
-        has_output = bool(output_heading_pattern.search(artifact_text)) and (any(block for block in output_blocks) or has_inline_output)
-        if not has_output:
+        if not has_labeled_evidence(artifact_text, output_pattern):
             missing.append("missing raw command output evidence")
         if not result_pattern.search(artifact_text):
             missing.append("missing explicit post-fix PASS/FAIL result")
-
-        if not missing:
-            continue
 
         ctx.add_finding(
             findings,

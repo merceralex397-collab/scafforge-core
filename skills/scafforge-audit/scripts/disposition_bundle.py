@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import json
 from collections import Counter
+from pathlib import Path
 from typing import Any
 
 from shared_verifier_types import Finding
@@ -27,7 +29,45 @@ def evidence_grade_for_finding(finding: Finding) -> str:
     return "current-state validation"
 
 
-def disposition_class_for_finding(finding: Finding) -> str:
+def _manifest_tickets(repo_root: str | Path | None) -> list[dict[str, Any]]:
+    if not repo_root:
+        return []
+    manifest_path = Path(repo_root) / "tickets" / "manifest.json"
+    if not manifest_path.exists():
+        return []
+    try:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except Exception:
+        return []
+    tickets = manifest.get("tickets") if isinstance(manifest, dict) else None
+    return [ticket for ticket in tickets if isinstance(ticket, dict)] if isinstance(tickets, list) else []
+
+
+def _ticket_is_open(ticket: dict[str, Any]) -> bool:
+    resolution_state = str(ticket.get("resolution_state", "")).strip().lower()
+    status = str(ticket.get("status", "")).strip().lower()
+    return status != "done" and resolution_state not in {"done", "superseded", "closed"}
+
+
+def _repo_has_open_finish_validation(repo_root: str | Path | None) -> bool:
+    return any(
+        str(ticket.get("id", "")).strip() == "FINISH-VALIDATE-001" and _ticket_is_open(ticket)
+        for ticket in _manifest_tickets(repo_root)
+    )
+
+
+def _repo_has_open_remediation_ticket(repo_root: str | Path | None) -> bool:
+    return any(
+        _ticket_is_open(ticket)
+        and (
+            str(ticket.get("id", "")).strip().startswith("REMED-")
+            or str(ticket.get("lane", "")).strip() == "remediation"
+        )
+        for ticket in _manifest_tickets(repo_root)
+    )
+
+
+def disposition_class_for_finding(finding: Finding, repo_root: str | Path | None = None) -> str:
     code = getattr(finding, "code", "")
     severity = getattr(finding, "severity", "")
     if severity == "info":
@@ -35,6 +75,10 @@ def disposition_class_for_finding(finding: Finding) -> str:
     if code.startswith("ENV"):
         return "manual_prerequisite_blocker"
     if code in PACKAGE_MANAGED_EXEC_CODES:
+        if code == "EXEC-GODOT-006" and _repo_has_open_finish_validation(repo_root):
+            return "source_follow_up"
+        if code == "EXEC-REMED-001" and _repo_has_open_remediation_ticket(repo_root):
+            return "source_follow_up"
         return "managed_blocker"
     if code.startswith(("EXEC", "REF")):
         return "source_follow_up"
@@ -90,7 +134,7 @@ def build_disposition_bundle(
     deltas: list[dict[str, Any]] = []
     for finding in findings:
         code = getattr(finding, "code", "")
-        disposition_class = disposition_class_for_finding(finding)
+        disposition_class = disposition_class_for_finding(finding, repo_root=repo_root)
         legacy_class = legacy_disposition_class_for_finding(finding)
         recommendation = recommendation_map.get(code, {})
         entry = {

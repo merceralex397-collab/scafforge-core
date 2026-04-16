@@ -990,6 +990,95 @@ def seed_inline_exact_remediation_review(
     )
 
 
+def seed_heading_exact_remediation_review(dest: Path) -> None:
+    manifest_path = dest / "tickets" / "manifest.json"
+    workflow_path = dest / ".opencode" / "state" / "workflow-state.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    workflow = json.loads(workflow_path.read_text(encoding="utf-8"))
+    ticket = manifest["tickets"][0]
+    ticket["stage"] = "review"
+    ticket["status"] = "review"
+    ticket["lane"] = "remediation"
+    ticket["finding_source"] = "EXEC-REMED-001"
+    manifest["active_ticket"] = ticket["id"]
+    workflow["active_ticket"] = ticket["id"]
+    workflow["stage"] = "review"
+    workflow["status"] = "review"
+    workflow["ticket_state"].setdefault(
+        ticket["id"],
+        {"approved_plan": True, "reopen_count": 0, "needs_reverification": False},
+    )["approved_plan"] = True
+    manifest_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+    workflow_path.write_text(json.dumps(workflow, indent=2) + "\n", encoding="utf-8")
+    register_current_ticket_artifact(
+        dest,
+        ticket_id=ticket["id"],
+        kind="review",
+        stage="review",
+        relative_path=".opencode/state/reviews/setup-001-review.md",
+        summary="Synthetic remediation review artifact with heading-style command evidence.",
+        content=(
+            "# Review Artifact: SETUP-001\n\n"
+            "### Exact Command Run\n"
+            "```text\n"
+            "godot --headless --path . --quit\n"
+            "```\n\n"
+            "### Raw Command Output\n"
+            "```text\n"
+            "Godot Engine v4.6.2.stable.official.71f334935 - https://godotengine.org\n"
+            "```\n\n"
+            "## Verdict\n\n"
+            "**PASS**\n"
+        ),
+    )
+
+
+def seed_reconciled_remediation_review(dest: Path) -> None:
+    manifest_path = dest / "tickets" / "manifest.json"
+    workflow_path = dest / ".opencode" / "state" / "workflow-state.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    workflow = json.loads(workflow_path.read_text(encoding="utf-8"))
+    ticket = manifest["tickets"][0]
+    ticket["stage"] = "review"
+    ticket["status"] = "review"
+    ticket["lane"] = "remediation"
+    ticket["finding_source"] = "EXEC-REMED-001"
+    manifest["active_ticket"] = ticket["id"]
+    workflow["active_ticket"] = ticket["id"]
+    workflow["stage"] = "review"
+    workflow["status"] = "review"
+    workflow["ticket_state"].setdefault(
+        ticket["id"],
+        {"approved_plan": True, "reopen_count": 0, "needs_reverification": False},
+    )["approved_plan"] = True
+    manifest_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+    workflow_path.write_text(json.dumps(workflow, indent=2) + "\n", encoding="utf-8")
+    evidence_path = dest / ".opencode" / "state" / "reviews" / "setup-001-review-evidence.md"
+    evidence_path.parent.mkdir(parents=True, exist_ok=True)
+    evidence_path.write_text(
+        "# Review Artifact: SETUP-001\n\n"
+        "**Exact command run**: `godot --headless --path . --quit`\n\n"
+        "**Raw output**: `Godot Engine v4.6.2.stable.official.71f334935 - https://godotengine.org`\n\n"
+        "**Result: PASS**\n",
+        encoding="utf-8",
+    )
+    register_current_ticket_artifact(
+        dest,
+        ticket_id=ticket["id"],
+        kind="ticket-reconciliation",
+        stage="review",
+        relative_path=".opencode/state/reviews/setup-001-review-ticket-reconciliation.md",
+        summary="Synthetic remediation ticket reconciliation artifact with referenced evidence.",
+        content=(
+            "# Ticket Reconciliation\n\n"
+            "## Evidence References\n\n"
+            f"- evidence_artifact_path: {evidence_path.relative_to(dest).as_posix()}\n\n"
+            "## Verdict\n\n"
+            "**PASS**\n"
+        ),
+    )
+
+
 def seed_non_remediation_finding_source_review(
     dest: Path, verdict_line: str = "## Verdict: **APPROVE**"
 ) -> None:
@@ -11817,6 +11906,52 @@ Overall Result: PASS
             raise RuntimeError(
                 "Audit should accept remediation review artifacts that use `Exact command run`, inline `Raw output`, and `Result: PASS`"
             )
+        heading_exact_remediation_dest = workspace / "remediation-review-heading-exact"
+        shutil.copytree(full_dest, heading_exact_remediation_dest)
+        make_stack_skill_non_placeholder(heading_exact_remediation_dest)
+        seed_heading_exact_remediation_review(heading_exact_remediation_dest)
+        heading_exact_remediation_audit = run_json(
+            [
+                sys.executable,
+                str(AUDIT),
+                str(heading_exact_remediation_dest),
+                "--format",
+                "json",
+            ],
+            ROOT,
+        )
+        heading_exact_remediation_findings = [
+            finding
+            for finding in heading_exact_remediation_audit.get("findings", [])
+            if isinstance(finding, dict) and finding.get("code") == "EXEC-REMED-001"
+        ]
+        if heading_exact_remediation_findings:
+            raise RuntimeError(
+                "Audit should accept remediation review artifacts that use heading-style command and output sections with a verdict heading"
+            )
+        reconciled_remediation_dest = workspace / "remediation-review-ticket-reconciliation"
+        shutil.copytree(full_dest, reconciled_remediation_dest)
+        make_stack_skill_non_placeholder(reconciled_remediation_dest)
+        seed_reconciled_remediation_review(reconciled_remediation_dest)
+        reconciled_remediation_audit = run_json(
+            [
+                sys.executable,
+                str(AUDIT),
+                str(reconciled_remediation_dest),
+                "--format",
+                "json",
+            ],
+            ROOT,
+        )
+        reconciled_remediation_findings = [
+            finding
+            for finding in reconciled_remediation_audit.get("findings", [])
+            if isinstance(finding, dict) and finding.get("code") == "EXEC-REMED-001"
+        ]
+        if reconciled_remediation_findings:
+            raise RuntimeError(
+                "Audit should accept remediation evidence chains that point at prior runnable proof from a current ticket-reconciliation artifact"
+            )
 
         empty_remediation_dest = workspace / "remediation-review-empty-output"
         shutil.copytree(full_dest, empty_remediation_dest)
@@ -14169,6 +14304,103 @@ Overall Result: PASS
                         "Audit prevention guidance should map SKILL003 to the Blender-route operating surfaces"
                     )
 
+            with tempfile.TemporaryDirectory(prefix="scafforge-disposition-open-ticket-") as temp_dir:
+                temp_root = Path(temp_dir) / "repo"
+                temp_root.mkdir(parents=True, exist_ok=True)
+                (temp_root / "tickets").mkdir(parents=True, exist_ok=True)
+                (temp_root / "tickets" / "manifest.json").write_text(
+                    json.dumps(
+                        {
+                            "version": 3,
+                            "project": "Synthetic repo",
+                            "active_ticket": "FINISH-VALIDATE-001",
+                            "tickets": [
+                                {
+                                    "id": "FINISH-VALIDATE-001",
+                                    "lane": "finish-validation",
+                                    "status": "review",
+                                    "resolution_state": "open",
+                                },
+                                {
+                                    "id": "REMED-015",
+                                    "lane": "remediation",
+                                    "status": "review",
+                                    "resolution_state": "open",
+                                    "finding_source": "EXEC-REMED-001",
+                                },
+                            ],
+                        },
+                        indent=2,
+                    )
+                    + "\n",
+                    encoding="utf-8",
+                )
+                diagnosis_dest = Path(temp_dir) / "diagnosis"
+                open_ticket_findings = [
+                    SimpleNamespace(
+                        code="EXEC-GODOT-006",
+                        severity="error",
+                        problem="Synthetic open-ticket Godot smoke false-pass finding.",
+                        root_cause="Synthetic source-owned follow-up already tracked by FINISH-VALIDATE-001.",
+                        files=[".opencode/tools/smoke_test.ts"],
+                        safer_pattern="Keep the repo-owned finish-validation lane open and rerun the Godot smoke proof there.",
+                        evidence=["synthetic open finish evidence"],
+                        provenance="script",
+                    ),
+                    SimpleNamespace(
+                        code="EXEC-REMED-001",
+                        severity="error",
+                        problem="Synthetic open-ticket remediation review evidence gap.",
+                        root_cause="Synthetic remediation follow-up already tracked by an open REMED ticket.",
+                        files=["tickets/manifest.json"],
+                        safer_pattern="Keep the repo-owned remediation ticket open and rerun the exact command there.",
+                        evidence=["synthetic open remediation evidence"],
+                        provenance="script",
+                    ),
+                ]
+                diagnosis_pack = audit_reporting_module.emit_diagnosis_pack(
+                    temp_root,
+                    open_ticket_findings,
+                    diagnosis_dest,
+                    [],
+                    ctx=audit_reporting_module.AuditReportingContext(
+                        package_root=ROOT,
+                        current_package_commit=package_commit(),
+                    ),
+                )
+                open_ticket_bundle = diagnosis_pack["manifest"]["disposition_bundle"]
+                open_ticket_classes = {
+                    item["code"]: item["disposition_class"]
+                    for item in open_ticket_bundle["findings"]
+                }
+                if open_ticket_classes != {
+                    "EXEC-GODOT-006": "source_follow_up",
+                    "EXEC-REMED-001": "source_follow_up",
+                }:
+                    raise RuntimeError(
+                        "Audit should downgrade package-owned EXEC findings to source_follow_up when open repo tickets already own the follow-up"
+                    )
+                if diagnosis_pack["manifest"]["recommended_next_step"] != "subject_repo_source_follow_up":
+                    raise RuntimeError(
+                        "Diagnosis manifest should route open-ticket-owned EXEC follow-up directly to subject_repo_source_follow_up"
+                    )
+                if diagnosis_pack["manifest"]["source_findings"] != [
+                    {"code": "EXEC-GODOT-006", "severity": "error"},
+                    {"code": "EXEC-REMED-001", "severity": "error"},
+                ]:
+                    raise RuntimeError(
+                        "Diagnosis manifest source_findings should include open-ticket-owned EXEC findings after the authoritative bundle downgrade"
+                    )
+                report_four = (diagnosis_dest / "04-live-repo-repair-plan.md").read_text(encoding="utf-8")
+                if "No safe managed-surface repair is still required from the current findings." not in report_four:
+                    raise RuntimeError(
+                        "Report four should stop instructing another managed repair once the authoritative bundle downgrades the findings to source follow-up"
+                    )
+                if "no further managed repair required before this follow-up" not in report_four:
+                    raise RuntimeError(
+                        "Report four should render open-ticket-owned EXEC findings as direct subject-repo follow-up"
+                    )
+
             advisory_classes = run_managed_repair_module.classify_verification_findings(
                 [synthetic_findings[-1]]
             )
@@ -14177,6 +14409,18 @@ Overall Result: PASS
             ]:
                 raise RuntimeError(
                     "Repair verification classification should keep advisory findings out of the managed blocker path"
+                )
+            session_finding = SimpleNamespace(
+                code="SESSION003", severity="error", provenance="transcript"
+            )
+            session_classes = run_managed_repair_module.classify_verification_findings(
+                [session_finding]
+            )
+            if session_classes["managed_blockers"] or session_classes["advisory"] != [
+                session_finding
+            ]:
+                raise RuntimeError(
+                    "Repair verification classification should treat transcript-only SESSION findings as advisory instead of managed blockers"
                 )
 
             source_only_regression_status = {
