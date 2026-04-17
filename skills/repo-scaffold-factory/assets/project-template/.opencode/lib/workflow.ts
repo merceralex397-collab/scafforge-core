@@ -330,6 +330,7 @@ const EXECUTION_EVIDENCE_PATTERNS = [
 const INSPECTION_ONLY_PATTERNS = [/code inspection/i, /inspection only/i]
 const REMEDIATION_REVIEW_COMMAND_PATTERN = /(?:^|\n)(?:-\s*)?(?:(?:\*\*|__)?(?:exact\s+command\s+run|command|command run|verbatim commands?)?(?:\*\*|__)?\s*:|(?:\*\*|__)?(?:exact\s+command\s+run|command|command run|verbatim commands?)(?:\*\*|__)?)\s*(?:`[^`]+`|```[\s\S]*?```)?/i
 const REMEDIATION_REVIEW_COMMAND_BLOCK_PATTERN = /```(?:bash|sh|shell|console|text)?\n[\s\S]*?(?:godot(?:4)?|npm|pnpm|yarn|bun|pytest|cargo|go test|go vet|python(?:3)? -m|node(?:\s|$)|tsc(?:\s|$)|make(?:\s|$)|gradle|\.\/gradlew|adb|unzip)\b[\s\S]*?```/i
+const REMEDIATION_REVIEW_COMMAND_HEADING_PATTERN = /(?:^|\n)#{1,6}\s*command(?:\s+\d+)?(?:\s*[—:-].*)?$/im
 const REMEDIATION_REVIEW_COMMAND_SUMMARY_TABLE_PATTERN = /^\|\s*#\s*\|\s*Command\s*\|\s*Exit Code\s*\|\s*Result\s*\|/im
 const REMEDIATION_REVIEW_OUTPUT_HEADING_PATTERN = /(?:raw(?:\s+command)?\s+output|raw\s+output|command\s+output|raw\s+stdout|raw\s+stderr|stdout|stderr)(?:\s*\([^)]*\))?/i
 const REMEDIATION_REVIEW_INLINE_OUTPUT_PATTERN = /(?:^|\n)(?:-\s*)?(?:(?:\*\*|__)?(?:raw(?:\s+command)?\s+output|raw\s+output|command\s+output|raw\s+stdout|raw\s+stderr|stdout|stderr)(?:\s*\([^)]*\))?(?:\*\*|__)?\s*:|(?:\*\*|__)?(?:raw(?:\s+command)?\s+output|raw\s+output|command\s+output|raw\s+stdout|raw\s+stderr|stdout|stderr)(?:\s*\([^)]*\))?(?:\*\*|__)?:)/i
@@ -883,9 +884,15 @@ export function getTicket(manifest: Manifest, ticketId?: string): Ticket {
 export function isPlanApprovedForTicket(workflow: WorkflowState, ticketId: string): boolean { return ensureTicketWorkflowState(workflow, ticketId).approved_plan }
 export function setPlanApprovedForTicket(workflow: WorkflowState, ticketId: string, approved: boolean): void { ensureTicketWorkflowState(workflow, ticketId).approved_plan = approved }
 export function getTicketWorkflowState(workflow: WorkflowState, ticketId: string): TicketWorkflowState { return ensureTicketWorkflowState(workflow, ticketId) }
-export function selectForegroundTicket(manifest: Manifest, currentTicketId = manifest.active_ticket): Ticket {
+export function selectForegroundTicket(manifest: Manifest, workflow?: WorkflowState, currentTicketId = manifest.active_ticket): Ticket {
   const currentTicket = manifest.tickets.find((item) => item.id === currentTicketId)
   if (currentTicket && currentTicket.status !== "done") return currentTicket
+  if (workflow?.pending_process_verification) {
+    const affectedDoneTickets = ticketsNeedingProcessVerification(manifest, workflow)
+    if (currentTicket && affectedDoneTickets.some((item) => item.id === currentTicket.id)) return currentTicket
+    const nextAffectedDoneTicket = affectedDoneTickets[0]
+    if (nextAffectedDoneTicket) return nextAffectedDoneTicket
+  }
   const nextOpenTicket = nextTicketForProcessVerificationClear(manifest, currentTicketId)
   if (nextOpenTicket) return nextOpenTicket
   if (currentTicket) return currentTicket
@@ -893,7 +900,7 @@ export function selectForegroundTicket(manifest: Manifest, currentTicketId = man
   return manifest.tickets[0]
 }
 export function syncWorkflowSelection(workflow: WorkflowState, manifest: Manifest): void {
-  const activeTicket = selectForegroundTicket(manifest, manifest.active_ticket)
+  const activeTicket = selectForegroundTicket(manifest, workflow, manifest.active_ticket)
   manifest.active_ticket = activeTicket.id
   ensureTicketWorkflowState(workflow, activeTicket.id)
   workflow.active_ticket = activeTicket.id
@@ -1138,7 +1145,7 @@ export function hasArtifact(ticket: Ticket, options: ArtifactMatcher): boolean {
   return latestArtifact(ticket, { ...options, trust_state: options.trust_state ?? "current" }) !== undefined
 }
 export function latestReviewArtifact(ticket: Ticket): Artifact | undefined {
-  return latestArtifact(ticket, { stage: "review", trust_state: "current" }) || [...LEGACY_REVIEW_STAGES].map((stage) => latestArtifact(ticket, { stage, trust_state: "current" })).find(Boolean)
+  return latestArtifact(ticket, { stage: "review", kind: "review", trust_state: "current" }) || [...LEGACY_REVIEW_STAGES].map((stage) => latestArtifact(ticket, { stage, kind: "review", trust_state: "current" })).find(Boolean)
 }
 export function hasReviewArtifact(ticket: Ticket): boolean { return latestReviewArtifact(ticket) !== undefined }
 export async function readArtifactContent(artifact: Artifact | undefined, root = rootPath()): Promise<string> {
@@ -1271,15 +1278,18 @@ function hasExecutionEvidence(content: string): boolean { return EXECUTION_EVIDE
 function claimsInspectionOnly(content: string): boolean { return INSPECTION_ONLY_PATTERNS.some((pattern) => pattern.test(content)) }
 function remediationReviewMissingEvidence(content: string): string[] {
   const missing: string[] = []
+  const outputBlocks = [...content.matchAll(CODE_BLOCK_PATTERN)].map((match) => (match[1] || "").trim())
+  const hasCombinedCommandOutputBlock = outputBlocks.some((block) => /^\s*\$ \S+/m.test(block) && block.split(/\r?\n/).some((line, index) => index > 0 && line.trim().length > 0))
   const hasCommandRecord = (
     REMEDIATION_REVIEW_COMMAND_PATTERN.test(content) ||
     REMEDIATION_REVIEW_COMMAND_BLOCK_PATTERN.test(content) ||
+    REMEDIATION_REVIEW_COMMAND_HEADING_PATTERN.test(content) ||
+    hasCombinedCommandOutputBlock ||
     REMEDIATION_REVIEW_COMMAND_SUMMARY_TABLE_PATTERN.test(content)
   )
   if (!hasCommandRecord) missing.push("exact command record")
-  const outputBlocks = [...content.matchAll(CODE_BLOCK_PATTERN)].map((match) => (match[1] || "").trim())
   const hasInlineOutput = REMEDIATION_REVIEW_INLINE_OUTPUT_PATTERN.test(content)
-  const hasOutput = REMEDIATION_REVIEW_OUTPUT_HEADING_PATTERN.test(content) && (outputBlocks.some(Boolean) || hasInlineOutput)
+  const hasOutput = (REMEDIATION_REVIEW_OUTPUT_HEADING_PATTERN.test(content) && (outputBlocks.some(Boolean) || hasInlineOutput)) || hasCombinedCommandOutputBlock
   if (!hasOutput) missing.push("raw command output")
   const verdictInfo = extractArtifactVerdict(content)
   if (!verdictInfo.verdict && !REMEDIATION_REVIEW_RESULT_PATTERN.test(content)) missing.push("explicit PASS/FAIL result")

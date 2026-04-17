@@ -29,6 +29,7 @@ import {
   reconcileStaleStageIfNeeded,
   repairFollowOnBlockingReason,
   readArtifactContent,
+  selectForegroundTicket,
   ticketNeedsHistoricalReconciliation,
   ticketNeedsTrustRestoration,
   ticketNeedsProcessVerification,
@@ -73,7 +74,7 @@ async function buildTransitionGuidance(ticket: ReturnType<typeof getTicket>, wor
     current_stage: ticket.stage,
     current_status: ticket.status,
     approved_plan: approvedPlan,
-    pending_process_verification: needsProcessVerification,
+    pending_process_verification: processVerification.pending,
     current_state_blocker: blocker,
     next_allowed_stages: [] as string[],
     required_artifacts: [] as string[],
@@ -600,7 +601,9 @@ export default tool({
   async execute(args) {
     const manifest = await loadManifest()
     const workflow = await loadWorkflowState()
-    const ticket = getTicket(manifest, args.ticket_id)
+    const ticket = typeof args.ticket_id === "string" && args.ticket_id.trim()
+      ? getTicket(manifest, args.ticket_id)
+      : selectForegroundTicket(manifest, workflow, manifest.active_ticket)
     const latestPlan = latestArtifact(ticket, { stage: "planning" }) || null
     const latestImplementation = latestArtifact(ticket, { stage: "implementation" }) || null
     const latestReview = latestReviewArtifact(ticket) || null

@@ -1097,6 +1097,58 @@ def seed_heading_exact_remediation_review(dest: Path) -> None:
     )
 
 
+def seed_command_section_remediation_review(dest: Path) -> None:
+    manifest_path = dest / "tickets" / "manifest.json"
+    workflow_path = dest / ".opencode" / "state" / "workflow-state.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    workflow = json.loads(workflow_path.read_text(encoding="utf-8"))
+    ticket = manifest["tickets"][0]
+    ticket["stage"] = "review"
+    ticket["status"] = "review"
+    ticket["lane"] = "remediation"
+    ticket["finding_source"] = "EXEC-GODOT-005a"
+    manifest["active_ticket"] = ticket["id"]
+    workflow["active_ticket"] = ticket["id"]
+    workflow["stage"] = "review"
+    workflow["status"] = "review"
+    workflow["ticket_state"].setdefault(
+        ticket["id"],
+        {"approved_plan": True, "reopen_count": 0, "needs_reverification": False},
+    )["approved_plan"] = True
+    manifest_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+    workflow_path.write_text(json.dumps(workflow, indent=2) + "\n", encoding="utf-8")
+    register_current_ticket_artifact(
+        dest,
+        ticket_id=ticket["id"],
+        kind="review",
+        stage="review",
+        relative_path=".opencode/state/reviews/setup-001-review.md",
+        summary="Synthetic remediation review artifact with combined command/output blocks.",
+        content=(
+            "# Code Review for SETUP-001\n\n"
+            "## Verification Evidence\n\n"
+            "### Command 1 — Godot Headless Load\n\n"
+            "```text\n"
+            "$ godot4 --headless --path . --quit\n"
+            "Godot Engine v4.6.1.stable.official.14d19694e - https://godotengine.org\n"
+            "EXIT_CODE=0\n"
+            "```\n\n"
+            "**Result: PASS** — headless load exits cleanly.\n\n"
+            "### Command 2 — Android APK Export\n\n"
+            "```text\n"
+            '$ godot4 --headless --path . --export-debug "Android Debug" build/android/setup-001-debug.apk\n'
+            "ADDING: classes.dex\n"
+            "ADDING: AndroidManifest.xml\n"
+            "Signed\n"
+            "EXIT_CODE=0\n"
+            "```\n\n"
+            "**Result: PASS** — export completed and produced the APK payload.\n\n"
+            "## Review Verdict\n\n"
+            "**PASS**\n"
+        ),
+    )
+
+
 def seed_reconciled_remediation_review(dest: Path) -> None:
     manifest_path = dest / "tickets" / "manifest.json"
     workflow_path = dest / ".opencode" / "state" / "workflow-state.json"
@@ -8500,6 +8552,10 @@ def main() -> int:
             ".opencode/tools/ticket_lookup.ts",
             {},
         )
+        if process_clearable_lookup["ticket"]["id"] != "PROC-001":
+            raise RuntimeError(
+                "ticket_lookup should foreground an open writable ticket before offering clearable pending_process_verification cleanup"
+            )
         if process_clearable_lookup["process_verification"]["clearable_now"] is not True:
             raise RuntimeError(
                 "ticket_lookup should report clearable_now when pending_process_verification is true and no done tickets remain affected"
@@ -8515,13 +8571,13 @@ def main() -> int:
             "pending_process_verification": False,
         }:
             raise RuntimeError(
-                "ticket_lookup should foreground an open writable ticket when clearing pending_process_verification from a closed foreground ticket"
+                "ticket_lookup should clear pending_process_verification through the foreground writable ticket"
             )
-        if "Foreground open ticket PROC-001" not in process_clearable_guidance[
+        if "current writable ticket" not in process_clearable_guidance[
             "recommended_action"
         ]:
             raise RuntimeError(
-                "ticket_lookup should explain that the team leader must switch to an open ticket before clearing pending_process_verification"
+                "ticket_lookup should explain that clearable pending_process_verification can be cleared immediately once the writable ticket is foregrounded"
             )
         process_clearable_open_dest = workspace / "executed-process-clearable-open"
         shutil.copytree(process_clearable_dest, process_clearable_open_dest)
@@ -8582,6 +8638,107 @@ def main() -> int:
             raise RuntimeError(
                 "ticket_update should clear pending_process_verification when ticket_lookup routes the cleanup through the current open ticket"
             )
+        process_all_done_dest = workspace / "executed-process-all-done"
+        shutil.copytree(full_dest, process_all_done_dest)
+        seed_ready_bootstrap(process_all_done_dest)
+        process_all_done_manifest_path = process_all_done_dest / "tickets" / "manifest.json"
+        process_all_done_workflow_path = (
+            process_all_done_dest / ".opencode" / "state" / "workflow-state.json"
+        )
+        process_all_done_manifest = json.loads(
+            process_all_done_manifest_path.read_text(encoding="utf-8")
+        )
+        process_all_done_workflow = json.loads(
+            process_all_done_workflow_path.read_text(encoding="utf-8")
+        )
+        legacy_ticket = next(
+            ticket for ticket in process_all_done_manifest["tickets"] if ticket["id"] == "SETUP-001"
+        )
+        legacy_ticket["stage"] = "closeout"
+        legacy_ticket["status"] = "done"
+        legacy_ticket["resolution_state"] = "done"
+        legacy_ticket["verification_state"] = "trusted"
+        process_all_done_manifest["tickets"].append(
+            {
+                "id": "LEGACY-001",
+                "title": "Historical closed ticket awaiting backlog verification",
+                "wave": 98,
+                "lane": "workflow",
+                "parallel_safe": False,
+                "overlap_risk": "low",
+                "stage": "closeout",
+                "status": "done",
+                "depends_on": [],
+                "summary": "Synthetic done ticket used to prove all-done process verification routing.",
+                "acceptance": ["Historical trust can be restored through backlog verification."],
+                "decision_blockers": [],
+                "artifacts": [],
+                "resolution_state": "done",
+                "verification_state": "trusted",
+                "follow_up_ticket_ids": [],
+            }
+        )
+        process_all_done_manifest["active_ticket"] = "SETUP-001"
+        process_all_done_workflow["active_ticket"] = "SETUP-001"
+        process_all_done_workflow["stage"] = "closeout"
+        process_all_done_workflow["status"] = "done"
+        process_all_done_workflow["approved_plan"] = True
+        process_all_done_workflow["pending_process_verification"] = True
+        process_all_done_workflow["process_last_changed_at"] = "2026-04-02T00:00:00Z"
+        process_all_done_workflow.setdefault("ticket_state", {})
+        process_all_done_workflow["ticket_state"]["SETUP-001"] = {
+            "approved_plan": True,
+            "reopen_count": 0,
+            "needs_reverification": False,
+        }
+        process_all_done_workflow["ticket_state"]["LEGACY-001"] = {
+            "approved_plan": True,
+            "reopen_count": 0,
+            "needs_reverification": False,
+        }
+        process_all_done_manifest_path.write_text(
+            json.dumps(process_all_done_manifest, indent=2) + "\n", encoding="utf-8"
+        )
+        process_all_done_workflow_path.write_text(
+            json.dumps(process_all_done_workflow, indent=2) + "\n", encoding="utf-8"
+        )
+        register_current_ticket_artifact(
+            process_all_done_dest,
+            ticket_id="SETUP-001",
+            kind="smoke-test",
+            stage="smoke-test",
+            relative_path=".opencode/state/artifacts/history/setup-001/smoke-test/2026-04-03T00-00-00Z-synthetic-smoke.md",
+            summary="Synthetic smoke proof after the process change.",
+            content="# Smoke Test\n\n## Command\n\n`pytest -q`\n\n## Raw Output\n\n```text\n1 passed in 0.01s\n```\n\nOverall Result: PASS\n",
+            created_at="2026-04-03T00:00:00Z",
+        )
+        register_current_ticket_artifact(
+            process_all_done_dest,
+            ticket_id="LEGACY-001",
+            kind="smoke-test",
+            stage="smoke-test",
+            relative_path=".opencode/state/artifacts/history/legacy-001/smoke-test/2026-04-01T00-00-00Z-synthetic-smoke.md",
+            summary="Synthetic stale smoke proof before the process change.",
+            content="# Smoke Test\n\n## Command\n\n`pytest -q`\n\n## Raw Output\n\n```text\n1 passed in 0.01s\n```\n\nOverall Result: PASS\n",
+            created_at="2026-04-01T00:00:00Z",
+        )
+        process_all_done_lookup = run_generated_tool(
+            process_all_done_dest,
+            ".opencode/tools/ticket_lookup.ts",
+            {},
+        )
+        if process_all_done_lookup["ticket"]["id"] != "LEGACY-001":
+            raise RuntimeError(
+                "ticket_lookup should foreground the first affected done ticket when all open work is complete but process verification is still pending"
+            )
+        if process_all_done_lookup["transition_guidance"]["next_action_tool"] != "ticket_reverify":
+            raise RuntimeError(
+                "ticket_lookup should route all-done process verification through ticket_reverify on the affected historical ticket"
+            )
+        if process_all_done_lookup["transition_guidance"]["delegate_to_agent"] != "backlog-verifier":
+            raise RuntimeError(
+                "ticket_lookup should delegate all-done process verification to the backlog verifier"
+            )
         register_current_ticket_artifact(
             executed_lifecycle_dest,
             ticket_id="SETUP-001",
@@ -8611,6 +8768,73 @@ def main() -> int:
         ):
             raise RuntimeError(
                 "ticket_lookup should recommend moving a planned ticket into plan_review next"
+            )
+        remediation_combined_review_dest = workspace / "executed-remediation-combined-review"
+        shutil.copytree(full_dest, remediation_combined_review_dest)
+        seed_ready_bootstrap(remediation_combined_review_dest)
+        seed_command_section_remediation_review(remediation_combined_review_dest)
+        remediation_combined_review_lookup = run_generated_tool(
+            remediation_combined_review_dest,
+            ".opencode/tools/ticket_lookup.ts",
+            {},
+        )
+        if remediation_combined_review_lookup["transition_guidance"]["next_action_tool"] != "ticket_update":
+            raise RuntimeError(
+                "ticket_lookup should accept remediation reviews that embed command and raw output in the same fenced block"
+            )
+        remediation_combined_review_update = run_generated_tool(
+            remediation_combined_review_dest,
+            ".opencode/tools/ticket_update.ts",
+            {"ticket_id": "SETUP-001", "stage": "qa", "activate": True},
+        )
+        if remediation_combined_review_update["updated_ticket"]["stage"] != "qa":
+            raise RuntimeError(
+                "ticket_update should allow remediation review -> qa when the review artifact records combined command/output evidence blocks"
+            )
+        review_preference_dest = workspace / "executed-review-preference"
+        shutil.copytree(full_dest, review_preference_dest)
+        seed_ready_bootstrap(review_preference_dest)
+        seed_review_stage_with_verdict(
+            review_preference_dest, "## Review Verdict\n\n**`REJECT`**"
+        )
+        register_current_ticket_artifact(
+            review_preference_dest,
+            ticket_id="SETUP-001",
+            kind="ticket-reconciliation",
+            stage="review",
+            relative_path=".opencode/state/reviews/setup-001-review-ticket-reconciliation.md",
+            summary="Synthetic current reconciliation artifact that should not hide the real review verdict.",
+            content="# Ticket Reconciliation\n\n## Evidence References\n\n- evidence_artifact_path: .opencode/state/reviews/setup-001-review.md\n",
+        )
+        review_preference_lookup = run_generated_tool(
+            review_preference_dest,
+            ".opencode/tools/ticket_lookup.ts",
+            {},
+        )
+        if review_preference_lookup["transition_guidance"]["verdict_unclear"] is not False:
+            raise RuntimeError(
+                "ticket_lookup should keep using the current review artifact verdict even when a current ticket-reconciliation artifact also exists"
+            )
+        if review_preference_lookup["transition_guidance"]["review_verdict"] != "REJECT":
+            raise RuntimeError(
+                "ticket_lookup should preserve the REJECT verdict from the current review artifact when reconciliation evidence is also current"
+            )
+        if review_preference_lookup["transition_guidance"]["recommended_ticket_update"] != {
+            "ticket_id": "SETUP-001",
+            "stage": "implementation",
+            "activate": True,
+        }:
+            raise RuntimeError(
+                "ticket_lookup should route a rejected review back to implementation even when ticket-reconciliation artifacts are also current"
+            )
+        review_preference_update = run_generated_tool(
+            review_preference_dest,
+            ".opencode/tools/ticket_update.ts",
+            {"ticket_id": "SETUP-001", "stage": "implementation", "activate": True},
+        )
+        if review_preference_update["updated_ticket"]["stage"] != "implementation":
+            raise RuntimeError(
+                "ticket_update should route a rejected review back to implementation even when ticket-reconciliation artifacts are also current"
             )
         direct_implementation_error = run_generated_tool_error(
             executed_lifecycle_dest,

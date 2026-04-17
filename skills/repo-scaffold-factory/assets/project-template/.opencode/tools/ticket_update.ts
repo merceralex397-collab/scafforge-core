@@ -13,6 +13,7 @@ import {
   loadManifest,
   loadWorkflowState,
   latestArtifact,
+  latestReviewArtifact,
   markTicketDone,
   nextRepairFollowOnStage,
   repairFollowOnBlockingReason,
@@ -109,7 +110,9 @@ export default tool({
           `Cannot route ${ticket.id} back to implementation from ${backwardStage} — no ${backwardStage} artifact exists. Produce an artifact with a blocking verdict before routing backward.`,
         )
       }
-      const latestBackwardArtifact = latestArtifact(ticket, { stage: backwardStage, trust_state: "current" })
+      const latestBackwardArtifact = backwardStage === "review"
+        ? latestReviewArtifact(ticket)
+        : latestArtifact(ticket, { stage: backwardStage, trust_state: "current" })
       const backwardVerdict = extractArtifactVerdict(await readArtifactContent(latestBackwardArtifact))
       if (backwardVerdict.verdict_unclear) {
         throw new Error(
