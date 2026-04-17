@@ -8836,6 +8836,24 @@ def main() -> int:
             raise RuntimeError(
                 "ticket_update should route a rejected review back to implementation even when ticket-reconciliation artifacts are also current"
             )
+        review_preference_post_lookup = run_generated_tool(
+            review_preference_dest,
+            ".opencode/tools/ticket_lookup.ts",
+            {},
+        )
+        if (
+            review_preference_post_lookup["transition_guidance"][
+                "current_state_blocker"
+            ]
+            and "Stale-stage drift" in review_preference_post_lookup["transition_guidance"]["current_state_blocker"]
+        ):
+            raise RuntimeError(
+                "ticket_update rollback to implementation should retire current forward-progress artifacts so ticket_lookup does not snap the ticket back to review"
+            )
+        if review_preference_post_lookup["transition_guidance"]["next_action_tool"] != "artifact_write":
+            raise RuntimeError(
+                "ticket_update rollback to implementation should require a fresh implementation artifact after a blocking review"
+            )
         direct_implementation_error = run_generated_tool_error(
             executed_lifecycle_dest,
             ".opencode/tools/ticket_update.ts",

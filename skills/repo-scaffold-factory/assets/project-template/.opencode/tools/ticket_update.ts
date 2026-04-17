@@ -14,6 +14,7 @@ import {
   loadWorkflowState,
   latestArtifact,
   latestReviewArtifact,
+  markArtifactsHistorical,
   markTicketDone,
   nextRepairFollowOnStage,
   repairFollowOnBlockingReason,
@@ -124,6 +125,12 @@ export default tool({
           `Cannot route ${ticket.id} back to implementation from ${backwardStage} — latest artifact verdict is ${backwardVerdict.verdict}, not a blocking verdict. Only FAIL verdicts permit backward routing.`,
         )
       }
+      markArtifactsHistorical(
+        ticket,
+        undefined,
+        "superseded",
+        `Rolled back to implementation after ${backwardStage} returned blocking verdict ${backwardVerdict.verdict}.`,
+      )
     }
 
     if (targetStage === "review") {
