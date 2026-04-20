@@ -1280,6 +1280,7 @@ export function isPassingArtifactVerdict(verdict: ArtifactVerdict | null): boole
   return verdict === "PASS" || verdict === "APPROVED"
 }
 const SMOKE_PASS_RESULT_PATTERN = /Overall Result:\s*PASS\b/i
+const SMOKE_DEFERRED_RESULT_PATTERN = /Overall Result:\s*DEFERRED\b/i
 const SMOKE_FAILURE_CLASSIFICATION_PATTERN = /^- failure_classification:\s*([a-z_]+)\s*$/gim
 const SMOKE_EXIT_CODE_PATTERN = /^- exit_code:\s*(-?\d+)\s*$/gim
 const SMOKE_GODOT_ERROR_PATTERN = /(?:SCRIPT ERROR:\s*)?Parse Error:|ERROR:\s*Failed to load script|syntax error|parse error|failed to load script|not declared in the current scope|not found in base self|unexpected token|missing language argument|unterminated|unmatched quote/i
@@ -1367,6 +1368,11 @@ export async function validateSmokeTestArtifactEvidence(ticket: Ticket, root = r
   if (!artifact) return "Cannot move to done before a smoke-test artifact exists."
   const content = await readArtifactContent(artifact, root)
   if (artifactByteLength(content) < MIN_EXECUTION_ARTIFACT_BYTES) return `Smoke-test artifact must be at least ${MIN_EXECUTION_ARTIFACT_BYTES} bytes before closeout.`
+  // A DEFERRED smoke artifact means the smoke test is waiting on other tickets.
+  // The ticket cannot close until those tickets are done and smoke_test is re-run and passes.
+  if (SMOKE_DEFERRED_RESULT_PATTERN.test(content)) {
+    return "Smoke test is DEFERRED — re-run smoke_test for this ticket after all listed blocking tickets reach done status. Do not close this ticket until smoke_test returns PASS."
+  }
   if (!hasExecutionEvidence(content)) return "Smoke-test artifact must include raw command output before closeout."
   const contradiction = smokeArtifactPassContradictionReason(content)
   if (contradiction) return `Smoke-test artifact contradicts its PASS result: ${contradiction}.`
@@ -1522,6 +1528,9 @@ export async function validateHandoffNextAction(manifest: Manifest, workflow: Wo
     const contradiction = smokeArtifactPassContradictionReason(content)
     if (contradiction) {
       return `Cannot publish causal claims about repo readiness while the smoke-test artifact for ${ticket.id} contradicts its PASS result: ${contradiction}.`
+    }
+    if (SMOKE_DEFERRED_RESULT_PATTERN.test(content)) {
+      return `Cannot publish causal claims about repo readiness while the smoke-test for ${ticket.id} is DEFERRED. Re-run smoke_test after all blocking tickets complete.`
     }
     if (!SMOKE_PASS_RESULT_PATTERN.test(content)) {
       return `Cannot publish causal claims about repo readiness without a passing smoke-test artifact for ${ticket.id}.`

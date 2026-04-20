@@ -81,32 +81,64 @@ RUNTIME_SOURCE_EXCLUDED_DIRS: frozenset[str] = frozenset({
     ".opencode",
 })
 PLACEHOLDER_RUNTIME_PATTERNS: tuple[re.Pattern[str], ...] = (
+    # Original patterns
     re.compile(r"\bTODO:\s*Implement (?:actual|full|real)\b", re.IGNORECASE),
     re.compile(r"\bnot (?:yet )?fully implemented\b", re.IGNORECASE),
     re.compile(r"\bplaceholder (?:response|implementation)\b", re.IGNORECASE),
     re.compile(r"\bstub(?:bed)?\b.+\brequires\b.+\bintegration\b", re.IGNORECASE),
     re.compile(r"\bwould send .+ configured model\b", re.IGNORECASE),
+    # Natural-language stub phrases ("For now, return/echo/use/this/just ...")
+    re.compile(r"\bFor now[,\s].{0,80}\b(return|echo|use|this|just|yield|produce|give)\b", re.IGNORECASE),
+    # Trailing "for now" at end of phrase ("Return X ... for now")
+    re.compile(r"\b(return|returns|returning|using|use)\b.{0,60}\bfor now\b", re.IGNORECASE),
+    # Placeholder without specific noun following (e.g., "return a placeholder")
+    re.compile(r"\b(return|returns|returning|using)\b.{0,40}\bplaceholder\b", re.IGNORECASE),
+    # JSON/struct status fields set to not_implemented
+    re.compile(r'"status"\s*:\s*"not_implemented"', re.IGNORECASE),
+    re.compile(r"\bnot_implemented\b", re.IGNORECASE),
+    # LLM integration pending phrase
+    re.compile(r"\bintegration pending\b", re.IGNORECASE),
+    # Rust unimplemented / todo macros in runtime paths
+    re.compile(r"\btodo!\s*\(", re.IGNORECASE),
+    re.compile(r"\bunimplemented!\s*\(", re.IGNORECASE),
+    # Stub comment followed by explanation
+    re.compile(r"//\s*Stub\s*[-–—]", re.IGNORECASE),
+    # Empty-body placeholders that explicitly say so
+    re.compile(r"\bcoming soon\b", re.IGNORECASE),
+    # Return empty collection with an explanatory comment
+    re.compile(r"\breturn\s+(?:vec!\[\]|Vec::new\(\)|HashMap::new\(\)|BTreeMap::new\(\)|Ok\(vec!\[\]\)|Ok\(Vec::new\(\)\))\s*[;\s]*//", re.IGNORECASE),
 )
 RUNTIME_PLACEHOLDER_PATH_TOKENS: frozenset[str] = frozenset({
     "agent",
     "agents",
     "ask",
     "chat",
+    "checkpoint",
     "cli",
     "command",
     "commands",
+    "discovery",
+    "dispatch",
     "edit",
     "executor",
+    "handlers",
     "ide",
     "inference",
     "llm",
+    "manager",
     "mcp",
+    "mode",
+    "protocol",
     "provider",
     "providers",
+    "resilience",
     "runtime",
     "search",
     "server",
     "session",
+    "skills",
+    "state",
+    "streaming",
     "suggest",
     "tool",
     "tools",

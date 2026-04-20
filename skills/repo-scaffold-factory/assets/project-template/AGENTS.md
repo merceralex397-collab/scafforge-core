@@ -65,3 +65,17 @@ If this file conflicts with any global AI instruction file, this file wins for t
 - Use `ticket_reconcile` to repair stale or contradictory ticket lineage from evidence instead of editing `tickets/manifest.json` directly.
 - Treat `.opencode/meta/bootstrap-provenance.json` as provenance only, not as a mutable resume or queue surface.
 - Use `smoke_test` to generate smoke-test proof. Do not fabricate smoke-test PASS artifacts through generic artifact tools.
+- Use `smoke_test(smoke_deferred_until=[ticket_ids])` when a ticket's acceptance smoke test requires functionality from a later ticket that is not yet done. Do NOT use `command_override` to scope-narrow around missing functionality.
+
+## Machine / Clone Check
+
+**Bootstrap state is machine-specific.** The bootstrap status stored in `.opencode/state/workflow-state.json` and published in `START-HERE.md` was verified on a specific machine. It is NOT valid on a different machine or a fresh clone.
+
+**Before starting any ticket work on a new or different machine:**
+
+1. Check `.opencode/state/workflow-state.json` `.bootstrap.environment_fingerprint` — if it is set but does not match the current host, bootstrap is stale.
+2. Run `environment_bootstrap` to re-verify prerequisites on this host.
+3. Tools will throw `"Bootstrap stale. Run environment_bootstrap."` if you try to run smoke tests without re-verifying. This is correct behavior — it means bootstrap needs to re-run, NOT that anything is broken.
+4. Only after `environment_bootstrap` succeeds on this machine can ticket lifecycle work resume normally.
+
+Do not skip this check if you cloned the repo from remote, switched machines, or if the CI environment differs from the development environment.

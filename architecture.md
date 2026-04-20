@@ -196,23 +196,19 @@ This is used by repair to reconstruct the correct template rendering context.
 
 All modes use `< /dev/null` to prevent stdin EBADF errors.
 
-## Smoke Test Tool (Decomposition Planned)
+## Smoke Test Tool
 
-The smoke_test tool (`tools/smoke_test.ts`) is currently a monolithic 810-line module that conflates 8 responsibilities: command detection, execution, failure classification, artifact generation, and orchestration. Key issues:
+The smoke_test tool (`tools/smoke_test.ts`) handles command detection, execution, failure classification, artifact generation, and orchestration.
 
-- **Fail-fast masking**: Stops after first failed command, hiding subsequent failures
-- **No resume checkpoints**: Crashes lose all partial results
-- **Coupled layers**: Rendering, I/O, and diagnosis logic interleaved
+### Key behaviors
 
-Planned decomposition into 5 layers:
+- **`smoke_deferred_until`**: When a ticket's acceptance smoke test requires functionality from a later ticket, use `smoke_deferred_until: [ticket_ids]`. The tool emits a DEFERRED artifact and leaves the ticket at `smoke-test` stage. Normal smoke execution is skipped until all listed tickets are `done`. This is the correct escape hatch for circular smoke dependencies — use it instead of `command_override` scope-narrowing.
+- **`command_override` scope constraint**: If `command_override` is supplied but acceptance criteria reference executables not covered by the override, the tool throws a configuration error and returns FAIL. Use `smoke_deferred_until` when the dependency is genuinely a later ticket; fix acceptance criteria via `ticket_update` when the acceptance scope is wrong.
+- **DEFERRED state in workflow**: `workflow.ts` recognizes DEFERRED smoke artifacts. `validateSmokeTestArtifactEvidence()` returns an actionable message for DEFERRED (blocks closeout, gives clear recovery path). Handoff-publish also blocks on DEFERRED. `ticket_lookup` routes DEFERRED to `work_other_tickets` with `next_action_tool: null`.
 
-| Layer | Responsibility | Status |
-|-------|---------------|--------|
-| CommandDetector | Detect build/test commands per stack | Already mostly isolated |
-| CommandExecutor | Run ALL commands, collect results | Needs fail-fast removal |
-| FailureClassifier | Post-execution diagnosis | Needs extraction |
-| ArtifactGenerator | Markdown rendering + persistence | Needs extraction |
-| SmokeTestOrchestrator | Control flow | New, simplified |
+### Decomposition note
+
+The module conflates several responsibilities (command detection, execution, failure classification, artifact generation). The architecture is functional but would benefit from separation into: CommandDetector, CommandExecutor, FailureClassifier, ArtifactGenerator, and SmokeTestOrchestrator layers.
 
 ## Asset Pipeline
 

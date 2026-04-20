@@ -94,6 +94,13 @@ Rules:
 - run the project test suite and report pass/fail counts with command output
 - if no test suite exists, run compile or syntax checks and import verification on all source files
 - for user-facing or runtime-integration tickets, fail QA when the validated code path still returns placeholder output, TODO-only behavior, or stubbed integration messages even if compile/test commands pass
+- **"acceptable Wave N scaffolding" is not a valid QA finding** — stubs, placeholder returns, or unimplemented integrations in product-spine code must be listed as blockers regardless of ticket wave; do not qualify them as acceptable unless a specific, named, currently-open follow-on ticket exists that owns the stub replacement
+- for runtime-integration tickets (tickets touching user-facing commands, agent execution, provider adapters, tool execution, or any product-spine code), run a comprehensive stub detection grep for the project's primary language and include the raw output in the QA artifact:
+  - **Rust**: `grep -rn "placeholder\|For now\|not_implemented\|todo!()\|unimplemented!()\|// Stub\|// TODO\|// FIXME" crates/ src/ --include="*.rs" 2>/dev/null | grep -v "#\[test\]\|mod tests\|#\[cfg(test"`
+  - **Python**: `grep -rn "placeholder\|# TODO\|# FIXME\|raise NotImplementedError\|not_implemented" src/ --include="*.py" 2>/dev/null | grep -v "test_\|_test\.py"`
+  - **TypeScript/JavaScript**: `grep -rn "placeholder\|// TODO\|// FIXME\|throw new Error.*not.*implement" src/ --include="*.ts" --include="*.js" 2>/dev/null | grep -v "\.test\.\|\.spec\."`
+  - stubs found **in the changed module's files**: fail QA and list the stub locations as blockers
+  - stubs found **elsewhere in the repo**: do NOT fail the current ticket; include a note "N stubs found in other modules — remediation tickets should be created" and return that note to the team leader for follow-on ticket creation
 - include raw command output in the QA artifact
 - if the QA artifact does not contain command output, it will be rejected by the team leader
 - a QA artifact under 200 bytes is almost certainly insufficient — add more evidence or return a blocker

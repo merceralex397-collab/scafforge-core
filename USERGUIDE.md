@@ -134,3 +134,28 @@ The safer Scafforge stance is:
 - keep `/kickoff` as an optional first-session command
 - treat the rest as advanced or situational
 - never rely on slash commands as the agent's internal workflow
+
+## Machine Portability and Bootstrap State
+
+**Bootstrap state is host-specific.** When `environment_bootstrap` runs, it verifies that the current machine has the required executables, environment variables, and toolchain at a specific point in time. The result is stored as a fingerprint in `.opencode/state/workflow-state.json`.
+
+That fingerprint is **not valid on a different machine**.
+
+### When you switch machines or clone to a new host
+
+1. Clone (or pull) the repo as normal.
+2. **Before doing anything else**, run `environment_bootstrap`.
+   - Tools will throw `"Bootstrap stale. Run environment_bootstrap."` if you try to start ticket work without re-verifying. This is correct behavior — the stale message means re-run bootstrap, not that the repo is broken.
+3. After `environment_bootstrap` succeeds on this machine, ticket work can resume normally.
+
+### Why this matters
+
+`START-HERE.md` and the last handoff brief reflect the bootstrap state from whatever machine the prior session ran on. If that machine had `cargo`, `openssl`, or other toolchain prerequisites installed, the published state will say `bootstrap: ready`. On a different machine those prerequisites may be absent.
+
+The workflow is designed to detect this safely — it will surface a stale-bootstrap error at the first smoke test rather than silently passing with a broken toolchain. The `/bootstrap-check` command is a targeted entry point if you need to re-run bootstrap explicitly.
+
+### What the agent should NOT do on a new machine
+
+- Start ticket work before bootstrap is re-verified
+- Use `command_override` to scope-narrow smoke tests around missing toolchain prerequisites
+- Interpret `bootstrap_status: ready` from the last handoff as proof that this machine is ready

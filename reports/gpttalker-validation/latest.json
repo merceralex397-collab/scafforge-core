@@ -1,11 +1,11 @@
 {
-  "generated_at": "2026-04-18T01:41:53.098772+00:00",
-  "source_repo_path": "/tmp/scafforge-gpttalker-fixture-agjs4h_o/restart-surface-drift-after-repair",
-  "source_repo_git_status": "git status unavailable for /tmp/scafforge-gpttalker-fixture-agjs4h_o/restart-surface-drift-after-repair: fatal: not a git repository (or any of the parent directories): .git",
+  "generated_at": "2026-04-20T02:37:07.728401+00:00",
+  "source_repo_path": "/tmp/scafforge-gpttalker-fixture-5twyz6s7/restart-surface-drift-after-repair",
+  "source_repo_git_status": "git status unavailable for /tmp/scafforge-gpttalker-fixture-5twyz6s7/restart-surface-drift-after-repair: fatal: not a git repository (or any of the parent directories): .git",
   "scenarios": [
     {
       "scenario": "control",
-      "probe_root": "/tmp/scafforge-gpttalker-validation-control-5k02u5h6/restart-surface-drift-after-repair",
+      "probe_root": "/tmp/scafforge-gpttalker-validation-control-1jisf77z/restart-surface-drift-after-repair",
       "audit": {
         "finding_count": 2,
         "codes": [
@@ -91,11 +91,11 @@
           "repair_history_count": 1,
           "migration_history_latest": null,
           "repair_history_latest": {
-            "repair_id": "2026-04-18T01:41:48Z",
-            "repaired_at": "2026-04-18T01:41:48Z",
+            "repair_id": "2026-04-20T02:37:00Z",
+            "repaired_at": "2026-04-20T02:37:00Z",
             "repair_type": "managed-surface-replacement",
             "repair_kind": "deterministic-workflow-engine-replacement",
-            "repair_package_commit": "b2205a14fc57390317ff7b52a5c79e7a6a29adf4",
+            "repair_package_commit": "3fd45152294720c12f88a49fe00631de51783dfc",
             "summary": "Managed Scafforge repair runner refreshed deterministic workflow surfaces and evaluated downstream repair obligations.",
             "surfaces_replaced": [
               "opencode.jsonc",
@@ -254,7 +254,7 @@
         "repair_escalation": null
       },
       "managed_repair": {
-        "repair_package_commit": "b2205a14fc57390317ff7b52a5c79e7a6a29adf4+dirty:fce0865ac2de",
+        "repair_package_commit": "3fd45152294720c12f88a49fe00631de51783dfc+dirty:f3c4d9d318fb",
         "repair_basis_path": null,
         "required_follow_on_stages": [
           "project-skill-bootstrap"
@@ -411,7 +411,7 @@
     },
     {
       "scenario": "safe-legacy-upgrade",
-      "probe_root": "/tmp/scafforge-gpttalker-validation-safe-legacy-upgrade-qk7h6xoz/restart-surface-drift-after-repair",
+      "probe_root": "/tmp/scafforge-gpttalker-validation-safe-legacy-upgrade-nruphl7q/restart-surface-drift-after-repair",
       "audit": {
         "finding_count": 1,
         "codes": [
@@ -479,9 +479,9 @@
             "compatibility_shim_temporary": true,
             "reasons": [],
             "summary": "Recent legacy repo can auto-upgrade safely through the dedicated migration stage.",
-            "migration_id": "2026-04-18T01:41:50Z",
-            "repair_id": "2026-04-18T01:41:50Z",
-            "migrated_at": "2026-04-18T01:41:51Z",
+            "migration_id": "2026-04-20T02:37:03Z",
+            "repair_id": "2026-04-20T02:37:03Z",
+            "migrated_at": "2026-04-20T02:37:05Z",
             "migration_history_recorded": true,
             "repair_follow_on_outcome": "managed_blocked",
             "handoff_allowed": false,
@@ -535,11 +535,11 @@
             "process_version_after": 7
           },
           "repair_history_latest": {
-            "repair_id": "2026-04-18T01:41:50Z",
-            "repaired_at": "2026-04-18T01:41:50Z",
+            "repair_id": "2026-04-20T02:37:03Z",
+            "repaired_at": "2026-04-20T02:37:03Z",
             "repair_type": "managed-surface-replacement",
             "repair_kind": "deterministic-workflow-engine-replacement",
-            "repair_package_commit": "b2205a14fc57390317ff7b52a5c79e7a6a29adf4",
+            "repair_package_commit": "3fd45152294720c12f88a49fe00631de51783dfc",
             "summary": "Managed Scafforge repair runner refreshed deterministic workflow surfaces and evaluated downstream repair obligations.",
             "surfaces_replaced": [
               "opencode.jsonc",
@@ -667,9 +667,9 @@
               "compatibility_shim_temporary": true,
               "reasons": [],
               "summary": "Recent legacy repo can auto-upgrade safely through the dedicated migration stage.",
-              "migration_id": "2026-04-18T01:41:50Z",
-              "repair_id": "2026-04-18T01:41:50Z",
-              "migrated_at": "2026-04-18T01:41:51Z",
+              "migration_id": "2026-04-20T02:37:03Z",
+              "repair_id": "2026-04-20T02:37:03Z",
+              "migrated_at": "2026-04-20T02:37:05Z",
               "migration_history_recorded": true,
               "repair_follow_on_outcome": "managed_blocked",
               "handoff_allowed": false,
@@ -701,9 +701,9 @@
           "compatibility_shim_temporary": true,
           "reasons": [],
           "summary": "Recent legacy repo can auto-upgrade safely through the dedicated migration stage.",
-          "migration_id": "2026-04-18T01:41:50Z",
-          "repair_id": "2026-04-18T01:41:50Z",
-          "migrated_at": "2026-04-18T01:41:51Z",
+          "migration_id": "2026-04-20T02:37:03Z",
+          "repair_id": "2026-04-20T02:37:03Z",
+          "migrated_at": "2026-04-20T02:37:05Z",
           "migration_history_recorded": true,
           "repair_follow_on_outcome": "managed_blocked",
           "handoff_allowed": false,
@@ -714,7 +714,7 @@
         "repair_escalation": null
       },
       "managed_repair": {
-        "repair_package_commit": "b2205a14fc57390317ff7b52a5c79e7a6a29adf4+dirty:fce0865ac2de",
+        "repair_package_commit": "3fd45152294720c12f88a49fe00631de51783dfc+dirty:f3c4d9d318fb",
         "repair_basis_path": null,
         "required_follow_on_stages": [
           "project-skill-bootstrap"
@@ -790,9 +790,9 @@
           "compatibility_shim_temporary": true,
           "reasons": [],
           "summary": "Recent legacy repo can auto-upgrade safely through the dedicated migration stage.",
-          "migration_id": "2026-04-18T01:41:50Z",
-          "repair_id": "2026-04-18T01:41:50Z",
-          "migrated_at": "2026-04-18T01:41:51Z",
+          "migration_id": "2026-04-20T02:37:03Z",
+          "repair_id": "2026-04-20T02:37:03Z",
+          "migrated_at": "2026-04-20T02:37:05Z",
           "migration_history_recorded": true,
           "repair_follow_on_outcome": "managed_blocked",
           "handoff_allowed": false,
@@ -879,7 +879,7 @@
     },
     {
       "scenario": "too-old-escalation",
-      "probe_root": "/tmp/scafforge-gpttalker-validation-too-old-escalation-sc3nefg3/restart-surface-drift-after-repair",
+      "probe_root": "/tmp/scafforge-gpttalker-validation-too-old-escalation-tqwuqm46/restart-surface-drift-after-repair",
       "audit": {
         "finding_count": 1,
         "codes": [
@@ -963,7 +963,7 @@
           "migration_id": null
         },
         "repair_escalation": {
-          "escalated_at": "2026-04-18T01:41:52Z",
+          "escalated_at": "2026-04-20T02:37:06Z",
           "change_summary": "Managed Scafforge repair runner refreshed deterministic workflow surfaces and evaluated downstream repair obligations.",
           "attempted_operation": "legacy-contract-migration",
           "status": "approval_required",
@@ -996,7 +996,7 @@
         }
       },
       "managed_repair": {
-        "repair_package_commit": "b2205a14fc57390317ff7b52a5c79e7a6a29adf4+dirty:fce0865ac2de",
+        "repair_package_commit": "3fd45152294720c12f88a49fe00631de51783dfc+dirty:f3c4d9d318fb",
         "repair_basis_path": null,
         "required_follow_on_stages": [],
         "required_follow_on_stage_details": [],
@@ -1033,7 +1033,7 @@
     },
     {
       "scenario": "structural-mismatch-escalation",
-      "probe_root": "/tmp/scafforge-gpttalker-validation-structural-mismatch-escalation-43ah2_p6/restart-surface-drift-after-repair",
+      "probe_root": "/tmp/scafforge-gpttalker-validation-structural-mismatch-escalation-tklpffil/restart-surface-drift-after-repair",
       "audit": {
         "finding_count": 1,
         "codes": [
@@ -1117,7 +1117,7 @@
           "migration_id": null
         },
         "repair_escalation": {
-          "escalated_at": "2026-04-18T01:41:53Z",
+          "escalated_at": "2026-04-20T02:37:07Z",
           "change_summary": "Managed Scafforge repair runner refreshed deterministic workflow surfaces and evaluated downstream repair obligations.",
           "attempted_operation": "legacy-contract-migration",
           "status": "approval_required",
@@ -1150,7 +1150,7 @@
         }
       },
       "managed_repair": {
-        "repair_package_commit": "b2205a14fc57390317ff7b52a5c79e7a6a29adf4+dirty:fce0865ac2de",
+        "repair_package_commit": "3fd45152294720c12f88a49fe00631de51783dfc+dirty:f3c4d9d318fb",
         "repair_basis_path": null,
         "required_follow_on_stages": [],
         "required_follow_on_stage_details": [],

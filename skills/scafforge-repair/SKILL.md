@@ -235,6 +235,12 @@ When repair reveals unfinished or source-layer follow-up work:
 - keep repo-local review skills advisory only; they are not the canonical ticket owner
 - when the follow-up ticket carries `finding_source`, the downstream review artifact must rerun the original failing command or the canonical acceptance command for the repaired surface and record the exact command, raw command output, and explicit PASS/FAIL result before that review counts as trustworthy closure
 
+**Backlog-truth regeneration**: if the audit or diagnosis identified features in the canonical brief that have no corresponding tickets (spec coverage gaps), run `../ticket-pack-builder/SKILL.md` in remediation mode to generate the missing tickets before declaring repair complete. A repair run that leaves spec features without ticket coverage has not fully repaired the backlog. Specifically:
+1. Cross-reference the canonical brief's Goals and Required Outputs against the current manifest
+2. For any spec feature with no matching ticket, create a ticket with spec-derived acceptance criteria
+3. Document the gap and the new ticket(s) in the repair summary
+4. Do not mark repair complete until all identified spec-coverage gaps have corresponding tickets
+
 ### 9. Re-run verification
 
 After repairs, the public repair runner must own the verification pass and its diagnosis pack:

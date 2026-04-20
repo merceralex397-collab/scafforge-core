@@ -188,3 +188,15 @@ At minimum, a new adapter should prove:
 - generated workflow surfaces name the correct stack-specific commands
 - audit emits the expected EXEC or REF findings when the stack is deliberately broken
 - clean fixtures pass the relevant verification path without false positives
+
+## Stub-free acceptance requirement
+
+Execution audits for Tier 1 stacks must detect and report runtime stub patterns as EXEC findings. This applies to:
+
+- Rust: `todo!()`, `unimplemented!()`, `// Stub`, `// For now`, `not_implemented` status fields, placeholder return values in product-spine code
+- Python: `raise NotImplementedError`, `pass  #`, `# TODO: implement`, placeholder returns
+- TypeScript/JavaScript: `throw new Error('not implemented')`, `// TODO`, placeholder returns
+
+Stub detection must scan the full module tree (all crates or source directories), not only files whose paths match a narrow set of name tokens. Product-spine stubs in any module are EXEC findings.
+
+A ticket that closes with runtime stubs in its changed module is not a valid closeout. Review and QA agents must run a mandatory stub-detection grep for runtime-integration tickets and treat stubs in the changed module's files as blockers. Stubs in other modules must be noted as follow-on items, not used to block unrelated tickets.

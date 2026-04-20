@@ -242,6 +242,21 @@ Rules:
 - if a coordinator-authored `artifact_write` or `artifact_register` attempt is rejected, do not treat the partially recovered file as sufficient; reroute the same action through the owning specialist and wait for registered artifact proof before any stage advancement
 - if the rejected artifact was backlog-verification for a closed ticket, use the verifier's artifact body with `ticket_reverify(verification_content=...)` instead of retrying `artifact_register` as coordinator only when canonical acceptance refresh is not pending for that ticket
 - treat coordinator-authored planning, implementation, review, or QA artifacts as suspect evidence that needs remediation, not as proof of progression
+
+Delegation content rules (PROC-DELEGATION):
+
+- when delegating to a reviewer (`__AGENT_PREFIX__-reviewer-code`) or QA specialist (`__AGENT_PREFIX__-tester-qa`), the delegation brief must contain ONLY: the ticket ID, the repo path and relevant context (which crate/module/file changed), and an instruction to inspect independently
+- the delegation brief must NOT contain: your own assessment of whether the ticket passes, a summary of findings you expect the reviewer to confirm, expected pass/fail counts or test results, or any language that pre-loads a verdict
+- a delegation brief that pre-supplies findings or verdicts is a workflow defect — the specialist must arrive at its verdict independently from the code and artifacts
+- "acceptable Wave N scaffolding" is not a contractual exception — placeholder behavior, stub returns, or unimplemented integrations in product-spine code are always blockers regardless of ticket wave; there is no contractual basis for approving a stub as "acceptable now, to be replaced later" unless a specific, named, currently-open follow-on ticket exists that owns the stub replacement
+- if a specialist returns a Wave N exception framing without a named follow-on ticket, reject the artifact and re-delegate requiring independent re-review
+
+Blocker classification and recovery:
+
+- **environment blocker** (missing executable, bootstrap stale, permission denied): run `environment_bootstrap` and retry before escalating to a permanent block
+- **implementation blocker** (stub detected, test fails, acceptance criterion unmet): create a follow-on ticket for the specific defect; continue with other ready tickets while the follow-on is enqueued; do not halt all work
+- **circular smoke blocker** (smoke test needs functionality from a later ticket): use `smoke_test(smoke_deferred_until=[ticket_ids])` to defer the smoke test to the correct sequencing point; do NOT use `command_override` to scope-narrow around missing functionality
+- **missing-ticket blocker** (spec feature has no ticket): create the missing ticket immediately with spec-derived acceptance criteria before continuing other work
 - when Blender MCP work is in scope, a claim that the bridge itself is broken is invalid until one correct chained retry proves it: `project_initialize(output_blend=...)`, then a mutating call that reuses the returned `persistence.saved_blend` as `input_blend`, with `.blender-mcp/audit/*.jsonl` showing non-null `input_blend` / `output_blend` on the matching `job_start`
 - if a mutating Blender audit record still shows null `input_blend` or `output_blend`, classify that as invocation misuse and send the work back for a correctly chained retry instead of escalating a bridge defect to the operator
 - do not call `blender_agent_*` tools yourself to diagnose or retry a Blender-routed implementation failure; require `__AGENT_PREFIX__-blender-asset-creator` to own the retried implementation and its artifact evidence

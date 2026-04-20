@@ -19,7 +19,17 @@ Search for spec-like files opportunistically. Look for:
 - API specifications (OpenAPI, GraphQL schemas, etc.)
 - Existing code if this is a retrofit (scan for structure, not implementation)
 
-Read primary specs first, then supporting material.
+**Before reading any file in full, enumerate ALL spec-like files found.** Record each file path and its approximate line count. This enumeration becomes a required sub-artifact referenced in the canonical brief as `source_spec_inventory`. Only begin extraction (step 2) after the full inventory is recorded.
+
+Read primary specs first, then supporting material. For each file in the inventory, read it fully — not just the first section. Long files must be read in full using paginated reads if necessary.
+
+### 1a. Spec inventory check
+
+After reading all spec files, verify:
+- Every file in `source_spec_inventory` was read in full (not just the first portion)
+- Every file contributed at least one durable fact, constraint, feature, or explicit non-goal to the extraction in step 2
+- If a file contributed nothing after a full read, record it in the brief as a confirmed non-contributing file with a one-line reason (e.g., "duplicate content" or "out of scope")
+- If a file's line count suggests you may have only read a partial view, re-read it before proceeding
 
 ### 2. Extract durable facts
 
@@ -99,6 +109,8 @@ Before leaving this skill, confirm all of these are true:
 - the batched decision packet is written into the canonical brief or a directly referenced companion file
 - blocking decisions are explicitly separated from non-blocking open questions
 - backlog readiness states whether ticket generation may proceed now or which areas remain blocked
+- `source_spec_inventory` is recorded in the canonical brief listing all discovered spec files with line counts
+- every file in `source_spec_inventory` was fully read and its contributions (or confirmed non-contribution) are documented
 
 ## Rules
 

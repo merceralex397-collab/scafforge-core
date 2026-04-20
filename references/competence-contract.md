@@ -45,6 +45,8 @@ Scafforge is not competent unless the generated workflow exposes one clear legal
 - repeated weekly recurrence of the same trap family is package non-convergence, not just another repo-local finding list
 - audit must cover code-quality findings as well as workflow-surface findings
 - audit must classify stack-specific execution failures under EXEC findings and broken canonical references under REF findings when those surfaces are already invalid
+- audit must detect runtime stub patterns (placeholder returns, `todo!()`, `unimplemented!()`, `not_implemented` status fields, "for now" language in product-spine code) and emit EXEC findings for each; stub detection must cover all crate or module paths, not only paths that match a narrow set of name tokens
+- audit must detect process-integrity smells including pre-seeded verdict delegation, "acceptable Wave N scaffolding" bypass framing, and smoke-test command_override that does not cover acceptance criteria
 
 ## Repair expectations
 
@@ -65,3 +67,6 @@ Scafforge is not competent unless the generated workflow exposes one clear legal
 - generated prompts must stop on contradictions instead of encouraging exploratory stage probing or workaround search
 - greenfield generation must run environment bootstrap before specialization continues and halt when unresolved blockers still exist
 - greenfield continuation proof must require zero critical execution-surface failures and zero broken canonical references before handoff
+- spec normalization must enumerate ALL spec files with line counts before extracting facts; every file must be read in full; the canonical brief must record the source spec inventory so coverage can be verified
+- ticket generation must cross-reference every feature area in the canonical brief's Goals and Required Outputs against the ticket backlog; any brief feature with no ticket coverage must become an explicit ticket or a blocked decision ticket before the backlog is finalized
+- stub-free product-spine code is a greenfield acceptance requirement; tickets that touch runtime-integration code must not close with placeholder returns, `todo!()`, `unimplemented!()`, or "for now" stubs unless a specific named open follow-on ticket owns the replacement

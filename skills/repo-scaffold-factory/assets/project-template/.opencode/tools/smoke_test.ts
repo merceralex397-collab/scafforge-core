@@ -55,6 +55,7 @@ type SmokeArgs = {
   scope?: string
   test_paths?: string[]
   command_override?: string[]
+  smoke_deferred_until?: string[]
 }
 type SmokeCheckpoint = {
   version: number
@@ -651,7 +652,30 @@ function parseCommandOverride(rawOverride: string[]): CommandSpec[] {
 
 async function detectCommands(root: string, ticket: { acceptance?: unknown }, args: SmokeArgs, qaArtifactText: string): Promise<CommandSpec[]> {
   if (Array.isArray(args.command_override) && args.command_override.length > 0) {
-    return augmentGodotReleaseCommands(root, ticket, parseCommandOverride(args.command_override))
+    const overrideCommands = parseCommandOverride(args.command_override)
+    // Check whether acceptance-criteria commands are covered by the override.
+    // If acceptance commands exist and their executables are NOT represented in the override,
+    // this is a configuration error — the override is scope-narrowing acceptance requirements.
+    const acceptanceCommands = inferAcceptanceSmokeCommands(ticket)
+    if (acceptanceCommands.length > 0) {
+      const overrideExecutables = new Set(
+        overrideCommands.map((cmd) => cmd.argv[0]?.toLowerCase().split("/").pop() || ""),
+      )
+      const uncoveredAcceptance = acceptanceCommands.filter((cmd) => {
+        const exe = cmd.argv[0]?.toLowerCase().split("/").pop() || ""
+        return !overrideExecutables.has(exe)
+      })
+      if (uncoveredAcceptance.length > 0) {
+        const missing = uncoveredAcceptance.map((cmd) => `\`${cmd.argv.join(" ")}\``).join(", ")
+        throw new Error(
+          `command_override does not cover acceptance-criteria commands: ${missing}. ` +
+          `Either include these commands in command_override, or use smoke_deferred_until to explicitly ` +
+          `defer this smoke test until the required functionality is available. ` +
+          `Do NOT use command_override to scope-narrow around missing acceptance coverage.`,
+        )
+      }
+    }
+    return augmentGodotReleaseCommands(root, ticket, overrideCommands)
   }
   const acceptanceCommands = await detectAcceptanceCommands(root, ticket)
   if (acceptanceCommands.length > 0) {
@@ -780,6 +804,10 @@ function renderArtifact(ticketId: string, commands: CommandResult[], passed: boo
   return `# Smoke Test\n\n## Ticket\n\n- ${ticketId}\n\n## Overall Result\n\nOverall Result: ${passed ? "PASS" : "FAIL"}\n\n## Notes\n\n${note}\n\n## Commands\n\n${commandSections}\n`
 }
 
+function renderDeferredArtifact(ticketId: string, deferredUntil: string[], note: string): string {
+  return `# Smoke Test\n\n## Ticket\n\n- ${ticketId}\n\n## Overall Result\n\nOverall Result: DEFERRED\n\n## Deferred Until\n\n${deferredUntil.map((id) => `- ${id}`).join("\n")}\n\n## Notes\n\n${note}\n\nThis smoke test has been explicitly deferred. Re-run smoke_test for this ticket after all listed tickets reach \`done\` status.\n`
+}
+
 function classifyCommandKind(command: CommandResult): "build_or_quality_gate" | "test_or_runtime" | "other" {
   const rendered = `${command.label} ${renderCommand(command)}`.toLowerCase()
   if (/(build|check|lint|clippy|vet|typecheck|tsc|compile|analy[sz]e)/.test(rendered)) {
@@ -825,13 +853,14 @@ function classifyHostSurfaceFailure(results: CommandResult[]): "missing_executab
   return null
 }
 
-async function persistArtifact(ticketId: string, body: string, passed: boolean): Promise<string> {
+async function persistArtifact(ticketId: string, body: string, passed: boolean | null): Promise<string> {
   const manifest = await loadManifest()
   const workflow = await loadWorkflowState()
   const ticket = getTicket(manifest, ticketId)
   const path = normalizeRepoPath(defaultArtifactPath(ticket.id, SMOKE_STAGE, SMOKE_KIND))
   await writeText(path, body)
 
+  const isDeferred = passed === null
   const registry = await loadArtifactRegistry()
   const artifact = await registerArtifactSnapshot({
     ticket,
@@ -839,10 +868,14 @@ async function persistArtifact(ticketId: string, body: string, passed: boolean):
     source_path: path,
     kind: SMOKE_KIND,
     stage: SMOKE_STAGE,
-    summary: passed ? "Deterministic smoke test passed." : "Deterministic smoke test failed.",
+    summary: isDeferred
+      ? "Smoke test deferred — waiting on blocking tickets."
+      : passed
+        ? "Deterministic smoke test passed."
+        : "Deterministic smoke test failed.",
   })
 
-  if (passed) {
+  if (passed === true) {
     markTicketSmokeVerified(ticket)
   }
   await saveWorkflowBundle({ workflow, manifest, registry, skipGraphValidation: true })
@@ -855,7 +888,8 @@ export default tool({
     ticket_id: tool.schema.string().describe("Optional ticket id. Defaults to the active ticket.").optional(),
     scope: tool.schema.string().describe("Optional smoke-test scope hint such as full-suite or ticket.").optional(),
     test_paths: tool.schema.array(tool.schema.string()).describe("Optional scoped pytest paths to run instead of the full detected Python suite.").optional(),
-    command_override: tool.schema.array(tool.schema.string()).describe("Optional explicit smoke-test command override. Accepts tokenized argv for one command, one shell-style command string, or multiple shell-style command strings executed in order. Leading KEY=VALUE entries are treated as environment overrides.").optional(),
+    command_override: tool.schema.array(tool.schema.string()).describe("Optional explicit smoke-test command override. Accepts tokenized argv for one command, one shell-style command string, or multiple shell-style command strings executed in order. Leading KEY=VALUE entries are treated as environment overrides. NOTE: if the ticket has acceptance-criteria commands, those executables must be represented in this override or smoke_test will fail with a configuration error. Use smoke_deferred_until instead of scope-narrowing.").optional(),
+    smoke_deferred_until: tool.schema.array(tool.schema.string()).describe("Optional list of ticket IDs that must reach 'done' status before this smoke test runs. When provided and any listed ticket is not yet done, the smoke test emits a DEFERRED artifact and exits without running any commands. The ticket remains in smoke-test stage. Re-run smoke_test after the listed tickets complete. Use this instead of command_override scope-narrowing when the acceptance test requires functionality from a later ticket.").optional(),
   },
   async execute(args) {
     const manifest = await loadManifest()
@@ -863,6 +897,37 @@ export default tool({
     const ticket = getTicket(manifest, args.ticket_id)
     const root = rootPath()
     await requireBootstrapReady(workflow, root)
+
+    // Handle smoke_deferred_until: check if any referenced tickets are not yet done.
+    if (Array.isArray(args.smoke_deferred_until) && args.smoke_deferred_until.length > 0) {
+      const blockingTickets = args.smoke_deferred_until.filter((id) => {
+        const dep = manifest.tickets?.find((t: { id: string }) => t.id === id)
+        return !dep || dep.status !== "done"
+      })
+      if (blockingTickets.length > 0) {
+        const note =
+          `Smoke test deferred pending completion of: ${blockingTickets.join(", ")}. ` +
+          `Re-run smoke_test for ${ticket.id} after those tickets reach done status.`
+        const body = renderDeferredArtifact(ticket.id, blockingTickets, note)
+        const artifactPath = await persistArtifact(ticket.id, body, null)
+        return JSON.stringify(
+          {
+            ticket_id: ticket.id,
+            passed: null,
+            deferred: true,
+            deferred_until: blockingTickets,
+            smoke_test_artifact: artifactPath,
+            transition_guidance:
+              `Smoke test is DEFERRED. The ticket remains in smoke-test stage. ` +
+              `Complete tickets [${blockingTickets.join(", ")}] then re-run smoke_test for ${ticket.id}.`,
+          },
+          null,
+          2,
+        )
+      }
+      // All blocking tickets are done — run the smoke test normally.
+    }
+
     const latestQaArtifact = latestArtifact(ticket, { stage: "qa", trust_state: "current" }) || currentArtifacts(ticket, { stage: "qa" }).at(-1)
 
     if (!latestQaArtifact) {

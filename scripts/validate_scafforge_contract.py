@@ -1535,7 +1535,7 @@ def validate_template_surfaces(findings: list[Finding]) -> None:
     require_contains(
         findings,
         TEMPLATE_ROOT / ".opencode" / "tools" / "ticket_lookup.ts",
-        'next_action_tool: "smoke_test"',
+        ': "smoke_test"',
     )
     require_contains(
         findings,

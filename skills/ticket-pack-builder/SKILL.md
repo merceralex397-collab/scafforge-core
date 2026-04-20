@@ -194,6 +194,19 @@ Leaving finish work as unwritten commentary outside the canonical backlog is not
 - Create `decision` tickets for choices the team needs to make (e.g., "Choose database engine")
 - Create `discovery` tickets for research that needs to happen before implementation
 
+### Spec coverage check
+
+Before writing any ticket files, verify that the ticket backlog covers every feature area in the canonical brief:
+
+1. List every feature, capability, or required output from the canonical brief's **Goals** and **Required Outputs** sections
+2. For each feature area, confirm that at least one ticket exists whose acceptance criteria address that feature
+3. Any brief feature with no ticket coverage must either:
+   - (a) become its own new ticket with spec-derived acceptance criteria, or
+   - (b) be explicitly listed as a blocked decision ticket with a named follow-on that will resolve it
+4. Record the coverage check result as a short table in the canonical brief appendix or as a comment in the manifest: `feature → ticket_id`
+
+This check prevents the greenfield run from emitting a backlog that silently omits whole spec areas. A backlog that reaches this step with uncovered spec features must add tickets — it cannot proceed to manifest writing until coverage is complete.
+
 ### 4. Write ticket files
 
 For each ticket, write a markdown file to `tickets/<id>.md` using the template in `tickets/templates/TICKET.template.md`.
@@ -256,6 +269,7 @@ Before leaving this skill, confirm all of these are true:
 - any declared Tier 1 target platform has its canonical export or release-proof lane present in the manifest before handoff
 - follow-up tickets preserve `source_ticket_id`, `follow_up_ticket_ids`, and `source_mode` linkage when the work came from diagnosis, repair, or reverification evidence
 - remediation tickets preserve `finding_source` so downstream review, QA, and closeout can rerun the original failing check
+- every feature area in the canonical brief's Goals and Required Outputs has at least one ticket with matching acceptance criteria (spec coverage check completed)
 
 ## Refine mode
 

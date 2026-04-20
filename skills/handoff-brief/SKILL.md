@@ -43,6 +43,10 @@ Use the template in `assets/templates/START-HERE.template.md` as a starting stru
 
 **Generation Status** — the current generation state and whether the repo is ready for the first development handoff
 
+**Bootstrap Note** — machine-specific bootstrap warning (always include this):
+
+> ⚠️ **Bootstrap is machine-specific.** Bootstrap was last verified on a specific host. If you are on a DIFFERENT machine or a fresh git clone, run `environment_bootstrap` FIRST before picking up any ticket. Tools will throw `"Bootstrap stale. Run environment_bootstrap."` if this is needed — that is the correct signal, not an error.
+
 **Post-Generation Audit Status** — optional later audit or repair state, if any exists
 
 **Known Risks** — actual risks and open questions from the canonical brief

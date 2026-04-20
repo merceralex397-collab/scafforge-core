@@ -561,6 +561,26 @@ async function buildTransitionGuidance(ticket: ReturnType<typeof getTicket>, wor
       }
       const smokeBlocker = await validateSmokeTestArtifactEvidence(ticket)
       if (smokeBlocker) {
+        // DEFERRED: smoke test is explicitly waiting on other tickets.
+        // Route to work_other_tickets instead — do NOT re-run smoke_test yet.
+        if (smokeBlocker.includes("DEFERRED")) {
+          const latestSmokeArtifact = latestArtifact(ticket, { stage: "smoke-test", trust_state: "current" })
+          return {
+            ...base,
+            next_allowed_stages: ["smoke-test"],
+            required_artifacts: ["smoke-test"],
+            next_action_kind: "work_other_tickets",
+            next_action_tool: null,
+            delegate_to_agent: null,
+            required_owner: "team-leader",
+            canonical_artifact_path: defaultArtifactPath(ticket.id, "smoke-test", "smoke-test"),
+            artifact_stage: "smoke-test",
+            artifact_kind: "smoke-test",
+            recommended_action: `Smoke test for ${ticket.id} is DEFERRED. Do not re-run smoke_test yet. Work on the listed blocking tickets first, then re-run smoke_test for this ticket when they are done. Other ready tickets can proceed in parallel.`,
+            current_state_blocker: smokeBlocker,
+            deferred_smoke: latestSmokeArtifact?.path || null,
+          }
+        }
         return {
           ...base,
           next_allowed_stages: ["smoke-test"],

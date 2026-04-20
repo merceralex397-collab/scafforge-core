@@ -323,3 +323,10 @@
 - pytest collected and ran tests but one or more failed
 - result: implementation is incomplete or regressed; closeout evidence is invalid
 - why agents miss it: QA artifacts recorded "validation complete" without including raw pytest output; the team leader accepted thin QA artifacts without requiring pass/fail counts with command output
+
+## "Acceptable Wave N Scaffolding" bypass (PROC001 — placeholder behavior approved without a follow-on ticket)
+
+- a review, QA, coordinator, or handoff artifact uses framing such as "acceptable Wave N scaffolding", "placeholder for now to be replaced later", "will be addressed in a future wave", or similar to justify approving stub implementations in product-spine code
+- the framing is used without a specific, named, currently-open follow-on ticket that owns the stub replacement
+- result: placeholder behavior accrues legitimate-looking proof artifacts and reaches `done` without ever being implemented; the wave framing has no contractual basis in Scafforge's review contract
+- why agents miss it: audits inspect whether proof exists for a ticket, not whether the proof was manufactured via compliant-sounding framing that has no contract backing; weak models generating review artifacts pattern-match to "acceptable" language instead of checking whether a stub-replacement ticket exists
