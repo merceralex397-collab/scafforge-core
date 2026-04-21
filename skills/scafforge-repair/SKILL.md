@@ -125,7 +125,7 @@ python3 skills/scafforge-repair/scripts/apply_repo_process_repair.py <repo-root>
 ```
 
 Use this when the repo needs one deliberate workflow-contract refresh rather than piecemeal edits.
-This deterministic repair flow regenerates `START-HERE.md`, `.opencode/state/context-snapshot.md`, and `.opencode/state/latest-handoff.md` from canonical state, then records the verification outcome before publishing the updated restart narrative.
+This deterministic repair flow regenerates `START-HERE.md`, `.opencode/state/context-snapshot.md`, and `.opencode/state/latest-handoff.md` from canonical state, then records the verification outcome plus the canonical current-cycle handoff proof before publishing the updated restart narrative.
 It must also emit a machine-readable stale-surface map using the bounded categories `stable`, `replace`, `regenerate`, and `ticket_follow_up`.
 It must replace managed surfaces non-destructively: compute a file-level diff summary first, back up every target surface before replacement, restore from backup on failure, and record the diff summary plus verification results in repair provenance.
 Intent-changing drift is out of scope for routine public repair and must route back through kickoff or pivot instead of being reported as a repair-emitted stale-surface category.
@@ -263,6 +263,7 @@ Use explicit `repair_follow_on.outcome` semantics:
 - `managed_blocked` only when managed repair follow-on still blocks lifecycle execution
 - `source_follow_up` when managed repair converged but source-layer ticket work still remains
 - `clean` when managed repair itself no longer blocks ordinary execution
+- Keep `handoff_proof` truthful after repair: failed verification or `source_follow_up` must not republish a ready-state restart narrative
 
 ## How this differs from scafforge-audit
 

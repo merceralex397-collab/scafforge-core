@@ -177,6 +177,21 @@ def load_repair_follow_on(workflow: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def load_handoff_proof(workflow: dict[str, Any]) -> dict[str, Any]:
+    raw = workflow.get("handoff_proof") if isinstance(workflow.get("handoff_proof"), dict) else {}
+    status = raw.get("status") if isinstance(raw.get("status"), str) else "missing"
+    if status not in {"missing", "passed", "failed"}:
+        status = "missing"
+    return {
+        "status": status,
+        "verification_kind": raw.get("verification_kind") if isinstance(raw.get("verification_kind"), str) and raw.get("verification_kind") else None,
+        "verified_at": raw.get("verified_at") if isinstance(raw.get("verified_at"), str) and raw.get("verified_at") else None,
+        "proof_artifact": raw.get("proof_artifact") if isinstance(raw.get("proof_artifact"), str) and raw.get("proof_artifact") else None,
+        "blocking_codes": normalize_string_list(raw.get("blocking_codes")),
+        "summary": raw.get("summary") if isinstance(raw.get("summary"), str) and raw.get("summary") else None,
+    }
+
+
 def empty_pivot_restart_surface_inputs() -> dict[str, Any]:
     return {
         "pivot_in_progress": False,
@@ -377,6 +392,7 @@ def compute_handoff_status(
 ) -> str:
     bootstrap = workflow.get("bootstrap") if isinstance(workflow.get("bootstrap"), dict) else {}
     bootstrap_status = str(bootstrap.get("status", "")).strip() or "missing"
+    handoff_proof = load_handoff_proof(workflow)
     pivot_restart_inputs = pivot_inputs or empty_pivot_restart_surface_inputs()
     if bootstrap_status != "ready":
         return "bootstrap recovery required"
@@ -388,6 +404,10 @@ def compute_handoff_status(
         return "workflow verification pending"
     if workflow.get("pending_process_verification") is True:
         return "workflow verification pending"
+    if handoff_proof["status"] == "failed":
+        return "pre-handoff proof failed"
+    if handoff_proof["status"] == "missing":
+        return "pre-handoff proof missing"
     return "ready for continued development"
 
 
@@ -408,6 +428,7 @@ def default_next_action(
     ticket_trust_needs_restoration = ticket_needs_trust_restoration(ticket, workflow)
     bootstrap = workflow.get("bootstrap") if isinstance(workflow.get("bootstrap"), dict) else {}
     bootstrap_status = str(bootstrap.get("status", "")).strip() or "missing"
+    handoff_proof = load_handoff_proof(workflow)
     blocked = blocked_dependents(manifest, str(ticket.get("id", "")))
     split_children = open_split_scope_children(manifest, str(ticket.get("id", "")))
     verifier_label = f"`{backlog_verifier_agent}`" if backlog_verifier_agent else "the backlog verifier"
@@ -458,6 +479,13 @@ def default_next_action(
         )
     if blocked:
         return dependent_continuation_action(ticket, blocked)
+    if handoff_proof["status"] == "failed":
+        codes = ", ".join(handoff_proof["blocking_codes"])
+        return (
+            f"Resolve the blocking pre-handoff proof findings{': ' + codes if codes else ''} and rerun verification before treating the restart narrative as ready for continued development."
+        )
+    if handoff_proof["status"] == "missing":
+        return "Record a current-cycle pre-handoff proof before treating the restart narrative as ready for continued development."
     return "Continue the required internal lifecycle from the current ticket stage."
 
 

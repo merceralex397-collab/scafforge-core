@@ -43,6 +43,8 @@ Use the template in `assets/templates/START-HERE.template.md` as a starting stru
 
 **Generation Status** — the current generation state and whether the repo is ready for the first development handoff
 
+**Pre-Handoff Proof** — the current-cycle proof status that justifies the handoff narrative, including whether the proof passed, failed, or is still missing
+
 **Bootstrap Note** — machine-specific bootstrap warning (always include this):
 
 > ⚠️ **Bootstrap is machine-specific.** Bootstrap was last verified on a specific host. If you are on a DIFFERENT machine or a fresh git clone, run `environment_bootstrap` FIRST before picking up any ticket. Tools will throw `"Bootstrap stale. Run environment_bootstrap."` if this is needed — that is the correct signal, not an error.
@@ -62,6 +64,7 @@ Verify the handoff:
 - The reading order files all exist
 - The next action is specific and actionable
 - The next action matches the one legal first move exposed by canonical state when bootstrap is not yet ready
+- If current-cycle handoff proof is failed or missing, START-HERE does not claim the repo is ready for continued development
 - if `.opencode/meta/pivot-state.json` exists, the handoff surfaces reflect the current pivot state truthfully
 - The handoff is a truthful restart surface bounded by current evidence, even when later audit, repair, or backlog reverification is still pending
 

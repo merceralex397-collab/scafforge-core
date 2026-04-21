@@ -143,9 +143,29 @@ def package_commit() -> str:
     return audit_reporting_module().resolve_current_package_commit(ROOT)
 
 
+def resolve_command(command: list[str]) -> list[str]:
+    if not command:
+        return command
+    executable = command[0]
+    if os.path.isabs(executable) or any(sep in executable for sep in ("\\", "/")):
+        return command
+    if os.name == "nt" and executable in {"python", "python3"}:
+        return [sys.executable, *command[1:]]
+    resolved = (
+        shutil.which(executable)
+        or shutil.which(f"{executable}.cmd")
+        or shutil.which(f"{executable}.exe")
+        or shutil.which(f"{executable}.bat")
+    )
+    if not resolved:
+        return command
+    return [resolved, *command[1:]]
+
+
 def run(command: list[str], cwd: Path, *, env: dict[str, str] | None = None) -> None:
+    resolved_command = resolve_command(command)
     result = subprocess.run(
-        command, cwd=cwd, check=False, capture_output=True, text=True, env=env
+        resolved_command, cwd=cwd, check=False, capture_output=True, text=True, env=env
     )
     if result.returncode != 0:
         raise RuntimeError(
@@ -160,8 +180,9 @@ def run_json(
     env: dict[str, str] | None = None,
     allow_returncodes: set[int] | None = None,
 ) -> dict[str, Any]:
+    resolved_command = resolve_command(command)
     result = subprocess.run(
-        command, cwd=cwd, check=False, capture_output=True, text=True, env=env
+        resolved_command, cwd=cwd, check=False, capture_output=True, text=True, env=env
     )
     allowed = allow_returncodes or {0}
     if result.returncode not in allowed:

@@ -73,6 +73,9 @@ export default tool({
         verified,
         active_ticket: manifest.active_ticket,
         bootstrap_status: workflow.bootstrap.status,
+        handoff_proof_status: workflow.handoff_proof.status,
+        handoff_proof_artifact: workflow.handoff_proof.proof_artifact,
+        handoff_proof_blocking_codes: workflow.handoff_proof.blocking_codes,
         pending_process_verification: workflow.pending_process_verification,
         code_quality_status: {
           open_remediation_tickets: openRemediationTickets.length,

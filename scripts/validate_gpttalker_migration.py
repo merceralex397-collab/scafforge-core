@@ -4,6 +4,7 @@ import argparse
 import json
 import shutil
 import subprocess
+import sys
 import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
@@ -17,6 +18,7 @@ from test_support.repo_seeders import seed_legacy_contract_state
 DEFAULT_FIXTURE_SLUG = "restart-surface-drift-after-repair"
 DEFAULT_OUTPUT_DIR = ROOT / "reports" / "gpttalker-validation"
 LEGACY_MIGRATION_STAGE = "legacy-contract-migration"
+PYTHON_COMMAND = [sys.executable]
 
 
 def parse_args() -> argparse.Namespace:
@@ -153,11 +155,11 @@ def run_validation_cycle(
             mutate(probe_root)
         before_state = capture_repo_state(probe_root)
         audit_payload = run_json(
-            [str(Path("python3")), str(AUDIT), str(probe_root), "--format", "json", "--no-diagnosis-pack"],
+            [*PYTHON_COMMAND, str(AUDIT), str(probe_root), "--format", "json", "--no-diagnosis-pack"],
             ROOT,
         )
         repair_payload = run_json(
-            [str(Path("python3")), str(PUBLIC_REPAIR), str(probe_root)],
+            [*PYTHON_COMMAND, str(PUBLIC_REPAIR), str(probe_root)],
             ROOT,
             allow_returncodes=allowed,
         )

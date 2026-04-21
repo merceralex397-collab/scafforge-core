@@ -31,6 +31,14 @@
     "environment_fingerprint": null,
     "proof_artifact": null
   },
+  "handoff_proof": {
+    "status": "missing",
+    "verification_kind": null,
+    "verified_at": null,
+    "proof_artifact": null,
+    "blocking_codes": [],
+    "summary": null
+  },
   "bootstrap_blockers": [],
   "lane_leases": [],
   "state_revision": 0

@@ -2166,7 +2166,12 @@ def seed_missing_pytest_env(dest: Path) -> None:
     (tests_dir / "test_sample.py").write_text(
         "def test_smoke():\n    assert True\n", encoding="utf-8"
     )
-    write_python_wrapper(dest / ".venv" / "bin" / "python", allow_pytest=False)
+    if os.name == "nt":
+        scripts_dir = dest / ".venv" / "Scripts"
+        scripts_dir.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(sys.executable, scripts_dir / "python.exe")
+    else:
+        write_python_wrapper(dest / ".venv" / "bin" / "python", allow_pytest=False)
 
 
 def seed_pyproject_only_pytest_env(dest: Path) -> None:
@@ -2174,7 +2179,12 @@ def seed_pyproject_only_pytest_env(dest: Path) -> None:
     src_pkg = dest / "src" / "smoke_pkg"
     src_pkg.mkdir(parents=True, exist_ok=True)
     (src_pkg / "__init__.py").write_text("__all__ = ['ok']\n", encoding="utf-8")
-    write_python_wrapper(dest / ".venv" / "bin" / "python", allow_pytest=False)
+    if os.name == "nt":
+        scripts_dir = dest / ".venv" / "Scripts"
+        scripts_dir.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(sys.executable, scripts_dir / "python.exe")
+    else:
+        write_python_wrapper(dest / ".venv" / "bin" / "python", allow_pytest=False)
 
 
 def seed_helper_tool_exposure(dest: Path) -> None:
@@ -6080,11 +6090,31 @@ def main() -> int:
         windows_venv_dest.mkdir(parents=True, exist_ok=True)
         windows_python = windows_venv_dest / ".venv" / "Scripts" / "python.exe"
         windows_pytest = windows_venv_dest / ".venv" / "Scripts" / "pytest.exe"
-        write_executable(
-            windows_python,
-            '#!/bin/sh\nif [ "$1" = "-m" ] && [ "$2" = "pytest" ] && [ "$3" = "--version" ]; then exit 0; fi\nif [ "$1" = "--version" ]; then exit 0; fi\nexit 1\n',
-        )
-        write_executable(windows_pytest, "#!/bin/sh\nexit 0\n")
+        windows_python.parent.mkdir(parents=True, exist_ok=True)
+        if os.name == "nt":
+            shutil.copy2(sys.executable, windows_python)
+            (windows_venv_dest / "pytest.py").write_text(
+                "\n".join(
+                    [
+                        "import sys",
+                        "",
+                        "if '--version' in sys.argv:",
+                        "    print('pytest 8.1.0')",
+                        "    raise SystemExit(0)",
+                        "",
+                        "raise SystemExit(1)",
+                    ]
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+            windows_pytest.write_bytes(b"")
+        else:
+            write_executable(
+                windows_python,
+                '#!/bin/sh\nif [ "$1" = "-m" ] && [ "$2" = "pytest" ] && [ "$3" = "--version" ]; then exit 0; fi\nif [ "$1" = "--version" ]; then exit 0; fi\nexit 1\n',
+            )
+            write_executable(windows_pytest, "#!/bin/sh\nexit 0\n")
         detected_python = audit_module._detect_python(windows_venv_dest)
         if detected_python != str(windows_python):
             raise RuntimeError(
@@ -7399,7 +7429,8 @@ def main() -> int:
             .get("manifest", {})
             .get("supporting_logs", [])
         )
-        if external_supporting_logs != [str(external_chronology_log)]:
+        expected_external_supporting_log = str(external_chronology_log).replace("\\", "/")
+        if external_supporting_logs != [expected_external_supporting_log]:
             raise RuntimeError(
                 "Diagnosis packs should preserve external supporting-log paths instead of crashing on non-relative host paths"
             )
@@ -13197,6 +13228,9 @@ Overall Result: PASS
 
         redirected_output_dest = workspace / "redirected-output"
         shutil.copytree(full_dest, redirected_output_dest)
+        denied_output_anchor = workspace / "denied-output-anchor.txt"
+        denied_output_anchor.write_text("not-a-directory\n", encoding="utf-8")
+        denied_output_target = denied_output_anchor / "diagnosis-pack"
         redirected_output_audit = run_json(
             [
                 sys.executable,
@@ -13206,7 +13240,7 @@ Overall Result: PASS
                 "json",
                 "--emit-diagnosis-pack",
                 "--diagnosis-output-dir",
-                "/proc/scafforge-denied-output",
+                str(denied_output_target),
             ],
             ROOT,
         )
@@ -13220,9 +13254,10 @@ Overall Result: PASS
         diagnosis_pack_path = redirected_output_audit.get("diagnosis_pack", {}).get(
             "path", ""
         )
-        if not diagnosis_pack_path.startswith("/tmp/scafforge-diagnosis/"):
+        expected_redirect_root = str(Path(tempfile.gettempdir()) / "scafforge-diagnosis")
+        if not diagnosis_pack_path.startswith(expected_redirect_root):
             raise RuntimeError(
-                "Audit should redirect unwritable diagnosis-pack output to /tmp/scafforge-diagnosis"
+                "Audit should redirect unwritable diagnosis-pack output to the host temp diagnosis directory"
             )
 
         repair_redirected_output_dest = workspace / "repair-redirected-output"

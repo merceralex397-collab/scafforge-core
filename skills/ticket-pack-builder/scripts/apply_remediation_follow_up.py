@@ -240,6 +240,7 @@ def build_ticket_record(recommendation: dict[str, Any], manifest: dict[str, Any]
 
 
 def extract_ticket_notes(existing: str) -> str:
+    existing = existing.replace("\r\n", "\n")
     marker = "\n## Notes\n\n"
     if marker not in existing:
         return ""

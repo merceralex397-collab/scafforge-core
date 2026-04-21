@@ -1,8 +1,8 @@
 import { tool } from "@opencode-ai/plugin"
 import { spawn } from "node:child_process"
-import { existsSync } from "node:fs"
+import { existsSync, readdirSync } from "node:fs"
 import { access, readFile } from "node:fs/promises"
-import { basename, join } from "node:path"
+import { basename, extname, isAbsolute, join } from "node:path"
 import {
   currentArtifacts,
   defaultArtifactPath,
@@ -76,6 +76,7 @@ const SMOKE_STAGE = "smoke-test"
 const SMOKE_KIND = "smoke-test"
 const SMOKE_CHECKPOINT_VERSION = 1
 const ENV_ASSIGNMENT_PATTERN = /^[A-Za-z_][A-Za-z0-9_]*=.*/
+const WINDOWS_EXECUTABLE_RESOLUTION = new Map<string, Promise<string | null>>()
 const SMOKE_COMMAND_PATTERNS = [
   /\bpytest\b/i,
   /\bpython(?:3)?\s+-m\s+pytest\b/i,
@@ -243,6 +244,121 @@ function isPermissionRestrictionOutput(output: string): boolean {
   return /permission denied|operation not permitted|EACCES|EPERM|blocked by permission rules/i.test(output)
 }
 
+function quotePowerShell(value: string): string {
+  return `'${value.replace(/'/g, "''")}'`
+}
+
+function looksLikeFilesystemCommand(command: string): boolean {
+  return command.includes("/") || command.includes("\\") || isAbsolute(command)
+}
+
+function discoverWindowsExecutableCandidates(command: string): string[] {
+  const normalized = basename(command).toLowerCase()
+  const candidates: string[] = []
+
+  if (normalized === "godot" || normalized === "godot4") {
+    for (const envName of ["GODOT_BIN", "GODOT4_BIN", "GODOT_EXE", "GODOT4_EXE"]) {
+      const envValue = process.env[envName]
+      if (envValue) candidates.push(envValue)
+    }
+    const commonRoots = ["C:\\Godot"]
+    for (const root of commonRoots) {
+      if (!existsSync(root)) continue
+      try {
+        const entries = readdirSync(root)
+          .filter((entry) => /^Godot.*\.exe$/i.test(entry))
+          .sort((left, right) => {
+            const leftConsole = /console/i.test(left)
+            const rightConsole = /console/i.test(right)
+            if (leftConsole === rightConsole) return left.localeCompare(right)
+            return leftConsole ? -1 : 1
+          })
+        for (const entry of entries) {
+          candidates.push(join(root, entry))
+        }
+      } catch {
+        // Ignore unreadable roots and keep falling back to PATH resolution.
+      }
+    }
+  }
+
+  return candidates
+}
+
+async function resolveExecutableForHost(command: string): Promise<string | null> {
+  if (process.platform !== "win32") return command
+  if (looksLikeFilesystemCommand(command) || extname(command)) {
+    return existsSync(command) ? command : null
+  }
+  if (!WINDOWS_EXECUTABLE_RESOLUTION.has(command)) {
+    WINDOWS_EXECUTABLE_RESOLUTION.set(
+      command,
+      new Promise((resolve) => {
+        let stdout = ""
+        let child
+        try {
+          child = spawn("where.exe", [command], { stdio: ["ignore", "pipe", "ignore"] })
+        } catch {
+          const fallback = discoverWindowsExecutableCandidates(command).find((candidate) => existsSync(candidate)) ?? null
+          resolve(fallback)
+          return
+        }
+        child.stdout.on("data", (chunk) => {
+          stdout += chunk.toString()
+        })
+        child.on("error", () => {
+          const fallback = discoverWindowsExecutableCandidates(command).find((candidate) => existsSync(candidate)) ?? null
+          resolve(fallback)
+        })
+        child.on("close", (code) => {
+          if (code === 0) {
+            const candidates = stdout
+              .split(/\r?\n/)
+              .map((item) => item.trim())
+              .filter(Boolean)
+            const preferred = candidates.find((item) => /\.(cmd|exe|bat|ps1)$/i.test(item))
+            resolve(preferred ?? candidates[0] ?? null)
+            return
+          }
+          const fallback = discoverWindowsExecutableCandidates(command).find((candidate) => existsSync(candidate)) ?? null
+          resolve(fallback)
+        })
+      }),
+    )
+  }
+  return WINDOWS_EXECUTABLE_RESOLUTION.get(command)!
+}
+
+function executionArgvForHost(command: CommandSpec): string[] {
+  if (process.platform !== "win32") return command.argv
+  if (command.argv[0] === "python3") {
+    return ["py", "-3", ...command.argv.slice(1)]
+  }
+  return command.argv
+}
+
+async function shebangExecutionArgvForHost(executionArgv: string[]): Promise<string[]> {
+  if (process.platform !== "win32") return executionArgv
+  const executable = executionArgv[0] ?? ""
+  if (!executable || !looksLikeFilesystemCommand(executable) || extname(executable) || !existsSync(executable)) {
+    return executionArgv
+  }
+  const firstLine = (await readFile(executable, "utf-8").catch(() => "")).split(/\r?\n/, 1)[0]?.trim() || ""
+  if (!firstLine.startsWith("#!")) return executionArgv
+  const shebang = firstLine.slice(2).trim().replace(/^\/usr\/bin\/env\s+/, "")
+  const interpreter = shebang.split(/\s+/, 1)[0]?.toLowerCase() || ""
+  if (interpreter === "python" || interpreter === "python3") {
+    return ["py", "-3", executable, ...executionArgv.slice(1)]
+  }
+  if (interpreter === "node") {
+    return ["node", executable, ...executionArgv.slice(1)]
+  }
+  if (interpreter === "bash" || interpreter === "sh") {
+    return [interpreter, executable, ...executionArgv.slice(1)]
+  }
+  return executionArgv
+}
+
 function inferAcceptanceSmokeCommands(ticket: { acceptance?: unknown }): CommandSpec[] {
   const commands: CommandSpec[] = []
   const seen = new Set<string>()
@@ -275,7 +391,12 @@ function extractQaArtifactCommandCandidates(text: string): string[] {
       if (!candidate || !looksLikeSmokeCommand(candidate)) continue
       candidates.add(candidate)
     } catch {
-      // Ignore malformed JSON command lines and keep scanning for other usable command evidence.
+      const rawCandidate = (match[1] || "").trim()
+      const unwrapped = rawCandidate.startsWith(`"`) && rawCandidate.endsWith(`"`)
+        ? rawCandidate.slice(1, -1).replace(/\\"/g, `"`)
+        : rawCandidate
+      if (!unwrapped || !looksLikeSmokeCommand(unwrapped)) continue
+      candidates.add(unwrapped)
     }
   }
 
@@ -495,7 +616,9 @@ function tokenizeCommandString(command: string): string[] {
   let quote: '"' | "'" | null = null
   let escaped = false
 
-  for (const char of command) {
+  for (let index = 0; index < command.length; index += 1) {
+    const char = command[index]!
+    const next = command[index + 1] ?? ""
     if (quote === "'") {
       if (char === quote) {
         quote = null
@@ -510,7 +633,11 @@ function tokenizeCommandString(command: string): string[] {
       continue
     }
     if (char === "\\") {
-      escaped = true
+      if (quote === '"' || next === '"' || next === "'" || next === "\\" || /\s/.test(next)) {
+        escaped = true
+        continue
+      }
+      current += char
       continue
     }
     if (quote) {
@@ -714,76 +841,112 @@ async function runCommand(root: string, command: CommandSpec): Promise<CommandRe
     let stdout = ""
     let stderr = ""
     let settled = false
+    const baseExecutionArgv = executionArgvForHost(command)
 
-    let child
-    try {
-      child = spawn(command.argv[0], command.argv.slice(1), {
-        cwd: root,
-        env: {
-          ...process.env,
-          ...(command.env_overrides ?? {}),
-        },
-        stdio: ["ignore", "pipe", "pipe"],
+    const spawnResolved = (executable: string | null, executionArgv: string[]) => {
+      if (!executable) {
+        resolve({
+          ...command,
+          exit_code: -1,
+          duration_ms: Date.now() - startedAt,
+          stdout: "",
+          stderr: `Executable not found: ${command.argv[0]}`,
+          missing_executable: command.argv[0],
+          failure_classification: "missing_executable",
+        })
+        return
+      }
+
+      let child
+      try {
+        if (process.platform === "win32") {
+          const psCommand = `& ${[executable, ...executionArgv.slice(1)].map((arg) => quotePowerShell(arg)).join(" ")}`
+          child = spawn("powershell.exe", ["-NoProfile", "-Command", psCommand], {
+            cwd: root,
+            env: {
+              ...process.env,
+              ...(command.env_overrides ?? {}),
+            },
+            stdio: ["ignore", "pipe", "pipe"],
+          })
+        } else {
+          child = spawn(executable, executionArgv.slice(1), {
+            cwd: root,
+            env: {
+              ...process.env,
+              ...(command.env_overrides ?? {}),
+            },
+            stdio: ["ignore", "pipe", "pipe"],
+          })
+        }
+      } catch (error) {
+        const errorCode = typeof error === "object" && error && "code" in error ? String((error as { code?: string }).code || "") : ""
+        const errorStderr = String(error)
+        const missingExecutable = errorCode === "ENOENT" ? command.argv[0] : undefined
+        const blockedByPermissions = errorCode === "EACCES" || errorCode === "EPERM" || isPermissionRestrictionOutput(errorStderr)
+        resolve({
+          ...command,
+          exit_code: -1,
+          duration_ms: Date.now() - startedAt,
+          stdout: "",
+          stderr: errorStderr,
+          missing_executable: missingExecutable,
+          failure_classification: classifyCommandFailure({ argv: command.argv, exitCode: -1, stdout: "", stderr: errorStderr, missingExecutable, blockedByPermissions }),
+          blocked_by_permissions: blockedByPermissions || undefined,
+        })
+        return
+      }
+
+      child.stdout.on("data", (chunk) => {
+        stdout += chunk.toString()
       })
-    } catch (error) {
-      const errorCode = typeof error === "object" && error && "code" in error ? String((error as { code?: string }).code || "") : ""
-      const errorStderr = String(error)
-      const missingExecutable = errorCode === "ENOENT" ? command.argv[0] : undefined
-      const blockedByPermissions = errorCode === "EACCES" || errorCode === "EPERM" || isPermissionRestrictionOutput(errorStderr)
-      resolve({
-        ...command,
-        exit_code: -1,
-        duration_ms: Date.now() - startedAt,
-        stdout: "",
-        stderr: errorStderr,
-        missing_executable: missingExecutable,
-        failure_classification: classifyCommandFailure({ argv: command.argv, exitCode: -1, stdout: "", stderr: errorStderr, missingExecutable, blockedByPermissions }),
-        blocked_by_permissions: blockedByPermissions || undefined,
+      child.stderr.on("data", (chunk) => {
+        stderr += chunk.toString()
+      })
+      child.on("error", (error) => {
+        if (settled) return
+        settled = true
+        const errorCode = typeof error === "object" && error && "code" in error ? String((error as { code?: string }).code || "") : ""
+        const renderedError = `${stderr}\n${String(error)}`.trim()
+        const missingExecutable = errorCode === "ENOENT" ? command.argv[0] : undefined
+        const blockedByPermissions = errorCode === "EACCES" || errorCode === "EPERM" || isPermissionRestrictionOutput(renderedError)
+        resolve({
+          ...command,
+          exit_code: -1,
+          duration_ms: Date.now() - startedAt,
+          stdout,
+          stderr: renderedError,
+          missing_executable: missingExecutable,
+          failure_classification: classifyCommandFailure({ argv: command.argv, exitCode: -1, stdout, stderr: renderedError, missingExecutable, blockedByPermissions }),
+          blocked_by_permissions: blockedByPermissions || undefined,
+        })
+      })
+      child.on("close", (code) => {
+        if (settled) return
+        settled = true
+        const renderedStderr = stderr.trim()
+        const missingExecutable = code === 127 || /command not found|ENOENT/i.test(renderedStderr) ? command.argv[0] : undefined
+        const blockedByPermissions = isPermissionRestrictionOutput(`${stdout}\n${stderr}`)
+        resolve({
+          ...command,
+          exit_code: code ?? -1,
+          duration_ms: Date.now() - startedAt,
+          stdout,
+          stderr,
+          missing_executable: missingExecutable,
+          failure_classification: classifyCommandFailure({ argv: command.argv, exitCode: code ?? -1, stdout, stderr, missingExecutable, blockedByPermissions }),
+          blocked_by_permissions: blockedByPermissions || undefined,
+        })
+      })
+    }
+
+    if (process.platform === "win32") {
+      shebangExecutionArgvForHost(baseExecutionArgv).then((executionArgv) => {
+        resolveExecutableForHost(executionArgv[0] ?? command.argv[0]).then((executable) => spawnResolved(executable, executionArgv))
       })
       return
     }
-
-    child.stdout.on("data", (chunk) => {
-      stdout += chunk.toString()
-    })
-    child.stderr.on("data", (chunk) => {
-      stderr += chunk.toString()
-    })
-    child.on("error", (error) => {
-      if (settled) return
-      settled = true
-      const errorCode = typeof error === "object" && error && "code" in error ? String((error as { code?: string }).code || "") : ""
-      const renderedError = `${stderr}\n${String(error)}`.trim()
-      const missingExecutable = errorCode === "ENOENT" ? command.argv[0] : undefined
-      const blockedByPermissions = errorCode === "EACCES" || errorCode === "EPERM" || isPermissionRestrictionOutput(renderedError)
-      resolve({
-        ...command,
-        exit_code: -1,
-        duration_ms: Date.now() - startedAt,
-        stdout,
-        stderr: renderedError,
-        missing_executable: missingExecutable,
-        failure_classification: classifyCommandFailure({ argv: command.argv, exitCode: -1, stdout, stderr: renderedError, missingExecutable, blockedByPermissions }),
-        blocked_by_permissions: blockedByPermissions || undefined,
-      })
-    })
-    child.on("close", (code) => {
-      if (settled) return
-      settled = true
-      const renderedStderr = stderr.trim()
-      const missingExecutable = code === 127 || /command not found|ENOENT/i.test(renderedStderr) ? command.argv[0] : undefined
-      const blockedByPermissions = isPermissionRestrictionOutput(`${stdout}\n${stderr}`)
-      resolve({
-        ...command,
-        exit_code: code ?? -1,
-        duration_ms: Date.now() - startedAt,
-        stdout,
-        stderr,
-        missing_executable: missingExecutable,
-        failure_classification: classifyCommandFailure({ argv: command.argv, exitCode: code ?? -1, stdout, stderr, missingExecutable, blockedByPermissions }),
-        blocked_by_permissions: blockedByPermissions || undefined,
-      })
-    })
+    spawnResolved(baseExecutionArgv[0] ?? command.argv[0], baseExecutionArgv)
   })
 }
 

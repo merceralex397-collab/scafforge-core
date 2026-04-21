@@ -12,6 +12,12 @@ import tempfile
 from pathlib import Path
 from typing import Any, Callable
 
+from test_support.downstream_reliability_fixture_builders import (
+    FIXTURE_CORPORA as DOWNSTREAM_FIXTURE_CORPORA,
+    FixtureCorpus,
+    build_fixture_family as build_downstream_fixture_family,
+    fixture_index_by_slug as downstream_fixture_index_by_slug,
+)
 from test_support.gpttalker_fixture_builders import (
     build_fixture_family,
     build_partial_transaction_edge_case,
@@ -22,6 +28,7 @@ from test_support.repo_seeders import (
     make_stack_skill_non_placeholder,
     read_json,
     seed_failing_pytest_suite,
+    seed_godot_target as seed_curated_godot_target,
     seed_ready_bootstrap,
 )
 from test_support.scafforge_harness import (
@@ -58,12 +65,12 @@ class ProofTarget:
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Run focused end-to-end Scafforge integration coverage for greenfield, repair, pivot, and GPTTalker fixture families."
+        description="Run focused end-to-end Scafforge integration coverage for greenfield, repair, pivot, and curated fixture families."
     )
     parser.add_argument(
         "--list-fixtures",
         action="store_true",
-        help="Print the curated GPTTalker fixture slugs and exit.",
+        help="Print the curated fixture slugs by corpus and exit.",
     )
     return parser.parse_args()
 
@@ -91,6 +98,25 @@ def ensure_fixture_index() -> dict[str, dict[str, Any]]:
         raise RuntimeError(
             f"Fixture index slugs do not match the curated GPTTalker family set: {sorted(indexed)}"
         )
+    return indexed
+
+
+def ensure_downstream_fixture_indexes() -> dict[str, tuple[FixtureCorpus, dict[str, dict[str, Any]]]]:
+    expected = {
+        "womanvshorse": {"downstream-boot-and-config-breaker"},
+        "spinner": {"layout-truth-regression"},
+    }
+    indexed: dict[str, tuple[FixtureCorpus, dict[str, dict[str, Any]]]] = {}
+    for corpus in DOWNSTREAM_FIXTURE_CORPORA:
+        fixtures = downstream_fixture_index_by_slug(corpus)
+        expected_slugs = expected.get(corpus.slug)
+        if expected_slugs is None:
+            raise RuntimeError(f"Unexpected downstream fixture corpus registered: {corpus.slug}")
+        if set(fixtures) != expected_slugs:
+            raise RuntimeError(
+                f"{corpus.slug} fixture index slugs do not match the curated set: {sorted(fixtures)}"
+            )
+        indexed[corpus.slug] = (corpus, fixtures)
     return indexed
 
 
@@ -177,6 +203,10 @@ def write_text(path: Path, content: str) -> None:
 def write_executable_wrapper(path: Path, target: str) -> None:
     write_text(path, f'#!/usr/bin/env sh\nexec {target} "$@"\n')
     path.chmod(path.stat().st_mode | 0o111)
+
+
+def repo_python_interpreter_path(dest: Path) -> Path:
+    return dest / ".venv" / "Scripts" / "python.exe" if os.name == "nt" else dest / ".venv" / "bin" / "python"
 
 
 def fake_blender_host_env(workspace: Path) -> dict[str, str]:
@@ -276,9 +306,32 @@ def command_exists(*candidates: str) -> str | None:
     return None
 
 
+def resolve_windows_command(command: list[str]) -> list[str]:
+    if os.name != "nt" or not command:
+        return command
+    executable = command[0]
+    if os.path.isabs(executable) or any(sep in executable for sep in ("\\", "/")):
+        return command
+    resolved = (
+        shutil.which(executable)
+        or shutil.which(f"{executable}.cmd")
+        or shutil.which(f"{executable}.exe")
+        or shutil.which(f"{executable}.bat")
+    )
+    if not resolved:
+        return command
+    return [resolved, *command[1:]]
+
+
 def run_checked(command: list[str], cwd: Path, *, timeout: int = 120) -> None:
+    resolved_command = resolve_windows_command(command)
     result = subprocess.run(
-        command, cwd=cwd, check=False, capture_output=True, text=True, timeout=timeout
+        resolved_command,
+        cwd=cwd,
+        check=False,
+        capture_output=True,
+        text=True,
+        timeout=timeout,
     )
     if result.returncode != 0:
         raise RuntimeError(
@@ -291,7 +344,12 @@ def seed_python_cli_target(dest: Path) -> None:
         dest,
         "Use repo-local Python execution and validate with `python -m pytest -q` before closeout.",
     )
-    write_executable_wrapper(dest / ".venv" / "bin" / "python", sys.executable)
+    interpreter_path = repo_python_interpreter_path(dest)
+    if os.name == "nt":
+        interpreter_path.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(sys.executable, interpreter_path)
+    else:
+        write_executable_wrapper(interpreter_path, sys.executable)
     write_text(
         dest / "pyproject.toml",
         "\n".join(
@@ -584,44 +642,7 @@ def seed_go_http_target(dest: Path) -> None:
 
 
 def seed_godot_target(dest: Path) -> None:
-    replace_stack_skill_placeholder(
-        dest,
-        "Use `godot --headless --check-only` and `godot --headless --script res://check.gd --quit` when Godot is available.",
-    )
-    write_text(
-        dest / "project.godot",
-        "\n".join(
-            [
-                "; Engine configuration file.",
-                "config_version=5",
-                "",
-                "[application]",
-                'config/name="Proof Godot"',
-                'run/main_scene="res://scenes/main.tscn"',
-                "",
-                "[autoload]",
-                'GameState="*res://scripts/autoload/GameState.gd"',
-            ]
-        )
-        + "\n",
-    )
-    write_text(dest / "scripts" / "autoload" / "GameState.gd", "extends Node\n")
-    write_text(dest / "scripts" / "main.gd", "extends Node2D\n")
-    write_text(
-        dest / "scenes" / "main.tscn",
-        "\n".join(
-            [
-                "[gd_scene load_steps=2 format=3]",
-                "",
-                '[ext_resource type="Script" path="res://scripts/main.gd" id="1"]',
-                "",
-                '[node name="Main" type="Node2D"]',
-                'script = ExtResource("1")',
-            ]
-        )
-        + "\n",
-    )
-    write_text(dest / "check.gd", "extends SceneTree\n\nfunc _init():\n    quit()\n")
+    seed_curated_godot_target(dest, project_name="Proof Godot")
 
 
 def seed_godot_android_contract(dest: Path) -> None:
@@ -1484,13 +1505,65 @@ def pivot_integration(workspace: Path) -> None:
         )
 
 
-def fixture_builder_integration(
-    fixtures: dict[str, dict[str, Any]], workspace: Path
+def _load_diagnosis_manifest(audit_payload: dict[str, Any]) -> dict[str, Any]:
+    diagnosis_pack = audit_payload.get("diagnosis_pack")
+    if not isinstance(diagnosis_pack, dict):
+        raise RuntimeError("Curated fixture audit should emit a diagnosis pack.")
+    diagnosis_path = diagnosis_pack.get("path")
+    if not isinstance(diagnosis_path, str) or not diagnosis_path.strip():
+        raise RuntimeError("Diagnosis pack payload is missing its path.")
+    manifest_path = Path(diagnosis_path) / "manifest.json"
+    payload = read_json(manifest_path)
+    if not isinstance(payload, dict):
+        raise RuntimeError(f"Diagnosis manifest must be a JSON object: {manifest_path}")
+    return payload
+
+
+def assert_expected_repair_posture(
+    slug: str,
+    contract: dict[str, Any],
+    audit_payload: dict[str, Any],
 ) -> None:
-    fixture_root = workspace / "gpttalker-fixtures"
+    expected_next_step = contract.get("expected_recommended_next_step")
+    expected_routes = contract.get("expected_ticket_routes")
+    if expected_next_step is None and expected_routes is None:
+        return
+    diagnosis_manifest = _load_diagnosis_manifest(audit_payload)
+    if isinstance(expected_next_step, str) and diagnosis_manifest.get("recommended_next_step") != expected_next_step:
+        raise RuntimeError(
+            f"Fixture `{slug}` expected recommended_next_step={expected_next_step!r}, "
+            f"observed {diagnosis_manifest.get('recommended_next_step')!r}."
+        )
+    if isinstance(expected_routes, list) and expected_routes:
+        recommendations = diagnosis_manifest.get("ticket_recommendations")
+        if not isinstance(recommendations, list):
+            raise RuntimeError(f"Fixture `{slug}` expected ticket recommendations in the diagnosis manifest.")
+        observed_routes = {
+            str(item.get("route", "")).strip()
+            for item in recommendations
+            if isinstance(item, dict) and str(item.get("route", "")).strip()
+        }
+        missing_routes = [
+            route for route in expected_routes if isinstance(route, str) and route not in observed_routes
+        ]
+        if missing_routes:
+            raise RuntimeError(
+                f"Fixture `{slug}` expected repair routes {missing_routes}, observed {sorted(observed_routes)}."
+            )
+
+
+def fixture_builder_integration(
+    *,
+    corpus_name: str,
+    fixtures: dict[str, dict[str, Any]],
+    workspace: Path,
+    build_fixture: Callable[[str, Path], dict[str, Any]],
+    contract_path: str,
+) -> None:
+    fixture_root = workspace / f"{corpus_name}-fixtures"
     for slug in sorted(fixtures):
         dest = fixture_root / slug
-        contract = build_fixture_family(slug, dest)
+        contract = build_fixture(slug, dest)
         if contract.get("slug") != slug:
             raise RuntimeError(
                 f"Fixture builder should persist the canonical slug for `{slug}`."
@@ -1502,10 +1575,10 @@ def fixture_builder_integration(
             raise RuntimeError(
                 f"Fixture builder should persist expected coverage for `{slug}`."
             )
-        contract_path = dest / ".opencode" / "meta" / "gpttalker-fixture.json"
-        if not contract_path.exists():
+        contract_file = dest / contract_path
+        if not contract_file.exists():
             raise RuntimeError(
-                f"Fixture builder should emit .opencode/meta/gpttalker-fixture.json for `{slug}`."
+                f"Fixture builder should emit {contract_path} for `{slug}`."
             )
         expected_finding_codes = contract.get("expected_finding_codes")
         if not isinstance(expected_finding_codes, list) or not expected_finding_codes:
@@ -1518,7 +1591,6 @@ def fixture_builder_integration(
             str(dest),
             "--format",
             "json",
-            "--no-diagnosis-pack",
         ]
         supporting_log = contract.get("supporting_log")
         if isinstance(supporting_log, str) and supporting_log.strip():
@@ -1541,6 +1613,7 @@ def fixture_builder_integration(
                 f"Fixture `{slug}` should persist truth_expectations in its contract payload."
             )
         assert_fixture_truth_checks(dest, slug, truth_expectations)
+        assert_expected_repair_posture(slug, contract, audit_payload)
 
 
 def assert_fixture_truth_checks(
@@ -1917,9 +1990,13 @@ def contract_edge_case_integration(workspace: Path) -> None:
     broken_venv_dest = workspace / "broken-venv-contract"
     bootstrap_full(broken_venv_dest)
     seed_python_cli_target(broken_venv_dest)
-    broken_python = broken_venv_dest / ".venv" / "bin" / "python"
-    broken_python.write_text("#!/usr/bin/env sh\nexit 127\n", encoding="utf-8")
-    broken_python.chmod(broken_python.stat().st_mode | 0o111)
+    broken_python = repo_python_interpreter_path(broken_venv_dest)
+    broken_python.parent.mkdir(parents=True, exist_ok=True)
+    if os.name == "nt":
+        broken_python.write_bytes(b"")
+    else:
+        broken_python.write_text("#!/usr/bin/env sh\nexit 127\n", encoding="utf-8")
+        broken_python.chmod(broken_python.stat().st_mode | 0o111)
     broken_venv_audit = run_json(
         [
             sys.executable,
@@ -2098,8 +2175,12 @@ def backward_transition_integration(workspace: Path) -> None:
 def main() -> int:
     args = parse_args()
     fixtures = ensure_fixture_index()
+    downstream_fixtures = ensure_downstream_fixture_indexes()
     if args.list_fixtures:
-        print(json.dumps(sorted(fixtures), indent=2))
+        listing = {"gpttalker": sorted(fixtures)}
+        for corpus_slug, (_, corpus_fixtures) in downstream_fixtures.items():
+            listing[corpus_slug] = sorted(corpus_fixtures)
+        print(json.dumps(listing, indent=2))
         return 0
     with tempfile.TemporaryDirectory(prefix="scafforge-integration-") as workspace_root:
         workspace = Path(workspace_root)
@@ -2109,7 +2190,21 @@ def main() -> int:
         multi_stack_proof_integration(workspace)
         contract_edge_case_integration(workspace)
         backward_transition_integration(workspace)
-        fixture_builder_integration(fixtures, workspace)
+        fixture_builder_integration(
+            corpus_name="gpttalker",
+            fixtures=fixtures,
+            workspace=workspace,
+            build_fixture=build_fixture_family,
+            contract_path=".opencode/meta/gpttalker-fixture.json",
+        )
+        for corpus_slug, (corpus, corpus_fixtures) in downstream_fixtures.items():
+            fixture_builder_integration(
+                corpus_name=corpus_slug,
+                fixtures=corpus_fixtures,
+                workspace=workspace,
+                build_fixture=lambda slug, dest, corpus_slug=corpus_slug: build_downstream_fixture_family(corpus_slug, slug, dest),
+                contract_path=corpus.contract_path,
+            )
         synthetic_edge_case_integration(workspace)
     print("Scafforge integration test passed.")
     return 0

@@ -157,7 +157,7 @@ At minimum, the pack must capture:
 - whether the transcript shows workflow thrash, bypass-seeking, or evidence-free PASS claims
 - whether the transcript shows softer dependency-override or “close it anyway” reasoning even without literal `bypass` wording
 - whether the transcript shows coordinator-authored specialist artifacts or a recovery run that clears an earlier verification failure
-- ownership classification for each issue: package defect, managed-surface drift, repo customization drift, or source bug
+- ownership classification for each issue: package defect, repo-local defect, mixed defect, managed-surface drift, or source bug
 - rejected or outdated external claims when review evidence was supplied
 - Scafforge prevention actions needed in the package repo
 - live-repo repair actions that can happen only after the package changes are available
@@ -226,6 +226,8 @@ Keep those responsibilities separate.
 - Do not collapse acceptance-command drift in `smoke_test` into a generic failing-test finding when the tool ran the wrong smoke scope
 - Do not collapse repeated incompatible bootstrap command traces into a generic `ENV002` rerun recommendation when the managed bootstrap surface is the reason the expected dependency flags never ran
 - Do not treat `pending_process_verification` by itself as a package defect when restart surfaces and routing already expose it truthfully
+- Treat missing or failed current-cycle handoff proof as a first-class workflow defect when restart surfaces still claim ready or complete state
+- For Godot downstream reliability, keep `EXEC-GODOT-013`, `EXEC-GODOT-014`, and `EXEC-GODOT-015` explicit instead of collapsing them into generic drift
 - Do not collapse stale source/follow-up graph contradictions into generic ticket noise when the repo lacks a canonical `ticket_reconcile` path
 - Do not treat open-parent child decomposition as ordinary remediation when `split_scope` routing is missing or drifted
 - Do not treat operator confusion as mere user error when the workflow did not expose one clear legal next move

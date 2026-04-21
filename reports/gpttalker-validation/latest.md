@@ -1,12 +1,12 @@
 # GPTTalker Migration Validation
 
-- generated_at: `2026-04-20T02:37:07.728401+00:00`
-- source_repo_path: `/tmp/scafforge-gpttalker-fixture-5twyz6s7/restart-surface-drift-after-repair`
+- generated_at: `2026-04-21T20:36:12.015338+00:00`
+- source_repo_path: `C:\Users\PC\AppData\Local\Temp\scafforge-gpttalker-fixture-8mt0a3mf\restart-surface-drift-after-repair`
 
 ## Source Repo State
 
 ```text
-git status unavailable for /tmp/scafforge-gpttalker-fixture-5twyz6s7/restart-surface-drift-after-repair: fatal: not a git repository (or any of the parent directories): .git
+git status unavailable for C:\Users\PC\AppData\Local\Temp\scafforge-gpttalker-fixture-8mt0a3mf\restart-surface-drift-after-repair: fatal: not a git repository (or any of the parent directories): .git
 ```
 
 ## Scenario: control
@@ -23,7 +23,7 @@ git status unavailable for /tmp/scafforge-gpttalker-fixture-5twyz6s7/restart-sur
 - workflow_process_version_after: `7`
 - pending_process_verification_after: `True`
 - restart_surface_truth: `start_here_process_version_7=True, start_here_pending_process_verification=True, context_process_version_7=True, context_pending_process_verification=True, latest_handoff_process_version_7=True, latest_handoff_pending_process_verification=True`
-- audit_codes: `WFLOW010, WFLOW008`
+- audit_codes: `WFLOW035, WFLOW010, WFLOW008`
 
 ### Blocking Reasons
 - project-skill-bootstrap must still run: Repo-local skills still contain generic placeholder/model drift that must be regenerated with project-specific content.
@@ -43,7 +43,7 @@ git status unavailable for /tmp/scafforge-gpttalker-fixture-5twyz6s7/restart-sur
 - workflow_process_version_after: `7`
 - pending_process_verification_after: `True`
 - restart_surface_truth: `start_here_process_version_7=True, start_here_pending_process_verification=True, context_process_version_7=True, context_pending_process_verification=True, latest_handoff_process_version_7=True, latest_handoff_pending_process_verification=True`
-- audit_codes: `WFLOW010`
+- audit_codes: `WFLOW035, WFLOW010`
 
 ### Blocking Reasons
 - project-skill-bootstrap must still run: Repo-local skills still contain generic placeholder/model drift that must be regenerated with project-specific content.
@@ -63,7 +63,7 @@ git status unavailable for /tmp/scafforge-gpttalker-fixture-5twyz6s7/restart-sur
 - workflow_process_version_after: `5`
 - pending_process_verification_after: `False`
 - restart_surface_truth: `start_here_process_version_7=True, start_here_pending_process_verification=False, context_process_version_7=True, context_pending_process_verification=False, latest_handoff_process_version_7=True, latest_handoff_pending_process_verification=False`
-- audit_codes: `WFLOW010`
+- audit_codes: `WFLOW035, WFLOW010`
 
 ### Blocking Reasons
 - Legacy contract migration requires operator approval before an unsafe or structurally inconsistent repo can be mutated.
@@ -86,7 +86,7 @@ git status unavailable for /tmp/scafforge-gpttalker-fixture-5twyz6s7/restart-sur
 - workflow_process_version_after: `6`
 - pending_process_verification_after: `False`
 - restart_surface_truth: `start_here_process_version_7=True, start_here_pending_process_verification=False, context_process_version_7=True, context_pending_process_verification=False, latest_handoff_process_version_7=True, latest_handoff_pending_process_verification=False`
-- audit_codes: `WFLOW010`
+- audit_codes: `WFLOW035, WFLOW010`
 
 ### Blocking Reasons
 - Legacy contract migration requires operator approval before an unsafe or structurally inconsistent repo can be mutated.

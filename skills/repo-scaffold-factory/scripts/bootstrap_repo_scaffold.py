@@ -112,6 +112,12 @@ def render_text(content: str, replacements: dict[str, str]) -> str:
     return content
 
 
+def render_json_like_text(content: str, replacements: dict[str, str]) -> str:
+    for key, value in replacements.items():
+        content = content.replace(key, json.dumps(value)[1:-1])
+    return content
+
+
 def render_relative_path(path: Path, replacements: dict[str, str]) -> Path:
     rendered_parts = [render_text(part, replacements) for part in path.parts]
     return Path(*rendered_parts)
@@ -297,7 +303,12 @@ def write_file(source: Path, target: Path, replacements: dict[str, str], force: 
     target.parent.mkdir(parents=True, exist_ok=True)
     if source.suffix in TEXT_SUFFIXES:
         text = source.read_text(encoding="utf-8")
-        target.write_text(render_text(text, replacements), encoding="utf-8")
+        rendered = (
+            render_json_like_text(text, replacements)
+            if source.suffix in {".json", ".jsonc"}
+            else render_text(text, replacements)
+        )
+        target.write_text(rendered, encoding="utf-8")
     else:
         shutil.copy2(source, target)
 

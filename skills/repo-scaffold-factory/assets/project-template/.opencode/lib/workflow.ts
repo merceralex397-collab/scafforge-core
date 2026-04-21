@@ -85,6 +85,17 @@ export type BootstrapState = {
   proof_artifact: string | null
 }
 
+export type HandoffProofStatus = "missing" | "passed" | "failed"
+
+export type HandoffProofState = {
+  status: HandoffProofStatus
+  verification_kind: string | null
+  verified_at: string | null
+  proof_artifact: string | null
+  blocking_codes: string[]
+  summary: string | null
+}
+
 export type LaneLease = {
   ticket_id: string
   lane: string
@@ -167,6 +178,7 @@ export type WorkflowState = {
   parallel_mode: ParallelMode
   repair_follow_on: RepairFollowOnState
   bootstrap: BootstrapState
+  handoff_proof: HandoffProofState
   lane_leases: LaneLease[]
   state_revision: number
 }
@@ -238,6 +250,14 @@ const DEFAULT_TICKET_CONTRACT_VERSION = 3
 const DEFAULT_LEASE_TTL_MINUTES = 120
 const DEFAULT_PIVOT_STATE_OWNER = "scafforge-pivot"
 const DEFAULT_BOOTSTRAP_STATE: BootstrapState = { status: "missing", last_verified_at: null, environment_fingerprint: null, proof_artifact: null }
+const DEFAULT_HANDOFF_PROOF_STATE: HandoffProofState = {
+  status: "missing",
+  verification_kind: null,
+  verified_at: null,
+  proof_artifact: null,
+  blocking_codes: [],
+  summary: null,
+}
 const DEFAULT_TICKET_WORKFLOW_STATE: TicketWorkflowState = { approved_plan: false, reopen_count: 0, needs_reverification: false }
 const DEFAULT_REPAIR_FOLLOW_ON_STATE = (processVersion = DEFAULT_PROCESS_VERSION): RepairFollowOnState => ({
   outcome: "clean",
@@ -664,6 +684,23 @@ function normalizeRepairFollowOnOutcome(value: unknown): RepairFollowOnOutcome |
   return null
 }
 
+function normalizeHandoffProofStatus(value: unknown): HandoffProofStatus {
+  return value === "passed" || value === "failed" ? value : "missing"
+}
+
+function normalizeHandoffProof(value: unknown): HandoffProofState {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return { ...DEFAULT_HANDOFF_PROOF_STATE }
+  const state = value as Record<string, unknown>
+  return {
+    status: normalizeHandoffProofStatus(state.status),
+    verification_kind: normalizeNullableString(state.verification_kind),
+    verified_at: normalizeNullableString(state.verified_at),
+    proof_artifact: normalizeNullableString(state.proof_artifact),
+    blocking_codes: normalizeStringArray(state.blocking_codes),
+    summary: normalizeNullableString(state.summary),
+  }
+}
+
 function normalizePivotDownstreamStageState(stage: string, value: unknown): PivotDownstreamStageState | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null
   const record = value as Record<string, unknown>
@@ -799,7 +836,7 @@ export async function loadWorkflowState(root = rootPath()): Promise<WorkflowStat
     active_ticket: "UNKNOWN", stage: "planning", status: "todo", approved_plan: false, bootstrap_blockers: [], ticket_state: {}, process_version: DEFAULT_PROCESS_VERSION,
     process_last_changed_at: null, process_last_change_summary: null, pending_process_verification: false, parallel_mode: DEFAULT_PARALLEL_MODE,
     repair_follow_on: DEFAULT_REPAIR_FOLLOW_ON_STATE(),
-    bootstrap: { ...DEFAULT_BOOTSTRAP_STATE }, lane_leases: [], state_revision: 0,
+    bootstrap: { ...DEFAULT_BOOTSTRAP_STATE }, handoff_proof: { ...DEFAULT_HANDOFF_PROOF_STATE }, lane_leases: [], state_revision: 0,
   }
   const loaded = await readJson<unknown>(workflowStatePath(root), fallback)
   if (!loaded || typeof loaded !== "object" || Array.isArray(loaded)) return fallback
@@ -848,6 +885,7 @@ export async function loadWorkflowState(root = rootPath()): Promise<WorkflowStat
           proof_artifact: normalizeNullableString((state.bootstrap as Record<string, unknown>).proof_artifact),
         }
       : { ...DEFAULT_BOOTSTRAP_STATE },
+    handoff_proof: normalizeHandoffProof(state.handoff_proof),
     lane_leases: normalizeLaneLeases(state.lane_leases),
     state_revision: typeof state.state_revision === "number" && state.state_revision >= 0 ? Math.floor(state.state_revision) : 0,
   }
@@ -1051,6 +1089,21 @@ async function validateWorkflowWriteState(workflow: WorkflowState, root = rootPa
   }
 }
 
+export function handoffProofBlocksReadyState(workflow: WorkflowState): boolean {
+  return workflow.handoff_proof.status !== "passed"
+}
+
+export function handoffProofBlockerReason(workflow: WorkflowState): string | null {
+  if (workflow.handoff_proof.status === "failed") {
+    const codes = workflow.handoff_proof.blocking_codes.length > 0 ? ` Blocking proof findings: ${workflow.handoff_proof.blocking_codes.join(", ")}.` : ""
+    return `Current-cycle pre-handoff proof failed.${codes}`
+  }
+  if (workflow.handoff_proof.status === "missing") {
+    return "Current-cycle pre-handoff proof has not been recorded yet."
+  }
+  return null
+}
+
 export function validateRestartSurfacePublication(manifest: Manifest, workflow: WorkflowState, pivot: PivotState): string | null {
   if (!pivot.pivot_state_owner || !pivot.pivot_state_owner.trim()) {
     return "Pivot state owner is missing; restart surfaces can only publish from a normalized pivot state."
@@ -1077,6 +1130,9 @@ export function validateRestartSurfacePublication(manifest: Manifest, workflow: 
   const acceptanceRefreshTickets = manifest.tickets.filter((ticket) => ticketNeedsAcceptanceRefresh(workflow, ticket.id))
   if (acceptanceRefreshTickets.length > 0) {
     return `Restart surfaces can only publish after canonical acceptance refresh is complete for ${acceptanceRefreshTickets.map((ticket) => ticket.id).join(", ")}.`
+  }
+  if (workflow.handoff_proof.status === "passed" && workflow.handoff_proof.proof_artifact && !existsSync(join(rootPath(), workflow.handoff_proof.proof_artifact))) {
+    return `Restart surfaces cannot publish a passing ready-state narrative while the recorded handoff proof artifact is missing: ${workflow.handoff_proof.proof_artifact}.`
   }
   return null
 }
@@ -1519,6 +1575,10 @@ export async function validateHandoffNextAction(manifest: Manifest, workflow: Wo
     return `Cannot publish clean-state or readiness claims while ${blocker}`
   }
 
+  if (handoffProofBlocksReadyState(workflow) && (claimsDependencyReadiness || claimsCleanState || claimsSingleCause)) {
+    return `Cannot publish clean-state, readiness, or causal claims while ${handoffProofBlockerReason(workflow)}`
+  }
+
   if (claimsSingleCause) {
     if (ticket.status !== "done") {
       return `Cannot publish causal claims such as "not a code defect" or "only blocker" while ${ticket.id} is still ${ticket.status}.`
@@ -1851,7 +1911,8 @@ export async function registerArtifactSnapshot(spec: ArtifactRegistrationSpec, r
   return artifact
 }
 function extractTicketNotes(existing: string): string {
-  const match = existing.match(/\n## Notes\n\n?([\s\S]*)$/)
+  const normalized = existing.replace(/\r\n/g, "\n")
+  const match = normalized.match(/\n## Notes\n\n?([\s\S]*)$/)
   return match ? match[1].trimEnd() : ""
 }
 function renderArtifactLine(artifact: Artifact): string {
@@ -2068,8 +2129,9 @@ export function renderContextSnapshot(manifest: Manifest, workflow: WorkflowStat
   const splitChildren = openSplitScopeChildren(manifest, ticket.id)
   const pivotInputs = pivot.restart_surface_inputs
   const pivotState = pivot.downstream_refresh_state
+  const handoffProofCodes = workflow.handoff_proof.blocking_codes.length > 0 ? workflow.handoff_proof.blocking_codes.join(", ") : "none"
   const noteBlock = note ? `\n## Note\n\n${note}\n` : ""
-  return `# Context Snapshot\n\n## Project\n\n${manifest.project}\n\n## Active Ticket\n\n- ID: ${ticket.id}\n- Title: ${ticket.title}\n- Stage: ${ticket.stage}\n- Status: ${ticket.status}\n- Resolution: ${ticket.resolution_state}\n- Verification: ${ticket.verification_state}\n- Approved plan: ${workflow.approved_plan ? "yes" : "no"}\n- Needs reverification: ${ticketState.needs_reverification ? "yes" : "no"}\n- Needs acceptance refresh: ${ticketState.needs_acceptance_refresh ? "yes" : "no"}\n- Open split children: ${splitChildren.length > 0 ? splitChildren.map((item) => item.id).join(", ") : "none"}\n\n## Bootstrap\n\n- status: ${workflow.bootstrap.status}\n- last_verified_at: ${workflow.bootstrap.last_verified_at || "Not yet verified."}\n- proof_artifact: ${workflow.bootstrap.proof_artifact || "None"}\n- blockers: ${workflow.bootstrap_blockers.length > 0 ? workflow.bootstrap_blockers.map((item) => `${item.executable} (${item.reason})`).join(", ") : "none"}\n\n## Process State\n\n- process_version: ${workflow.process_version}\n- pending_process_verification: ${workflow.pending_process_verification ? "true" : "false"}\n- parallel_mode: ${workflow.parallel_mode}\n- state_revision: ${workflow.state_revision}\n\n## Repair Follow-On\n\n- outcome: ${workflow.repair_follow_on.outcome}\n- required: ${hasPendingRepairFollowOn(workflow) ? "yes" : "no"}\n- next_required_stage: ${repairNextStage}\n- verification_passed: ${workflow.repair_follow_on.verification_passed ? "true" : "false"}\n- last_updated_at: ${workflow.repair_follow_on.last_updated_at || "Not yet recorded."}\n\n## Pivot State\n\n- pivot_in_progress: ${pivotInputs.pivot_in_progress ? "true" : "false"}\n- pivot_class: ${pivotInputs.pivot_class || "none"}\n- pivot_changed_surfaces: ${pivotInputs.pivot_changed_surfaces.length > 0 ? pivotInputs.pivot_changed_surfaces.join(", ") : "none"}\n- pending_downstream_stages: ${pivotInputs.pending_downstream_stages.length > 0 ? pivotInputs.pending_downstream_stages.join(", ") : "none"}\n- completed_downstream_stages: ${pivotInputs.completed_downstream_stages.length > 0 ? pivotInputs.completed_downstream_stages.join(", ") : "none"}\n- pending_ticket_lineage_actions: ${pivotInputs.pending_ticket_lineage_actions.length > 0 ? pivotInputs.pending_ticket_lineage_actions.join(", ") : "none"}\n- completed_ticket_lineage_actions: ${pivotInputs.completed_ticket_lineage_actions.length > 0 ? pivotInputs.completed_ticket_lineage_actions.join(", ") : "none"}\n- post_pivot_verification_passed: ${pivotInputs.post_pivot_verification_passed ? "true" : "false"}\n- pivot_state_path: ${pivot.pivot_state_path || ".opencode/meta/pivot-state.json"}\n- pivot_tracking_mode: ${pivotState?.tracking_mode || "none"}\n\n## Lane Leases\n\n${leases}\n\n## Recent Artifacts\n\n${artifactLines}${noteBlock}`
+  return `# Context Snapshot\n\n## Project\n\n${manifest.project}\n\n## Active Ticket\n\n- ID: ${ticket.id}\n- Title: ${ticket.title}\n- Stage: ${ticket.stage}\n- Status: ${ticket.status}\n- Resolution: ${ticket.resolution_state}\n- Verification: ${ticket.verification_state}\n- Approved plan: ${workflow.approved_plan ? "yes" : "no"}\n- Needs reverification: ${ticketState.needs_reverification ? "yes" : "no"}\n- Needs acceptance refresh: ${ticketState.needs_acceptance_refresh ? "yes" : "no"}\n- Open split children: ${splitChildren.length > 0 ? splitChildren.map((item) => item.id).join(", ") : "none"}\n\n## Bootstrap\n\n- status: ${workflow.bootstrap.status}\n- last_verified_at: ${workflow.bootstrap.last_verified_at || "Not yet verified."}\n- proof_artifact: ${workflow.bootstrap.proof_artifact || "None"}\n- blockers: ${workflow.bootstrap_blockers.length > 0 ? workflow.bootstrap_blockers.map((item) => `${item.executable} (${item.reason})`).join(", ") : "none"}\n\n## Handoff Proof\n\n- status: ${workflow.handoff_proof.status}\n- verification_kind: ${workflow.handoff_proof.verification_kind || "none"}\n- verified_at: ${workflow.handoff_proof.verified_at || "Not yet recorded."}\n- proof_artifact: ${workflow.handoff_proof.proof_artifact || "None"}\n- blocking_codes: ${handoffProofCodes}\n\n## Process State\n\n- process_version: ${workflow.process_version}\n- pending_process_verification: ${workflow.pending_process_verification ? "true" : "false"}\n- parallel_mode: ${workflow.parallel_mode}\n- state_revision: ${workflow.state_revision}\n\n## Repair Follow-On\n\n- outcome: ${workflow.repair_follow_on.outcome}\n- required: ${hasPendingRepairFollowOn(workflow) ? "yes" : "no"}\n- next_required_stage: ${repairNextStage}\n- verification_passed: ${workflow.repair_follow_on.verification_passed ? "true" : "false"}\n- last_updated_at: ${workflow.repair_follow_on.last_updated_at || "Not yet recorded."}\n\n## Pivot State\n\n- pivot_in_progress: ${pivotInputs.pivot_in_progress ? "true" : "false"}\n- pivot_class: ${pivotInputs.pivot_class || "none"}\n- pivot_changed_surfaces: ${pivotInputs.pivot_changed_surfaces.length > 0 ? pivotInputs.pivot_changed_surfaces.join(", ") : "none"}\n- pending_downstream_stages: ${pivotInputs.pending_downstream_stages.length > 0 ? pivotInputs.pending_downstream_stages.join(", ") : "none"}\n- completed_downstream_stages: ${pivotInputs.completed_downstream_stages.length > 0 ? pivotInputs.completed_downstream_stages.join(", ") : "none"}\n- pending_ticket_lineage_actions: ${pivotInputs.pending_ticket_lineage_actions.length > 0 ? pivotInputs.pending_ticket_lineage_actions.join(", ") : "none"}\n- completed_ticket_lineage_actions: ${pivotInputs.completed_ticket_lineage_actions.length > 0 ? pivotInputs.completed_ticket_lineage_actions.join(", ") : "none"}\n- post_pivot_verification_passed: ${pivotInputs.post_pivot_verification_passed ? "true" : "false"}\n- pivot_state_path: ${pivot.pivot_state_path || ".opencode/meta/pivot-state.json"}\n- pivot_tracking_mode: ${pivotState?.tracking_mode || "none"}\n\n## Lane Leases\n\n${leases}\n\n## Recent Artifacts\n\n${artifactLines}${noteBlock}`
 }
 export function renderStartHere(manifest: Manifest, workflow: WorkflowState, pivot: PivotState, options: StartHereOptions = {}): string {
   const ticket = getTicket(manifest, workflow.active_ticket)
@@ -2092,18 +2154,24 @@ export function renderStartHere(manifest: Manifest, workflow: WorkflowState, piv
   const repairFollowOnPending = hasPendingRepairFollowOn(workflow)
   const repairBlocker = repairFollowOnBlockingReason(workflow)
   const sourceFollowUpPending = workflow.repair_follow_on.outcome === "source_follow_up"
+  const handoffProofPending = handoffProofBlocksReadyState(workflow)
+  const handoffProofBlocker = handoffProofBlockerReason(workflow)
   const pivotInputs = pivot.restart_surface_inputs
   const pivotPending = pivotInputs.pivot_in_progress
   const handoffStatus = options.handoffStatus || (
     workflow.bootstrap.status !== "ready"
       ? "bootstrap recovery required"
       : pivotPending
-        ? "pivot follow-up required"
+      ? "pivot follow-up required"
       : repairFollowOnPending
         ? "repair follow-up required"
         : processVerification.pending || activeTicketNeedsTrustRestoration || activeTicketNeedsHistoricalReconciliation || acceptanceRefresh.length > 0
           ? "workflow verification pending"
-          : "ready for continued development"
+        : handoffProofPending
+          ? workflow.handoff_proof.status === "failed"
+            ? "pre-handoff proof failed"
+            : "pre-handoff proof missing"
+        : "ready for continued development"
   )
   const recommendedAction = options.nextAction || (
     workflow.bootstrap.status !== "ready"
@@ -2112,16 +2180,24 @@ export function renderStartHere(manifest: Manifest, workflow: WorkflowState, piv
         ? (pivotInputs.pending_downstream_stages.length > 0
             ? `Continue the pivot follow-on stage${pivotInputs.pending_downstream_stages.length > 1 ? "s" : ""} ${pivotInputs.pending_downstream_stages.map((stage) => `\`${stage}\``).join(", ")} before resuming normal ticket lifecycle work.${pivotInputs.pending_ticket_lineage_actions.length > 0 ? ` Ticket lineage actions still pending: ${pivotInputs.pending_ticket_lineage_actions.join(", ")}.` : ""}`
             : "Complete the remaining pivot follow-on work and republish the restart surfaces before resuming normal ticket lifecycle work.")
-      : repairFollowOnPending
+        : repairFollowOnPending
         ? (repairBlocker || (repairNextStage ? `Complete the required repair follow-on stage \`${repairNextStage}\` before resuming normal ticket lifecycle work.` : "Complete the required repair follow-on stages before resuming normal ticket lifecycle work."))
-          : activeTicketNeedsAcceptanceRefresh
+        : activeTicketNeedsAcceptanceRefresh
             ? `Keep ${ticket.id} as the foreground ticket, but refresh or re-affirm its canonical acceptance criteria through ticket_update before relying on review, QA, smoke-test, or closeout.`
-          : splitChildren.length > 0
-            ? `Keep ${ticket.id} open as a split parent and continue the child ticket lane${splitChildren.length > 1 ? "s" : ""}: ${splitChildren.map((item) => item.id).join(", ")}.`
-            : ticket.status !== "done"
+        : activeTicketNeedsHistoricalReconciliation
+          ? `Ticket is already closed, but its historical lineage is still contradictory. Use ticket_reconcile with current registered evidence to repair ${ticket.id} instead of trying to reopen or reclaim it.`
+        : activeTicketNeedsTrustRestoration
+          ? `Ticket is already closed, but historical trust still needs restoration. Use ${verifierLabel} to produce current evidence, then run ticket_reverify on ${ticket.id} instead of trying to reclaim it.`
+        : splitChildren.length > 0
+          ? `Keep ${ticket.id} open as a split parent and continue the child ticket lane${splitChildren.length > 1 ? "s" : ""}: ${splitChildren.map((item) => item.id).join(", ")}.`
+        : ticket.status !== "done"
               ? ticket.resolution_state === "reopened" && ticket.verification_state === "invalidated" && ticketState.needs_reverification
                 ? `Keep ${ticket.id} as the foreground ticket, but verify whether the reopened defect still reproduces. If current inspection disproves it, produce current evidence and run ticket_reverify on ${ticket.id} instead of manufacturing no-op implementation churn; otherwise continue its lifecycle from ${ticket.stage}. Historical done-ticket reverification stays secondary until the active open ticket is resolved.`
                 : `Keep ${ticket.id} as the foreground ticket and continue its lifecycle from ${ticket.stage}. Historical done-ticket reverification stays secondary until the active open ticket is resolved.`
+        : processVerification.pending
+          ? (processVerification.clearable_now
+              ? "Use ticket_update to clear pending_process_verification now that no historical done tickets still require process verification, then rerun ticket_lookup."
+              : `Use the team leader to route ${verifierLabel} across done tickets whose trust predates the current process contract${suspectDone.length > 0 ? `: ${suspectDone.map((item) => item.id).join(", ")}` : ""}.`)
              : activeTicketNeedsHistoricalReconciliation
                ? `Ticket is already closed, but its historical lineage is still contradictory. Use ticket_reconcile with current registered evidence to repair ${ticket.id} instead of trying to reopen or reclaim it.`
              : activeTicketNeedsTrustRestoration
@@ -2134,7 +2210,9 @@ export function renderStartHere(manifest: Manifest, workflow: WorkflowState, piv
                 : `Use the team leader to route ${verifierLabel} across done tickets whose trust predates the current process contract: ${processVerification.affected_done_tickets.map((item) => item.id).join(", ")}.`
                 : blockedDependents.length > 0
                   ? dependentContinuationAction(ticket, blockedDependents)
-                  : "Continue the required internal lifecycle from the current ticket stage."
+                : handoffProofPending
+                  ? (handoffProofBlocker || "Record a current-cycle pre-handoff proof before treating the repo as ready for continued development.")
+                : "Continue the required internal lifecycle from the current ticket stage."
   )
   const summarizeTickets = (items: Ticket[]) => items.length > 0 ? items.map((item) => item.id).join(", ") : "none"
   const riskLines = [
@@ -2142,6 +2220,7 @@ export function renderStartHere(manifest: Manifest, workflow: WorkflowState, piv
     pivotPending ? `- Pivot follow-up is still in progress${pivotInputs.pending_downstream_stages.length > 0 ? `: ${pivotInputs.pending_downstream_stages.join(", ")}.` : "."}` : null,
     pivotInputs.pending_ticket_lineage_actions.length > 0 ? `- Pivot ticket lineage actions remain pending: ${pivotInputs.pending_ticket_lineage_actions.join(", ")}.` : null,
     repairFollowOnPending ? `- Repair follow-on remains incomplete${repairBlocker ? `: ${repairBlocker}` : "."}` : null,
+    handoffProofPending ? `- Current-cycle handoff proof is ${workflow.handoff_proof.status}${handoffProofBlocker ? `: ${handoffProofBlocker}` : "."}` : null,
     sourceFollowUpPending ? "- Managed repair converged, but source-layer follow-up still remains in the ticket graph." : null,
     activeTicketNeedsHistoricalReconciliation ? "- Historical lineage remains contradictory until ticket_reconcile repairs the superseded invalidated ticket graph." : null,
     activeTicketNeedsTrustRestoration || processVerification.pending ? "- Historical completion should not be treated as fully trusted until pending process verification or explicit reverification is cleared." : null,

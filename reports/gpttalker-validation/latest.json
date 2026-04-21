@@ -1,18 +1,39 @@
 {
-  "generated_at": "2026-04-20T02:37:07.728401+00:00",
-  "source_repo_path": "/tmp/scafforge-gpttalker-fixture-5twyz6s7/restart-surface-drift-after-repair",
-  "source_repo_git_status": "git status unavailable for /tmp/scafforge-gpttalker-fixture-5twyz6s7/restart-surface-drift-after-repair: fatal: not a git repository (or any of the parent directories): .git",
+  "generated_at": "2026-04-21T20:36:12.015338+00:00",
+  "source_repo_path": "C:\\Users\\PC\\AppData\\Local\\Temp\\scafforge-gpttalker-fixture-8mt0a3mf\\restart-surface-drift-after-repair",
+  "source_repo_git_status": "git status unavailable for C:\\Users\\PC\\AppData\\Local\\Temp\\scafforge-gpttalker-fixture-8mt0a3mf\\restart-surface-drift-after-repair: fatal: not a git repository (or any of the parent directories): .git",
   "scenarios": [
     {
       "scenario": "control",
-      "probe_root": "/tmp/scafforge-gpttalker-validation-control-1jisf77z/restart-surface-drift-after-repair",
+      "probe_root": "C:\\Users\\PC\\AppData\\Local\\Temp\\scafforge-gpttalker-validation-control-3ysnp2_m\\restart-surface-drift-after-repair",
       "audit": {
-        "finding_count": 2,
+        "finding_count": 3,
         "codes": [
+          "WFLOW035",
           "WFLOW010",
           "WFLOW008"
         ],
         "findings": [
+          {
+            "code": "WFLOW035",
+            "severity": "error",
+            "problem": "Restart surfaces claim completion even though the canonical pre-handoff proof is missing or failed.",
+            "root_cause": "The repo is presenting a ready/finished restart narrative without a passing current-cycle handoff proof state. That lets completion claims outrank the actual parse/load/layout or post-repair verification truth.",
+            "files": [
+              "START-HERE.md",
+              ".opencode/state/workflow-state.json",
+              "None"
+            ],
+            "safer_pattern": "Keep restart and handoff publication tied to a current-cycle handoff proof state, and do not let generated surfaces claim ready/complete while that proof is missing or failed.",
+            "evidence": [
+              "Repo claims completion or ready state while handoff_proof.status = missing.",
+              "handoff_proof.proof_artifact = None"
+            ],
+            "provenance": "script",
+            "remediation_action": null,
+            "remediation_target": null,
+            "is_user_action": false
+          },
           {
             "code": "WFLOW010",
             "severity": "error",
@@ -91,11 +112,11 @@
           "repair_history_count": 1,
           "migration_history_latest": null,
           "repair_history_latest": {
-            "repair_id": "2026-04-20T02:37:00Z",
-            "repaired_at": "2026-04-20T02:37:00Z",
+            "repair_id": "2026-04-21T20:35:57Z",
+            "repaired_at": "2026-04-21T20:35:58Z",
             "repair_type": "managed-surface-replacement",
             "repair_kind": "deterministic-workflow-engine-replacement",
-            "repair_package_commit": "3fd45152294720c12f88a49fe00631de51783dfc",
+            "repair_package_commit": "c724583653db50bc7161e0a070c0b543e332fdeb",
             "summary": "Managed Scafforge repair runner refreshed deterministic workflow surfaces and evaluated downstream repair obligations.",
             "surfaces_replaced": [
               "opencode.jsonc",
@@ -254,7 +275,7 @@
         "repair_escalation": null
       },
       "managed_repair": {
-        "repair_package_commit": "3fd45152294720c12f88a49fe00631de51783dfc+dirty:f3c4d9d318fb",
+        "repair_package_commit": "c724583653db50bc7161e0a070c0b543e332fdeb+dirty:a41cdfbbfa59",
         "repair_basis_path": null,
         "required_follow_on_stages": [
           "project-skill-bootstrap"
@@ -351,7 +372,7 @@
           "repo_local_skills": {
             "status": "regenerate",
             "surfaces": [
-              ".opencode/skills/stack-standards/SKILL.md",
+              ".opencode\\skills\\stack-standards\\SKILL.md",
               "scaffold-managed .opencode/skills"
             ],
             "reason": "Repo-local skills need regeneration when scaffold-managed skills were replaced or placeholder/model drift remains.",
@@ -411,13 +432,34 @@
     },
     {
       "scenario": "safe-legacy-upgrade",
-      "probe_root": "/tmp/scafforge-gpttalker-validation-safe-legacy-upgrade-nruphl7q/restart-surface-drift-after-repair",
+      "probe_root": "C:\\Users\\PC\\AppData\\Local\\Temp\\scafforge-gpttalker-validation-safe-legacy-upgrade-tp76pp3e\\restart-surface-drift-after-repair",
       "audit": {
-        "finding_count": 1,
+        "finding_count": 2,
         "codes": [
+          "WFLOW035",
           "WFLOW010"
         ],
         "findings": [
+          {
+            "code": "WFLOW035",
+            "severity": "error",
+            "problem": "Restart surfaces claim completion even though the canonical pre-handoff proof is missing or failed.",
+            "root_cause": "The repo is presenting a ready/finished restart narrative without a passing current-cycle handoff proof state. That lets completion claims outrank the actual parse/load/layout or post-repair verification truth.",
+            "files": [
+              "START-HERE.md",
+              ".opencode/state/workflow-state.json",
+              "None"
+            ],
+            "safer_pattern": "Keep restart and handoff publication tied to a current-cycle handoff proof state, and do not let generated surfaces claim ready/complete while that proof is missing or failed.",
+            "evidence": [
+              "Repo claims completion or ready state while handoff_proof.status = missing.",
+              "handoff_proof.proof_artifact = None"
+            ],
+            "provenance": "script",
+            "remediation_action": null,
+            "remediation_target": null,
+            "is_user_action": false
+          },
           {
             "code": "WFLOW010",
             "severity": "error",
@@ -479,9 +521,9 @@
             "compatibility_shim_temporary": true,
             "reasons": [],
             "summary": "Recent legacy repo can auto-upgrade safely through the dedicated migration stage.",
-            "migration_id": "2026-04-20T02:37:03Z",
-            "repair_id": "2026-04-20T02:37:03Z",
-            "migrated_at": "2026-04-20T02:37:05Z",
+            "migration_id": "2026-04-21T20:36:03Z",
+            "repair_id": "2026-04-21T20:36:04Z",
+            "migrated_at": "2026-04-21T20:36:08Z",
             "migration_history_recorded": true,
             "repair_follow_on_outcome": "managed_blocked",
             "handoff_allowed": false,
@@ -535,11 +577,11 @@
             "process_version_after": 7
           },
           "repair_history_latest": {
-            "repair_id": "2026-04-20T02:37:03Z",
-            "repaired_at": "2026-04-20T02:37:03Z",
+            "repair_id": "2026-04-21T20:36:04Z",
+            "repaired_at": "2026-04-21T20:36:04Z",
             "repair_type": "managed-surface-replacement",
             "repair_kind": "deterministic-workflow-engine-replacement",
-            "repair_package_commit": "3fd45152294720c12f88a49fe00631de51783dfc",
+            "repair_package_commit": "c724583653db50bc7161e0a070c0b543e332fdeb",
             "summary": "Managed Scafforge repair runner refreshed deterministic workflow surfaces and evaluated downstream repair obligations.",
             "surfaces_replaced": [
               "opencode.jsonc",
@@ -667,9 +709,9 @@
               "compatibility_shim_temporary": true,
               "reasons": [],
               "summary": "Recent legacy repo can auto-upgrade safely through the dedicated migration stage.",
-              "migration_id": "2026-04-20T02:37:03Z",
-              "repair_id": "2026-04-20T02:37:03Z",
-              "migrated_at": "2026-04-20T02:37:05Z",
+              "migration_id": "2026-04-21T20:36:03Z",
+              "repair_id": "2026-04-21T20:36:04Z",
+              "migrated_at": "2026-04-21T20:36:08Z",
               "migration_history_recorded": true,
               "repair_follow_on_outcome": "managed_blocked",
               "handoff_allowed": false,
@@ -701,9 +743,9 @@
           "compatibility_shim_temporary": true,
           "reasons": [],
           "summary": "Recent legacy repo can auto-upgrade safely through the dedicated migration stage.",
-          "migration_id": "2026-04-20T02:37:03Z",
-          "repair_id": "2026-04-20T02:37:03Z",
-          "migrated_at": "2026-04-20T02:37:05Z",
+          "migration_id": "2026-04-21T20:36:03Z",
+          "repair_id": "2026-04-21T20:36:04Z",
+          "migrated_at": "2026-04-21T20:36:08Z",
           "migration_history_recorded": true,
           "repair_follow_on_outcome": "managed_blocked",
           "handoff_allowed": false,
@@ -714,7 +756,7 @@
         "repair_escalation": null
       },
       "managed_repair": {
-        "repair_package_commit": "3fd45152294720c12f88a49fe00631de51783dfc+dirty:f3c4d9d318fb",
+        "repair_package_commit": "c724583653db50bc7161e0a070c0b543e332fdeb+dirty:a41cdfbbfa59",
         "repair_basis_path": null,
         "required_follow_on_stages": [
           "project-skill-bootstrap"
@@ -790,9 +832,9 @@
           "compatibility_shim_temporary": true,
           "reasons": [],
           "summary": "Recent legacy repo can auto-upgrade safely through the dedicated migration stage.",
-          "migration_id": "2026-04-20T02:37:03Z",
-          "repair_id": "2026-04-20T02:37:03Z",
-          "migrated_at": "2026-04-20T02:37:05Z",
+          "migration_id": "2026-04-21T20:36:03Z",
+          "repair_id": "2026-04-21T20:36:04Z",
+          "migrated_at": "2026-04-21T20:36:08Z",
           "migration_history_recorded": true,
           "repair_follow_on_outcome": "managed_blocked",
           "handoff_allowed": false,
@@ -819,7 +861,7 @@
           "repo_local_skills": {
             "status": "regenerate",
             "surfaces": [
-              ".opencode/skills/stack-standards/SKILL.md",
+              ".opencode\\skills\\stack-standards\\SKILL.md",
               "scaffold-managed .opencode/skills"
             ],
             "reason": "Repo-local skills need regeneration when scaffold-managed skills were replaced or placeholder/model drift remains.",
@@ -879,13 +921,34 @@
     },
     {
       "scenario": "too-old-escalation",
-      "probe_root": "/tmp/scafforge-gpttalker-validation-too-old-escalation-tqwuqm46/restart-surface-drift-after-repair",
+      "probe_root": "C:\\Users\\PC\\AppData\\Local\\Temp\\scafforge-gpttalker-validation-too-old-escalation-zpkai3pc\\restart-surface-drift-after-repair",
       "audit": {
-        "finding_count": 1,
+        "finding_count": 2,
         "codes": [
+          "WFLOW035",
           "WFLOW010"
         ],
         "findings": [
+          {
+            "code": "WFLOW035",
+            "severity": "error",
+            "problem": "Restart surfaces claim completion even though the canonical pre-handoff proof is missing or failed.",
+            "root_cause": "The repo is presenting a ready/finished restart narrative without a passing current-cycle handoff proof state. That lets completion claims outrank the actual parse/load/layout or post-repair verification truth.",
+            "files": [
+              "START-HERE.md",
+              ".opencode/state/workflow-state.json",
+              "None"
+            ],
+            "safer_pattern": "Keep restart and handoff publication tied to a current-cycle handoff proof state, and do not let generated surfaces claim ready/complete while that proof is missing or failed.",
+            "evidence": [
+              "Repo claims completion or ready state while handoff_proof.status = missing.",
+              "handoff_proof.proof_artifact = None"
+            ],
+            "provenance": "script",
+            "remediation_action": null,
+            "remediation_target": null,
+            "is_user_action": false
+          },
           {
             "code": "WFLOW010",
             "severity": "error",
@@ -963,7 +1026,7 @@
           "migration_id": null
         },
         "repair_escalation": {
-          "escalated_at": "2026-04-20T02:37:06Z",
+          "escalated_at": "2026-04-21T20:36:10Z",
           "change_summary": "Managed Scafforge repair runner refreshed deterministic workflow surfaces and evaluated downstream repair obligations.",
           "attempted_operation": "legacy-contract-migration",
           "status": "approval_required",
@@ -996,7 +1059,7 @@
         }
       },
       "managed_repair": {
-        "repair_package_commit": "3fd45152294720c12f88a49fe00631de51783dfc+dirty:f3c4d9d318fb",
+        "repair_package_commit": "c724583653db50bc7161e0a070c0b543e332fdeb+dirty:a41cdfbbfa59",
         "repair_basis_path": null,
         "required_follow_on_stages": [],
         "required_follow_on_stage_details": [],
@@ -1033,13 +1096,34 @@
     },
     {
       "scenario": "structural-mismatch-escalation",
-      "probe_root": "/tmp/scafforge-gpttalker-validation-structural-mismatch-escalation-tklpffil/restart-surface-drift-after-repair",
+      "probe_root": "C:\\Users\\PC\\AppData\\Local\\Temp\\scafforge-gpttalker-validation-structural-mismatch-escalation-yuzotkew\\restart-surface-drift-after-repair",
       "audit": {
-        "finding_count": 1,
+        "finding_count": 2,
         "codes": [
+          "WFLOW035",
           "WFLOW010"
         ],
         "findings": [
+          {
+            "code": "WFLOW035",
+            "severity": "error",
+            "problem": "Restart surfaces claim completion even though the canonical pre-handoff proof is missing or failed.",
+            "root_cause": "The repo is presenting a ready/finished restart narrative without a passing current-cycle handoff proof state. That lets completion claims outrank the actual parse/load/layout or post-repair verification truth.",
+            "files": [
+              "START-HERE.md",
+              ".opencode/state/workflow-state.json",
+              "None"
+            ],
+            "safer_pattern": "Keep restart and handoff publication tied to a current-cycle handoff proof state, and do not let generated surfaces claim ready/complete while that proof is missing or failed.",
+            "evidence": [
+              "Repo claims completion or ready state while handoff_proof.status = missing.",
+              "handoff_proof.proof_artifact = None"
+            ],
+            "provenance": "script",
+            "remediation_action": null,
+            "remediation_target": null,
+            "is_user_action": false
+          },
           {
             "code": "WFLOW010",
             "severity": "error",
@@ -1117,7 +1201,7 @@
           "migration_id": null
         },
         "repair_escalation": {
-          "escalated_at": "2026-04-20T02:37:07Z",
+          "escalated_at": "2026-04-21T20:36:11Z",
           "change_summary": "Managed Scafforge repair runner refreshed deterministic workflow surfaces and evaluated downstream repair obligations.",
           "attempted_operation": "legacy-contract-migration",
           "status": "approval_required",
@@ -1150,7 +1234,7 @@
         }
       },
       "managed_repair": {
-        "repair_package_commit": "3fd45152294720c12f88a49fe00631de51783dfc+dirty:f3c4d9d318fb",
+        "repair_package_commit": "c724583653db50bc7161e0a070c0b543e332fdeb+dirty:a41cdfbbfa59",
         "repair_basis_path": null,
         "required_follow_on_stages": [],
         "required_follow_on_stage_details": [],

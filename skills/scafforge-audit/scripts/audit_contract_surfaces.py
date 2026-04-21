@@ -1355,6 +1355,47 @@ def _repo_claims_completion(root: Path, ctx: ContractSurfaceAuditContext) -> boo
     return False
 
 
+def _handoff_proof_state(root: Path, ctx: ContractSurfaceAuditContext) -> dict[str, Any]:
+    workflow_path = root / ".opencode" / "state" / "workflow-state.json"
+    workflow = ctx.read_json(workflow_path)
+    if not isinstance(workflow, dict):
+        return {}
+    raw = workflow.get("handoff_proof")
+    return raw if isinstance(raw, dict) else {}
+
+
+def audit_handoff_proof_truth(root: Path, findings: list[Finding], ctx: ContractSurfaceAuditContext) -> None:
+    if not _repo_claims_completion(root, ctx):
+        return
+    proof = _handoff_proof_state(root, ctx)
+    status = str(proof.get("status", "")).strip() or "missing"
+    if status == "passed":
+        return
+    proof_artifact = str(proof.get("proof_artifact", "")).strip() or ".opencode/state/handoff-proof.json"
+    blocking_codes = proof.get("blocking_codes") if isinstance(proof.get("blocking_codes"), list) else []
+    evidence = [
+        f"Repo claims completion or ready state while handoff_proof.status = {status}.",
+        f"handoff_proof.proof_artifact = {proof_artifact}",
+    ]
+    if blocking_codes:
+        evidence.append(
+            "handoff_proof.blocking_codes = " + ", ".join(str(code).strip() for code in blocking_codes if str(code).strip())
+        )
+    ctx.add_finding(
+        findings,
+        Finding(
+            code="WFLOW035",
+            severity="error",
+            problem="Restart surfaces claim completion even though the canonical pre-handoff proof is missing or failed.",
+            root_cause="The repo is presenting a ready/finished restart narrative without a passing current-cycle handoff proof state. That lets completion claims outrank the actual parse/load/layout or post-repair verification truth.",
+            files=["START-HERE.md", ".opencode/state/workflow-state.json", proof_artifact],
+            safer_pattern="Keep restart and handoff publication tied to a current-cycle handoff proof state, and do not let generated surfaces claim ready/complete while that proof is missing or failed.",
+            evidence=evidence,
+            provenance="script",
+        ),
+    )
+
+
 def audit_product_finish_contract(root: Path, findings: list[Finding], ctx: ContractSurfaceAuditContext) -> None:
     """Audit finish-contract coverage and claim-vs-contract consistency for consumer-facing repos."""
     brief_path = root / "docs" / "spec" / "CANONICAL-BRIEF.md"
@@ -1550,6 +1591,7 @@ def run_contract_surface_audits(root: Path, findings: list[Finding], ctx: Contra
     audit_workflow_vocabulary_drift(root, findings, ctx)
     audit_artifact_brief_missing_tuple(root, findings, ctx)
     audit_workflow_state_desync(root, findings, ctx)
+    audit_handoff_proof_truth(root, findings, ctx)
     audit_handoff_overwrites_start_here(root, findings, ctx)
     audit_invalid_tool_schemas(root, findings, ctx)
     audit_missing_observability_layer(root, findings, ctx)
