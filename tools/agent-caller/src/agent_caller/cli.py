@@ -379,7 +379,7 @@ def run_pr_reviewers(repo_root: Path, plan_dir: Path, prompt_file: Path, workdir
             f"{methodology}\n\nPR metadata:\n{{{{PR_METADATA}}}}\n\nUnified diff:\n```diff\n{{{{PR_DIFF}}}}\n```\n\n{get_required_section(sections, profile.heading)}",
             plan_variables(repo_root, plan_dir, extra=extra),
         )
-        prompt_file_path = write_temp_prompt_file(prompt)
+        prompt_file_path = write_temp_prompt_file(prompt, repo_root)
         command = [
             "opencode",
             "run",
@@ -528,8 +528,10 @@ def fetch_pr_context(owner_repo: str, pr_number: int, cwd: Path) -> dict[str, st
     return {"metadata": metadata, "diff": diff_text}
 
 
-def write_temp_prompt_file(prompt: str) -> str:
-    with tempfile.NamedTemporaryFile("w", encoding="utf-8", delete=False, suffix=".md") as handle:
+def write_temp_prompt_file(prompt: str, repo_root: Path) -> str:
+    temp_dir = repo_root / "tools" / "agent-caller" / ".tmp"
+    temp_dir.mkdir(parents=True, exist_ok=True)
+    with tempfile.NamedTemporaryFile("w", encoding="utf-8", delete=False, suffix=".md", dir=temp_dir) as handle:
         handle.write(prompt)
         return handle.name
 
