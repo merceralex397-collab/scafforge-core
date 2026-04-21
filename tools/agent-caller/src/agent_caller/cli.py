@@ -4,6 +4,7 @@ import argparse
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -432,7 +433,7 @@ def get_required_section(sections: dict[str, str], key: str) -> str:
 
 
 def execute_command(label: str, command: Iterable[str], cwd: Path, dry_run: bool) -> dict[str, object]:
-    command_list = list(command)
+    command_list = resolve_command_executable(list(command))
     if dry_run:
         return {
             "label": label,
@@ -469,6 +470,17 @@ def sanitized_env() -> dict[str, str]:
     env.setdefault("PYTHONUTF8", "1")
     env.setdefault("PYTHONIOENCODING", "utf-8")
     return env
+
+
+def resolve_command_executable(command: list[str]) -> list[str]:
+    if not command:
+        return command
+    executable = command[0]
+    if os.name == "nt" and executable.lower() == "opencode":
+        resolved = shutil.which("opencode.cmd") or shutil.which("opencode.exe") or shutil.which(executable)
+        if resolved:
+            command[0] = resolved
+    return command
 
 
 if __name__ == "__main__":
