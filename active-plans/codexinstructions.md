@@ -127,7 +127,7 @@ Default reviewer set:
 
 Rules:
 
-1. Each reviewer posts exactly one top-level PR comment using `gh pr comment`.
+1. Each reviewer produces exactly one top-level PR comment body, and `agent-caller` posts it with `gh pr comment`.
 2. These comments are advisory only.
 3. Reviewers should focus on high-confidence, evidence-backed findings.
 4. If a reviewer cannot support a claim from the diff and repo context, that claim should not drive changes.

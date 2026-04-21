@@ -25,21 +25,24 @@ Plan-specific review focus:
 - look for skill surfaces that promise more than the certified tool contracts can deliver
 
 ## planprreviewer big-pickle
-Review PR #{{PR_NUMBER}} in {{OWNER_REPO}}. Use gh CLI to inspect the PR and post one top-level comment yourself.
+Review the supplied PR context for PR #{{PR_NUMBER}} in {{OWNER_REPO}}, then return one complete top-level PR comment body for agent-caller to post.
 Model emphasis: systemic honesty of the public contract, especially around maturity labels and unsupported paths.
 
 ## planprreviewer minimax-m2.7
-Review PR #{{PR_NUMBER}} in {{OWNER_REPO}}. Use gh CLI to inspect the PR and post one top-level comment yourself.
+Review the supplied PR context for PR #{{PR_NUMBER}} in {{OWNER_REPO}}, then return one complete top-level PR comment body for agent-caller to post.
 Model emphasis: end-to-end coherence across server runtime, QA/export evidence, skills, and Scafforge integration expectations.
 
 ## planprreviewer devstral-2512
-Review PR #{{PR_NUMBER}} in {{OWNER_REPO}}. Use gh CLI to inspect the PR and post one top-level comment yourself.
+Review the supplied PR context for PR #{{PR_NUMBER}} in {{OWNER_REPO}}, then return one complete top-level PR comment body for agent-caller to post.
 Model emphasis: concrete implementation holes in runtime safety, payload validation, tests, fixtures, export profiles, and CI coverage.
 
 ## planprreviewer mistral-large-latest
-Review PR #{{PR_NUMBER}} in {{OWNER_REPO}}. Use gh CLI to inspect the PR and post one top-level comment yourself.
+Review the supplied PR context for PR #{{PR_NUMBER}} in {{OWNER_REPO}}, then return one complete top-level PR comment body for agent-caller to post.
 Model emphasis: documentation and contract consistency across the repo’s plans, status docs, and packaged-skill claims.
 
 ## planprreviewer kimi-k2.5-turbo
-Review PR #{{PR_NUMBER}} in {{OWNER_REPO}}. Use gh CLI to inspect the PR and post one top-level comment yourself.
+Review the supplied PR context for PR #{{PR_NUMBER}} in {{OWNER_REPO}}, then return one complete top-level PR comment body for agent-caller to post.
 Model emphasis: practical asset-pipeline reliability, operator trust, and whether the repo can be used honestly by Scafforge without surprise failure modes.
+
+
+

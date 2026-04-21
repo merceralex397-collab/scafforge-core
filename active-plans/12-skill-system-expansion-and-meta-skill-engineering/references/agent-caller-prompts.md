@@ -25,21 +25,24 @@ Plan-specific review focus:
 - look for missing provenance, licensing, or validation obligations around imported ideas
 
 ## planprreviewer big-pickle
-Review PR #{{PR_NUMBER}} in {{OWNER_REPO}}. Use gh CLI to inspect the PR and post one top-level comment yourself.
+Review the supplied PR context for PR #{{PR_NUMBER}} in {{OWNER_REPO}}, then return one complete top-level PR comment body for agent-caller to post.
 Model emphasis: system-level skill-governance risk, overlap, and uncontrolled growth in the skill catalog.
 
 ## planprreviewer minimax-m2.7
-Review PR #{{PR_NUMBER}} in {{OWNER_REPO}}. Use gh CLI to inspect the PR and post one top-level comment yourself.
+Review the supplied PR context for PR #{{PR_NUMBER}} in {{OWNER_REPO}}, then return one complete top-level PR comment body for agent-caller to post.
 Model emphasis: lifecycle coherence from skill-gap detection through packaging, validation, and downstream repair.
 
 ## planprreviewer devstral-2512
-Review PR #{{PR_NUMBER}} in {{OWNER_REPO}}. Use gh CLI to inspect the PR and post one top-level comment yourself.
+Review the supplied PR context for PR #{{PR_NUMBER}} in {{OWNER_REPO}}, then return one complete top-level PR comment body for agent-caller to post.
 Model emphasis: concrete implementation gaps in catalogs, references, validation hooks, and packaging logic.
 
 ## planprreviewer mistral-large-latest
-Review PR #{{PR_NUMBER}} in {{OWNER_REPO}}. Use gh CLI to inspect the PR and post one top-level comment yourself.
+Review the supplied PR context for PR #{{PR_NUMBER}} in {{OWNER_REPO}}, then return one complete top-level PR comment body for agent-caller to post.
 Model emphasis: conceptual clarity, provenance rules, and alignment with AGENTS.md skill-boundary guidance.
 
 ## planprreviewer kimi-k2.5-turbo
-Review PR #{{PR_NUMBER}} in {{OWNER_REPO}}. Use gh CLI to inspect the PR and post one top-level comment yourself.
+Review the supplied PR context for PR #{{PR_NUMBER}} in {{OWNER_REPO}}, then return one complete top-level PR comment body for agent-caller to post.
 Model emphasis: practical usability for agents choosing or repairing skills, especially under weak-model constraints.
+
+
+

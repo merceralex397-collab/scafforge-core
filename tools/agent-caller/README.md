@@ -4,7 +4,7 @@
 
 - `copilot` for `planchecker`
 - `copilot` for `planimplementer`
-- `opencode` for `planprreviewer`
+- `opencode` plus `gh` for `planprreviewer`
 
 The CLI is intentionally narrow. It is for the active-plan cycle, not a general orchestration framework.
 It is also intentionally local-only for this repo and this implementation program. It exists to save tokens and standardize command invocation while working through the plans.
@@ -69,3 +69,5 @@ Run the PR reviewers and emit a machine-readable summary:
 ```powershell
 agent-caller planprreviewer --plan 02 --pr 123 --json
 ```
+
+`planprreviewer` uses OpenCode to generate each model's review body, then posts that body to GitHub with `gh pr comment`. This keeps the review content model-authored while making comment delivery deterministic.

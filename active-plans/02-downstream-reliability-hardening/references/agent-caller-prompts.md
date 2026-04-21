@@ -25,21 +25,24 @@ Plan-specific review focus:
 - verify the implementation does not “solve” reliability by loosening standards or hiding failures
 
 ## planprreviewer big-pickle
-Review PR #{{PR_NUMBER}} in {{OWNER_REPO}}. Use gh CLI to inspect the PR and post one top-level comment yourself.
+Review the supplied PR context for PR #{{PR_NUMBER}} in {{OWNER_REPO}}, then return one complete top-level PR comment body for agent-caller to post.
 Model emphasis: systemic reliability holes, missing regression coverage, and hidden edge cases in audit/repair lifecycle behavior.
 
 ## planprreviewer minimax-m2.7
-Review PR #{{PR_NUMBER}} in {{OWNER_REPO}}. Use gh CLI to inspect the PR and post one top-level comment yourself.
+Review the supplied PR context for PR #{{PR_NUMBER}} in {{OWNER_REPO}}, then return one complete top-level PR comment body for agent-caller to post.
 Model emphasis: lifecycle coherence from failure detection to resume, and any contradiction in the recovery path.
 
 ## planprreviewer devstral-2512
-Review PR #{{PR_NUMBER}} in {{OWNER_REPO}}. Use gh CLI to inspect the PR and post one top-level comment yourself.
+Review the supplied PR context for PR #{{PR_NUMBER}} in {{OWNER_REPO}}, then return one complete top-level PR comment body for agent-caller to post.
 Model emphasis: concrete script/test gaps, fixture quality, validator regressions, and implementation holes in the changed files.
 
 ## planprreviewer mistral-large-latest
-Review PR #{{PR_NUMBER}} in {{OWNER_REPO}}. Use gh CLI to inspect the PR and post one top-level comment yourself.
+Review the supplied PR context for PR #{{PR_NUMBER}} in {{OWNER_REPO}}, then return one complete top-level PR comment body for agent-caller to post.
 Model emphasis: contract alignment across skills, template docs, and validation surfaces.
 
 ## planprreviewer kimi-k2.5-turbo
-Review PR #{{PR_NUMBER}} in {{OWNER_REPO}}. Use gh CLI to inspect the PR and post one top-level comment yourself.
+Review the supplied PR context for PR #{{PR_NUMBER}} in {{OWNER_REPO}}, then return one complete top-level PR comment body for agent-caller to post.
 Model emphasis: practical repo-operability, clarity of next steps after failure, and whether the recovery UX is believable.
+
+
+

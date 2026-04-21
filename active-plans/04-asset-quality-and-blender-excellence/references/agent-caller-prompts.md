@@ -25,21 +25,24 @@ Plan-specific review focus:
 - confirm Blender claims stay aligned with what the external repo can actually prove
 
 ## planprreviewer big-pickle
-Review PR #{{PR_NUMBER}} in {{OWNER_REPO}}. Use gh CLI to inspect the PR and post one top-level comment yourself.
+Review the supplied PR context for PR #{{PR_NUMBER}} in {{OWNER_REPO}}, then return one complete top-level PR comment body for agent-caller to post.
 Model emphasis: hidden overclaiming, quality gates with no evidence model, and unsupported Blender promises.
 
 ## planprreviewer minimax-m2.7
-Review PR #{{PR_NUMBER}} in {{OWNER_REPO}}. Use gh CLI to inspect the PR and post one top-level comment yourself.
+Review the supplied PR context for PR #{{PR_NUMBER}} in {{OWNER_REPO}}, then return one complete top-level PR comment body for agent-caller to post.
 Model emphasis: workflow coherence between quality review, stage gates, and downstream completion.
 
 ## planprreviewer devstral-2512
-Review PR #{{PR_NUMBER}} in {{OWNER_REPO}}. Use gh CLI to inspect the PR and post one top-level comment yourself.
+Review the supplied PR context for PR #{{PR_NUMBER}} in {{OWNER_REPO}}, then return one complete top-level PR comment body for agent-caller to post.
 Model emphasis: concrete implementation gaps in screenshot capture, validation wiring, and doc/template changes.
 
 ## planprreviewer mistral-large-latest
-Review PR #{{PR_NUMBER}} in {{OWNER_REPO}}. Use gh CLI to inspect the PR and post one top-level comment yourself.
+Review the supplied PR context for PR #{{PR_NUMBER}} in {{OWNER_REPO}}, then return one complete top-level PR comment body for agent-caller to post.
 Model emphasis: design-system consistency, contract clarity, and maintainability of the new visual-quality rules.
 
 ## planprreviewer kimi-k2.5-turbo
-Review PR #{{PR_NUMBER}} in {{OWNER_REPO}}. Use gh CLI to inspect the PR and post one top-level comment yourself.
+Review the supplied PR context for PR #{{PR_NUMBER}} in {{OWNER_REPO}}, then return one complete top-level PR comment body for agent-caller to post.
 Model emphasis: human/operator readability, whether “bad-looking but technically present” is now actually catchable, and practical review ergonomics.
+
+
+

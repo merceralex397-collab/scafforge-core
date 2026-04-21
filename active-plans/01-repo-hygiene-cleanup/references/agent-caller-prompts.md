@@ -25,21 +25,24 @@ Plan-specific review focus:
 - ensure the final docs make the planning portfolio easier, not harder, to navigate
 
 ## planprreviewer big-pickle
-Review PR #{{PR_NUMBER}} in {{OWNER_REPO}}. Use gh CLI to inspect the PR and post one top-level comment yourself.
+Review the supplied PR context for PR #{{PR_NUMBER}} in {{OWNER_REPO}}, then return one complete top-level PR comment body for agent-caller to post.
 Model emphasis: systemic documentation-contract drift, hidden ambiguity, and any cleanup change that accidentally weakens the portfolio structure.
 
 ## planprreviewer minimax-m2.7
-Review PR #{{PR_NUMBER}} in {{OWNER_REPO}}. Use gh CLI to inspect the PR and post one top-level comment yourself.
+Review the supplied PR context for PR #{{PR_NUMBER}} in {{OWNER_REPO}}, then return one complete top-level PR comment body for agent-caller to post.
 Model emphasis: workflow coherence, state/ownership clarity, and whether contributors can follow the planning rules without guessing.
 
 ## planprreviewer devstral-2512
-Review PR #{{PR_NUMBER}} in {{OWNER_REPO}}. Use gh CLI to inspect the PR and post one top-level comment yourself.
+Review the supplied PR context for PR #{{PR_NUMBER}} in {{OWNER_REPO}}, then return one complete top-level PR comment body for agent-caller to post.
 Model emphasis: concrete documentation regressions, missing checklists, and any unsupported assumptions in the implementation details.
 
 ## planprreviewer mistral-large-latest
-Review PR #{{PR_NUMBER}} in {{OWNER_REPO}}. Use gh CLI to inspect the PR and post one top-level comment yourself.
+Review the supplied PR context for PR #{{PR_NUMBER}} in {{OWNER_REPO}}, then return one complete top-level PR comment body for agent-caller to post.
 Model emphasis: architecture/documentation consistency, root-vs-reference boundaries, and long-term maintainability.
 
 ## planprreviewer kimi-k2.5-turbo
-Review PR #{{PR_NUMBER}} in {{OWNER_REPO}}. Use gh CLI to inspect the PR and post one top-level comment yourself.
+Review the supplied PR context for PR #{{PR_NUMBER}} in {{OWNER_REPO}}, then return one complete top-level PR comment body for agent-caller to post.
 Model emphasis: operator clarity, practical usability, and whether the resulting docs would actually guide an agent cleanly.
+
+
+

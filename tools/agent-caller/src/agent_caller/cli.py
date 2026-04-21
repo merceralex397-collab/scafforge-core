@@ -7,6 +7,7 @@ import re
 import shutil
 import subprocess
 import sys
+import tempfile
 import uuid
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
@@ -64,17 +65,27 @@ Required output:
 COMMON_PR_REVIEW_METHODOLOGY = """You are one reviewer in a multi-model PR review swarm for a PR implementing {{PLAN_ID}} ({{PLAN_TITLE}}).
 
 Review methodology:
-- Use the GitHub CLI to inspect the PR, its changed files, and any visible CI or discussion context.
+- Use the supplied PR metadata and unified diff as primary evidence.
+- Use local repo context only when it materially helps interpret the diff.
 - Judge only what you can support from the diff, repository context, and the plan requirements.
 - Focus on correctness, regression risk, contract drift, missing validation, documentation drift, package/output boundary violations, and violations of the free-only/headless assumptions where they apply.
 - Prefer a small number of high-confidence findings over broad speculation.
 - If you find no material issues, say so explicitly.
 
 Comment requirements:
-- Post exactly one top-level PR comment with `gh pr comment`.
 - Start the comment with the exact reviewer banner `{{REVIEWER_BANNER}}`.
-- Include: verdict, numbered findings (or “no material issues found”), open questions, and any residual risk.
-- Do not approve or request changes through GitHub review state; post a normal comment only.
+- Return only the final markdown body for that one PR comment. Do not include preambles, tool narration, or any text outside the comment body.
+- Use this exact shape:
+  `{{REVIEWER_BANNER}}`
+  `Verdict: <valid | valid-with-fixes | flawed>`
+  `Findings:`
+  `1. ...`
+  `Open Questions:`
+  `- ...`
+  `Residual Risk:`
+  `- ...`
+- If there are no material issues, still fill the structure and write `1. No material issues found.` under `Findings:`.
+- Do not approve or request changes through GitHub review state; `agent-caller` will post your returned markdown as a normal top-level PR comment.
 """
 
 
@@ -349,12 +360,15 @@ def run_pr_reviewers(repo_root: Path, plan_dir: Path, prompt_file: Path, workdir
     owner_repo = args.owner_repo or infer_owner_repo(workdir)
     selected = select_reviewers(args.reviewers)
     methodology = get_required_section(sections, "planprreviewer methodology")
+    pr_context = fetch_pr_context(owner_repo, args.pr, workdir)
     jobs = []
     for profile in selected:
         reviewer_banner = f"[planprreviewer:{profile.key}:{uuid.uuid4().hex[:8]}]"
         extra = {
             "PR_NUMBER": str(args.pr),
             "OWNER_REPO": owner_repo,
+            "PR_METADATA": pr_context["metadata"],
+            "PR_DIFF": pr_context["diff"],
             "REVIEWER_KEY": profile.key,
             "REVIEWER_MODEL": profile.model,
             "REVIEWER_VARIANT": profile.variant or "",
@@ -362,13 +376,16 @@ def run_pr_reviewers(repo_root: Path, plan_dir: Path, prompt_file: Path, workdir
             "REVIEW_METHODOLOGY": methodology,
         }
         prompt = render_section(
-            f"{methodology}\n\n{get_required_section(sections, profile.heading)}",
+            f"{methodology}\n\nPR metadata:\n{{{{PR_METADATA}}}}\n\nUnified diff:\n```diff\n{{{{PR_DIFF}}}}\n```\n\n{get_required_section(sections, profile.heading)}",
             plan_variables(repo_root, plan_dir, extra=extra),
         )
+        prompt_file_path = write_temp_prompt_file(prompt)
         command = [
             "opencode",
             "run",
-            prompt,
+            "Read the attached review brief and return only the final markdown PR comment body.",
+            "--file",
+            prompt_file_path,
             "--dir",
             str(workdir),
             "--model",
@@ -376,30 +393,36 @@ def run_pr_reviewers(repo_root: Path, plan_dir: Path, prompt_file: Path, workdir
         ]
         if profile.variant:
             command.extend(["--variant", profile.variant])
-        jobs.append((profile, command, reviewer_banner))
+        jobs.append((profile, command, reviewer_banner, prompt_file_path))
 
     results: list[dict[str, object]] = []
     if args.sequential or args.dry_run:
-        for profile, command, reviewer_banner in jobs:
-            result = execute_command(profile.key, command, workdir, args.dry_run)
-            if not args.dry_run:
-                verify_reviewer_comment(result, owner_repo, args.pr, reviewer_banner, workdir)
-            result["reviewer"] = profile.key
-            result["reviewer_banner"] = reviewer_banner
-            results.append(result)
+        for profile, command, reviewer_banner, prompt_file_path in jobs:
+            try:
+                result = execute_command(profile.key, command, workdir, args.dry_run)
+                if not args.dry_run:
+                    publish_reviewer_comment(result, owner_repo, args.pr, reviewer_banner, workdir)
+                result["reviewer"] = profile.key
+                result["reviewer_banner"] = reviewer_banner
+                results.append(result)
+            finally:
+                delete_temp_file(prompt_file_path)
     else:
         with ThreadPoolExecutor(max_workers=len(jobs)) as executor:
             future_map = {
-                executor.submit(execute_command, profile.key, command, workdir, False): (profile.key, reviewer_banner)
-                for profile, command, reviewer_banner in jobs
+                executor.submit(execute_command, profile.key, command, workdir, False): (profile.key, reviewer_banner, prompt_file_path)
+                for profile, command, reviewer_banner, prompt_file_path in jobs
             }
             for future in as_completed(future_map):
                 result = future.result()
-                reviewer_key, reviewer_banner = future_map[future]
-                verify_reviewer_comment(result, owner_repo, args.pr, reviewer_banner, workdir)
-                result["reviewer"] = reviewer_key
-                result["reviewer_banner"] = reviewer_banner
-                results.append(result)
+                reviewer_key, reviewer_banner, prompt_file_path = future_map[future]
+                try:
+                    publish_reviewer_comment(result, owner_repo, args.pr, reviewer_banner, workdir)
+                    result["reviewer"] = reviewer_key
+                    result["reviewer_banner"] = reviewer_banner
+                    results.append(result)
+                finally:
+                    delete_temp_file(prompt_file_path)
     return {
         "command": "planprreviewer",
         "owner_repo": owner_repo,
@@ -435,6 +458,80 @@ def infer_owner_repo(workdir: Path) -> str:
     if not value:
         raise AgentCallerError("gh repo view returned an empty nameWithOwner")
     return value
+
+
+def fetch_pr_context(owner_repo: str, pr_number: int, cwd: Path) -> dict[str, str]:
+    view_command = [
+        "gh",
+        "pr",
+        "view",
+        str(pr_number),
+        "--repo",
+        owner_repo,
+        "--json",
+        "title,body,baseRefName,headRefName,url,files",
+    ]
+    view = subprocess.run(
+        view_command,
+        cwd=cwd,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        check=False,
+        env=sanitized_env(),
+    )
+    if view.returncode != 0:
+        raise AgentCallerError(f"Could not fetch PR metadata with gh: {view.stderr.strip()}")
+    try:
+        payload = json.loads(view.stdout)
+    except json.JSONDecodeError as exc:
+        raise AgentCallerError(f"Could not parse PR metadata JSON: {exc}") from exc
+
+    files = payload.get("files") or []
+    file_lines = []
+    for file_info in files:
+        path = file_info.get("path", "<unknown>")
+        additions = file_info.get("additions", 0)
+        deletions = file_info.get("deletions", 0)
+        file_lines.append(f"- {path} (+{additions}/-{deletions})")
+    metadata = "\n".join(
+        [
+            f"URL: {payload.get('url', '')}",
+            f"Title: {payload.get('title', '')}",
+            f"Base: {payload.get('baseRefName', '')}",
+            f"Head: {payload.get('headRefName', '')}",
+            "Body:",
+            str(payload.get("body", "") or "").strip(),
+            "Changed files:",
+            "\n".join(file_lines) if file_lines else "- <no files listed>",
+        ]
+    ).strip()
+
+    diff_command = ["gh", "pr", "diff", str(pr_number), "--repo", owner_repo]
+    diff = subprocess.run(
+        diff_command,
+        cwd=cwd,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        check=False,
+        env=sanitized_env(),
+    )
+    if diff.returncode != 0:
+        raise AgentCallerError(f"Could not fetch PR diff with gh: {diff.stderr.strip()}")
+    diff_text = diff.stdout.strip()
+    max_chars = 120_000
+    if len(diff_text) > max_chars:
+        diff_text = f"{diff_text[:max_chars]}\n\n[diff truncated by agent-caller]"
+    return {"metadata": metadata, "diff": diff_text}
+
+
+def write_temp_prompt_file(prompt: str) -> str:
+    with tempfile.NamedTemporaryFile("w", encoding="utf-8", delete=False, suffix=".md") as handle:
+        handle.write(prompt)
+        return handle.name
 
 
 def get_required_section(sections: dict[str, str], key: str) -> str:
@@ -506,13 +603,25 @@ def fetch_issue_comments(owner_repo: str, pr_number: int, cwd: Path) -> list[dic
     return payload
 
 
-def verify_reviewer_comment(
+def publish_reviewer_comment(
     result: dict[str, object],
     owner_repo: str,
     pr_number: int,
     reviewer_banner: str,
     cwd: Path,
 ) -> None:
+    comment_body = extract_comment_body(result, reviewer_banner)
+    if not comment_body:
+        stderr = str(result.get("stderr", "") or "")
+        if stderr:
+            stderr = f"{stderr.rstrip()}\n"
+        stderr += f"Reviewer did not return a valid PR comment body starting with banner: {reviewer_banner}\n"
+        result["stderr"] = stderr
+        result["returncode"] = int(result.get("returncode", 0) or 0) or 1
+        result["comment_verified"] = False
+        return
+
+    post_reviewer_comment(owner_repo, pr_number, comment_body, cwd)
     comments = fetch_issue_comments(owner_repo, pr_number, cwd)
     posted = any(reviewer_banner in str(comment.get("body", "")) for comment in comments)
     result["comment_verified"] = posted
@@ -524,6 +633,99 @@ def verify_reviewer_comment(
     stderr += f"Reviewer did not post the required PR comment banner: {reviewer_banner}\n"
     result["stderr"] = stderr
     result["returncode"] = int(result.get("returncode", 0) or 0) or 1
+
+
+def extract_comment_body(result: dict[str, object], reviewer_banner: str) -> str:
+    stdout = str(result.get("stdout", "") or "").strip()
+    if not stdout:
+        return ""
+    lowered = stdout.lower()
+    if "please provide the specific details" in lowered:
+        return ""
+    body = stdout
+    if reviewer_banner in body:
+        body = body[body.find(reviewer_banner):].strip()
+    else:
+        start_markers = [
+            "Verdict:",
+            "## PR Review",
+            "## PR Review Summary",
+            "## Review",
+            "### Verdict",
+            "**Verdict:**",
+        ]
+        for marker in start_markers:
+            if marker in body:
+                body = body[body.find(marker):].strip()
+                break
+        body = strip_tool_narration(body)
+        body = f"{reviewer_banner}\n\n{body}".strip()
+    body = strip_tool_narration(body)
+    if reviewer_banner not in body:
+        body = f"{reviewer_banner}\n\n{body}".strip()
+    if len(body) < len(reviewer_banner) + 40:
+        return ""
+    return body
+
+
+def post_reviewer_comment(owner_repo: str, pr_number: int, comment_body: str, cwd: Path) -> None:
+    with tempfile.NamedTemporaryFile("w", encoding="utf-8", delete=False, suffix=".md") as handle:
+        handle.write(comment_body)
+        temp_path = handle.name
+    try:
+        command = [
+            "gh",
+            "pr",
+            "comment",
+            str(pr_number),
+            "--repo",
+            owner_repo,
+            "--body-file",
+            temp_path,
+        ]
+        completed = subprocess.run(
+            command,
+            cwd=cwd,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            check=False,
+            env=sanitized_env(),
+        )
+        if completed.returncode != 0:
+            raise AgentCallerError(f"Could not post reviewer comment with gh: {completed.stderr.strip()}")
+    finally:
+        try:
+            delete_temp_file(temp_path)
+        except OSError:
+            pass
+
+
+def strip_tool_narration(body: str) -> str:
+    skip_prefixes = (
+        "let me ",
+        "now let me ",
+        "i understand",
+        "perfect!",
+        "great!",
+        "i'm unable",
+        "i am unable",
+    )
+    cleaned: list[str] = []
+    for line in body.splitlines():
+        stripped = line.strip()
+        if stripped and stripped.lower().startswith(skip_prefixes):
+            continue
+        cleaned.append(line)
+    return "\n".join(cleaned).strip()
+
+
+def delete_temp_file(path: str) -> None:
+    try:
+        os.unlink(path)
+    except OSError:
+        pass
 
 
 def sanitized_env() -> dict[str, str]:
