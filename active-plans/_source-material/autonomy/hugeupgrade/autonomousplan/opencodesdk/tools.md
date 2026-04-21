@@ -1,0 +1,155 @@
+---
+source_url: https://opencode.ai/docs/tools
+fetched_with: http
+---
+
+# Tools
+
+Manage the tools an LLM can use.
+
+Tools allow the LLM to perform actions in your codebase. OpenCode comes with a set of built-in tools, but you can extend it with custom tools or MCP servers.
+
+By default, all tools are **enabled** and don’t need permission to run. You can control tool behavior through permissions.
+
+Use the `permission`
+
+field to control tool behavior. You can allow, deny, or require approval for each tool.
+
+You can also use wildcards to control multiple tools at once. For example, to require approval for all tools from an MCP server:
+
+Learn more about configuring permissions.
+
+Here are all the built-in tools available in OpenCode.
+
+Execute shell commands in your project environment.
+
+This tool allows the LLM to run terminal commands like `npm install`
+
+, `git status`
+
+, or any other shell command.
+
+Modify existing files using exact string replacements.
+
+This tool performs precise edits to files by replacing exact text matches. It’s the primary way the LLM modifies code.
+
+Create new files or overwrite existing ones.
+
+Use this to allow the LLM to create new files. It will overwrite existing files if they already exist.
+
+Read file contents from your codebase.
+
+This tool reads files and returns their contents. It supports reading specific line ranges for large files.
+
+Search file contents using regular expressions.
+
+Fast content search across your codebase. Supports full regex syntax and file pattern filtering.
+
+Find files by pattern matching.
+
+Search for files using glob patterns like `**/*.js`
+
+or `src/**/*.ts`
+
+. Returns matching file paths sorted by modification time.
+
+List files and directories in a given path.
+
+This tool lists directory contents. It accepts glob patterns to filter results.
+
+Interact with your configured LSP servers to get code intelligence features like definitions, references, hover info, and call hierarchy.
+
+Supported operations include `goToDefinition`
+
+, `findReferences`
+
+, `hover`
+
+, `documentSymbol`
+
+, `workspaceSymbol`
+
+, `goToImplementation`
+
+, `prepareCallHierarchy`
+
+, `incomingCalls`
+
+, and `outgoingCalls`
+
+.
+
+To configure which LSP servers are available for your project, see LSP Servers.
+
+Apply patches to files.
+
+This tool applies patch files to your codebase. Useful for applying diffs and patches from various sources.
+
+Load a skill (a `SKILL.md`
+
+file) and return its content in the conversation.
+
+Manage todo lists during coding sessions.
+
+Creates and updates task lists to track progress during complex operations. The LLM uses this to organize multi-step tasks.
+
+Read existing todo lists.
+
+Reads the current todo list state. Used by the LLM to track what tasks are pending or completed.
+
+Fetch web content.
+
+Allows the LLM to fetch and read web pages. Useful for looking up documentation or researching online resources.
+
+Search the web for information.
+
+Performs web searches using Exa AI to find relevant information online. Useful for researching topics, finding current events, or gathering information beyond the training data cutoff.
+
+No API key is required — the tool connects directly to Exa AI’s hosted MCP service without authentication.
+
+Ask the user questions during execution.
+
+This tool allows the LLM to ask the user questions during a task. It’s useful for:
+
+- Gathering user preferences or requirements
+- Clarifying ambiguous instructions
+- Getting decisions on implementation choices
+- Offering choices about what direction to take
+
+Each question includes a header, the question text, and a list of options. Users can select from the provided options or type a custom answer. When there are multiple questions, users can navigate between them before submitting all answers.
+
+Custom tools let you define your own functions that the LLM can call. These are defined in your config file and can execute arbitrary code.
+
+Learn more about creating custom tools.
+
+MCP (Model Context Protocol) servers allow you to integrate external tools and services. This includes database access, API integrations, and third-party services.
+
+Learn more about configuring MCP servers.
+
+Internally, tools like `grep`
+
+, `glob`
+
+, and `list`
+
+use ripgrep under the hood. By default, ripgrep respects `.gitignore`
+
+patterns, which means files and directories listed in your `.gitignore`
+
+will be excluded from searches and listings.
+
+To include files that would normally be ignored, create a `.ignore`
+
+file in your project root. This file can explicitly allow certain paths.
+
+For example, this `.ignore`
+
+file allows ripgrep to search within `node_modules/`
+
+, `dist/`
+
+, and `build/`
+
+directories even if they’re listed in `.gitignore`
+
+.
