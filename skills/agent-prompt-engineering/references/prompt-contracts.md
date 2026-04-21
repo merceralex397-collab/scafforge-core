@@ -10,6 +10,7 @@
 - Require proof before stage changes.
 - Name the canonical tool or artifact path instead of saying "update the file".
 - Define exact output sections when consistency matters.
+- When a repo is visually reviewable, require explicit visual-proof fields and named rubric findings instead of vague taste language.
 
 ## Team leader
 
@@ -46,6 +47,7 @@
 - Stay read-only.
 - When the workflow expects review or QA artifacts, write the full body first and register metadata separately.
 - Return findings first.
+- Distinguish intentional style from quality failure; blockers should name layout, readability, hierarchy, finish, or motion defects explicitly.
 
 ## Verifier and guarded ticket creator
 

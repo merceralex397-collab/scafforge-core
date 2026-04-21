@@ -1,0 +1,51 @@
+{
+  "fixture_version": 1,
+  "source_repo": "Scafforge synthetic visual proof",
+  "families": [
+    {
+      "slug": "screen-fit-and-hierarchy-regression",
+      "title": "Screen-fit and hierarchy regression",
+      "flow": "qa",
+      "invariant_focus": [
+        "visual proof gating",
+        "screen-fit and menu hierarchy blockers"
+      ],
+      "expected_coverage": [
+        "integration:visual-proof-fixtures",
+        "contract:curated-fixtures"
+      ],
+      "expected_finding_codes": [
+        "EXEC-GODOT-013"
+      ],
+      "truth_expectations": {
+        "convergence": "visual-proof-blocked",
+        "publish_safety": "qa-visual-proof-missing",
+        "blocker_truth": "structured-visual-proof-missing",
+        "checks": [
+          {
+            "kind": "json_equals",
+            "file": ".opencode/meta/bootstrap-provenance.json",
+            "path": "requires_visual_proof",
+            "value": true
+          },
+          {
+            "kind": "file_exists",
+            "file": "assets/previews/menu-overflow.png"
+          },
+          {
+            "kind": "file_contains",
+            "file": ".opencode/state/qa/visual-proof-qa.md",
+            "needle": "Expected blocker categories: screen-fit failure, menu hierarchy failure, readability failure."
+          }
+        ]
+      },
+      "expected_gate_blocker": "Visual-proof repos require structured visual proof in the QA artifact",
+      "expected_rubric_blockers": [
+        "screen-fit failure",
+        "menu hierarchy failure",
+        "readability failure"
+      ],
+      "notes": "screen-fit-and-hierarchy-regression/README.md"
+    }
+  ]
+}

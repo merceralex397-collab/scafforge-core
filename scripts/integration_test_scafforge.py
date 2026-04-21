@@ -23,6 +23,11 @@ from test_support.asset_fixture_builders import (
     build_fixture_family as build_asset_fixture_family,
     fixture_index_by_slug as asset_fixture_index_by_slug,
 )
+from test_support.visual_proof_fixture_builders import (
+    CONTRACT_PATH as VISUAL_PROOF_FIXTURE_CONTRACT_PATH,
+    build_fixture_family as build_visual_proof_fixture_family,
+    fixture_index_by_slug as visual_proof_fixture_index_by_slug,
+)
 from test_support.gpttalker_fixture_builders import (
     build_fixture_family,
     build_partial_transaction_edge_case,
@@ -131,6 +136,16 @@ def ensure_asset_fixture_index() -> dict[str, dict[str, Any]]:
     if set(indexed) != expected:
         raise RuntimeError(
             f"Asset fixture index slugs do not match the curated set: {sorted(indexed)}"
+        )
+    return indexed
+
+
+def ensure_visual_proof_fixture_index() -> dict[str, dict[str, Any]]:
+    indexed = visual_proof_fixture_index_by_slug()
+    expected = {"screen-fit-and-hierarchy-regression"}
+    if set(indexed) != expected:
+        raise RuntimeError(
+            f"Visual-proof fixture index slugs do not match the curated set: {sorted(indexed)}"
         )
     return indexed
 
@@ -1695,6 +1710,99 @@ def asset_fixture_integration(
             )
 
 
+def visual_proof_fixture_integration(
+    *,
+    fixtures: dict[str, dict[str, Any]],
+    workspace: Path,
+) -> None:
+    fixture_root = workspace / "visual-proof-fixtures"
+    for slug in sorted(fixtures):
+        dest = fixture_root / slug
+        contract = build_visual_proof_fixture_family(slug, dest)
+        if contract.get("slug") != slug:
+            raise RuntimeError(
+                f"Visual-proof fixture builder should persist the canonical slug for `{slug}`."
+            )
+        contract_file = dest / VISUAL_PROOF_FIXTURE_CONTRACT_PATH
+        if not contract_file.exists():
+            raise RuntimeError(
+                f"Visual-proof fixture builder should emit {VISUAL_PROOF_FIXTURE_CONTRACT_PATH} for `{slug}`."
+            )
+        blocker = contract.get("expected_gate_blocker")
+        if not isinstance(blocker, str) or not blocker.strip():
+            raise RuntimeError(
+                f"Visual-proof fixture `{slug}` should persist an expected_gate_blocker."
+            )
+        ticket_id = contract.get("ticket_id")
+        qa_artifact_path = contract.get("qa_artifact_path")
+        evidence_paths = contract.get("expected_visual_proof_paths")
+        rubric_blockers = contract.get("expected_rubric_blockers")
+        if not isinstance(ticket_id, str) or not ticket_id.strip():
+            raise RuntimeError(f"Visual-proof fixture `{slug}` should persist ticket_id.")
+        if not isinstance(qa_artifact_path, str) or not qa_artifact_path.strip():
+            raise RuntimeError(
+                f"Visual-proof fixture `{slug}` should persist qa_artifact_path."
+            )
+        if not isinstance(evidence_paths, list) or not evidence_paths:
+            raise RuntimeError(
+                f"Visual-proof fixture `{slug}` should persist expected_visual_proof_paths."
+            )
+        if not isinstance(rubric_blockers, list) or not rubric_blockers:
+            raise RuntimeError(
+                f"Visual-proof fixture `{slug}` should persist expected_rubric_blockers."
+            )
+
+        stage_error = run_generated_tool_error(
+            dest,
+            ".opencode/tools/ticket_update.ts",
+            {"ticket_id": ticket_id, "stage": "smoke-test"},
+        )
+        if blocker not in stage_error:
+            raise RuntimeError(
+                f"Visual-proof fixture `{slug}` should block smoke-test routing on structured visual proof.\nObserved:\n{stage_error}"
+            )
+        lookup_payload = run_generated_tool(
+            dest,
+            ".opencode/tools/ticket_lookup.ts",
+            {"ticket_id": ticket_id},
+        )
+        transition_guidance = (
+            lookup_payload.get("transition_guidance")
+            if isinstance(lookup_payload, dict)
+            else None
+        )
+        current_state_blocker = (
+            transition_guidance.get("current_state_blocker")
+            if isinstance(transition_guidance, dict)
+            else None
+        )
+        if not isinstance(current_state_blocker, str) or blocker not in current_state_blocker:
+            raise RuntimeError(
+                f"Visual-proof fixture `{slug}` should surface the structured visual-proof blocker in ticket_lookup."
+            )
+
+        qa_path = dest / qa_artifact_path
+        qa_path.write_text(
+            qa_path.read_text(encoding="utf-8")
+            + "\n## Visual Proof\n\n"
+            + "- visual_proof_status: PASS\n"
+            + f"- visual_proof_evidence: {', '.join(str(item) for item in evidence_paths)}\n"
+            + "- visual_proof_surfaces: title-screen, main-menu, HUD\n"
+            + "- visual_rubric_blockers: none\n"
+            + "- visual_style_note: Bright flat-color toy-box styling is intentional; the review judges readability, screen fit, hierarchy, and finish rather than realism.\n",
+            encoding="utf-8",
+        )
+        update_result = run_generated_tool(
+            dest,
+            ".opencode/tools/ticket_update.ts",
+            {"ticket_id": ticket_id, "stage": "smoke-test"},
+        )
+        if update_result["updated_ticket"]["stage"] != "smoke-test":
+            raise RuntimeError(
+                f"Visual-proof fixture `{slug}` should advance once structured visual proof is present."
+            )
+
+
 def assert_fixture_truth_checks(
     dest: Path, slug: str, truth_expectations: dict[str, Any]
 ) -> None:
@@ -2256,11 +2364,13 @@ def main() -> int:
     fixtures = ensure_fixture_index()
     downstream_fixtures = ensure_downstream_fixture_indexes()
     asset_fixtures = ensure_asset_fixture_index()
+    visual_proof_fixtures = ensure_visual_proof_fixture_index()
     if args.list_fixtures:
         listing = {"gpttalker": sorted(fixtures)}
         for corpus_slug, (_, corpus_fixtures) in downstream_fixtures.items():
             listing[corpus_slug] = sorted(corpus_fixtures)
         listing["assets"] = sorted(asset_fixtures)
+        listing["visual-proof"] = sorted(visual_proof_fixtures)
         print(json.dumps(listing, indent=2))
         return 0
     with tempfile.TemporaryDirectory(prefix="scafforge-integration-") as workspace_root:
@@ -2288,6 +2398,10 @@ def main() -> int:
             )
         asset_fixture_integration(
             fixtures=asset_fixtures,
+            workspace=workspace,
+        )
+        visual_proof_fixture_integration(
+            fixtures=visual_proof_fixtures,
             workspace=workspace,
         )
         synthetic_edge_case_integration(workspace)

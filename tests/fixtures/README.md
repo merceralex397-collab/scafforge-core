@@ -17,3 +17,4 @@ Current curated corpora:
 - `gpttalker/` for workflow-contract and restart-surface regressions
 - `womanvshorse/` for downstream Godot boot/config truth failures
 - `spinner/` for viewport/layout truth failures
+- `visual-proof/` for structured screenshot/render-proof gating regressions

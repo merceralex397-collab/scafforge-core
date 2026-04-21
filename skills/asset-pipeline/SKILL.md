@@ -51,6 +51,17 @@ Hosted commercial generation APIs remain denied by default in this package contr
 
 These stages are not alternate source routes. Every asset category should record its selected source route separately from these required proof stages.
 
+## Visual quality contract
+
+Asset presence is not enough. For visually reviewable repos, the generated output must also satisfy the named visual rubric in [`references/visual-quality-rubric.md`](references/visual-quality-rubric.md).
+
+Key rules:
+
+- judge **screen fit, readability, hierarchy, silhouette, material readability, and motion feedback**
+- treat blocker findings as proof that the asset or surface is not ready, even when the file technically exists
+- keep style choice separate from failure: stylized, flat, low-poly, or minimalist output is acceptable when it is intentional and readable
+- require screenshot or render evidence for reviewable surfaces instead of trusting prose like "looks good now"
+
 ## Canonical generated-repo surfaces
 
 Generated repos should converge on:
@@ -168,12 +179,15 @@ Minimum manifest truth per asset:
 
 Generated assets must also record tool chain, workflow, and model or prompt provenance when applicable.
 
+For visually reviewable outputs, QA should also leave visual-proof evidence that maps the current surface back to the rubric. Use screenshot, render, or short capture artifacts rather than free-form taste claims.
+
 ### 5. Keep workflows, previews, and QA structured
 
 - Store repeatable workflow definitions or run records in `assets/workflows/`.
 - Store previews or contact-sheet-style evidence in `assets/previews/` when the asset is not trivially inspectable.
 - Record optimization and import status in `assets/qa/import-report.json`.
 - Record allowlist, denylist, attribution, and source-policy outcomes in `assets/qa/license-report.json`.
+- For visually reviewable repos, store the review screenshots or renders that support the QA artifact's visual-proof block under `assets/previews/` or another repo-local path named by the brief.
 
 ### 6. Configure Blender-MCP only when `dcc-assembly` is active
 
@@ -186,6 +200,17 @@ When `dcc-assembly` is selected:
 - `required_mcp_servers` includes `blender_agent`
 
 When `dcc-assembly` is **not** selected, keep `blender_agent` disabled even if Blender exists on the host.
+
+### Blender evidence rules
+
+Blender is a bounded execution lane, not a magic quality button. Follow the truthful support matrix in [`../project-skill-bootstrap/references/blender-support-matrix.md`](../project-skill-bootstrap/references/blender-support-matrix.md).
+
+For Blender-derived assets:
+
+- require `workflow_ref`, `tool_chain`, and `preview_path` in the manifest entry
+- keep render or preview evidence that shows silhouette, material read, and finish at review distance
+- keep repo-local import proof as the final usability gate; a Blender render alone does not prove the asset is engine-ready
+- stop and fall back when the brief asks for hero-character complexity, deep rigging, or other unsupported lanes
 
 ## Fallback ladders
 
@@ -218,3 +243,4 @@ Use these defaults unless the canonical brief says otherwise:
 - ensure `assets/qa/import-report.json` and `assets/qa/license-report.json` exist and stay current
 - ensure the manifest and lock agree on digests
 - ensure `assets/ATTRIBUTION.md` and `assets/PROVENANCE.md` reflect the manifest instead of competing with it
+- when the repo claims visually reviewable output, ensure QA artifacts cite structured visual-proof evidence rather than relying on taste language alone

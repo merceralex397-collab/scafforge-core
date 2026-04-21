@@ -579,6 +579,47 @@ def interactive_finish_proof_required(
     )
 
 
+def requires_visual_proof(
+    *,
+    stack_label: str,
+    deliverable_kind: str,
+    visual_finish_target: str,
+    finish_acceptance_signals: str,
+) -> bool:
+    if target_is_intentionally_absent(
+        visual_finish_target, absent_marker="no consumer-facing visual bar applies"
+    ):
+        return False
+    if interactive_finish_proof_required(
+        stack_label=stack_label,
+        deliverable_kind=deliverable_kind,
+        finish_acceptance_signals=finish_acceptance_signals,
+    ):
+        return True
+    lowered = _normalize_finish_contract_value(
+        f"{stack_label} {deliverable_kind} {visual_finish_target} {finish_acceptance_signals}"
+    )
+    visual_markers = (
+        "ui",
+        "menu",
+        "hud",
+        "dashboard",
+        "frontend",
+        "landing page",
+        "website",
+        "web app",
+        "app",
+        "interactive",
+        "scene",
+        "render",
+        "animation",
+        "motion",
+        "video",
+        "visual",
+    )
+    return any(marker in lowered for marker in visual_markers)
+
+
 def recommended_interactive_finish_signals(*, stack_label: str, deliverable_kind: str) -> str:
     lowered = _normalize_finish_contract_value(f"{stack_label} {deliverable_kind}")
     if "toddler" in lowered or "toy" in lowered:
@@ -1120,6 +1161,12 @@ def write_bootstrap_provenance(
     if scope == "opencode" and target.exists():
         return
     template_commit_result = template_commit()
+    visual_proof_required = requires_visual_proof(
+        stack_label=stack_label,
+        deliverable_kind=deliverable_kind,
+        visual_finish_target=visual_finish_target,
+        finish_acceptance_signals=finish_acceptance_signals,
+    )
     steps = (
         ["repo-scaffold-factory/render-full-scaffold"]
         if scope == "full"
@@ -1144,6 +1191,7 @@ def write_bootstrap_provenance(
         },
         "stack_label": stack_label,
         "deliverable_kind": deliverable_kind,
+        "requires_visual_proof": visual_proof_required,
         "deliverable_artifact_path": (
             f"build/android/{project_slug}-release.apk"
             if renders_godot_android_assets(stack_label) and requires_packaged_android_delivery(deliverable_kind)
@@ -1157,6 +1205,7 @@ def write_bootstrap_provenance(
             "content_source_plan": content_source_plan,
             "licensing_or_provenance_constraints": licensing_or_provenance_constraints,
             "finish_acceptance_signals": finish_acceptance_signals,
+            "requires_visual_proof": visual_proof_required,
         },
         "bootstrap_steps": steps,
         "tracking": {
@@ -1371,6 +1420,16 @@ def main() -> int:
         "__CONTENT_SOURCE_PLAN__": args.content_source_plan,
         "__LICENSING_OR_PROVENANCE_CONSTRAINTS__": args.licensing_or_provenance_constraints,
         "__FINISH_ACCEPTANCE_SIGNALS__": finish_acceptance_signals,
+        "__REQUIRES_VISUAL_PROOF__": (
+            "true"
+            if requires_visual_proof(
+                stack_label=args.stack_label,
+                deliverable_kind=args.deliverable_kind,
+                visual_finish_target=args.visual_finish_target,
+                finish_acceptance_signals=finish_acceptance_signals,
+            )
+            else "false"
+        ),
     }
 
     # Host-discovered paths for MCP servers, keystores, and executables

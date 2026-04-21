@@ -66,6 +66,8 @@ The default full-orchestration profile should expose these lanes, but heavier pa
 - source-route versus pipeline-stage distinctions for weaker-model-safe asset routing
 - `assets/workflows/`, `assets/previews/`, and `assets/qa/` usage for machine-checkable import and compliance proof
 - `.opencode/meta/asset-provenance-lock.json` as the process-contract lock for asset truth
+- visual-proof expectations for reviewable repos, including structured QA artifact fields and screenshot/render evidence
+- truthful Blender usage routed through `blender-support-matrix.md` and the repo-local workflow note instead of broad DCC promises
 
 ## research-delegation
 

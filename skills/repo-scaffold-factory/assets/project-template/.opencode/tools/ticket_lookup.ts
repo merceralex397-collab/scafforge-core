@@ -481,6 +481,9 @@ async function buildTransitionGuidance(ticket: ReturnType<typeof getTicket>, wor
       }
       const qaBlocker = await validateQaArtifactEvidence(ticket)
       if (qaBlocker) {
+        const qaRecommendedAction = qaBlocker.toLowerCase().includes("visual proof")
+          ? "Keep the ticket in QA until the artifact includes the structured visual-proof block with evidence paths, reviewed surfaces, rubric blockers, and a style note."
+          : "Keep the ticket in QA until the QA artifact includes real command output and passes size checks."
         return {
           ...base,
           next_allowed_stages: ["qa"],
@@ -492,7 +495,7 @@ async function buildTransitionGuidance(ticket: ReturnType<typeof getTicket>, wor
           canonical_artifact_path: defaultArtifactPath(ticket.id, "qa", "qa"),
           artifact_stage: "qa",
           artifact_kind: "qa",
-          recommended_action: "Keep the ticket in QA until the QA artifact includes real command output and passes size checks.",
+          recommended_action: qaRecommendedAction,
           current_state_blocker: qaBlocker,
         }
       }

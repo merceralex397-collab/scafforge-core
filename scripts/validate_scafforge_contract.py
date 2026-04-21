@@ -3479,6 +3479,36 @@ def validate_audit_repair_surfaces(findings: list[Finding]) -> None:
         ROOT / "skills" / "asset-pipeline" / "SKILL.md",
         "`.opencode/meta/asset-provenance-lock.json`",
     )
+    require_contains(
+        findings,
+        ROOT / "skills" / "asset-pipeline" / "references" / "visual-quality-rubric.md",
+        "screen-fit failure",
+    )
+    require_absent(
+        findings,
+        ROOT / "skills" / "asset-pipeline" / "references" / "visual-quality-rubric.md",
+        "Affinity Designer",
+    )
+    require_contains(
+        findings,
+        ROOT / "skills" / "project-skill-bootstrap" / "references" / "blender-support-matrix.md",
+        "unsupported or experimental",
+    )
+    require_contains(
+        findings,
+        TEMPLATE_ROOT / ".opencode" / "skills" / "stack-standards" / "SKILL.md",
+        "visual_proof_status",
+    )
+    require_contains(
+        findings,
+        TEMPLATE_ROOT / "docs" / "process" / "workflow.md",
+        "requires_visual_proof",
+    )
+    require_contains(
+        findings,
+        TEMPLATE_ROOT / ".opencode" / "lib" / "workflow.ts",
+        "validateVisualProofRequirement",
+    )
     require_script_help_runs(
         findings,
         ROOT / "skills" / "asset-pipeline" / "scripts" / "validate_provenance.py",
@@ -4247,6 +4277,10 @@ def validate_curated_fixtures(findings: list[Finding]) -> None:
             "root": fixtures_root / "spinner",
             "expected_slugs": {"layout-truth-regression"},
         },
+        "visual-proof": {
+            "root": fixtures_root / "visual-proof",
+            "expected_slugs": {"screen-fit-and-hierarchy-regression"},
+        },
     }
     integration_script = ROOT / "scripts" / "integration_test_scafforge.py"
     archived_plans = ROOT / "references" / "archived-diagnosis-plans"
@@ -4266,9 +4300,12 @@ def validate_curated_fixtures(findings: list[Finding]) -> None:
     require_contains(findings, integration_script, "release_check")
     require_contains(findings, integration_script, "target.release_check(dest)")
     require_contains(findings, integration_script, "ensure_downstream_fixture_indexes")
+    require_contains(findings, integration_script, "ensure_visual_proof_fixture_index")
     require_contains(findings, integration_script, "build_downstream_fixture_family")
     require_contains(findings, integration_script, "\"womanvshorse\"")
     require_contains(findings, integration_script, "\"spinner\"")
+    require_contains(findings, integration_script, "\"visual-proof\"")
+    require_contains(findings, integration_script, "visual_proof_fixture_integration")
     for release_check_name in (
         "python_release_check",
         "node_release_check",

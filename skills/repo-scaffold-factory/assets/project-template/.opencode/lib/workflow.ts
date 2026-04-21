@@ -25,6 +25,12 @@ export type DefectOutcome = "no_action" | "follow_up" | "invalidates_done" | "ro
 export type TicketSourceMode = "process_verification" | "post_completion_issue" | "net_new_scope" | "split_scope"
 export type SplitKind = "parallel_independent" | "sequential_dependent"
 export type RepairFollowOnOutcome = "managed_blocked" | "source_follow_up" | "clean"
+type BootstrapProvenance = {
+  requires_visual_proof?: boolean
+  product_finish_contract?: {
+    requires_visual_proof?: boolean
+  }
+}
 
 export type Artifact = {
   kind: string
@@ -308,6 +314,12 @@ export const START_HERE_MANAGED_END = "<!-- SCAFFORGE:START_HERE_BLOCK END -->"
 export const DEFAULT_OVERLAP_RISK: OverlapRisk = "high"
 export const DEFAULT_PARALLEL_MODE: ParallelMode = "sequential"
 export const MIN_EXECUTION_ARTIFACT_BYTES = 200
+const VISUAL_PROOF_STATUS_FIELD = "visual_proof_status"
+const VISUAL_PROOF_EVIDENCE_FIELD = "visual_proof_evidence"
+const VISUAL_PROOF_SURFACES_FIELD = "visual_proof_surfaces"
+const VISUAL_RUBRIC_BLOCKERS_FIELD = "visual_rubric_blockers"
+const VISUAL_STYLE_NOTE_FIELD = "visual_style_note"
+const VISUAL_PROOF_EVIDENCE_PATTERN = /\.(?:png|jpe?g|webp|gif|bmp|svg|mp4|webm|mov)$/i
 
 export function repoVenvExecutableCandidates(root: string, executable: string): string[] {
   const names = executable.toLowerCase().endsWith(".exe") ? [executable] : [executable, `${executable}.exe`]
@@ -1369,6 +1381,69 @@ export function smokeArtifactPassContradictionReason(content: string): string | 
 function artifactByteLength(content: string): number { return Buffer.byteLength(content, "utf8") }
 function hasExecutionEvidence(content: string): boolean { return EXECUTION_EVIDENCE_PATTERNS.some((pattern) => pattern.test(content)) }
 function claimsInspectionOnly(content: string): boolean { return INSPECTION_ONLY_PATTERNS.some((pattern) => pattern.test(content)) }
+function artifactStructuredField(content: string, field: string): string | null {
+  const match = content.match(new RegExp(`^\\s*(?:[-*]\\s*)?${escapeRegExp(field)}\\s*:\\s*(.+)$`, "im"))
+  return match && typeof match[1] === "string" && match[1].trim() ? match[1].trim() : null
+}
+function splitStructuredField(raw: string | null): string[] {
+  if (!raw) return []
+  return raw
+    .split(/[;,]/)
+    .map((value) => value.trim())
+    .filter(Boolean)
+}
+function rubricBlockersFromField(raw: string | null): string[] {
+  if (!raw || /^(?:none|n\/a|no blockers?)$/i.test(raw.trim())) return []
+  return splitStructuredField(raw)
+}
+function looksLikeVisualEvidencePath(value: string): boolean {
+  return VISUAL_PROOF_EVIDENCE_PATTERN.test(value) || /[\\/]/.test(value)
+}
+async function repoRequiresVisualProof(root = rootPath()): Promise<boolean> {
+  const provenance = await readJson<BootstrapProvenance | null>(bootstrapProvenancePath(root), null)
+  if (!provenance) return false
+  if (provenance.requires_visual_proof === true) return true
+  return provenance.product_finish_contract?.requires_visual_proof === true
+}
+export async function validateVisualProofRequirement(ticket: Ticket, root = rootPath()): Promise<string | null> {
+  if (!(await repoRequiresVisualProof(root))) return null
+  const artifact = latestArtifact(ticket, { stage: "qa", trust_state: "current" })
+  if (!artifact) return "Visual-proof repos require a QA artifact before smoke-test."
+  const content = await readArtifactContent(artifact, root)
+  const statusRaw = artifactStructuredField(content, VISUAL_PROOF_STATUS_FIELD)
+  const evidenceRaw = artifactStructuredField(content, VISUAL_PROOF_EVIDENCE_FIELD)
+  const surfacesRaw = artifactStructuredField(content, VISUAL_PROOF_SURFACES_FIELD)
+  const blockersRaw = artifactStructuredField(content, VISUAL_RUBRIC_BLOCKERS_FIELD)
+  const styleNoteRaw = artifactStructuredField(content, VISUAL_STYLE_NOTE_FIELD)
+  const missing: string[] = []
+  if (!statusRaw) missing.push(VISUAL_PROOF_STATUS_FIELD)
+  if (!evidenceRaw) missing.push(VISUAL_PROOF_EVIDENCE_FIELD)
+  if (!surfacesRaw) missing.push(VISUAL_PROOF_SURFACES_FIELD)
+  if (!blockersRaw) missing.push(VISUAL_RUBRIC_BLOCKERS_FIELD)
+  if (!styleNoteRaw) missing.push(VISUAL_STYLE_NOTE_FIELD)
+  if (missing.length > 0) {
+    return `Visual-proof repos require structured visual proof in the QA artifact: missing ${missing.join(", ")}.`
+  }
+  const status = normalizeArtifactVerdictToken(statusRaw || "")
+  if (!status) {
+    return "Visual-proof repos require structured visual proof in the QA artifact: visual_proof_status must be PASS, FAIL, REJECT, APPROVED, or BLOCKED."
+  }
+  const evidence = splitStructuredField(evidenceRaw).filter(looksLikeVisualEvidencePath)
+  if (evidence.length === 0) {
+    return "Visual-proof repos require structured visual proof in the QA artifact: visual_proof_evidence must list at least one screenshot, render, or capture path."
+  }
+  const surfaces = splitStructuredField(surfacesRaw)
+  if (surfaces.length === 0) {
+    return "Visual-proof repos require structured visual proof in the QA artifact: visual_proof_surfaces must name the reviewed surfaces."
+  }
+  const blockers = rubricBlockersFromField(blockersRaw)
+  if (blockers.length > 0) {
+    return `Visual proof still records blocker-level rubric failures: ${blockers.join(", ")}.`
+  }
+  return isBlockingArtifactVerdict(status)
+    ? `Visual proof reports ${status}; keep the ticket in QA until blocker-level rubric failures are resolved.`
+    : null
+}
 function remediationReviewMissingEvidence(content: string): string[] {
   const missing: string[] = []
   const outputBlocks = [...content.matchAll(CODE_BLOCK_PATTERN)].map((match) => (match[1] || "").trim())
@@ -1411,15 +1486,26 @@ export async function validateReviewArtifactEvidence(ticket: Ticket, root = root
     ? `Remediation review artifact must include ${missing.join(", ")} before QA.`
     : null
 }
-export async function validateQaArtifactEvidence(ticket: Ticket, root = rootPath()): Promise<string | null> {
+export async function validateQaArtifactEvidence(
+  ticket: Ticket,
+  root = rootPath(),
+  options: { skipVisualProof?: boolean } = {},
+): Promise<string | null> {
   const artifact = latestArtifact(ticket, { stage: "qa", trust_state: "current" })
   if (!artifact) return "Cannot move to smoke_test before a QA artifact exists."
   const content = await readArtifactContent(artifact, root)
   if (artifactByteLength(content) < MIN_EXECUTION_ARTIFACT_BYTES) return `QA artifact must be at least ${MIN_EXECUTION_ARTIFACT_BYTES} bytes before the smoke-test stage.`
   if (claimsInspectionOnly(content) && !hasExecutionEvidence(content)) return "QA artifact that claims validation only via code inspection is insufficient."
-  return hasExecutionEvidence(content) ? null : "QA artifact must include raw command output before the smoke-test stage."
+  if (!hasExecutionEvidence(content)) return "QA artifact must include raw command output before the smoke-test stage."
+  if (!options.skipVisualProof) {
+    const visualProofBlocker = await validateVisualProofRequirement(ticket, root)
+    if (visualProofBlocker) return visualProofBlocker
+  }
+  return null
 }
 export async function validateSmokeTestArtifactEvidence(ticket: Ticket, root = rootPath()): Promise<string | null> {
+  const visualProofBlocker = await validateVisualProofRequirement(ticket, root)
+  if (visualProofBlocker) return visualProofBlocker
   const artifact = latestArtifact(ticket, { stage: "smoke-test", trust_state: "current" })
   if (!artifact) return "Cannot move to done before a smoke-test artifact exists."
   const content = await readArtifactContent(artifact, root)
@@ -2276,13 +2362,13 @@ export function mergeStartHere(existing: string, rendered: string): string {
   return existing.replace(pattern, renderedBlock[0])
 }
 async function loadBacklogVerifierAgent(root = rootPath()): Promise<string | undefined> {
-  const provenance = await readJson<{
+  const provenance = await readJson<(BootstrapProvenance & {
     workflow_contract?: {
       post_migration_verification?: {
         backlog_verifier_agent?: string
       }
     }
-  } | null>(bootstrapProvenancePath(root), null)
+  }) | null>(bootstrapProvenancePath(root), null)
   const backlogVerifierAgent = provenance?.workflow_contract?.post_migration_verification?.backlog_verifier_agent
   return typeof backlogVerifierAgent === "string" && backlogVerifierAgent.trim() ? backlogVerifierAgent.trim() : undefined
 }

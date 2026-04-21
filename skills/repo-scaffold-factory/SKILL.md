@@ -76,6 +76,7 @@ The arguments should come from the canonical brief and user decisions:
 - `--planner-model` and `--implementer-model` from user decisions
 - `--stack-label` from the brief's Constraints (or "framework-agnostic" if unresolved)
 - When the brief describes a game/content pipeline, pass the Product Finish Contract fields (`deliverable_kind`, `placeholder_policy`, `content_source_plan`, `licensing_or_provenance_constraints`, `finish_acceptance_signals`) so the seeded asset-pipeline metadata is specific on first render.
+- For visually reviewable repos, make sure the finish contract is specific enough that scaffold generation can truthfully derive whether `requires_visual_proof` should be turned on in bootstrap provenance.
 
 ## Phase B: Customize with project-specific content (agent-driven)
 

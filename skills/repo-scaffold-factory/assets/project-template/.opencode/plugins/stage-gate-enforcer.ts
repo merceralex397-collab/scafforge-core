@@ -24,6 +24,7 @@ import {
   throwWorkflowBlocker,
   validateLifecycleStageStatus,
   validateImplementationArtifactEvidence,
+  validateVisualProofRequirement,
   validateReviewArtifactEvidence,
   validateQaArtifactEvidence,
   validateSmokeTestArtifactEvidence,
@@ -532,7 +533,9 @@ export const StageGateEnforcer: Plugin = async () => {
         }
 
         if (stageChanged && requested.stage === "smoke-test") {
-          const qaBlocker = await validateQaArtifactEvidence(ticket)
+          const visualProofBlocker = await validateVisualProofRequirement(ticket)
+          if (visualProofBlocker) throw new Error(visualProofBlocker)
+          const qaBlocker = await validateQaArtifactEvidence(ticket, undefined, { skipVisualProof: true })
           if (qaBlocker) throw new Error(qaBlocker)
           await ensureBootstrapReadyForValidation()
         }

@@ -85,10 +85,23 @@ Rules:
 - before implementation: the assigned ticket must already be in `plan_review`, and `approved_plan` must already be `true` in workflow-state from a prior approval step
 - before code review: an `implementation` artifact must exist
 - before QA: a review artifact must exist
-- before deterministic smoke test: a `qa` artifact must exist and include executable evidence
+- before deterministic smoke test: a `qa` artifact must exist, include executable evidence, and include structured visual proof when `.opencode/meta/bootstrap-provenance.json` marks the repo as requiring it
 - before closeout: a passing `smoke-test` artifact produced by `smoke_test` must exist
 - before a ready or finished handoff claim: the current-cycle `handoff_proof` state in `.opencode/state/workflow-state.json` must be `passed`
 - if `handoff_proof.status` is `failed` or `missing`, restart surfaces must stay blocked on proof rather than claiming ready state
+
+## Visual proof block
+
+Visually reviewable repos should record visual proof inside the QA artifact instead of relying on implied human taste. Use these machine-readable fields:
+
+- `visual_proof_status`
+- `visual_proof_evidence`
+- `visual_proof_surfaces`
+- `visual_rubric_blockers`
+- `visual_style_note`
+- the repo-level trigger is `.opencode/meta/bootstrap-provenance.json -> requires_visual_proof: true`
+
+This keeps style choice separate from quality failure while giving the stage gate concrete evidence to enforce.
 
 ## Transition Examples
 

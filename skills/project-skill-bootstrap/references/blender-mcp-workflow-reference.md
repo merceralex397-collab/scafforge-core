@@ -2,6 +2,8 @@
 
 Use this reference when synthesizing a repo-local `blender-mcp-workflow` skill for a project that routes asset creation through `blender-agent`.
 
+For current support levels and stop points, pair this workflow note with [`blender-support-matrix.md`](blender-support-matrix.md). This file stays procedural; the matrix owns capability claims.
+
 ## Required contract
 
 - Treat mutating Blender-MCP calls as **stateless** unless current repo evidence proves otherwise.
@@ -21,6 +23,8 @@ Use this reference when synthesizing a repo-local `blender-mcp-workflow` skill f
 6. `quality_validate(input_blend=...)`
 7. `export_asset(input_blend=...)`
 
+Treat steps 6 and 7 as **partial lanes** in the current adjacent `blender-agent` baseline. They still require repo-local QA and import proof before a generated repo can claim the asset is usable.
+
 ## Blocker handling
 
 - If `environment_probe` or config evidence shows inline Python is disabled, treat that as a blocker rather than inventing a Python fallback.
@@ -28,3 +32,12 @@ Use this reference when synthesizing a repo-local `blender-mcp-workflow` skill f
 - Do not describe `blender_session_*` tools, persistent in-memory sessions, or checkpoint workflows unless the repo actually exposes and documents those tools.
 - Tell agents to use the repo's managed `blender_agent` MCP entry from `opencode.jsonc` when it exists instead of inventing a separate launch command.
 - Use the repo's seeded asset surfaces (`assets/briefs/`, `assets/models/`, `assets/PROVENANCE.md`, `assets/pipeline.json`) instead of generic imaginary paths.
+
+## Required asset evidence
+
+Before a Blender-derived asset is treated as usable in a generated repo, keep these surfaces aligned:
+
+- `assets/workflows/<asset>.json` with the chained Blender workflow record
+- `assets/previews/<asset>.*` render or preview evidence
+- `assets/manifest.json` with `source_route`, `source_type`, `workflow_ref`, `tool_chain`, `preview_path`, `import_report_ref`, and `license_report_ref`
+- repo-local import QA proving the exported asset survives the target engine path

@@ -72,3 +72,4 @@ Replace this section with the normalized project brief.
 - content_source_plan: __CONTENT_SOURCE_PLAN__
 - licensing_or_provenance_constraints: __LICENSING_OR_PROVENANCE_CONSTRAINTS__
 - finish_acceptance_signals: __FINISH_ACCEPTANCE_SIGNALS__
+- requires_visual_proof: __REQUIRES_VISUAL_PROOF__
