@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 from dataclasses import asdict
+from datetime import datetime, timezone
 from importlib.util import module_from_spec, spec_from_file_location
 from pathlib import Path
 import re
@@ -15,6 +16,7 @@ SHARED_VERIFIER_PATH = Path(__file__).resolve().parents[2] / "scafforge-audit" /
 SHARED_TYPES_PATH = Path(__file__).resolve().parents[2] / "scafforge-audit" / "scripts" / "shared_verifier_types.py"
 TEXT_SUFFIXES = {".md", ".json", ".jsonc", ".ts", ".js", ".mjs", ".cjs", ".txt", ".yaml", ".yml", ".cfg"}
 PLACEHOLDER_PATTERN = re.compile(r"__[A-Z0-9_]+__")
+HANDOFF_PROOF_RELATIVE_PATH = Path(".opencode/state/handoff-proof.json")
 
 
 def load_shared_verifier():
@@ -344,6 +346,52 @@ def findings_payload(verification_kind: str, findings: list[object]) -> dict[str
     return payload
 
 
+def current_iso_timestamp() -> str:
+    return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+
+
+def persist_handoff_proof(repo_root: Path, verification_kind: str, payload: dict[str, object], findings: list[object]) -> None:
+    if verification_kind != "greenfield_continuation":
+        return
+    proof_rel = str(HANDOFF_PROOF_RELATIVE_PATH).replace("\\", "/")
+    timestamp = current_iso_timestamp()
+    blocking_codes = [getattr(finding, "code", "") for finding in findings if getattr(finding, "code", "")]
+    proof_payload = {
+        "repo_root": str(repo_root),
+        "verification_kind": verification_kind,
+        "status": "passed" if payload.get("verification_passed") is True else "failed",
+        "verified_at": timestamp,
+        "proof_artifact": proof_rel,
+        "blocking_codes": blocking_codes,
+        "summary": (
+            "Greenfield continuation proof passed."
+            if payload.get("verification_passed") is True
+            else "Greenfield continuation proof failed; restart surfaces must not claim ready state."
+        ),
+        "verification": payload,
+    }
+    proof_path = repo_root / HANDOFF_PROOF_RELATIVE_PATH
+    proof_path.parent.mkdir(parents=True, exist_ok=True)
+    proof_path.write_text(json.dumps(proof_payload, indent=2) + "\n", encoding="utf-8")
+
+    workflow_path = repo_root / ".opencode" / "state" / "workflow-state.json"
+    try:
+        workflow = json.loads(workflow_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError, json.JSONDecodeError):
+        workflow = {}
+    if not isinstance(workflow, dict):
+        workflow = {}
+    workflow["handoff_proof"] = {
+        "status": proof_payload["status"],
+        "verification_kind": verification_kind,
+        "verified_at": timestamp,
+        "proof_artifact": proof_rel,
+        "blocking_codes": blocking_codes,
+        "summary": proof_payload["summary"],
+    }
+    workflow_path.write_text(json.dumps(workflow, indent=2) + "\n", encoding="utf-8")
+
+
 def render_text(repo_root: Path, verification_kind: str, findings: list[object]) -> str:
     if not findings:
         if verification_kind == "greenfield_bootstrap_lane":
@@ -383,6 +431,7 @@ def main() -> int:
     findings.extend(scaffold_content_findings(repo_root))
     payload = findings_payload(verification_kind, findings)
     payload["repo_root"] = str(repo_root)
+    persist_handoff_proof(repo_root, verification_kind, payload, findings)
 
     if args.format in {"text", "both"}:
         print(render_text(repo_root, verification_kind, findings))

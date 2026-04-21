@@ -14,6 +14,7 @@ from typing import Any
 from disposition_bundle import (
     bundle_source_follow_up_codes,
     build_disposition_bundle,
+    defect_label_for_class,
     evidence_grade_for_finding,
     repo_has_godot_smoke_guard,
 )
@@ -200,6 +201,8 @@ def prevention_action(finding: Finding) -> str:
         return "When `issue_intake` invalidates a ticket because the accepted contract is wrong or imprecise, require `ticket_update(acceptance=[...], summary=\"...\")` for the stale canonical fields, persist an acceptance-refresh artifact, and treat missing canonical refresh as repo-owned follow-up once the installed workflow supports it."
     if finding.code == "WFLOW034":
         return "Create open-parent remediation follow-up tickets as `split_scope + parallel_independent`, keep `issue_intake` reserved for completed historical tickets, and audit the parent-FAIL plus sequential-child deadlock before live runs stall on it."
+    if finding.code == "WFLOW035":
+        return "Publish a canonical current-cycle handoff proof into workflow state, make restart surfaces render that proof truthfully, and reject ready/complete claims that outrun failed or missing proof."
     if finding.code == "WFLOW026":
         return "Teach the shared artifact verdict extractor to accept markdown-emphasized labels, compact `## QA PASS` / `## Review APPROVE` headings, `## Decision` headings with the verdict on the next line, and plain `**Overall**: PASS` labels, then route ticket_lookup and ticket_update through that single parser."
     if finding.code == "WFLOW027":
@@ -688,6 +691,10 @@ def recommendation_disposition_class(item: dict[str, Any], bundle: dict[str, Any
     return "managed_blocker" if route == "scafforge-repair" else "advisory"
 
 
+def recommendation_defect_scope(item: dict[str, Any], bundle: dict[str, Any] | None) -> str:
+    return defect_label_for_class(recommendation_disposition_class(item, bundle))
+
+
 def recommendation_summary_for_finding(finding: Finding) -> dict[str, Any]:
     return {
         "title": finding.problem.rstrip("."),
@@ -795,6 +802,8 @@ def _next_free_remed_id(existing_ids: set[str], used_ids: set[str]) -> str:
 
 
 def validation_target_for_finding(finding: Finding) -> str:
+    if finding.code in {"EXEC-GODOT-013", "EXEC-GODOT-014", "EXEC-GODOT-015", "WFLOW035"}:
+        return "rerun contract validation, smoke, integration coverage, and the curated womanvshorse/spinner downstream fixture families"
     if finding.code.startswith("EXEC"):
         return "rerun the generated-tool execution smoke coverage plus the relevant GPTTalker fixture family"
     if finding.code.startswith("ENV"):
@@ -1020,6 +1029,7 @@ def render_report_four(
     recommendations: list[dict[str, Any]],
     disposition_bundle: dict[str, Any] | None = None,
 ) -> str:
+    ownership_summary = disposition_bundle.get("ownership_summary") if isinstance(disposition_bundle, dict) and isinstance(disposition_bundle.get("ownership_summary"), dict) else {}
     safe_repairs = [
         item
         for item in recommendations
@@ -1057,6 +1067,7 @@ def render_report_four(
         "",
         f"- Repo: {root}",
         "- Audit stayed non-mutating. No repo or product-code edits were made by this diagnosis run.",
+        f"- defect_scope: {ownership_summary.get('overall', 'advisory')}",
         "",
     ]
     lines.extend([
@@ -1086,6 +1097,7 @@ def render_report_four(
                     f"### {item['id']}",
                     "",
                     f"- linked_report_id: {recommendation_linked_codes(item)}",
+                    f"- defect_scope: {recommendation_defect_scope(item, disposition_bundle)}",
                     f"- action_type: {item['repair_class']}",
                     "- requires_scafforge_repair_afterward: no, not until the package or host prerequisite gap is resolved",
                     "- carry_diagnosis_pack_into_scafforge_first: yes",
@@ -1108,6 +1120,7 @@ def render_report_four(
                     f"### {item['id']}",
                     "",
                     f"- linked_report_id: {recommendation_linked_codes(item)}",
+                    f"- defect_scope: {recommendation_defect_scope(item, disposition_bundle)}",
                     f"- action_type: {item['repair_class']}",
                     "- should_scafforge_repair_run: yes",
                     "- carry_diagnosis_pack_into_scafforge_first: no",
@@ -1127,6 +1140,7 @@ def render_report_four(
                     f"### {item['id']}",
                     "",
                     f"- linked_report_id: {recommendation_linked_codes(item)}",
+                    f"- defect_scope: {recommendation_defect_scope(item, disposition_bundle)}",
                     "- action_type: generated-repo remediation ticket or repo-owned follow-up",
                     "- should_scafforge_repair_run: no further managed repair required before this follow-up",
                     "- carry_diagnosis_pack_into_scafforge_first: no",

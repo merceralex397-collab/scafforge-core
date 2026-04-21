@@ -4200,20 +4200,39 @@ def validate_no_hidden_defaults(findings: list[Finding]) -> None:
 
 def validate_curated_fixtures(findings: list[Finding]) -> None:
     fixtures_root = ROOT / "tests" / "fixtures"
-    gpttalker_root = fixtures_root / "gpttalker"
-    index_path = gpttalker_root / "index.json"
+    corpora = {
+        "gpttalker": {
+            "root": fixtures_root / "gpttalker",
+            "expected_slugs": {
+                "bootstrap-dependency-layout-drift",
+                "host-tool-or-permission-blockage",
+                "planning-implementation-contract-drift",
+                "repeated-lifecycle-contradiction",
+                "restart-surface-drift-after-repair",
+                "placeholder-skill-after-refresh",
+                "resume-surface-drift-after-greenfield",
+                "validation-verdict-routing-drift",
+                "split-scope-and-historical-trust-reconciliation",
+            },
+        },
+        "womanvshorse": {
+            "root": fixtures_root / "womanvshorse",
+            "expected_slugs": {"downstream-boot-and-config-breaker"},
+        },
+        "spinner": {
+            "root": fixtures_root / "spinner",
+            "expected_slugs": {"layout-truth-regression"},
+        },
+    }
     integration_script = ROOT / "scripts" / "integration_test_scafforge.py"
     archived_plans = ROOT / "references" / "archived-diagnosis-plans"
 
+    fixture_paths = [fixtures_root / "README.md", integration_script, archived_plans]
+    for corpus in corpora.values():
+        fixture_paths.extend([corpus["root"] / "README.md", corpus["root"] / "index.json"])
     require_paths(
         findings,
-        [
-            fixtures_root / "README.md",
-            gpttalker_root / "README.md",
-            index_path,
-            integration_script,
-            archived_plans,
-        ],
+        fixture_paths,
     )
     require_script_help_runs(findings, integration_script)
     require_contains(findings, integration_script, "greenfield_integration")
@@ -4222,6 +4241,10 @@ def validate_curated_fixtures(findings: list[Finding]) -> None:
     require_contains(findings, integration_script, "multi_stack_proof_integration")
     require_contains(findings, integration_script, "release_check")
     require_contains(findings, integration_script, "target.release_check(dest)")
+    require_contains(findings, integration_script, "ensure_downstream_fixture_indexes")
+    require_contains(findings, integration_script, "build_downstream_fixture_family")
+    require_contains(findings, integration_script, "\"womanvshorse\"")
+    require_contains(findings, integration_script, "\"spinner\"")
     for release_check_name in (
         "python_release_check",
         "node_release_check",
@@ -4236,112 +4259,86 @@ def validate_curated_fixtures(findings: list[Finding]) -> None:
     require_not_exists(findings, ROOT / "out" / "scafforge audit archive")
     require_not_exists(findings, ROOT / "scafforgechurnissue")
 
-    if not index_path.exists():
-        return
-    payload = read_json(index_path)
-    if not isinstance(payload, dict):
-        findings.append(
-            Finding(
-                "error", "tests/fixtures/gpttalker/index.json must be a JSON object"
-            )
-        )
-        return
-    families = payload.get("families")
-    if not isinstance(families, list):
-        findings.append(
-            Finding(
-                "error",
-                "tests/fixtures/gpttalker/index.json must contain a families list",
-            )
-        )
-        return
-    expected_slugs = {
-        "bootstrap-dependency-layout-drift",
-        "host-tool-or-permission-blockage",
-        "planning-implementation-contract-drift",
-        "repeated-lifecycle-contradiction",
-        "restart-surface-drift-after-repair",
-        "placeholder-skill-after-refresh",
-        "resume-surface-drift-after-greenfield",
-        "validation-verdict-routing-drift",
-        "split-scope-and-historical-trust-reconciliation",
-    }
-    actual_slugs: set[str] = set()
-    for item in families:
-        if not isinstance(item, dict):
+    for corpus_name, corpus in corpora.items():
+        corpus_root = corpus["root"]
+        index_path = corpus_root / "index.json"
+        if not index_path.exists():
+            continue
+        payload = read_json(index_path)
+        if not isinstance(payload, dict):
             findings.append(
-                Finding("error", "Fixture family entries must be JSON objects")
+                Finding("error", f"tests/fixtures/{corpus_name}/index.json must be a JSON object")
             )
             continue
-        slug = item.get("slug")
-        notes = item.get("notes")
-        coverage = item.get("expected_coverage")
-        if not isinstance(slug, str) or not slug.strip():
-            findings.append(
-                Finding("error", "Fixture family entry is missing a non-empty slug")
-            )
-            continue
-        actual_slugs.add(slug)
-        if not isinstance(notes, str) or not notes.strip():
-            findings.append(
-                Finding("error", f"Fixture family `{slug}` is missing a notes path")
-            )
-        else:
-            notes_path = gpttalker_root / notes
-            if not notes_path.exists():
-                findings.append(
-                    Finding(
-                        "error",
-                        f"Fixture family `{slug}` notes file is missing: {notes_path.relative_to(ROOT)}",
-                    )
-                )
-        if not isinstance(coverage, list) or not coverage:
-            findings.append(
-                Finding(
-                    "error", f"Fixture family `{slug}` must declare expected coverage"
-                )
-            )
-        truth_expectations = item.get("truth_expectations")
-        if not isinstance(truth_expectations, dict):
+        families = payload.get("families")
+        if not isinstance(families, list):
             findings.append(
                 Finding(
                     "error",
-                    f"Fixture family `{slug}` must declare truth_expectations",
+                    f"tests/fixtures/{corpus_name}/index.json must contain a families list",
                 )
             )
-        else:
-            for field in ("convergence", "publish_safety", "blocker_truth"):
-                value = truth_expectations.get(field)
-                if not isinstance(value, str) or not value.strip():
+            continue
+        actual_slugs: set[str] = set()
+        for item in families:
+            if not isinstance(item, dict):
+                findings.append(Finding("error", "Fixture family entries must be JSON objects"))
+                continue
+            slug = item.get("slug")
+            notes = item.get("notes")
+            coverage = item.get("expected_coverage")
+            if not isinstance(slug, str) or not slug.strip():
+                findings.append(Finding("error", "Fixture family entry is missing a non-empty slug"))
+                continue
+            actual_slugs.add(slug)
+            if not isinstance(notes, str) or not notes.strip():
+                findings.append(Finding("error", f"Fixture family `{slug}` is missing a notes path"))
+            else:
+                notes_path = corpus_root / notes
+                if not notes_path.exists():
                     findings.append(
                         Finding(
                             "error",
-                            f"Fixture family `{slug}` must declare truth_expectations.{field}",
+                            f"Fixture family `{slug}` notes file is missing: {notes_path.relative_to(ROOT)}",
                         )
                     )
-            truth_checks = truth_expectations.get("checks")
-            if not isinstance(truth_checks, list) or not truth_checks:
+            if not isinstance(coverage, list) or not coverage:
+                findings.append(Finding("error", f"Fixture family `{slug}` must declare expected coverage"))
+            truth_expectations = item.get("truth_expectations")
+            if not isinstance(truth_expectations, dict):
                 findings.append(
-                    Finding(
-                        "error",
-                        f"Fixture family `{slug}` must declare truth_expectations.checks",
-                    )
+                    Finding("error", f"Fixture family `{slug}` must declare truth_expectations")
                 )
-        expected_codes = item.get("expected_finding_codes")
-        if not isinstance(expected_codes, list) or not expected_codes:
+            else:
+                for field in ("convergence", "publish_safety", "blocker_truth"):
+                    value = truth_expectations.get(field)
+                    if not isinstance(value, str) or not value.strip():
+                        findings.append(
+                            Finding(
+                                "error",
+                                f"Fixture family `{slug}` must declare truth_expectations.{field}",
+                            )
+                        )
+                truth_checks = truth_expectations.get("checks")
+                if not isinstance(truth_checks, list) or not truth_checks:
+                    findings.append(
+                        Finding(
+                            "error",
+                            f"Fixture family `{slug}` must declare truth_expectations.checks",
+                        )
+                    )
+            expected_codes = item.get("expected_finding_codes")
+            if not isinstance(expected_codes, list) or not expected_codes:
+                findings.append(
+                    Finding("error", f"Fixture family `{slug}` must declare expected_finding_codes")
+                )
+        if actual_slugs != corpus["expected_slugs"]:
             findings.append(
                 Finding(
                     "error",
-                    f"Fixture family `{slug}` must declare expected_finding_codes",
+                    f"tests/fixtures/{corpus_name}/index.json must contain the complete curated fixture family set",
                 )
             )
-    if actual_slugs != expected_slugs:
-        findings.append(
-            Finding(
-                "error",
-                "tests/fixtures/gpttalker/index.json must contain the complete curated GPTTalker fixture family set",
-            )
-        )
 
 
 def main() -> int:

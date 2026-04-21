@@ -312,6 +312,108 @@ def parse_godot_autoloads(text: str) -> dict[str, str]:
     return autoloads
 
 
+def parse_godot_project_settings(text: str) -> dict[str, str]:
+    settings: dict[str, str] = {}
+    section: str | None = None
+    for raw_line in text.splitlines():
+        stripped = raw_line.strip()
+        if not stripped or stripped.startswith(";"):
+            continue
+        if stripped.startswith("[") and stripped.endswith("]"):
+            section = stripped[1:-1].strip().lower()
+            continue
+        if section is None or "=" not in stripped:
+            continue
+        key, value = stripped.split("=", 1)
+        settings[f"{section}.{key.strip()}"] = value.strip()
+    return settings
+
+
+def parse_godot_section_entries(text: str, section_name: str) -> dict[str, str]:
+    entries: dict[str, str] = {}
+    in_section = False
+    expected_header = f"[{section_name}]".lower()
+    for raw_line in text.splitlines():
+        stripped = raw_line.strip()
+        if not stripped or stripped.startswith(";"):
+            continue
+        if stripped.startswith("[") and stripped.endswith("]"):
+            in_section = stripped.lower() == expected_header
+            continue
+        if not in_section or "=" not in stripped:
+            continue
+        key, value = stripped.split("=", 1)
+        entries[key.strip()] = value.strip()
+    return entries
+
+
+def _normalize_godot_scalar(value: str | None) -> str | None:
+    if value is None:
+        return None
+    normalized = value.strip().strip('"').strip("'")
+    return normalized or None
+
+
+def _read_optional_json(root: Path, relative: str) -> dict[str, Any]:
+    path = root / relative
+    if not path.exists():
+        return {}
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError, json.JSONDecodeError):
+        return {}
+    return payload if isinstance(payload, dict) else {}
+
+
+def repo_declares_godot_2d_presentation(root: Path) -> bool:
+    brief_text = (root / "docs" / "spec" / "CANONICAL-BRIEF.md").read_text(encoding="utf-8") if (root / "docs" / "spec" / "CANONICAL-BRIEF.md").exists() else ""
+    provenance = _read_optional_json(root, ".opencode/meta/bootstrap-provenance.json")
+    stack_label = str(provenance.get("stack_label", "")).strip().lower()
+    lowered_brief = brief_text.lower()
+    return (
+        ("godot" in stack_label and "2d" in stack_label)
+        or "2d viewport-first" in lowered_brief
+        or "2d presentation" in lowered_brief
+        or "godot android 2d" in lowered_brief
+    )
+
+
+def repo_expected_godot_renderer(root: Path) -> str | None:
+    if declares_godot_android_target(root):
+        return "mobile"
+    provenance = _read_optional_json(root, ".opencode/meta/bootstrap-provenance.json")
+    stack_label = str(provenance.get("stack_label", "")).strip().lower()
+    if "godot" in stack_label and "android" in stack_label:
+        return "mobile"
+    return None
+
+
+def parse_godot_input_action_issues(text: str) -> list[str]:
+    issues: list[str] = []
+    for action, payload in parse_godot_section_entries(text, "input").items():
+        normalized_payload = payload.strip()
+        if not normalized_payload.startswith("{") or not normalized_payload.endswith("}"):
+            issues.append(f"{action}: input action payload is not a Godot dictionary literal")
+            continue
+        if '"events"' not in normalized_payload:
+            issues.append(f"{action}: input action payload is missing an events array")
+        elif re.search(r'"events"\s*:\s*\[', normalized_payload) is None:
+            issues.append(f"{action}: input action events payload is malformed")
+        deadzone_match = re.search(r'"deadzone"\s*:\s*([^,}\]]+)', normalized_payload)
+        if deadzone_match is None:
+            issues.append(f"{action}: input action payload is missing deadzone")
+        else:
+            raw_deadzone = deadzone_match.group(1).strip().strip('"')
+            try:
+                deadzone = float(raw_deadzone)
+            except ValueError:
+                issues.append(f"{action}: deadzone is not numeric")
+            else:
+                if deadzone < 0 or deadzone > 1:
+                    issues.append(f"{action}: deadzone {deadzone} is outside the valid 0..1 range")
+    return issues
+
+
 def parse_godot_scene_script_paths(text: str) -> list[str]:
     ext_resources = parse_godot_scene_ext_resources(text)
     paths: list[str] = []
@@ -1692,6 +1794,61 @@ def audit_godot_execution(root: Path, findings: list[Finding], ctx: ExecutionSur
             files=[project_file, *singleton_state_files[:4]],
             safer_pattern="When HUD or game-over surfaces read autoload gameplay state, ensure runtime scripts write those fields directly or call the singleton's mutator methods on the current gameplay path before claiming completion.",
             evidence=singleton_state_evidence[:6],
+            root=root,
+        )
+
+    project_settings = parse_godot_project_settings(project_text)
+    if repo_declares_godot_2d_presentation(root):
+        stretch_mode = _normalize_godot_scalar(project_settings.get("display.window/stretch/mode"))
+        if stretch_mode != "canvas_items":
+            _add_execution_finding(
+                findings,
+                ctx,
+                code="EXEC-GODOT-013",
+                severity="error",
+                problem="Godot 2D repo does not declare the canonical stretch-mode needed for truthful first-screen layout.",
+                root_cause="The repo presents itself as a 2D viewport-first Godot project, but `project.godot` does not keep `window/stretch/mode` on `canvas_items`. That lets menus and HUD surfaces look complete in prose while the actual first screen can ship squashed, off-scale, or off-screen.",
+                files=[project_file],
+                safer_pattern="For Godot repos that declare a 2D viewport-first presentation, keep `project.godot` on `window/stretch/mode=\"canvas_items\"` and audit that setting before handoff or release claims.",
+                evidence=[f"Observed display.window/stretch/mode = {stretch_mode or '<missing>'}"],
+                root=root,
+            )
+
+    expected_renderer = repo_expected_godot_renderer(root)
+    if expected_renderer:
+        configured_renderer = _normalize_godot_scalar(
+            project_settings.get("rendering.renderer/rendering_method")
+            or project_settings.get("rendering.rendering_method")
+        )
+        if configured_renderer and configured_renderer != expected_renderer:
+            _add_execution_finding(
+                findings,
+                ctx,
+                code="EXEC-GODOT-014",
+                severity="error",
+                problem="Godot renderer configuration contradicts the repo's declared mobile/export profile.",
+                root_cause="Repo guidance and stack metadata describe a Godot mobile or Android target, but `project.godot` points the runtime at a different renderer profile. That mismatch can leave the generated repo bootable on one host while still being untruthful about the actual export/runtime path it is supposed to satisfy.",
+                files=[project_file],
+                safer_pattern="Keep the declared Godot renderer profile aligned with the repo's stack/export target and fail audit when `project.godot` contradicts the expected mobile render path.",
+                evidence=[
+                    f"Expected renderer profile = {expected_renderer}",
+                    f"Observed rendering_method = {configured_renderer}",
+                ],
+                root=root,
+            )
+
+    input_issues = parse_godot_input_action_issues(project_text)
+    if input_issues:
+        _add_execution_finding(
+            findings,
+            ctx,
+            code="EXEC-GODOT-015",
+            severity="error",
+            problem="Godot input-map entries are malformed or outside the valid event contract.",
+            root_cause="The repo's `project.godot` input section contains action payloads that are structurally malformed or carry invalid deadzone values. That leaves interaction broken even when scene files and scripts otherwise look present.",
+            files=[project_file],
+            safer_pattern="Validate `project.godot` input action payloads so every action keeps a valid events array plus a deadzone in the 0..1 range before handoff or repair closeout.",
+            evidence=input_issues[:8],
             root=root,
         )
 

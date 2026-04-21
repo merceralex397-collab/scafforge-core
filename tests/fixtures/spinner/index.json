@@ -1,0 +1,49 @@
+{
+  "fixture_version": 1,
+  "source_repo": "spinner",
+  "families": [
+    {
+      "slug": "layout-truth-regression",
+      "title": "Layout truth regression",
+      "flow": "greenfield",
+      "invariant_focus": [
+        "viewport-first presentation truth",
+        "stretch/layout configuration drift"
+      ],
+      "expected_finding_codes": [
+        "EXEC-GODOT-013"
+      ],
+      "expected_coverage": [
+        "integration:downstream-fixtures",
+        "contract:curated-fixtures"
+      ],
+      "truth_expectations": {
+        "convergence": "layout-truth-blocked",
+        "publish_safety": "first-screen-layout-not-proven",
+        "blocker_truth": "stretch-mode-regression",
+        "checks": [
+          {
+            "kind": "file_contains",
+            "file": "project.godot",
+            "needle": "window/stretch/mode=\"disabled\""
+          },
+          {
+            "kind": "file_contains",
+            "file": "project.godot",
+            "needle": "window/stretch/aspect=\"expand\""
+          },
+          {
+            "kind": "json_equals",
+            "file": ".opencode/meta/bootstrap-provenance.json",
+            "path": "stack_label",
+            "value": "godot-android-2d"
+          }
+        ]
+      },
+      "archive_origin": [
+        "active-plans/_source-material/asset-pipeline/assetsplanning/spinner.md"
+      ],
+      "notes": "layout-truth-regression/README.md"
+    }
+  ]
+}

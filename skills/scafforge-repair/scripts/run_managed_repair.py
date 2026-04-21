@@ -1408,6 +1408,40 @@ def update_repair_follow_on_state(
     return repair_follow_on
 
 
+def update_handoff_proof_state(
+    repo_root: Path,
+    *,
+    status: str,
+    verification_kind: str,
+    blocking_codes: list[str],
+    summary: str,
+) -> dict[str, Any]:
+    workflow_path = repo_root / ".opencode" / "state" / "workflow-state.json"
+    proof_rel = ".opencode/state/handoff-proof.json"
+    timestamp = current_iso_timestamp()
+    workflow = read_json(workflow_path)
+    if not isinstance(workflow, dict):
+        workflow = {}
+    proof_state = {
+        "status": status,
+        "verification_kind": verification_kind,
+        "verified_at": timestamp,
+        "proof_artifact": proof_rel,
+        "blocking_codes": sorted(set(blocking_codes)),
+        "summary": summary,
+    }
+    workflow["handoff_proof"] = proof_state
+    write_json(workflow_path, workflow)
+    write_json(
+        repo_root / proof_rel,
+        {
+            "repo_root": str(repo_root),
+            **proof_state,
+        },
+    )
+    return proof_state
+
+
 def main() -> int:
     args = parse_args()
     repo_root = Path(args.repo_root).expanduser().resolve()
@@ -1760,6 +1794,32 @@ def main() -> int:
             pending_process_verification=pending_process_verification,
         )
         handoff_allowed = repair_follow_on_outcome != "managed_blocked"
+        handoff_proof_status = (
+            "passed"
+            if repair_follow_on_outcome == "clean"
+            and verification_status["verification_passed"]
+            and not pending_process_verification
+            else "failed"
+        )
+        handoff_proof_codes = sorted(
+            set(
+                verification_status["blocking_codes"]
+                + verification_status["manual_prerequisite_codes"]
+                + verification_status["source_follow_up_codes"]
+                + verification_status["process_state_codes"]
+            )
+        )
+        if repair_follow_on_outcome == "source_follow_up" and not handoff_proof_codes:
+            handoff_proof_codes = ["source-follow-up-required"]
+        handoff_proof_summary = (
+            "Post-repair verification passed and no repo-local follow-up remains."
+            if handoff_proof_status == "passed"
+            else (
+                "Managed repair converged, but repo-local follow-up still remains."
+                if repair_follow_on_outcome == "source_follow_up"
+                else "Post-repair verification did not prove the repo is ready for continued development."
+            )
+        )
 
         # Build the explicit list of ticket IDs the repair has authorised for
         # lifecycle progression while managed_blocked is active.  This allows
@@ -1800,6 +1860,13 @@ def main() -> int:
             advisory_codes=verification_status["advisory_codes"],
             contract_failures=verification_status["contract_failures"],
             allowed_follow_on_tickets=_allowed,
+        )
+        update_handoff_proof_state(
+            candidate_root,
+            status=handoff_proof_status,
+            verification_kind="post_repair_verification",
+            blocking_codes=handoff_proof_codes,
+            summary=handoff_proof_summary,
         )
         regenerate_restart_surfaces(
             candidate_root,

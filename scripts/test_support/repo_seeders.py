@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 import shutil
 import sys
 from pathlib import Path
@@ -32,6 +33,25 @@ def make_stack_skill_non_placeholder(dest: Path) -> None:
             placeholder,
             "Use `uv run pytest -q` for validation and keep Python tooling repo-local via `uv`.",
         )
+    skill_path.write_text(text, encoding="utf-8")
+
+
+def rewrite_stack_skill(dest: Path, *, stack_label: str, guidance: str) -> None:
+    skill_path = dest / ".opencode" / "skills" / "stack-standards" / "SKILL.md"
+    text = skill_path.read_text(encoding="utf-8")
+    text = text.replace("__STACK_LABEL__", stack_label)
+    placeholders = (
+        "Replace this file with stack-specific rules once the real project stack is known.",
+        "When the repo stack is finalized, rewrite this catalog so review and QA agents get the exact build, lint, reference-integrity, and test commands that belong to this project.",
+        "When the project stack is confirmed, replace this file's Universal Standards section with stack-specific rules using the `project-skill-bootstrap` skill.",
+    )
+    replaced = False
+    for placeholder in placeholders:
+        if placeholder in text:
+            text = text.replace(placeholder, guidance)
+            replaced = True
+    if not replaced:
+        text = text.rstrip() + f"\n\n{guidance}\n"
     skill_path.write_text(text, encoding="utf-8")
 
 
@@ -617,6 +637,204 @@ def seed_uv_python_fixture(
     )
 
 
+def _update_godot_repo_identity(
+    dest: Path,
+    *,
+    stack_label: str,
+    project_name: str,
+    android_target: bool,
+) -> None:
+    provenance_path = dest / ".opencode" / "meta" / "bootstrap-provenance.json"
+    provenance = read_json(provenance_path)
+    if not isinstance(provenance, dict):
+        raise RuntimeError("Godot fixture seeding expected bootstrap provenance.")
+    previous_project_name = (
+        str(provenance.get("project_name", "")).strip()
+        if isinstance(provenance.get("project_name"), str)
+        else ""
+    )
+
+    brief_path = dest / "docs" / "spec" / "CANONICAL-BRIEF.md"
+    brief = brief_path.read_text(encoding="utf-8")
+    brief = re.sub(r"- Stack label: `[^`]+`", f"- Stack label: `{stack_label}`", brief, count=1)
+    if "Engine is Godot." not in brief:
+        brief += "\n- Engine is Godot."
+    if android_target and "Platform target is Android." not in brief:
+        brief += "\n- Platform target is Android."
+    brief_path.write_text(brief.rstrip() + "\n", encoding="utf-8")
+
+    provenance["stack_label"] = stack_label
+    provenance["project_name"] = project_name
+    write_json(provenance_path, provenance)
+
+    for relative in (
+        "README.md",
+        "AGENTS.md",
+        "START-HERE.md",
+        ".opencode/state/context-snapshot.md",
+        ".opencode/state/latest-handoff.md",
+    ):
+        path = dest / relative
+        if not path.exists():
+            continue
+        text = path.read_text(encoding="utf-8")
+        if previous_project_name:
+            text = text.replace(previous_project_name, project_name)
+        path.write_text(text, encoding="utf-8")
+
+    manifest_path = dest / "tickets" / "manifest.json"
+    manifest = read_json(manifest_path)
+    if isinstance(manifest, dict):
+        manifest["project"] = project_name
+        write_json(manifest_path, manifest)
+
+
+def seed_godot_target(
+    dest: Path,
+    *,
+    project_name: str = "Proof Godot",
+    stack_label: str = "godot-android-2d",
+    android_target: bool = True,
+) -> None:
+    rewrite_stack_skill(
+        dest,
+        stack_label=stack_label,
+        guidance="Use `godot --headless --path . --quit` plus repo-specific static checks on `project.godot` before treating Godot handoff or release state as ready.",
+    )
+    _update_godot_repo_identity(
+        dest,
+        stack_label=stack_label,
+        project_name=project_name,
+        android_target=android_target,
+    )
+    (dest / "scripts" / "autoload").mkdir(parents=True, exist_ok=True)
+    (dest / "scripts" / "ui").mkdir(parents=True, exist_ok=True)
+    (dest / "scenes").mkdir(parents=True, exist_ok=True)
+    (dest / "assets" / "sprites").mkdir(parents=True, exist_ok=True)
+    (dest / "android").mkdir(parents=True, exist_ok=True)
+    (dest / "android" / "scafforge-managed.json").write_text(
+        json.dumps({"managed": True, "target": "android"}, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    (dest / "export_presets.cfg").write_text(
+        "\n".join(
+            [
+                "[preset.0]",
+                'name="Android"',
+                'platform="Android"',
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    (dest / "project.godot").write_text(
+        "\n".join(
+            [
+                "; Engine configuration file.",
+                "config_version=5",
+                "",
+                "[application]",
+                f'config/name="{project_name}"',
+                'run/main_scene="res://scenes/main.tscn"',
+                "",
+                "[autoload]",
+                'GameState="*res://scripts/autoload/GameState.gd"',
+                "",
+                "[display]",
+                'window/size/viewport_width=720',
+                'window/size/viewport_height=1280',
+                'window/stretch/mode="canvas_items"',
+                'window/stretch/aspect="expand"',
+                "",
+                "[rendering]",
+                'renderer/rendering_method="mobile"',
+                "",
+                "[input]",
+                'tap={"deadzone": 0.5, "events": [Object(InputEventScreenTouch,"resource_local_to_scene":false,"device":0,"pressed":false,"index":0,"position":Vector2(0, 0))]}',
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    (dest / "scripts" / "autoload" / "GameState.gd").write_text(
+        "extends Node\n\nvar score := 0\n",
+        encoding="utf-8",
+    )
+    (dest / "scripts" / "main.gd").write_text(
+        "\n".join(
+            [
+                "extends Node2D",
+                "",
+                "func _ready() -> void:",
+                "    queue_redraw()",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    (dest / "scripts" / "ui" / "Hud.gd").write_text(
+        "\n".join(
+            [
+                "extends Control",
+                "",
+                "func _ready() -> void:",
+                "    visible = true",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    (dest / "assets" / "sprites" / "button.png").write_text("synthetic-png-placeholder\n", encoding="utf-8")
+    (dest / "scenes" / "main.tscn").write_text(
+        "\n".join(
+            [
+                "[gd_scene load_steps=3 format=3]",
+                "",
+                '[ext_resource type="Script" path="res://scripts/main.gd" id="1"]',
+                '[ext_resource type="Script" path="res://scripts/ui/Hud.gd" id="2"]',
+                "",
+                '[node name="Main" type="Node2D"]',
+                'script = ExtResource("1")',
+                "",
+                '[node name="Hud" type="Control" parent="."]',
+                'script = ExtResource("2")',
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    (dest / "check.gd").write_text(
+        "extends SceneTree\n\nfunc _init():\n    quit()\n",
+        encoding="utf-8",
+    )
+
+
+def seed_womanvshorse_failure_family(dest: Path) -> None:
+    project_path = dest / "project.godot"
+    project_text = project_path.read_text(encoding="utf-8")
+    project_text = project_text.replace('renderer/rendering_method="mobile"', 'renderer/rendering_method="forward_plus"')
+    project_text = project_text.replace(
+        'tap={"deadzone": 0.5, "events": [Object(InputEventScreenTouch,"resource_local_to_scene":false,"device":0,"pressed":false,"index":0,"position":Vector2(0, 0))]}',
+        'tap={"deadzone": 1.5, "events": "broken"}',
+    )
+    project_path.write_text(project_text, encoding="utf-8")
+
+    scene_path = dest / "scenes" / "main.tscn"
+    scene_text = scene_path.read_text(encoding="utf-8")
+    scene_text = scene_text.replace(
+        '[ext_resource type="Script" path="res://scripts/ui/Hud.gd" id="2"]',
+        '[ext_resource type="Script" path="res://scripts/ui/MissingHud.gd" id="2"]',
+    )
+    scene_path.write_text(scene_text, encoding="utf-8")
+
+
+def seed_spinner_layout_failure(dest: Path) -> None:
+    project_path = dest / "project.godot"
+    project_text = project_path.read_text(encoding="utf-8")
+    project_text = project_text.replace('window/stretch/mode="canvas_items"', 'window/stretch/mode="disabled"')
+    project_path.write_text(project_text, encoding="utf-8")
+
+
 def seed_failing_pytest_suite(dest: Path) -> None:
     seed_uv_python_fixture(dest)
     src_pkg = dest / "src" / "smoke_pkg"
@@ -628,29 +846,52 @@ def seed_failing_pytest_suite(dest: Path) -> None:
         "def test_smoke():\n    assert False, 'synthetic runtime failure'\n", encoding="utf-8"
     )
 
-    venv_bin = dest / ".venv" / "bin"
-    venv_bin.mkdir(parents=True, exist_ok=True)
-    write_python_wrapper(venv_bin / "python", allow_pytest=True)
-    (venv_bin / "pytest").write_text(
-        "\n".join(
-            [
-                f"#!{sys.executable}",
-                "import sys",
-                "args = sys.argv[1:]",
-                'if "--version" in args:',
-                '    print("pytest 8.1.0")',
-                "    raise SystemExit(0)",
-                'if "--collect-only" in args:',
-                '    print("2 tests collected")',
-                "    raise SystemExit(0)",
-                'print("1 failed, 1 passed in 0.10s")',
-                "raise SystemExit(1)",
-            ]
+    if sys.platform == "win32":
+        venv_scripts = dest / ".venv" / "Scripts"
+        venv_scripts.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(sys.executable, venv_scripts / "python.exe")
+        (dest / "pytest.py").write_text(
+            "\n".join(
+                [
+                    "import sys",
+                    "args = sys.argv[1:]",
+                    'if "--version" in args:',
+                    '    print("pytest 8.1.0")',
+                    "    raise SystemExit(0)",
+                    'if "--collect-only" in args:',
+                    '    print("2 tests collected")',
+                    "    raise SystemExit(0)",
+                    'print("1 failed, 1 passed in 0.10s")',
+                    "raise SystemExit(1)",
+                ]
+            )
+            + "\n",
+            encoding="utf-8",
         )
-        + "\n",
-        encoding="utf-8",
-    )
-    (venv_bin / "pytest").chmod(0o755)
+    else:
+        venv_bin = dest / ".venv" / "bin"
+        venv_bin.mkdir(parents=True, exist_ok=True)
+        write_python_wrapper(venv_bin / "python", allow_pytest=True)
+        (venv_bin / "pytest").write_text(
+            "\n".join(
+                [
+                    f"#!{sys.executable}",
+                    "import sys",
+                    "args = sys.argv[1:]",
+                    'if "--version" in args:',
+                    '    print("pytest 8.1.0")',
+                    "    raise SystemExit(0)",
+                    'if "--collect-only" in args:',
+                    '    print("2 tests collected")',
+                    "    raise SystemExit(0)",
+                    'print("1 failed, 1 passed in 0.10s")',
+                    "raise SystemExit(1)",
+                ]
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        (venv_bin / "pytest").chmod(0o755)
 
 
 def seed_closed_ticket_with_new_active_artifact_write(dest: Path) -> None:

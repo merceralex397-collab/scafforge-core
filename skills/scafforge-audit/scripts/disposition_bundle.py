@@ -29,6 +29,52 @@ def evidence_grade_for_finding(finding: Finding) -> str:
     return "current-state validation"
 
 
+def defect_label_for_class(disposition_class: str) -> str:
+    if disposition_class == "managed_blocker":
+        return "package defect"
+    if disposition_class == "source_follow_up":
+        return "repo-local defect"
+    if disposition_class == "manual_prerequisite_blocker":
+        return "host prerequisite"
+    if disposition_class == "process_state_only":
+        return "process-state follow-up"
+    return "advisory"
+
+
+def ownership_summary_for_entries(entries: list[dict[str, Any]]) -> dict[str, Any]:
+    package_codes = [
+        entry["code"]
+        for entry in entries
+        if entry.get("disposition_class") == "managed_blocker"
+    ]
+    repo_codes = [
+        entry["code"]
+        for entry in entries
+        if entry.get("disposition_class") == "source_follow_up"
+    ]
+    manual_codes = [
+        entry["code"]
+        for entry in entries
+        if entry.get("disposition_class") == "manual_prerequisite_blocker"
+    ]
+    if package_codes and repo_codes:
+        overall = "mixed defect"
+    elif package_codes:
+        overall = "package defect"
+    elif repo_codes:
+        overall = "repo-local defect"
+    elif manual_codes:
+        overall = "host prerequisite"
+    else:
+        overall = "advisory"
+    return {
+        "overall": overall,
+        "package_defect_codes": package_codes,
+        "repo_local_defect_codes": repo_codes,
+        "manual_prerequisite_codes": manual_codes,
+    }
+
+
 def _manifest_tickets(repo_root: str | Path | None) -> list[dict[str, Any]]:
     if not repo_root:
         return []
@@ -182,6 +228,7 @@ def build_disposition_bundle(
             "code": code,
             "severity": getattr(finding, "severity", ""),
             "disposition_class": disposition_class,
+            "defect_label": defect_label_for_class(disposition_class),
             "legacy_disposition_class": legacy_class,
             "route": recommendation.get("route"),
             "repair_class": recommendation.get("repair_class"),
@@ -213,6 +260,7 @@ def build_disposition_bundle(
         "finding_count": len(entries),
         "findings": entries,
         "counts": {name: counts.get(name, 0) for name in DISPOSITION_CLASSES},
+        "ownership_summary": ownership_summary_for_entries(entries),
         "shadow_mode_deltas": deltas,
     }
 

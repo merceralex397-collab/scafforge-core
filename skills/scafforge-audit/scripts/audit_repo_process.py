@@ -848,8 +848,21 @@ def repo_mentions_patterns(root: Path, patterns: tuple[str, ...]) -> str | None:
 def _run(cmd: list[str], cwd: Path, timeout: int = 30) -> tuple[int, str]:
     """Run a subprocess and return (returncode, combined output). Never raises."""
     try:
+        resolved_cmd = list(cmd)
+        if os.name == "nt" and resolved_cmd:
+            executable = resolved_cmd[0]
+            has_explicit_path = any(sep in executable for sep in ("\\", "/"))
+            if not has_explicit_path:
+                resolved = (
+                    shutil.which(executable)
+                    or shutil.which(f"{executable}.cmd")
+                    or shutil.which(f"{executable}.exe")
+                    or shutil.which(f"{executable}.bat")
+                )
+                if resolved:
+                    resolved_cmd[0] = resolved
         result = subprocess.run(
-            cmd,
+            resolved_cmd,
             cwd=str(cwd),
             capture_output=True,
             text=True,
@@ -925,6 +938,21 @@ def next_repair_follow_on_stage_state(workflow: dict[str, Any]) -> str | None:
     return None
 
 
+def load_handoff_proof_state(workflow: dict[str, Any]) -> dict[str, Any]:
+    raw = workflow.get("handoff_proof") if isinstance(workflow.get("handoff_proof"), dict) else {}
+    status = raw.get("status") if isinstance(raw.get("status"), str) else "missing"
+    if status not in {"missing", "passed", "failed"}:
+        status = "missing"
+    return {
+        "status": status,
+        "verification_kind": raw.get("verification_kind") if isinstance(raw.get("verification_kind"), str) and raw.get("verification_kind").strip() else None,
+        "verified_at": raw.get("verified_at") if isinstance(raw.get("verified_at"), str) and raw.get("verified_at").strip() else None,
+        "proof_artifact": raw.get("proof_artifact") if isinstance(raw.get("proof_artifact"), str) and raw.get("proof_artifact").strip() else None,
+        "blocking_codes": [item.strip() for item in raw.get("blocking_codes", []) if isinstance(item, str) and item.strip()],
+        "summary": raw.get("summary") if isinstance(raw.get("summary"), str) and raw.get("summary").strip() else None,
+    }
+
+
 def expected_handoff_status(
     workflow: dict[str, Any],
     *,
@@ -933,6 +961,7 @@ def expected_handoff_status(
     active_ticket_needs_historical_reconciliation: bool = False,
 ) -> str:
     bootstrap = workflow.get("bootstrap") if isinstance(workflow.get("bootstrap"), dict) else {}
+    handoff_proof = load_handoff_proof_state(workflow)
     if str(bootstrap.get("status", "")).strip() != "ready":
         return "bootstrap recovery required"
     if pivot_pending:
@@ -945,6 +974,10 @@ def expected_handoff_status(
         or active_ticket_needs_historical_reconciliation
     ):
         return "workflow verification pending"
+    if handoff_proof["status"] == "failed":
+        return "pre-handoff proof failed"
+    if handoff_proof["status"] == "missing":
+        return "pre-handoff proof missing"
     return "ready for continued development"
 
 

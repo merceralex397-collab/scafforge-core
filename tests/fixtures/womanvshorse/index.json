@@ -1,0 +1,52 @@
+{
+  "fixture_version": 1,
+  "source_repo": "womanvshorse",
+  "families": [
+    {
+      "slug": "downstream-boot-and-config-breaker",
+      "title": "Downstream boot and config breaker",
+      "flow": "greenfield",
+      "invariant_focus": [
+        "broken resource linkage",
+        "renderer-profile mismatch",
+        "malformed input-map data"
+      ],
+      "expected_finding_codes": [
+        "EXEC-GODOT-002",
+        "EXEC-GODOT-014",
+        "EXEC-GODOT-015"
+      ],
+      "expected_coverage": [
+        "integration:downstream-fixtures",
+        "contract:curated-fixtures"
+      ],
+      "truth_expectations": {
+        "convergence": "downstream-boot-breaker",
+        "publish_safety": "godot-source-follow-up-required",
+        "blocker_truth": "resource-renderer-input-regression",
+        "checks": [
+          {
+            "kind": "file_contains",
+            "file": "project.godot",
+            "needle": "renderer/rendering_method=\"forward_plus\""
+          },
+          {
+            "kind": "file_contains",
+            "file": "project.godot",
+            "needle": "tap={\"deadzone\": 1.5, \"events\": \"broken\"}"
+          },
+          {
+            "kind": "file_contains",
+            "file": "scenes/main.tscn",
+            "needle": "MissingHud.gd"
+          }
+        ]
+      },
+      "archive_origin": [
+        "active-plans/_source-material/downstream-failures/womanvshorseissues/womanvshorseVB.md",
+        "active-plans/_source-material/downstream-failures/womanvshorseissues/womanvshorseVC.md"
+      ],
+      "notes": "downstream-boot-and-config-breaker/README.md"
+    }
+  ]
+}

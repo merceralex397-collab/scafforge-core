@@ -16,6 +16,8 @@
 
 ## Generation Status
 
+## Pre-Handoff Proof
+
 ## Post-Generation Audit Status
 
 ## Known Risks
