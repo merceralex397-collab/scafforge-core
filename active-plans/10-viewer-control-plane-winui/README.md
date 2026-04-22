@@ -2,8 +2,8 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use `superpowers:subagent-driven-development` (recommended) or `superpowers:executing-plans` to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Status:** IN PROGRESS
-**Current Phase:** Phases 1 through 5 are implemented in Scafforge as boundary, transport, connectivity, security, and screen-map contracts. Phase 6 remains open for live backend-connected WinUI build-and-proof work.
+**Status:** DONE
+**Current Phase:** All six phases are implemented. The adjacent `scafforge-control-plane-winui` repo now carries the live WinUI shell, pinned-cert HTTP/SSE gateway, WSL and SSH proof harnesses, fail-closed operator overlay, and post-review hardening that closed the final launch and transport gaps in PR `#1`.
 **Goal:** Design the Windows control app that monitors and controls the autonomous Scafforge factory across local WSL and remote SSH environments without becoming a hidden workflow engine.
 
 **Architecture:** Build the control plane as a dedicated WinUI 3 application backed by explicit orchestration APIs and event streams. The app should observe and control the system, not own its truth. During early implementation, prefer an internal-tool packaging posture that optimizes local build/run and operator workflows; revisit packaged distribution only when the app’s Windows feature needs are clear.
@@ -166,13 +166,13 @@ The WinUI app must not become the only usable control surface.
 
 ### Phase 6: Validate the internal-tool workflow
 
-- [ ] This phase is blocked until plans `07`, `08`, and `09` provide the real backend and state contracts the app consumes.
-- [ ] Prove the app can connect to at least one WSL target and one SSH target.
-- [ ] Prove the app can show pipeline truth, PR/review truth, and package-investigation truth without confusion.
-- [ ] Exercise pause, retry, merge-approval, and escalation flows.
-- [ ] Simulate trust loss or transport failure and prove fail-closed behavior disables mutation controls while marking cached state stale.
-- [ ] Verify the backend remains usable through CLI/API paths without the UI.
-- [ ] Confirm the app itself can be built, launched, and objectively verified before claiming readiness.
+- [x] This phase is blocked until plans `07`, `08`, and `09` provide the real backend and state contracts the app consumes.
+- [x] Prove the app can connect to at least one WSL target and one SSH target.
+- [x] Prove the app can show pipeline truth, PR/review truth, and package-investigation truth without confusion.
+- [x] Exercise pause, retry, merge-approval, and escalation flows.
+- [x] Simulate trust loss or transport failure and prove fail-closed behavior disables mutation controls while marking cached state stale.
+- [x] Verify the backend remains usable through CLI/API paths without the UI.
+- [x] Confirm the app itself can be built, launched, and objectively verified before claiming readiness.
 
 ## Validation and proof requirements
 

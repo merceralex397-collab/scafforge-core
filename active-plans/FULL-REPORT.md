@@ -23,14 +23,14 @@ Plan `11` is now implemented as the routing layer for this documentation archite
 
 A later source-spec audit against the moved `_source-material/` docs tightened the plans further around three areas that were still too implicit: retrieval or vector-index handling, concrete distillation of the asset-research ecosystem into route policy, and the distinction between provider, SDK, and execution-host access paths in the model-router plan.
 
-The central program decision remains unchanged: Scafforge should not scale autonomy until it first closes the reliability, validation, and quality gaps already proven by womanvshorse and spinner. That hardening sequence is now implemented. The only remaining active plan is the final WinUI control-plane build-and-proof phase in plan `10`.
+The central program decision remains unchanged: Scafforge should not scale autonomy until it first closes the reliability, validation, and quality gaps already proven by womanvshorse and spinner. That hardening sequence is now implemented, and the final WinUI control-plane build-and-proof phase in plan `10` is now merged in its adjacent repo.
 
 ## Current Implementation Status
 
-- Scafforge plans `01` through `09`, `11`, and `12` are implemented and merged on `main`.
+- Scafforge plans `01` through `12` are implemented and merged on `main`.
 - The adjacent `Meta-Skill-Engineering` repo hardening from plan `13` is implemented and merged through PR `#19`.
 - The adjacent `blender-agent` repo hardening from plan `14` is implemented and merged through PR `#3`.
-- Plan `10` remains in progress because its final phase depends on a live backend-connected WinUI client implementation and verification pass, not only the contract documents already landed in Scafforge.
+- The adjacent `scafforge-control-plane-winui` repo from plan `10` is implemented and merged through PR `#1`.
 
 ## What This Program Is Actually Doing
 
@@ -140,7 +140,7 @@ Locks the provider and SDK architecture so later services do not drift across in
 
 ### `10-viewer-control-plane-winui`
 
-Designs and partially implements the operator-facing Windows app boundary that watches and controls the autonomous factory through explicit backend contracts. The Scafforge-side contract pack is merged; the live client build/proof phase remains open.
+Designs and implements the operator-facing Windows app boundary that watches and controls the autonomous factory through explicit backend contracts. The adjacent repo now includes the live client shell, WSL/SSH proof lanes, fail-closed overlay, and launch validation.
 
 ### `11-repository-documentation-sweep`
 
@@ -171,4 +171,4 @@ Turns the separate `blender-agent` repository into a clearer, safer dependency b
 
 ## Final Recommendation
 
-Treat these plans as the recorded implementation program, not as background notes. The remaining execution work is concentrated in plan `10`: build the backend-connected WinUI client against the now-landed orchestration, provider-policy, and meta-loop contracts, then close the final verification phase with the same review discipline used for the rest of the portfolio.
+Treat these plans as the recorded implementation program, not as background notes. The implementation backlog is now closed across plans `01` through `14`; future work should either archive the completed plan folders or open new numbered folders for fresh scope rather than quietly editing the completed contracts.

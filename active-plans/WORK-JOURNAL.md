@@ -334,3 +334,9 @@ After plans `13` and `14` landed, the root portfolio docs still implied that mos
 - plan `14` is merged in `blender-agent`
 
 The only genuinely open plan is `10-viewer-control-plane-winui`. Its Scafforge-side contract pack is merged, but Phase 6 remains open because it requires the live backend-connected WinUI app build and proof pass, not just package-side contract documents. That distinction matters because the user’s definition of done is “all plans fully implemented to 100%,” and the portfolio needs to say plainly when one plan is still active.
+
+### Entry 33: Plan 10 is now closed and the active-plans program is fully implemented
+
+The adjacent `scafforge-control-plane-winui` repo is now real, not just planned. The implementation landed the WinUI shell, pinned-cert live gateway factory, WSL plus SSH transport proof, fail-closed degraded overlay, and a launch-smoke fix for the App/XAML startup path. The PR review swarm for that repo produced a few factual follow-ups; the only ones worth taking were the machine-local WSL path assumption, request debouncing/in-flight mutation gating, explicit demo-mode messaging, and cleanup of repo-local ephemeral SSH proof material. The other higher-level concerns were either already covered by the contract or unsupported by the actual code.
+
+With that adjacent PR merged, the portfolio no longer has a “final remaining plan.” The Scafforge closeout now needs to say that directly: plans `01` through `14` are implemented, the three adjacent repos (`Meta-Skill-Engineering`, `blender-agent`, and `scafforge-control-plane-winui`) are all merged, and future work should move into either archival or genuinely new numbered plans instead of leaving `active-plans/` in a permanently half-open state.
