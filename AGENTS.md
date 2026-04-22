@@ -149,7 +149,7 @@ Use `python3` or `sys.executable` for Python entrypoints in repository guidance.
 
 ## Skill evolution and distillation
 
-Skill evolution is a bounded package lifecycle, not permissionless skill accumulation. The durable rules live in [references/skill-evolution-policy.md](references/skill-evolution-policy.md), [references/external-source-evaluation-rubric.md](references/external-source-evaluation-rubric.md), and [references/skill-validation-policy.md](references/skill-validation-policy.md).
+Skill evolution is a bounded package lifecycle, not permissionless skill accumulation. The durable rules live in [references/skill-evolution-policy.md](references/skill-evolution-policy.md), [references/external-source-evaluation-rubric.md](references/external-source-evaluation-rubric.md), [references/rejected-sources.md](references/rejected-sources.md), and [references/skill-validation-policy.md](references/skill-validation-policy.md).
 
 - audit-derived package evidence enters skill evaluation only after `scafforge-audit` and the `active-audits/` sidecars accept it
 - copied bundles, public skill ecosystems, and adjacent repos are research inputs only; blind import into Scafforge or generated repos is forbidden

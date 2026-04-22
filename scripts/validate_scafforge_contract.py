@@ -13,6 +13,7 @@ FLOW_MANIFEST = ROOT / "skills" / "skill-flow-manifest.json"
 TEMPLATE_ROOT = (
     ROOT / "skills" / "repo-scaffold-factory" / "assets" / "project-template"
 )
+ACTIVE_PLANS_ROOT = ROOT / "active-plans"
 
 
 @dataclass
@@ -646,20 +647,20 @@ def validate_skill_governance(findings: list[Finding]) -> None:
     external_rubric = ROOT / "references" / "external-source-evaluation-rubric.md"
     rejected_sources = ROOT / "references" / "rejected-sources.md"
     skill_validation_policy = ROOT / "references" / "skill-validation-policy.md"
+    plan_12_dirs = sorted(ACTIVE_PLANS_ROOT.glob("12-*"))
+    if len(plan_12_dirs) != 1:
+        findings.append(
+            Finding(
+                "error",
+                "active-plans must contain exactly one plan-12 folder for skill-governance pointer validation",
+            )
+        )
+        return
+    plan_12_root = plan_12_dirs[0]
     plan_rubric_pointer = (
-        ROOT
-        / "active-plans"
-        / "12-skill-system-expansion-and-meta-skill-engineering"
-        / "references"
-        / "external-source-evaluation-rubric.md"
+        plan_12_root / "references" / "external-source-evaluation-rubric.md"
     )
-    plan_rejected_pointer = (
-        ROOT
-        / "active-plans"
-        / "12-skill-system-expansion-and-meta-skill-engineering"
-        / "references"
-        / "rejected-sources.md"
-    )
+    plan_rejected_pointer = plan_12_root / "references" / "rejected-sources.md"
     local_skill_catalog = (
         ROOT
         / "skills"
@@ -894,6 +895,8 @@ def validate_skill_governance(findings: list[Finding]) -> None:
     require_contains(findings, external_rubric, "license")
     require_contains(findings, rejected_sources, "quarantined")
     require_contains(findings, rejected_sources, "no direct import")
+    require_contains(findings, rejected_sources, "Resolution path")
+    require_contains(findings, rejected_sources, "rerun the rubric")
     require_contains(findings, skill_validation_policy, "npm run validate:contract")
     require_contains(findings, skill_validation_policy, "max_package_skills")
     require_contains(findings, skill_validation_policy, "max_default_local_skills")
@@ -998,6 +1001,7 @@ def validate_core_docs(findings: list[Finding]) -> None:
     require_contains(findings, agents, "## Skill evolution and distillation")
     require_contains(findings, agents, "references/skill-evolution-policy.md")
     require_contains(findings, agents, "references/external-source-evaluation-rubric.md")
+    require_contains(findings, agents, "references/rejected-sources.md")
     require_contains(findings, agents, "references/skill-validation-policy.md")
     require_contains(findings, agents, "one legal next move")
     require_contains(findings, agents, "explicit temporary contract smell")
