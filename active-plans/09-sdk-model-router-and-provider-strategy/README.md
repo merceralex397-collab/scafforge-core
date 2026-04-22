@@ -107,7 +107,18 @@ This plan is documentation-heavy, but it still needs executable proof and machin
 - extend `scripts/validate_scafforge_contract.py` to require the named package-side policy docs this plan creates
 - require a small runnable prototype that proves AI SDK can route a provider while OpenCode still executes repo work
 - record the prototype result in a committed reference or proof note so reviewers can verify it in a PR diff
+- when that prototype lives in an adjacent service repo, the Scafforge-side plan and PR must point to the exact external proof location instead of implying the runnable artifact should exist inside the package tree
 - require the matrix to distinguish coding or implementation use, orchestration use, embeddings or retrieval use, and multimodal asset-media use instead of flattening all model access into one bucket
+
+### Phase 5 proof location
+
+The executable hybrid-router prototype and proof note for this plan live in the adjacent `scafforge-spec-factory` repository, not in Scafforge package core:
+
+- prototype contract: `scafforge-spec-factory/docs/model-router-contract.md`
+- prototype proof note: `scafforge-spec-factory/docs/model-router-prototype-proof.md`
+- merged implementation PR: `merceralex397-collab/scafforge-spec-factory#1`
+
+Scafforge package docs own the durable boundary and policy. The adjacent service repo owns the executable router artifact and its runnable proof.
 
 ## Phase plan
 
