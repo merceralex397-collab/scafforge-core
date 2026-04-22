@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use `superpowers:subagent-driven-development` (recommended) or `superpowers:executing-plans` to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Status:** TODO
+**Status:** DONE
 **Goal:** Lock the architecture for how Scafforge should combine OpenCode, the Vercel AI SDK, the OpenAI Apps SDK, and a mixed-provider model router without forcing a premature rewrite.
 
 **Architecture:** Keep OpenCode as the execution substrate for Scafforge-generated repos and package contracts. Use the AI SDK around that substrate for new orchestration services, provider abstraction, and model routing. Use the OpenAI Apps SDK only for ChatGPT-facing app/MCP surfaces. The router itself should live in an adjacent service layer, not inside the package core. Model availability and transport path must be treated as separate concerns: the same model family may be reachable through a native provider SDK, an OpenAI-compatible or Anthropic-compatible adapter, the AI SDK, and OpenCode.
@@ -107,52 +107,63 @@ This plan is documentation-heavy, but it still needs executable proof and machin
 - extend `scripts/validate_scafforge_contract.py` to require the named package-side policy docs this plan creates
 - require a small runnable prototype that proves AI SDK can route a provider while OpenCode still executes repo work
 - record the prototype result in a committed reference or proof note so reviewers can verify it in a PR diff
+- when that prototype lives in an adjacent service repo, the Scafforge-side plan and PR must point to the exact external proof location instead of implying the runnable artifact should exist inside the package tree
 - require the matrix to distinguish coding or implementation use, orchestration use, embeddings or retrieval use, and multimodal asset-media use instead of flattening all model access into one bucket
+
+### Phase 5 proof location
+
+The executable hybrid-router prototype and proof note for this plan live in the adjacent `scafforge-spec-factory` repository, not in Scafforge package core:
+
+- prototype contract: `scafforge-spec-factory/docs/model-router-contract.md`
+- prototype proof note: `scafforge-spec-factory/docs/model-router-prototype-proof.md`
+- merged implementation PR: `merceralex397-collab/scafforge-spec-factory#1`
+
+Scafforge package docs own the durable boundary and policy. The adjacent service repo owns the executable router artifact and its runnable proof.
 
 ## Phase plan
 
 ### Phase 1: Freeze the architecture decision
 
-- [ ] Write an ADR that names OpenCode, AI SDK, and Apps SDK roles clearly.
-- [ ] Explain exactly why replacing OpenCode inside existing package and generated-repo contracts is out of scope for this upgrade cycle.
-- [ ] Define which future systems must consume OpenCode-generated repos as-is and which systems may be AI SDK-native.
-- [ ] Ensure the docs explain this decision in user language, not only architecture shorthand.
+- [x] Write an ADR that names OpenCode, AI SDK, and Apps SDK roles clearly.
+- [x] Explain exactly why replacing OpenCode inside existing package and generated-repo contracts is out of scope for this upgrade cycle.
+- [x] Define which future systems must consume OpenCode-generated repos as-is and which systems may be AI SDK-native.
+- [x] Ensure the docs explain this decision in user language, not only architecture shorthand.
 
 ### Phase 2: Classify providers and trust levels
 
-- [ ] Build a provider matrix that records integration path, pricing posture, stability, credential model, intended use class, and AI SDK support tier.
-- [ ] Record access paths separately from provider names: native SDK, AI SDK adapter, OpenAI-compatible adapter, Anthropic-compatible adapter, and OpenCode route.
-- [ ] Separate direct API integrations from account-coupled or unofficial routes such as personal subscription scraping or account borrowing patterns.
-- [ ] Add an explicit AI SDK support tier column: first-party, community, OpenAI-compatible, or unsupported.
-- [ ] Add intended use columns that distinguish implementation or coding work, orchestration work, embeddings or retrieval work, and multimodal asset-media work.
-- [ ] Explicitly model same-family multi-path cases, such as MiniMax or Kimi being available through both native provider lanes and OpenCode-compatible coding lanes.
-- [ ] Define which providers may ever become package defaults and which remain optional experimental lanes.
-- [ ] Define how free providers are used without turning brittle freebies into the product’s source of truth.
+- [x] Build a provider matrix that records integration path, pricing posture, stability, credential model, intended use class, and AI SDK support tier.
+- [x] Record access paths separately from provider names: native SDK, AI SDK adapter, OpenAI-compatible adapter, Anthropic-compatible adapter, and OpenCode route.
+- [x] Separate direct API integrations from account-coupled or unofficial routes such as personal subscription scraping or account borrowing patterns.
+- [x] Add an explicit AI SDK support tier column: first-party, community, OpenAI-compatible, or unsupported.
+- [x] Add intended use columns that distinguish implementation or coding work, orchestration work, embeddings or retrieval work, and multimodal asset-media work.
+- [x] Explicitly model same-family multi-path cases, such as MiniMax or Kimi being available through both native provider lanes and OpenCode-compatible coding lanes.
+- [x] Define which providers may ever become package defaults and which remain optional experimental lanes.
+- [x] Define how free providers are used without turning brittle freebies into the product’s source of truth.
 
 ### Phase 3: Define the router contract
 
-- [ ] Specify the router interface that adjacent services should call: capability requested, cost tier, fallback order, timeout policy, and trace metadata.
-- [ ] Publish the package-side summary in `references/provider-router-policy.md` and keep executable router details in the adjacent service repo.
-- [ ] Decide where provider credentials live and how the control plane can manage them without leaking into package docs.
-- [ ] Ensure the router can choose between native SDK paths and OpenCode-executed paths intentionally instead of assuming one transport per provider.
-- [ ] Define how the router records which provider and model were used for each job.
-- [ ] Ensure the router can degrade gracefully when only experimental/free providers are available.
+- [x] Specify the router interface that adjacent services should call: capability requested, cost tier, fallback order, timeout policy, and trace metadata.
+- [x] Publish the package-side summary in `references/provider-router-policy.md` and keep executable router details in the adjacent service repo.
+- [x] Decide where provider credentials live and how the control plane can manage them without leaking into package docs.
+- [x] Ensure the router can choose between native SDK paths and OpenCode-executed paths intentionally instead of assuming one transport per provider.
+- [x] Define how the router records which provider and model were used for each job.
+- [x] Ensure the router can degrade gracefully when only experimental/free providers are available.
 
 ### Phase 4: Define model-ID and provider-update policy
 
-- [ ] Explicitly ban durable package docs from hard-coding volatile model IDs as long-lived truth.
-- [ ] Require implementation-time model verification against current provider docs or APIs.
-- [ ] Define where exact model IDs may live safely: service config, environment-specific settings, or test fixtures.
-- [ ] Update `architecture.md` to remove or replace stale model-ID strings such as the current `minimax-coding-plan/MiniMax-M2.7` reference with category-level wording that matches this policy.
-- [ ] Ensure prompt/model notes in Scafforge stay high-level enough not to go stale immediately.
+- [x] Explicitly ban durable package docs from hard-coding volatile model IDs as long-lived truth.
+- [x] Require implementation-time model verification against current provider docs or APIs.
+- [x] Define where exact model IDs may live safely: service config, environment-specific settings, or test fixtures.
+- [x] Update `architecture.md` to remove or replace stale model-ID strings such as the current `minimax-coding-plan/MiniMax-M2.7` reference with category-level wording that matches this policy.
+- [x] Ensure prompt/model notes in Scafforge stay high-level enough not to go stale immediately.
 
 ### Phase 5: Validate the hybrid path with a real prototype
 
-- [ ] Build a small runnable prototype where AI SDK routes a provider but OpenCode still executes repo work.
-- [ ] Validate that Apps SDK use remains bounded to ChatGPT-facing ingress or UI surfaces.
-- [ ] Confirm the router contract does not force package-core code to depend on AI SDK semantics.
-- [ ] Ensure review, audit, and restart evidence can still record provider usage cleanly.
-- [ ] Commit a short proof note or artifact summary that reviewers can inspect alongside the prototype.
+- [x] Build a small runnable prototype where AI SDK routes a provider but OpenCode still executes repo work.
+- [x] Validate that Apps SDK use remains bounded to ChatGPT-facing ingress or UI surfaces.
+- [x] Confirm the router contract does not force package-core code to depend on AI SDK semantics.
+- [x] Ensure review, audit, and restart evidence can still record provider usage cleanly.
+- [x] Commit a short proof note or artifact summary that reviewers can inspect alongside the prototype.
 
 ## Validation and proof requirements
 

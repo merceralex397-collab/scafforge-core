@@ -81,7 +81,7 @@ Keep plan status explicit. A plan may remain in `active-plans/` with `Status: DO
 | 4 | TODO | `05-completion-validation-matrix/` | Defines what “done” means across web, game, script, service, desktop, and Android repos. |
 | 5 | TODO | `03-asset-pipeline-architecture/` | Replaces asset-route guesswork with a capability, provenance, and QA system. |
 | 6 | TODO | `04-asset-quality-and-blender-excellence/` | Raises the visual quality bar and documents truthful Blender support. |
-| 7 | TODO | `09-sdk-model-router-and-provider-strategy/` | Freezes the OpenCode vs AI SDK vs Apps SDK split before new services are built. |
+| 7 | DONE | `09-sdk-model-router-and-provider-strategy/` | Freezes the OpenCode vs AI SDK vs Apps SDK split before new services are built. |
 | 8 | TODO | `06-spec-factory-and-intake-mcp/` | Designs the idea-to-approved-brief factory and ChatGPT/MCP ingress. |
 | 9 | TODO | `07-autonomous-downstream-orchestration/` | Wraps Scafforge generation in a PR-based downstream execution service. |
 | 10 | TODO | `08-meta-improvement-loop/` | Turns repeated downstream failures into package-level investigation and fix work. |

@@ -609,6 +609,8 @@ def validate_core_docs(findings: list[Finding]) -> None:
     readme = ROOT / "README.md"
     agents = ROOT / "AGENTS.md"
     architecture = ROOT / "architecture.md"
+    sdk_layering_adr = ROOT / "references" / "sdk-layering-adr.md"
+    provider_router_policy = ROOT / "references" / "provider-router-policy.md"
     one_shot = ROOT / "references" / "one-shot-generation-contract.md"
     competence_contract = ROOT / "references" / "competence-contract.md"
     validation_matrix = ROOT / "references" / "validation-proof-matrix.json"
@@ -622,6 +624,8 @@ def validate_core_docs(findings: list[Finding]) -> None:
             readme,
             agents,
             architecture,
+            sdk_layering_adr,
+            provider_router_policy,
             one_shot,
             competence_contract,
             validation_matrix,
@@ -690,11 +694,51 @@ def validate_core_docs(findings: list[Finding]) -> None:
     )
 
     require_contains(findings, architecture, "Adjacent systems such as the spec factory")
+    require_contains(findings, architecture, "## SDK Layering")
+    require_contains(findings, architecture, "**OpenCode** remains the execution substrate")
+    require_contains(findings, architecture, "**AI SDK** belongs in adjacent services")
+    require_contains(findings, architecture, "**OpenAI Apps SDK** stays bounded to ChatGPT-facing ingress")
     require_contains(findings, architecture, "### Adjacent spec-factory boundary")
+    require_contains(findings, architecture, "### Adjacent model-router boundary")
     require_contains(
         findings,
         architecture,
         "ChatGPT or MCP ingress is therefore transport and review only",
+    )
+    require_absent(findings, architecture, "minimax-coding-plan/MiniMax-M2.7")
+
+    require_contains(
+        findings,
+        sdk_layering_adr,
+        "The approved direction for this upgrade cycle is layering, not replacement.",
+    )
+    require_contains(
+        findings,
+        sdk_layering_adr,
+        "Would adding the AI SDK require a big rewrite?",
+    )
+    require_contains(
+        findings,
+        sdk_layering_adr,
+        "Adjacent service orchestration, provider abstraction, and model routing",
+    )
+    require_contains(findings, sdk_layering_adr, "ChatGPT-facing intake widgets")
+
+    require_contains(findings, provider_router_policy, "## Provider classification matrix")
+    require_contains(findings, provider_router_policy, "AI SDK support tier")
+    require_contains(findings, provider_router_policy, "OpenAI-compatible")
+    require_contains(findings, provider_router_policy, "Anthropic-compatible")
+    require_contains(findings, provider_router_policy, "OpenCode route")
+    require_contains(findings, provider_router_policy, "## Model update policy")
+    require_contains(
+        findings,
+        provider_router_policy,
+        "Exact model IDs must be verified at implementation time",
+    )
+    require_contains(
+        findings,
+        provider_router_policy,
+        "Apps SDK surfaces must not own provider credentials",
     )
 
     require_contains(
@@ -774,6 +818,8 @@ def validate_core_docs(findings: list[Finding]) -> None:
     )
     require_contains(findings, stack_adapter_contract, "validation-proof-matrix.json")
     require_contains(findings, stack_adapter_contract, "Repo-family proof layers on top of that baseline")
+    require_contains(findings, stack_adapter_contract, "## Provider and routing boundary")
+    require_contains(findings, stack_adapter_contract, "OpenCode remains the generated-repo execution substrate")
     require_contains(findings, architecture, "### Adjacent orchestration boundary")
     require_contains(findings, architecture, "It must stay read-only over generated canonical repo truth.")
 

@@ -146,6 +146,15 @@ Debug APK proof is valid runnable proof. It must not be treated as deliverable p
 
 Treat explicit target facts from `docs/spec/CANONICAL-BRIEF.md` and `.opencode/meta/bootstrap-provenance.json` as authoritative even before repo-local export files such as `export_presets.cfg` exist.
 
+## Provider and routing boundary
+
+Stack adapters, completion proof, and execution audits stay provider-path agnostic.
+
+- OpenCode remains the generated-repo execution substrate even when an adjacent AI SDK router exists.
+- Adjacent routers may choose providers or transport lanes for service-side work, but they do not change the stack-specific bootstrap or release-proof obligations defined here.
+- ChatGPT-facing Apps SDK surfaces do not own bootstrap, execution-proof, or release-proof semantics.
+- Provider categories, routing lanes, and model-update rules are documented separately in [references/provider-router-policy.md](provider-router-policy.md).
+
 ## Package-Level Validation Versus Release Proof
 
 The package validators are still `npm run validate:contract`, `npm run validate:smoke`, `python3 scripts/integration_test_scafforge.py`, and `python3 scripts/validate_gpttalker_migration.py`.
