@@ -161,3 +161,35 @@ Safer pattern:
 
 - keep human commands narrow and human-invoked only
 - put autonomous routing in tools, plugins, prompts, and repo-local skills
+
+## Package-vs-local skill conflation
+
+Bad:
+
+- treat a repo-local synthesized skill gap as permission to add or import a new Scafforge package skill immediately
+
+Why it fails:
+
+- package, generated-repo, and adjacent-repo authority start to blur together
+- repeated one-off additions create package skill sprawl instead of a bounded improvement path
+
+Safer pattern:
+
+- keep repo-local skill synthesis inside the generated repo
+- route package-wide gaps through the package skill-governance policy and validator-backed review path
+
+## Skill sprawl as remediation
+
+Bad:
+
+- answer every ambiguity by adding another similarly named skill, agent, or helper reference
+
+Why it fails:
+
+- weaker models cannot tell which surface owns the next move
+- overlap hides whether the real fix belongs in an existing skill, a prompt contract, or a workflow-boundary document
+
+Safer pattern:
+
+- merge overlaps first
+- add a new skill only when it introduces a distinct workflow with a distinct owner and validation story

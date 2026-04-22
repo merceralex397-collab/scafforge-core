@@ -14,6 +14,7 @@ Use this skill to create the repo-local `.opencode/skills/` layer with actual pr
 - Reduce ambiguity for weaker models
 - Keep prompts short by moving stable procedure into local skills
 - Keep project-local skills aligned with ticket tools and workflow state
+- Keep repo-local synthesized skills separate from package-level skill evolution
 
 ## Operating modes
 
@@ -131,6 +132,12 @@ Those synthesized skills must reference the actual seeded repo surfaces (`assets
 When the metadata's `required_skills` includes one of these synthesized skills, that skill is mandatory output for the current generation or repair pass.
 When the metadata's `suggested_skills` includes one of these synthesized skills, treat it as required output unless newer repo evidence proves the route no longer applies.
 
+### 3a. Keep package and repo-local skill boundaries separate
+
+- Solve repo-specific stack, domain, and workflow guidance in repo-local skills.
+- If the gap would change Scafforge behavior across multiple repos, do not invent a new Scafforge package skill from inside this repo generation pass. Route that evidence through `../../references/skill-evolution-policy.md` instead.
+- Prefer extending an existing repo-local skill when the same owner and trigger already exist. Create a new synthesized skill only when it gives this repo a genuinely distinct workflow.
+
 When synthesizing **`blender-mcp-workflow`** for repos that route assets through `blender-agent`, treat `Scafforge/skills/asset-pipeline/SKILL.md` and `Scafforge/skills/asset-pipeline/agents/blender-asset-creator.md` as the authoritative operating contract. The generated local skill must:
 - describe Blender mutating calls as **stateless** unless the repo evidence explicitly proves a different execution model
 - require `output_blend` on every mutating call and require the next mutating call to reuse the returned `persistence.saved_blend` as `input_blend`
@@ -146,6 +153,7 @@ When synthesizing **`blender-mcp-workflow`** for repos that route assets through
 Use project documentation, framework documentation, package references, and other external research as reference material only. Review patterns that match the selected stack and workflow, then synthesize repo-specific procedure from that evidence.
 
 Do not install external skills directly. Use external material as reference only.
+Do not copy external skill bodies verbatim into repo-local output; distill the useful concept into repo-specific guidance.
 
 ### 5. Synthesize project-specific skills
 
@@ -164,6 +172,7 @@ Examples:
 - Prefer procedure over reference dumping
 - Each synthesized skill must justify its existence
 - Keep total skill count manageable
+- Merge overlapping candidates instead of generating two skills that share the same owner and trigger
 - Every synthesized skill must have proper YAML frontmatter
 - Every synthesized skill description must be concrete and selection-specific
 - Do not use vague descriptions such as "help with this stack" or "general project guidance"
@@ -206,6 +215,7 @@ Use this minimal shape so the public repair runner can auto-recognize `project-s
 ```
 
 Do not emit this artifact speculatively. Only write it once the repo-local skill regeneration work is actually complete for the current repair cycle.
+When package-managed skill evolution triggered the pass, the `Summary` must say whether the repo-local work was synthesized, repaired, or refreshed and name the repo-local evidence or repair-cycle input that caused it.
 
 ## After this step
 
@@ -227,5 +237,7 @@ Continue to `../opencode-team-bootstrap/SKILL.md` as directed by scaffold-kickof
 ## References
 
 - `references/local-skill-catalog.md` for the baseline skill list
+- `../../references/skill-evolution-policy.md` for the package-versus-repo skill boundary
+- `../../references/external-source-evaluation-rubric.md` for external-source distillation rules
 - `assets/templates/SKILL.template.md` for the skill file template
 - `references/blender-mcp-workflow-reference.md` when a repo needs synthesized Blender-MCP asset guidance

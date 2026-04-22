@@ -8,3 +8,5 @@ Use the layers this way:
 - `mcp` in `opencode.jsonc` for external services and richer integrations
 
 Do not use slash commands as the internal autonomous workflow.
+Do not add a new command, plugin, or MCP surface when a sharper repo-local skill or prompt contract would solve the ambiguity more cleanly.
+Do not use tool or plugin additions to smuggle external skill packs into generated repos.
