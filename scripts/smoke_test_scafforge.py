@@ -4878,6 +4878,13 @@ def main() -> int:
             raise RuntimeError(
                 "Generated ticket-execution skill should keep split parents foregrounded until parent setup is complete"
             )
+        if (
+            "if an external orchestration service groups ticket work into a downstream phase, end that phase with an explicit PR or reviewable diff"
+            not in generated_ticket_execution
+        ):
+            raise RuntimeError(
+                "Generated ticket-execution skill should make PR boundaries explicit for orchestration-owned phases"
+            )
         generated_workflow_doc = (
             full_dest / "docs" / "process" / "workflow.md"
         ).read_text(encoding="utf-8")
@@ -4888,6 +4895,23 @@ def main() -> int:
             raise RuntimeError(
                 "Generated workflow docs should document the parent-first split routing rule"
             )
+        if (
+            "keep orchestration-owned phase grouping, PR tracking, and review routing outside `tickets/manifest.json` and `.opencode/state/workflow-state.json`"
+            not in generated_workflow_doc
+        ):
+            raise RuntimeError(
+                "Generated workflow docs should keep orchestration-owned PR phase state outside canonical repo truth"
+            )
+        generated_start_here = (full_dest / "START-HERE.md").read_text(encoding="utf-8")
+        for expected in (
+            "orchestration_must_not_write: tickets/manifest.json, .opencode/state/workflow-state.json",
+            "phase_boundary: every autonomous phase ends in a PR or reviewable diff",
+            "package_defect_wait_state: external orchestration only; keep outside canonical repo state",
+        ):
+            if expected not in generated_start_here:
+                raise RuntimeError(
+                    f"Generated START-HERE should publish orchestration boundary and resume semantics: {expected}"
+                )
         generated_ticket_creator = next(
             (full_dest / ".opencode" / "agents").glob("*ticket-creator*.md")
         ).read_text(encoding="utf-8")

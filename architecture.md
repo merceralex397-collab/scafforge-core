@@ -147,6 +147,16 @@ Scafforge owns the downstream contract:
 
 ChatGPT or MCP ingress is therefore transport and review only, not a hidden authority layer.
 
+### Adjacent orchestration boundary
+
+The adjacent orchestration service is the wrapper that sits between approved briefs, Scafforge generation, downstream PR phases, and pause or resume controls.
+
+- It may invoke `scaffold-kickoff` once an approved-brief bundle is persisted and addressable.
+- It owns job envelopes, idempotency or retry tokens, PR automation, reviewer assignment, and operator permission modes.
+- It may read `docs/spec/CANONICAL-BRIEF.md`, `tickets/manifest.json`, `.opencode/state/workflow-state.json`, `START-HERE.md`, and `.opencode/meta/bootstrap-provenance.json`.
+- It must stay read-only over generated canonical repo truth. Phase grouping, PR state, and `package-change-pending` remain orchestration-owned overlay state.
+- It treats `scaffold-verified` as VERIFY009 persistence confirmation plus zero blocking VERIFY010 and VERIFY011 findings before downstream PR work begins.
+
 ### Stage-Gate Enforcer (Plugin)
 
 The most critical component in generated repos. It intercepts **every tool call** and enforces:

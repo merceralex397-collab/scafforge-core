@@ -21,6 +21,8 @@ Important workflow tools:
 - `skill_ping` records explicit local or global skill use in `.opencode/state/invocation-log.jsonl`
 - `ticket_create` creates guarded follow-up tickets from current registered evidence during process verification, post-completion defect intake, open-parent split decomposition, or other approved remediation follow-up paths; `split_scope` keeps the parent open and linked instead of marking it blocked
 - `ticket_reconcile` repairs stale or contradictory source/follow-up linkage from current evidence and writes a reconciliation artifact instead of requiring manual manifest surgery; `source_ticket_id` / `replacement_source_ticket_id` name the authoritative owner, and `target_ticket_id` names the stale follow-up ticket being rewritten or superseded; set `supersede_target: true` when the stale ticket should close as superseded rather than remain open with relinked lineage
+- an external orchestration service may read `docs/spec/CANONICAL-BRIEF.md`, `tickets/manifest.json`, `.opencode/state/workflow-state.json`, `START-HERE.md`, and `.opencode/meta/bootstrap-provenance.json` to schedule PR-based phases
+- it must not rewrite canonical repo truth directly; phase grouping, PR numbers, reviewer assignment, and merge-policy state stay outside the repo unless a dedicated adjacent contract owns them
 
 Tracking surfaces:
 
@@ -36,6 +38,7 @@ Tracking surfaces:
 - `.opencode/state/workflow-state.json` also records the active process version and whether post-migration verification is still pending
 - `.opencode/meta/repair-execution.json` is an audit trail only; restart routing must prefer `.opencode/state/workflow-state.json`
 - the team leader owns `ticket_claim` and `ticket_release`; specialists write only under the active ticket lease instead of claiming their own lane
+- `stage-gate-enforcer`, registered lifecycle artifacts, deterministic smoke evidence, and repo-family completion proof are the repo-owned merge-gate inputs for any external PR workflow
 
 Review and diagnosis support:
 

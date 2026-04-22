@@ -97,6 +97,13 @@ For each piece of work, create a ticket with these fields:
 - Default to `parallel_safe: false` when the ownership boundary is unclear
 - Keep lane names aligned with real write ownership so lease-based execution has a credible boundary
 
+### External phase grouping
+
+- Keep `tickets/manifest.json` canonical at ticket granularity even when an adjacent orchestration service later batches several tickets into one downstream phase.
+- Keep orchestration-owned phase grouping, PR numbers, reviewer assignment, and merge-policy state out of `tickets/manifest.json` and `.opencode/state/workflow-state.json`.
+- Do not create fake merge, PR, or review tickets just to mirror GitHub workflow. Those are orchestration overlays, not repo-local queue truth.
+- Make ticket IDs and acceptance criteria specific enough that a downstream PR can always point back to the exact owning ticket set and proof requirements.
+
 ### Mandatory Wave 0 bootstrap ticket
 
 Wave 0 must always include one bootstrap/setup ticket that covers:
@@ -376,6 +383,7 @@ Continue to `../handoff-brief/SKILL.md` as directed by scaffold-kickoff.
 - Keep historical completion separate from current trust: `status` stays queue-oriented, while `resolution_state` and `verification_state` represent historical closure and present trust
 - Treat post-audit and post-repair ticket creation as a first-class workflow path, not an ad hoc backlog note
 - Keep ticket docs, workflow docs, and ticket tools aligned on the same lifecycle semantics before handoff
+- Do not store orchestration-owned phase or PR metadata in the manifest or workflow-state
 
 ## References
 

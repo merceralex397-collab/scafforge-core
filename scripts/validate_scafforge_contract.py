@@ -615,6 +615,7 @@ def validate_core_docs(findings: list[Finding]) -> None:
     stack_adapter_contract = ROOT / "references" / "stack-adapter-contract.md"
     spec_factory_handoff = ROOT / "references" / "spec-factory-handoff-contract.md"
     spec_factory_ingress = ROOT / "references" / "spec-factory-intake-and-approval.md"
+    orchestration_wrapper = ROOT / "references" / "orchestration-wrapper-contract.md"
     require_paths(
         findings,
         [
@@ -627,6 +628,7 @@ def validate_core_docs(findings: list[Finding]) -> None:
             stack_adapter_contract,
             spec_factory_handoff,
             spec_factory_ingress,
+            orchestration_wrapper,
         ],
     )
 
@@ -708,6 +710,14 @@ def validate_core_docs(findings: list[Finding]) -> None:
     )
     require_contains(
         findings,
+        orchestration_wrapper,
+        "The orchestration service is read-only with respect to generated `tickets/manifest.json` and `.opencode/state/workflow-state.json`.",
+    )
+    require_contains(findings, orchestration_wrapper, "`scaffold-verified` means VERIFY009 persistence confirmation plus zero blocking VERIFY010 and VERIFY011 findings.")
+    require_contains(findings, orchestration_wrapper, "`package-change-pending`")
+    require_contains(findings, orchestration_wrapper, "`resume-ready`")
+    require_contains(
+        findings,
         spec_factory_ingress,
         "MCP is the transport and artifact-exposure layer",
     )
@@ -726,6 +736,7 @@ def validate_core_docs(findings: list[Finding]) -> None:
 
     require_contains(findings, one_shot, "one public generation entrypoint")
     require_contains(findings, one_shot, "`scaffold-kickoff`")
+    require_contains(findings, one_shot, "## External orchestration wrapper")
     require_contains(findings, one_shot, "one batched blocking-decision round")
     require_contains(
         findings, one_shot, "one uninterrupted same-session generation pass"
@@ -753,6 +764,8 @@ def validate_core_docs(findings: list[Finding]) -> None:
     )
     require_contains(findings, stack_adapter_contract, "validation-proof-matrix.json")
     require_contains(findings, stack_adapter_contract, "Repo-family proof layers on top of that baseline")
+    require_contains(findings, architecture, "### Adjacent orchestration boundary")
+    require_contains(findings, architecture, "It must stay read-only over generated canonical repo truth.")
 
 
 def validate_completion_proof_matrix(findings: list[Finding]) -> None:

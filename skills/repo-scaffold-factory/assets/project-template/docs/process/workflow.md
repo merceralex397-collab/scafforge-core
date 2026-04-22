@@ -35,6 +35,16 @@ Rules:
 - do not substitute raw shell package-manager commands for `environment_bootstrap` when bootstrap is missing, stale, or failed
 - treat coordinator-authored planning, implementation, review, or QA artifacts as suspect evidence that must be remediated instead of accepted as canonical progression
 
+## External orchestration wrapper
+
+- an adjacent orchestration service may group one or more ready tickets into a downstream phase, but that phase metadata lives outside this repo
+- keep orchestration-owned phase grouping, PR tracking, and review routing outside `tickets/manifest.json` and `.opencode/state/workflow-state.json`
+- every autonomous phase must end in an explicit PR or reviewable diff; do not merge phase work straight to main from hidden agent state
+- treat registered lifecycle artifacts, deterministic smoke evidence, completion-proof status, and repo-local validation outputs as the merge-gate inputs for that PR
+- review rejection routes back to `implementation` or into audit based on current evidence; it does not authorize hand-edited queue state
+- repo-local repair resumes when audit or repair revalidation is current and restart surfaces publish one legal next move again
+- package-defect waiting states belong to the external orchestration service; do not encode `package-change-pending` inside canonical repo workflow state
+
 ## Bounded parallel work
 
 - keep each individual ticket sequential through its own stage order

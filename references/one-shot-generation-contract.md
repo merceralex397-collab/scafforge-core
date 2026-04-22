@@ -50,6 +50,15 @@ The proof layers inside that sequence are part of the same one-shot pass:
 
 The same final-state publish gate applies to greenfield, repair, and pivot publication. Restart surfaces may only be published from the verified final snapshot; repair-side restart rendering is not an alternate authority.
 
+## External orchestration wrapper
+
+- An adjacent orchestration service may invoke `scaffold-kickoff` only after the approved-brief handoff bundle is persisted and addressable.
+- The wrapper owns the job envelope, idempotency keys, retry tokens, phase grouping, PR automation, and pause or resume controls.
+- The wrapper stays read-only with respect to `tickets/manifest.json`, `.opencode/state/workflow-state.json`, and restart publication. It may read those surfaces plus `docs/spec/CANONICAL-BRIEF.md`, `START-HERE.md`, and `.opencode/meta/bootstrap-provenance.json`.
+- `scaffold-verified` means the one-shot pass cleared VERIFY009 bootstrap persistence and has zero blocking VERIFY010 and VERIFY011 findings.
+- No downstream phase, branch, or PR work may begin until `scaffold-verified` is true and `handoff-brief` has published restart surfaces from the verified final snapshot.
+- Downstream PR-based phase work happens after the generation cycle. It must not be modeled as a second Scafforge generation pass or by mutating package-owned truth directly.
+
 ## Verification scope
 
 - VERIFY009 proves bootstrap blocker state is persisted canonically and that bootstrap cannot be considered ready while unresolved prerequisites remain.
@@ -71,5 +80,7 @@ The same final-state publish gate applies to greenfield, repair, and pivot publi
 - Audit and repair are outside the initial generation cycle.
 - Pivot is outside the initial generation cycle.
 - Audit and repair are outside the generation cycle.
+- Repo-local repair resumes only after audit, repair, revalidation, and restart publication converge again on the verified final snapshot.
+- Package-defect waits remain outside the repo until updated Scafforge package work lands and one fresh downstream revalidation clears the package-first blocker.
 - If repeated diagnosis packs report the same repair-routed findings and no newer package or process-version change exists, stop the subject-repo audit loop and fix Scafforge first.
 - Managed repair may still leave `pending_process_verification` or source follow-up work behind; restart surfaces must report that truthfully instead of claiming immediate development readiness by default.

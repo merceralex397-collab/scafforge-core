@@ -82,6 +82,15 @@ The one-shot path now also includes environment detection before specialization 
 - managed repair or update
 - diagnosis or review of an in-progress repo
 
+## Adjacent orchestration wrapper
+
+An adjacent orchestration service may trigger `scaffold-kickoff` from a persisted approved brief and then schedule downstream ticket bundles as PR-based phases.
+
+- It owns job envelopes, idempotency or retry tokens, PR automation, and pause or resume controls.
+- It stays read-only with respect to generated `tickets/manifest.json` and `.opencode/state/workflow-state.json`; phase grouping, PR numbers, reviewer assignment, and package-change wait states remain orchestration-owned overlay state.
+- `scaffold-verified` means the one-shot generation pass cleared VERIFY009 and has zero blocking VERIFY010 or VERIFY011 findings before downstream PR work begins.
+- Repo-local repair resumes only after audit or repair revalidation plus refreshed restart publication. Package-defect waits stay outside the repo until updated Scafforge package work lands and a fresh downstream revalidation clears the blocker.
+
 ## What the agent does
 
 The package splits work between deterministic scripts and host reasoning:

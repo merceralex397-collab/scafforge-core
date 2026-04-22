@@ -16,9 +16,13 @@
 
 ## Generation Status
 
+## External Orchestration Boundary
+
 ## Pre-Handoff Proof
 
 ## Post-Generation Audit Status
+
+## Resume Semantics
 
 ## Known Risks
 

@@ -38,6 +38,9 @@ Core rules:
 - if execution or validation cannot run, return a blocker or open risk; do not convert expected results into PASS evidence
 - do not claim that a command ran unless its output is present in the canonical artifact
 - slash commands are human entrypoints, not internal autonomous workflow tools
+- if an external orchestration service groups ticket work into a downstream phase, end that phase with an explicit PR or reviewable diff instead of treating ticket progression as an implicit merge permission
+- phase grouping, PR numbers, reviewer assignment, and merge policy are orchestration-owned overlay state, not fields in `tickets/manifest.json` or `.opencode/state/workflow-state.json`
+- if review rejection, stage-gate evidence, or restart guidance suggests managed workflow drift instead of ordinary source defects, request `scafforge-audit` rather than looping blind retries
 
 Transition contract:
 
@@ -79,6 +82,7 @@ Failure recovery paths:
 - Smoke-test FAIL with `failure_classification: missing_executable` or host-surface `runtime_setup`: run `environment_bootstrap` and treat the failure as an environment blocker first
 - Smoke-test FAIL with `failure_classification: syntax_error` or `configuration_error`: treat the smoke tool surface as the blocker; do not route that failure straight to implementation
 - Smoke-test DEFERRED (`passed: null, deferred: true`): the smoke test is explicitly waiting on other tickets. Continue working on other ready tickets in parallel. Re-run `smoke_test` for this ticket after all `deferred_until` tickets close. Do not treat this as an error or block all other work.
+- repeated downstream review rejection caused by workflow contradiction, missing legal-next-move guidance, or repo/package boundary confusion: stop phase retry churn and request `scafforge-audit`
 
 Remediation ticket closeout:
 
@@ -108,6 +112,7 @@ Process-change rules:
 - if `pending_process_verification` is `true` and `ticket_lookup.process_verification.clearable_now` is not `true`, verify affected done tickets before trusting their completion
 - if `repair_follow_on.outcome` is `managed_blocked`, stop ordinary lifecycle routing and surface the canonical blocker before continuing ticket work
 - `repair_follow_on.outcome == source_follow_up` does not by itself block the active open ticket from continuing
+- after repo-local repair, resume ordinary lifecycle work only after current revalidation and refreshed restart surfaces expose one legal next move again
 - migration follow-up tickets must come from backlog-verifier proof through `ticket_create`, not raw manifest edits
 - use `ticket_create(source_mode=split_scope)` when an open or reopened parent ticket needs planned child decomposition
 - if a split parent still lacks its own planning artifact or recorded plan approval, keep the parent foregrounded until that setup is complete before activating a parallel child lane
@@ -115,6 +120,7 @@ Process-change rules:
 - when `ticket_reconcile` is superseding or relinking an open `split_scope` child from the currently claimed parent ticket, the parent lease is the authoritative write lease; do not try to claim both tickets in sequential mode
 - previously completed tickets are not fully trusted again until backlog verification says so
 - when post-completion defect intake invalidates the ticket's accepted contract, the team leader must refresh or re-affirm the stale canonical acceptance criteria and/or summary through `ticket_update(acceptance=[...], summary="...")` before review, QA, smoke-test, closeout, or handoff can be treated as truthful
+- package-defect wait states such as `package-change-pending` belong to external orchestration, not to canonical repo workflow state
 
 Bootstrap gate:
 

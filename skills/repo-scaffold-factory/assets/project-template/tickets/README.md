@@ -23,3 +23,4 @@ Rules:
 - create migration, remediation, or reverification follow-up tickets through the guarded `ticket_create` tool instead of raw manifest edits
 - treat post-audit and post-repair follow-up as a first-class ticket flow when current evidence identifies concrete next work
 - use `ticket_lookup.transition_guidance` before changing a ticket stage
+- keep external orchestration phase grouping, PR numbers, and reviewer assignment outside the ticket system; this repo stays canonical at ticket granularity

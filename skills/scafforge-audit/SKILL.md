@@ -121,6 +121,7 @@ For each finding, identify:
   - lifecycle thrash or bypass-seeking -> prompts, `ticket_lookup`, `ticket-execution`, and stage gates
   - smoke-test defects -> ticket acceptance scope, `smoke_test`, and team-leader guidance together
   - closeout contradictions -> `handoff_publish`, restart surfaces, and lease rules together
+  - downstream PR or review gate confusion -> the adjacent orchestration wrapper contract, generated workflow docs, and repo-owned stage-gate evidence together
 
 ### 4. Validate review findings when present
 
@@ -176,6 +177,7 @@ This skill is non-mutating.
 
 - If no repair is needed, record a clean diagnosis result
 - If the diagnosis identifies a Scafforge package defect or prevention gap, stop after writing the diagnosis pack
+- When an adjacent orchestration wrapper is in play, package-owned findings move the job into `package-change-pending` outside the repo, while safe repo-local repair findings move it into `repo-repair-pending`
 - Tell the user to manually copy the diagnosis pack from the subject repo into the Scafforge dev repo
 - Apply Scafforge package changes in the Scafforge dev repo before recommending repair
 - Return to the subject repo and run exactly one fresh `post_package_revalidation` audit against the updated package before recommending repair

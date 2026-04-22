@@ -43,6 +43,8 @@ Use the template in `assets/templates/START-HERE.template.md` as a starting stru
 
 **Generation Status** — the current generation state and whether the repo is ready for the first development handoff
 
+**External Orchestration Boundary** — the canonical files an adjacent orchestration service may read, the repo truth it must not write directly, and the PR boundary for downstream autonomous phases
+
 **Pre-Handoff Proof** — the current-cycle proof status that justifies the handoff narrative, including whether the proof passed, failed, or is still missing
 
 **Bootstrap Note** — machine-specific bootstrap warning (always include this):
@@ -50,6 +52,8 @@ Use the template in `assets/templates/START-HERE.template.md` as a starting stru
 > ⚠️ **Bootstrap is machine-specific.** Bootstrap was last verified on a specific host. If you are on a DIFFERENT machine or a fresh git clone, run `environment_bootstrap` FIRST before picking up any ticket. Tools will throw `"Bootstrap stale. Run environment_bootstrap."` if this is needed — that is the correct signal, not an error.
 
 **Post-Generation Audit Status** — optional later audit or repair state, if any exists
+
+**Resume Semantics** — the current resume status, the repo-local trigger when repair follow-up exists, and the reminder that package-defect wait states stay outside canonical repo state
 
 **Known Risks** — actual risks and open questions from the canonical brief
 
@@ -67,6 +71,7 @@ Verify the handoff:
 - If current-cycle handoff proof is failed or missing, START-HERE does not claim the repo is ready for continued development
 - if `.opencode/meta/pivot-state.json` exists, the handoff surfaces reflect the current pivot state truthfully
 - The handoff is a truthful restart surface bounded by current evidence, even when later audit, repair, or backlog reverification is still pending
+- external orchestration guidance stays read-only over canonical repo truth and does not hide package-defect wait states inside repo workflow state
 
 ## Output contract
 

@@ -32,6 +32,7 @@ Read `../spec-pack-normalizer/SKILL.md` and follow its procedure.
 If the starting input is an already-approved spec-factory bundle, it is only eligible when the persisted bundle includes the approved brief, approval metadata, decision residue, attachment index, and provenance. `scaffold-kickoff` still routes through `spec-pack-normalizer` for validator-alignment before generation continues.
 
 Do not let the spec factory itself become the generation trigger. The runtime invocation that hands an approved bundle to `scaffold-kickoff` belongs to the later orchestration layer, not to the intake factory.
+That adjacent orchestration layer owns job envelopes, PR automation, and pause or resume state, but it must not bypass the package-owned greenfield sequence or mutate generated canonical repo truth directly.
 
 Scan the workspace for project inputs:
 - look for `*.md` files, `docs/`, `specs/`, `plans/`, `requirements/`, `notes/`, `design/` directories
@@ -151,9 +152,11 @@ Confirm that they agree on:
 - stack-specific execution audit produced zero `VERIFY010` critical execution failures
 - reference-integrity audit produced zero `VERIFY011` broken canonical references
 - commands as human entrypoints only, with autonomous work staying inside agents, tools, plugins, and local skills
+- external orchestration remains read-only over `tickets/manifest.json` and `.opencode/state/workflow-state.json`, using PR-based phases only after this gate clears
 
 If these surfaces disagree, fix the contract before handing off the repo.
 If continuation verification fails with `is_user_action: true`, surface the blocker to the user instead of continuing. If the verifier returns `is_user_action: false`, fix the generated repo and rerun verification before handoff.
+This gate is the only package-owned basis for an adjacent orchestration service to call the repo `scaffold-verified`. Do not let downstream phase, branch, or PR work start from a successful render alone.
 
 ### Step 10: Write the handoff surface
 
@@ -206,6 +209,7 @@ When the task is a midstream feature, design, architecture, or workflow change:
 - a diagnosis pack when the run type is diagnosis/review
 - a handoff surface that another machine or session can resume from
 - a same-session immediate-continuation verification gate showing docs, tools, prompts, and local workflow skills agree on the first legal move
+- a discrete package-owned scaffold handoff that an adjacent orchestration service can wrap without treating downstream PR execution as a second Scafforge generation pass
 
 ## Output contract
 
@@ -232,6 +236,7 @@ Before `scaffold-kickoff` is considered complete, the run must leave all of thes
 - Do not leave the initial generation pass before `handoff-brief` completes.
 - Do not route the initial greenfield generation pass into `scafforge-audit` or `scafforge-repair`.
 - Do not reintroduce a standalone package-level refinement route.
+- Do not let adjacent orchestration phase or PR state leak into generated canonical repo truth during the kickoff pass.
 
 ## Review and QA
 

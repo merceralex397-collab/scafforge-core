@@ -29,6 +29,7 @@ Prefer to enter this skill with:
 
 If those inputs do not exist, run or request an audit first unless the requested repair is trivially local and already evidenced.
 If the diagnosis pack lives in a generated repo and package work is required, the user should manually copy that pack into the Scafforge dev repo first, complete the package changes there, then return to the subject repo for repair.
+When an adjacent orchestration wrapper is in play, treat `resume-ready` as an external state that only becomes legal after current repair revalidation and refreshed restart publication converge on one legal next move again.
 
 ## Procedure
 
@@ -218,6 +219,7 @@ Every repair pass must leave explicit state.
 - update `.opencode/state/workflow-state.json`
 - record what changed and why
 - include the file-level diff summary, addressed audit codes, verification results, and any remediation ticket ids in repair provenance
+- package-defect waiting states remain orchestration-owned overlay state outside the repo; repair does not write `package-change-pending` into canonical repo workflow state
 - if the process layer materially changed, set `pending_process_verification: true`
 - regenerate the derived restart surfaces and record why they were regenerated
 - do not let repair alone publish a "ready for continued development" restart narrative before audit verification reruns

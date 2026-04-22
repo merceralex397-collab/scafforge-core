@@ -529,6 +529,7 @@ def verify_greenfield_continuation(root: Path) -> list[Finding]:
             "`smoke_test` runs deterministic smoke-test commands, writes the canonical smoke-test artifact itself",
             "`handoff_publish` refreshes the top-level handoff",
             "commands are human entrypoints only",
+            "it must not rewrite canonical repo truth directly",
         ),
     ):
         contract_alignment_missing.append(_normalize(tooling_doc_path, root))
@@ -538,9 +539,18 @@ def verify_greenfield_continuation(root: Path) -> list[Finding]:
             "keep ticket `status` coarse",
             "keep ticket `stage` lifecycle-oriented",
             "use `ticket_lookup.transition_guidance` before changing a ticket stage",
+            "keep external orchestration phase grouping, PR numbers, and reviewer assignment outside the ticket system",
         ),
     ):
         contract_alignment_missing.append(_normalize(tickets_readme_path, root))
+    if not _contains_all(
+        workflow_doc,
+        (
+            "keep orchestration-owned phase grouping, PR tracking, and review routing outside `tickets/manifest.json` and `.opencode/state/workflow-state.json`",
+            "every autonomous phase must end in an explicit PR or reviewable diff",
+        ),
+    ):
+        contract_alignment_missing.append(_normalize(workflow_doc_path, root))
     if not _contains_all(
         ticket_update,
         (
@@ -559,6 +569,33 @@ def verify_greenfield_continuation(root: Path) -> list[Finding]:
         ),
     ):
         contract_alignment_missing.append(_normalize(smoke_test_path, root))
+    if not _contains_all(
+        ticket_execution,
+        (
+            "if an external orchestration service groups ticket work into a downstream phase, end that phase with an explicit PR or reviewable diff",
+            "phase grouping, PR numbers, reviewer assignment, and merge policy are orchestration-owned overlay state",
+            "package-defect wait states such as `package-change-pending` belong to external orchestration",
+        ),
+    ):
+        contract_alignment_missing.append(_normalize(ticket_execution_path, root))
+    if not _contains_all(
+        start_here,
+        (
+            "orchestration_must_not_write: tickets/manifest.json, .opencode/state/workflow-state.json",
+            "phase_boundary: every autonomous phase ends in a PR or reviewable diff",
+            "package_defect_wait_state: external orchestration only; keep outside canonical repo state",
+        ),
+    ):
+        contract_alignment_missing.append(_normalize(start_here_path, root))
+    if not _contains_all(
+        latest_handoff,
+        (
+            "orchestration_must_not_write: tickets/manifest.json, .opencode/state/workflow-state.json",
+            "phase_boundary: every autonomous phase ends in a PR or reviewable diff",
+            "package_defect_wait_state: external orchestration only; keep outside canonical repo state",
+        ),
+    ):
+        contract_alignment_missing.append(_normalize(latest_handoff_path, root))
     if "const handoffBlocker = await validateHandoffNextAction" not in handoff_publish or "await refreshRestartSurfaces" not in handoff_publish:
         contract_alignment_missing.append(_normalize(handoff_publish_path, root))
     elif handoff_publish.find("const handoffBlocker = await validateHandoffNextAction") >= handoff_publish.find("await refreshRestartSurfaces"):
@@ -571,7 +608,7 @@ def verify_greenfield_continuation(root: Path) -> list[Finding]:
                 problem="The generated repo does not keep its workflow docs and executable tool surfaces aligned on continuation-critical lifecycle behavior.",
                 root_cause="Immediate continuation becomes brittle when the proof-first gate ignores documented workflow surfaces or those surfaces drift from the executable contract.",
                 files=contract_alignment_missing,
-                safer_pattern="Keep tooling docs, ticket guidance docs, ticket_update, smoke_test, and handoff_publish aligned on lifecycle gating, canonical smoke ownership, transition guidance, and truthful handoff publication before greenfield handoff.",
+                safer_pattern="Keep restart surfaces, tooling docs, ticket guidance docs, ticket_update, smoke_test, and handoff_publish aligned on lifecycle gating, canonical smoke ownership, external-orchestration boundaries, transition guidance, and truthful handoff publication before greenfield handoff.",
                 evidence=[f"missing or drifted contract surfaces: {', '.join(contract_alignment_missing)}"],
             )
         )

@@ -64,6 +64,8 @@ Examples:
 
 These systems may consume Scafforge contracts, but they must not smuggle their runtime state or authority into the package root.
 
+An adjacent orchestration service may trigger `scaffold-kickoff` from a persisted approved-brief bundle, schedule downstream PR phases, and own pause, retry, and resume controls. It must stay read-only with respect to generated `tickets/manifest.json` and `.opencode/state/workflow-state.json`, and it must derive wrapper state from package and GitHub evidence instead of inventing repo truth in the UI.
+
 ## Package Working Mode
 
 Scafforge package work is not driven by the generated repo workflow-state manager.
@@ -89,6 +91,7 @@ The package-wide authority map is documented in [references/authority-adr.md](re
 
 - `scafforge-audit` owns diagnosis disposition.
 - The generated runtime workflow layer owns canonical repo mutation.
+- An adjacent orchestration service owns job progression, PR automation, idempotency or retry state, and pause or resume controls while staying read-only over generated canonical repo truth.
 - `scafforge-pivot` owns pivot-state persistence.
 - `handoff-brief` owns restart publication from the verified final snapshot.
 - `agent-prompt-engineering` owns contract alignment for prompts, workflow docs, and generated behavior.
@@ -249,9 +252,11 @@ These refinements govern the package contract and implementation priorities:
 - the greenfield path is one-shot: one batched blocking-decision round, one uninterrupted same-session generation pass, then direct handoff into development
 - the greenfield handoff must be immediately continuable: one legal next move, one named owner, no bootstrap-first ambiguity, and zero unresolved stack-specific execution or canonical-reference failures
 - approved factory briefs are valid upstream inputs only when their handoff bundle is persisted; `spec-pack-normalizer` still owns package-side validation and canonical brief alignment
+- an adjacent orchestration service may invoke `scaffold-kickoff` from a persisted approved brief, but `scaffold-verified` still means VERIFY009 plus zero blocking VERIFY010 and VERIFY011 before downstream PR phases begin
 - what "done" means per repo family must be explicit, machine-readable, and tied to proof artifacts instead of agent self-report
 - the generated repo must have a structured truth hierarchy with exact canonical owners for facts, queue state, transient workflow state, artifacts, provenance, and restart surfaces
 - the generated repo must always expose one legal next move with one named owner and one blocker return path
+- orchestration-owned phase grouping, PR numbers, reviewer assignment, and package-change wait states must stay outside generated canonical repo state
 - the initial backlog should be implementation-ready where decisions are resolved, while unresolved major choices become explicit blocked or decision tickets instead of fabricated detail
 - `scafforge-audit` owns read-only diagnosis, review validation, and full diagnosis-pack generation on every audit run
 - `scafforge-audit` should emit code-quality findings for stack-specific execution and canonical reference-integrity failures, not only workflow-surface drift
@@ -274,6 +279,7 @@ The generated repo should converge on these canonical roles:
 - `.opencode/state/artifacts/` plus manifest-backed registration own stage proof
 - `.opencode/meta/bootstrap-provenance.json` owns provenance for scaffold, later synthesis, and repairs
 - `START-HERE.md` is the derived restart surface
+- adjacent orchestration may read those surfaces, but it does not own or rewrite them
 
 Derived restart surfaces must agree with canonical manifest and workflow state. They do not outrank them.
 

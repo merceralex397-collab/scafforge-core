@@ -39,6 +39,7 @@ The repo is operating under the managed OpenCode workflow. Use the canonical sta
 ## Generation Status
 
 - handoff_status: bootstrap recovery required
+- scaffold_verified: false
 - process_version: 7
 - parallel_mode: sequential
 - pending_process_verification: false
@@ -56,6 +57,13 @@ The repo is operating under the managed OpenCode workflow. Use the canonical sta
 - completion_proof_status: cli-script=inactive [static-contract:not_required, build-or-bootstrap:not_required, command-runtime:not_required, visual-review:not_required]
 - process_changed_at: Not yet recorded.
 
+## External Orchestration Boundary
+
+- orchestration_may_read: docs/spec/CANONICAL-BRIEF.md, tickets/manifest.json, .opencode/state/workflow-state.json, START-HERE.md, .opencode/meta/bootstrap-provenance.json
+- orchestration_must_not_write: tickets/manifest.json, .opencode/state/workflow-state.json
+- phase_boundary: every autonomous phase ends in a PR or reviewable diff
+- merge_gate_inputs: stage-gate evidence, registered artifacts, reviewer decision, and stack-specific validation outputs
+
 ## Post-Generation Audit Status
 
 - audit_or_repair_follow_up: none recorded
@@ -63,6 +71,13 @@ The repo is operating under the managed OpenCode workflow. Use the canonical sta
 - done_but_not_fully_trusted: none
 - pending_reverification: none
 - repair_follow_on_blockers: none
+
+## Resume Semantics
+
+- resume_status: blocked
+- repo_local_resume_path: none-active
+- package_defect_wait_state: external orchestration only; keep outside canonical repo state
+- resume_trigger: Do not begin downstream PR work until the one-shot scaffold clears VERIFY009 plus zero blocking VERIFY010 and VERIFY011 findings and publishes the verified restart surfaces.
 
 ## Known Risks
 
