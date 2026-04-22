@@ -608,11 +608,27 @@ def validate_flow_manifest(findings: list[Finding]) -> None:
 def validate_core_docs(findings: list[Finding]) -> None:
     readme = ROOT / "README.md"
     agents = ROOT / "AGENTS.md"
+    architecture = ROOT / "architecture.md"
     one_shot = ROOT / "references" / "one-shot-generation-contract.md"
     competence_contract = ROOT / "references" / "competence-contract.md"
     validation_matrix = ROOT / "references" / "validation-proof-matrix.json"
     stack_adapter_contract = ROOT / "references" / "stack-adapter-contract.md"
-    require_paths(findings, [readme, agents, one_shot, competence_contract, validation_matrix, stack_adapter_contract])
+    spec_factory_handoff = ROOT / "references" / "spec-factory-handoff-contract.md"
+    spec_factory_ingress = ROOT / "references" / "spec-factory-intake-and-approval.md"
+    require_paths(
+        findings,
+        [
+            readme,
+            agents,
+            architecture,
+            one_shot,
+            competence_contract,
+            validation_matrix,
+            stack_adapter_contract,
+            spec_factory_handoff,
+            spec_factory_ingress,
+        ],
+    )
 
     require_contains(findings, readme, "Scafforge is a strong-host skill bundle")
     require_contains(findings, readme, "Greenfield generation is one kickoff run.")
@@ -664,6 +680,42 @@ def validate_core_docs(findings: list[Finding]) -> None:
     require_contains(findings, agents, "scafforge-pivot")
     require_contains(findings, agents, "immediately continuable")
     require_contains(findings, agents, "what \"done\" means per repo family")
+    require_contains(findings, agents, "### Adjacent systems")
+    require_contains(
+        findings,
+        agents,
+        "approved factory briefs are valid upstream inputs only when their handoff bundle is persisted",
+    )
+
+    require_contains(findings, architecture, "Adjacent systems such as the spec factory")
+    require_contains(findings, architecture, "### Adjacent spec-factory boundary")
+    require_contains(
+        findings,
+        architecture,
+        "ChatGPT or MCP ingress is therefore transport and review only",
+    )
+
+    require_contains(
+        findings,
+        spec_factory_handoff,
+        "eligible for Scafforge intake only when all of these persisted artifacts exist",
+    )
+    require_contains(findings, spec_factory_handoff, "spec-pack-normalizer")
+    require_contains(
+        findings,
+        spec_factory_handoff,
+        "later orchestration layer from plan `07`",
+    )
+    require_contains(
+        findings,
+        spec_factory_ingress,
+        "MCP is the transport and artifact-exposure layer",
+    )
+    require_contains(
+        findings,
+        spec_factory_ingress,
+        "approved and addressable handoff bundle exists",
+    )
 
     require_contains(findings, competence_contract, "one legal next action")
     require_contains(
@@ -759,6 +811,9 @@ def validate_completion_proof_matrix(findings: list[Finding]) -> None:
 def validate_skill_contracts(findings: list[Finding]) -> None:
     scaffold_kickoff = ROOT / "skills" / "scaffold-kickoff" / "SKILL.md"
     spec_pack = ROOT / "skills" / "spec-pack-normalizer" / "SKILL.md"
+    brief_schema = (
+        ROOT / "skills" / "spec-pack-normalizer" / "references" / "brief-schema.md"
+    )
     repo_factory = ROOT / "skills" / "repo-scaffold-factory" / "SKILL.md"
     repo_factory_verify = (
         ROOT
@@ -803,6 +858,7 @@ def validate_skill_contracts(findings: list[Finding]) -> None:
         [
             scaffold_kickoff,
             spec_pack,
+            brief_schema,
             repo_factory,
             repo_factory_verify,
             project_skill,
@@ -841,6 +897,21 @@ def validate_skill_contracts(findings: list[Finding]) -> None:
         findings,
         scaffold_kickoff,
         "a first-development handoff that is valid without any later audit or repair pass",
+    )
+    require_contains(
+        findings,
+        scaffold_kickoff,
+        "If the starting input is an already-approved spec-factory bundle",
+    )
+    require_contains(
+        findings,
+        scaffold_kickoff,
+        "The runtime invocation that hands an approved bundle to `scaffold-kickoff` belongs to the later orchestration layer",
+    )
+    require_contains(
+        findings,
+        scaffold_kickoff,
+        "route that rejection back to the spec factory",
     )
     require_contains(
         findings,
@@ -913,6 +984,13 @@ def validate_skill_contracts(findings: list[Finding]) -> None:
         spec_pack,
         "The batched decision packet is a required generation artifact.",
     )
+    require_contains(findings, spec_pack, "## Approved factory brief mode")
+    require_contains(findings, spec_pack, "validator-alignment pass")
+    require_contains(
+        findings,
+        spec_pack,
+        "The approved bundle remains upstream factory truth.",
+    )
     require_contains(
         findings,
         spec_pack,
@@ -922,6 +1000,17 @@ def validate_skill_contracts(findings: list[Finding]) -> None:
         findings,
         spec_pack,
         "Do not let the greenfield path proceed with unresolved blocking decisions",
+    )
+    require_contains(findings, brief_schema, "## Approved factory handoff bundle")
+    require_contains(
+        findings,
+        brief_schema,
+        "approval metadata with approver identity and timestamp",
+    )
+    require_contains(
+        findings,
+        brief_schema,
+        "spec-pack-normalizer",
     )
 
     require_contains(

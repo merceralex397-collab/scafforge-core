@@ -29,12 +29,18 @@ Greenfield generation has no further user-selectable submodes. After the blockin
 
 Read `../spec-pack-normalizer/SKILL.md` and follow its procedure.
 
+If the starting input is an already-approved spec-factory bundle, it is only eligible when the persisted bundle includes the approved brief, approval metadata, decision residue, attachment index, and provenance. `scaffold-kickoff` still routes through `spec-pack-normalizer` for validator-alignment before generation continues.
+
+Do not let the spec factory itself become the generation trigger. The runtime invocation that hands an approved bundle to `scaffold-kickoff` belongs to the later orchestration layer, not to the intake factory.
+
 Scan the workspace for project inputs:
 - look for `*.md` files, `docs/`, `specs/`, `plans/`, `requirements/`, `notes/`, `design/` directories
 - look for pasted chats, informal notes, architecture docs, and API specs
 - read everything you find
 
 Produce a canonical brief at `docs/spec/CANONICAL-BRIEF.md` with the required schema.
+
+If `spec-pack-normalizer` rejects an approved factory bundle as malformed or incomplete, route that rejection back to the spec factory instead of mutating factory approval state inside Scafforge.
 
 For consumer-facing repos (mobile apps, games, distributed software products), the finish contract (section 13 of the brief schema) is a required intake artifact, not optional polish. If the source material does not resolve whether placeholder or procedural output is acceptable as final output, add that to the blocking decision packet before generation continues.
 

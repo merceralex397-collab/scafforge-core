@@ -80,3 +80,14 @@ For internal tools and services, this section may be intentionally minimal.
 - `content_source_plan` — where visuals, audio, and other creative content come from: custom authored, licensed pack, procedural-only, mixed, or intentionally none
 - `licensing_or_provenance_constraints` — any constraints on generated, licensed, or bundled assets
 - `finish_acceptance_signals` — the explicit signals that let audit and closeout know the finish bar was met
+
+## Approved factory handoff bundle
+
+When the source input is an approved adjacent spec-factory brief, the brief content still uses the 13 sections above. The persisted handoff bundle must also carry:
+
+- approval metadata with approver identity and timestamp
+- decision residue for unresolved or deferred non-blocking questions
+- attachment index and durable attachment references
+- provenance linking intake inputs, draft, approval, and approved brief artifacts
+
+In that mode, `spec-pack-normalizer` validates alignment against this schema and rejects malformed bundles cleanly; it does not become a second creative drafting stage.

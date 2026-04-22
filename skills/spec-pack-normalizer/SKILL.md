@@ -7,9 +7,24 @@ description: Normalize one or more source specs, notes, pasted chats, and Markdo
 
 Use this skill to convert messy project inputs into a deterministic brief.
 
+## Approved factory brief mode
+
+When the input is an already-approved spec-factory handoff bundle, treat this skill as a **validator-alignment pass**, not as a second creative normalizer.
+
+In that mode:
+
+1. Verify the persisted approved brief, approval metadata, decision residue, attachment index, and provenance bundle are all present.
+2. Validate that the approved brief still maps cleanly onto `references/brief-schema.md`.
+3. Reject malformed or incomplete bundles cleanly instead of silently repairing or re-drafting them.
+4. Preserve already-resolved blocking decisions. Do not regenerate a fresh blocking decision packet unless the approved brief is malformed or inconsistent.
+
+The approved bundle remains upstream factory truth. `spec-pack-normalizer` owns package-side validation and canonical-brief alignment only.
+
 ## Procedure
 
 ### 1. Scan the workspace for project inputs
+
+If this run starts from an approved factory bundle, the required input scan narrows to the persisted handoff artifacts named above rather than opportunistic repo-wide discovery.
 
 Search for spec-like files opportunistically. Look for:
 - `*.md` files in the root, `docs/`, `specs/`, `plans/`, `requirements/`, `notes/`, `design/`
@@ -115,6 +130,7 @@ Before leaving this skill, confirm all of these are true:
 ## Rules
 
 - Prefer opportunistic intake over rigid required input structure
+- For approved factory briefs, act as a validator-alignment pass rather than a second creative drafting pass
 - Do not invent implementation detail for work that depends on unresolved choices
 - Do not let the greenfield path proceed with unresolved blocking decisions
 - Keep the brief concise enough for weaker models to load

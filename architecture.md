@@ -6,10 +6,17 @@ Scafforge is a **meta-scaffold package** — it generates and maintains OpenCode
 
 The core design goal is **weak-model reliability**: making cheaper or weaker AI models work reliably through deterministic workflow contracts, narrow role boundaries, explicit truth ownership, and proof-backed restart guidance.
 
+Adjacent systems such as the spec factory, model router, orchestration service, and control plane stay outside the package core. They consume Scafforge contracts; they do not replace package authority.
+
 ## System Layers
 
 ```
 ┌─────────────────────────────────────────────┐
+│      ADJACENT SERVICES / WORKSPACES          │
+│  Spec factory, router, orchestration, UI     │
+│  Consume package contracts without owning    │
+│  Scafforge normalization or generation       │
+├─────────────────────────────────────────────┤
 │              HOST AGENT (Codex/Copilot)      │
 │  Invokes Scafforge skills via prompts        │
 ├─────────────────────────────────────────────┤
@@ -45,6 +52,8 @@ All skills live under `skills/`. The orchestration graph is defined in `skills/s
 | **managed-repair** | Fix workflow drift | repair → skill-bootstrap? → team-bootstrap? → agent-prompt? → ticket-builder? → handoff |
 | **pivot** | Midstream design change | pivot → skill-bootstrap? → team-bootstrap? → agent-prompt? → ticket-builder? → repair? → handoff |
 | **diagnosis-review** | Audit without edits | audit → handoff |
+
+Approved spec-factory briefs are upstream intake artifacts, not alternate package entrypoints. They still pass through `spec-pack-normalizer` for validator-alignment before the normal greenfield sequence continues.
 
 ### Skill Dependency Graph
 
@@ -119,6 +128,24 @@ What Scafforge creates for a target repository:
 ```
 
 ## Key Contracts
+
+### Adjacent spec-factory boundary
+
+The spec factory is an adjacent workspace or service that owns:
+
+- rough idea intake
+- attachments and reference indexing
+- drafting and decision packets
+- review workflow and persisted human approval
+- approved handoff bundle publication
+
+Scafforge owns the downstream contract:
+
+- `spec-pack-normalizer` validates an approved handoff bundle against the canonical brief contract
+- `scaffold-kickoff` remains the single package entrypoint for generation
+- the later orchestration layer, not the spec factory, decides when to invoke Scafforge
+
+ChatGPT or MCP ingress is therefore transport and review only, not a hidden authority layer.
 
 ### Stage-Gate Enforcer (Plugin)
 
