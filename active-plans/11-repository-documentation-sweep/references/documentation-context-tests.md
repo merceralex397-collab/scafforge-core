@@ -22,5 +22,4 @@ These tests verify that a newcomer or agent can answer the basic package-boundar
 
 ## Residual gaps
 
-- The package-level authority map lives under the plan `11` references path, so root docs must keep linking to it until a later documentation architecture change relocates that artifact deliberately.
 - `active-plans/WORK-JOURNAL.md` and `active-plans/codexinstructions.md` remain inventoried but intentionally non-canonical; this sweep records their classification rather than promoting them into the root routing layer.

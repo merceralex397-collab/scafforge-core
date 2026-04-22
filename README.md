@@ -2,7 +2,7 @@
 
 Scafforge is a strong-host skill bundle for coding agents. It turns raw project inputs into OpenCode-oriented repos with explicit truth ownership, deterministic workflow contracts, and one legal next move for the operator.
 
-Scafforge is not the generated project, not a generic skill warehouse, and not the adjacent services that may later wrap the package. Package-vs-output boundary rules live in [AGENTS.md](AGENTS.md), and the current repo-wide document map lives in [active-plans/11-repository-documentation-sweep/references/documentation-authority-map.md](active-plans/11-repository-documentation-sweep/references/documentation-authority-map.md).
+Scafforge is not the generated project, not a generic skill warehouse, and not the adjacent services that may later wrap the package. Package-vs-output boundary rules live in [AGENTS.md](AGENTS.md), and the current repo-wide document map lives in [references/documentation-authority-map.md](references/documentation-authority-map.md).
 
 ## What to read first
 

@@ -2,7 +2,7 @@
 
 This directory is the active Scafforge implementation program.
 
-The current documentation source-of-truth map for the package lives in [11-repository-documentation-sweep/references/documentation-authority-map.md](11-repository-documentation-sweep/references/documentation-authority-map.md), and its one-hop context proof lives in [11-repository-documentation-sweep/references/documentation-context-tests.md](11-repository-documentation-sweep/references/documentation-context-tests.md).
+The current documentation source-of-truth map for the package lives in [../references/documentation-authority-map.md](../references/documentation-authority-map.md), and its one-hop context proof lives in [11-repository-documentation-sweep/references/documentation-context-tests.md](11-repository-documentation-sweep/references/documentation-context-tests.md).
 
 `active-plans/` uses a two-layer model:
 

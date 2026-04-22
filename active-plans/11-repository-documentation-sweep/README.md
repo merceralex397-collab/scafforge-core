@@ -50,6 +50,7 @@ then the package becomes less reliable even when the code has not changed.
 ### Contract references
 
 - `references/authority-adr.md`
+- `references/documentation-authority-map.md`
 - `references/invariant-catalog.md`
 - `references/competence-contract.md`
 - `references/one-shot-generation-contract.md`

@@ -5,7 +5,7 @@ This guide is for humans operating Scafforge or a Scafforge-managed repo. Use it
 ## Lightweight context path
 
 1. Read `README.md`.
-2. Open [active-plans/11-repository-documentation-sweep/references/documentation-authority-map.md](active-plans/11-repository-documentation-sweep/references/documentation-authority-map.md).
+2. Open [references/documentation-authority-map.md](references/documentation-authority-map.md).
 3. Take one reference hop for the specific truth domain you need.
 
 The current context-test evidence for this path lives in [active-plans/11-repository-documentation-sweep/references/documentation-context-tests.md](active-plans/11-repository-documentation-sweep/references/documentation-context-tests.md).

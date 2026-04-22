@@ -612,6 +612,7 @@ def validate_core_docs(findings: list[Finding]) -> None:
     architecture = ROOT / "architecture.md"
     active_plans_readme = ROOT / "active-plans" / "README.md"
     docscleanup = ROOT / "active-plans" / "docscleanup.md"
+    documentation_authority_map = ROOT / "references" / "documentation-authority-map.md"
     sdk_layering_adr = ROOT / "references" / "sdk-layering-adr.md"
     provider_router_policy = ROOT / "references" / "provider-router-policy.md"
     one_shot = ROOT / "references" / "one-shot-generation-contract.md"
@@ -632,6 +633,7 @@ def validate_core_docs(findings: list[Finding]) -> None:
             architecture,
             active_plans_readme,
             docscleanup,
+            documentation_authority_map,
             sdk_layering_adr,
             provider_router_policy,
             one_shot,
@@ -683,8 +685,10 @@ def validate_core_docs(findings: list[Finding]) -> None:
     require_contains(findings, readme, "## Adjacent control plane")
     require_contains(findings, readme, "control-plane-client-contract.md")
     require_contains(findings, readme, "control-plane-operator-workflows.md")
+    require_contains(findings, readme, "references/documentation-authority-map.md")
     require_contains(findings, userguide, "one reference hop")
     require_contains(findings, userguide, "generated slash commands as human entrypoints")
+    require_contains(findings, userguide, "references/documentation-authority-map.md")
 
     require_contains(findings, agents, "## Product contract refinements")
     require_contains(findings, agents, "## Canonical generated-repo truth hierarchy")
@@ -713,8 +717,13 @@ def validate_core_docs(findings: list[Finding]) -> None:
         agents,
         "Every contract-changing PR must update the affected root docs, references, generated-template docs, and validator expectations in the same change set.",
     )
+    require_contains(findings, agents, "references/documentation-authority-map.md")
+    require_contains(findings, agents, "## What Not To Reintroduce")
+    require_contains(findings, agents, "## Host-side validation hygiene")
     require_contains(findings, active_plans_readme, "documentation impact checklist")
     require_contains(findings, docscleanup, "documentation impact checklist")
+    require_contains(findings, documentation_authority_map, "## Root package docs")
+    require_contains(findings, documentation_authority_map, "## Standing rule")
 
     require_contains(findings, architecture, "Adjacent systems such as the spec factory")
     require_contains(findings, architecture, "## SDK Layering")

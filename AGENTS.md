@@ -22,7 +22,7 @@ Use the package docs this way:
 - `USERGUIDE.md` for operator routing and lightweight context acquisition
 - `architecture.md` for the package structure and adjacent-system boundaries
 - `references/*.md` for durable contract detail
-- [active-plans/11-repository-documentation-sweep/references/documentation-authority-map.md](active-plans/11-repository-documentation-sweep/references/documentation-authority-map.md) for the current source-of-truth map across package, planning, and generated-template docs
+- [references/documentation-authority-map.md](references/documentation-authority-map.md) for the current source-of-truth map across package, planning, and generated-template docs
 
 Root docs should stay short and authoritative. Detailed rules belong in the references or the relevant skill docs.
 
@@ -298,6 +298,19 @@ Detailed skill behavior belongs in `skills/*/SKILL.md`. Package-wide reminders:
 - `scafforge-pivot` owns pivot-state persistence and bounded downstream refresh routing.
 - `handoff-brief` owns restart publication from the verified final snapshot.
 
+## What Not To Reintroduce
+
+Do not add back:
+
+- package-root generated-repo runtime state for planning convenience
+- personal home-directory sync logic as core package behavior
+- Codex self-improvement workflows as part of the core product
+- unrelated generic utility skills in the core pack
+- duplicate scaffold logic across multiple skills
+- hidden workflow state spread across too many files
+- unconditional public skill imports
+- a second package-side mutation engine that shadows runtime-owned ticket or restart logic
+
 ## Maintenance checklist
 
 When changing the package:
@@ -305,7 +318,21 @@ When changing the package:
 1. Verify the skill chain still makes sense end to end.
 2. Verify `scaffold-kickoff` still describes the real default workflow.
 3. Verify bootstrap-mode ticket generation still happens in the full-cycle path.
-4. Verify diagnosis, mutation, restart publication, and pivot-state ownership remain single-owner domains.
-5. Verify generated-template docs still match package truth in the touched areas.
-6. Verify root docs, references, validators, and touched template docs moved together in the same change set.
-7. Verify the package still meets the competence contract in `references/competence-contract.md`.
+4. Verify stack-adapter coverage, bootstrap guidance, and proof-host expectations still match `references/stack-adapter-contract.md`.
+5. Verify post-repair verification still uses stack-specific execution and reference-integrity checks where available.
+6. Verify audit still produces code-quality findings for non-Python stacks, not only workflow findings.
+7. Verify diagnosis, mutation, restart publication, and pivot-state ownership remain single-owner domains.
+8. Verify generated-template docs, generated template paths, and runtime/tool assumptions still match package truth in the touched areas.
+9. Verify host-side validation hygiene when package skill content changed and validation depends on host-installed skill copies.
+10. Verify root docs, references, validators, and touched template docs moved together in the same change set.
+11. Verify the package still meets the competence contract in `references/competence-contract.md`.
+
+## Host-side validation hygiene
+
+When package skill content changes and you plan to validate using host-installed skills, refresh the host copies before trusting the result:
+
+- `~/.codex/skills/`
+- `~/.copilot/skills/`
+- `~/.config/kilo/skills/`
+
+This is local operator hygiene for real validation, not part of the generated package contract and not a reason to reintroduce home-directory sync logic into the core product itself.
