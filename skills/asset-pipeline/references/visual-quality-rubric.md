@@ -113,3 +113,7 @@ Visually reviewable repos should capture proof against this rubric. The QA artif
 - `visual_style_note`
 
 `visual_style_note` is where the reviewer states why the style is intentional, or why style variance is acceptable, so the contract stays separate from personal preference.
+
+Every path listed in `visual_proof_evidence` must point to an existing screenshot, render, capture, or video file at validation time. A named path without a real file does not count as proof.
+
+This contract proves structured review discipline and artifact presence. It does not replace the human or model judgment that maps the captured evidence to the rubric.

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import base64
 import shutil
 from pathlib import Path
 from typing import Any, Callable
@@ -15,6 +16,14 @@ from test_support.scafforge_harness import ROOT, bootstrap_full
 
 FIXTURE_INDEX = ROOT / "tests" / "fixtures" / "visual-proof" / "index.json"
 CONTRACT_PATH = ".opencode/meta/visual-proof-fixture.json"
+_TINY_PNG_BYTES = base64.b64decode(
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/a8sAAAAASUVORK5CYII="
+)
+
+
+def write_tiny_png(path: Path) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(_TINY_PNG_BYTES)
 
 
 def fixture_index_by_slug() -> dict[str, dict[str, Any]]:
@@ -113,9 +122,7 @@ def build_screen_fit_and_hierarchy_regression(
         "assets/previews/hud-overlap.png",
     ]
     for relative in preview_paths:
-        target = dest / relative
-        target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_text("preview-placeholder\n", encoding="utf-8")
+        write_tiny_png(dest / relative)
 
     provenance_path = dest / ".opencode" / "meta" / "bootstrap-provenance.json"
     provenance = read_json(provenance_path)

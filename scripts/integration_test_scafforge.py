@@ -1751,6 +1751,14 @@ def visual_proof_fixture_integration(
             raise RuntimeError(
                 f"Visual-proof fixture `{slug}` should persist expected_rubric_blockers."
             )
+        missing_evidence_files = [
+            str(dest / item) for item in evidence_paths if not (dest / item).is_file()
+        ]
+        if missing_evidence_files:
+            raise RuntimeError(
+                f"Visual-proof fixture `{slug}` should create real evidence files before QA records them.\nMissing:\n"
+                + "\n".join(missing_evidence_files)
+            )
 
         stage_error = run_generated_tool_error(
             dest,

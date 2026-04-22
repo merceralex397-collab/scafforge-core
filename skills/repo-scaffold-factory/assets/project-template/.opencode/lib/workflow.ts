@@ -1397,7 +1397,17 @@ function rubricBlockersFromField(raw: string | null): string[] {
   return splitStructuredField(raw)
 }
 function looksLikeVisualEvidencePath(value: string): boolean {
-  return VISUAL_PROOF_EVIDENCE_PATTERN.test(value) || /[\\/]/.test(value)
+  const trimmed = value.trim()
+  return trimmed.length > 0 && VISUAL_PROOF_EVIDENCE_PATTERN.test(trimmed)
+}
+async function visualEvidencePathExists(value: string, root = rootPath()): Promise<boolean> {
+  const trimmed = value.trim()
+  if (!trimmed) return false
+  try {
+    return (await stat(resolve(root, trimmed))).isFile()
+  } catch {
+    return false
+  }
 }
 async function repoRequiresVisualProof(root = rootPath()): Promise<boolean> {
   const provenance = await readJson<BootstrapProvenance | null>(bootstrapProvenancePath(root), null)
@@ -1428,9 +1438,17 @@ export async function validateVisualProofRequirement(ticket: Ticket, root = root
   if (!status) {
     return "Visual-proof repos require structured visual proof in the QA artifact: visual_proof_status must be PASS, FAIL, REJECT, APPROVED, or BLOCKED."
   }
-  const evidence = splitStructuredField(evidenceRaw).filter(looksLikeVisualEvidencePath)
+  const evidence = splitStructuredField(evidenceRaw).map((value) => value.trim()).filter(looksLikeVisualEvidencePath)
   if (evidence.length === 0) {
-    return "Visual-proof repos require structured visual proof in the QA artifact: visual_proof_evidence must list at least one screenshot, render, or capture path."
+    return "Visual-proof repos require structured visual proof in the QA artifact: visual_proof_evidence must list at least one screenshot, render, or capture file with a supported extension."
+  }
+  const missingEvidence = (
+    await Promise.all(
+      evidence.map(async (value) => ((await visualEvidencePathExists(value, root)) ? null : value)),
+    )
+  ).filter((value): value is string => Boolean(value))
+  if (missingEvidence.length > 0) {
+    return `Visual-proof repos require structured visual proof in the QA artifact: visual_proof_evidence must reference existing files on disk. Missing: ${missingEvidence.join(", ")}.`
   }
   const surfaces = splitStructuredField(surfacesRaw)
   if (surfaces.length === 0) {
