@@ -18,6 +18,10 @@ This is the current source-of-truth map for Scafforge package documentation. Sta
 | `references/authority-adr.md` | canonical reference | Single-owner authority map |
 | `references/invariant-catalog.md` | canonical reference | Invariant checklist for authority, mutation, restart, proof, and doc alignment |
 | `references/competence-contract.md` | canonical reference | Package competence bar and one-legal-next-move contract |
+| `references/skill-evolution-policy.md` | canonical reference | Skill-gap intake, packaging boundaries, and downstream repair routing |
+| `references/external-source-evaluation-rubric.md` | canonical reference | External-source evaluation, distillation, and source disposition rules |
+| `references/skill-validation-policy.md` | canonical reference | Skill-catalog thresholds, validation surface, and manual review gates |
+| `references/rejected-sources.md` | canonical reference | Quarantined or rejected external skill sources |
 | `references/one-shot-generation-contract.md` | canonical reference | One-shot greenfield lifecycle and publication gate |
 | `references/stack-adapter-contract.md` | canonical reference | Stack detection, bootstrap, execution proof, and release-proof contract |
 

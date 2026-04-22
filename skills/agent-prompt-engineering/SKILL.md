@@ -42,6 +42,8 @@ Read `references/anti-patterns.md` and eliminate:
 - Unsupported stage probing (trying values like `todo` to see what passes)
 - Evidence-free PASS claims (writing implementation, QA, or smoke-test success without executed command output)
 - Slash-command self-use (agents treating human `/commands` as autonomous workflow tools)
+- Package-vs-local skill conflation (treating repo-local skill gaps as permission to mutate the package catalog)
+- Skill sprawl as remediation (adding another overlapping skill or role instead of sharpening an existing owner)
 
 ### 4. Apply model-specific techniques
 

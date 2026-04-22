@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use `superpowers:subagent-driven-development` (recommended) or `superpowers:executing-plans` to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Status:** TODO
+**Status:** DONE
 **Goal:** Create the disciplined path by which Scafforge learns from failures, external skill research, and the Meta-Skill-Orchestration concept without degenerating into random skill sprawl.
 
 **Architecture:** Skill evolution becomes a bounded lifecycle: detect gap -> evaluate evidence -> distill external knowledge -> package the change into Scafforge-owned skill assets -> validate it -> decide whether downstream repos need an immediate skill repair. The system must preserve the package-versus-repo skill boundary and keep the skill catalog navigable for weak models.
@@ -69,50 +69,50 @@ Plan `08` owns the intake, escalation, and evidence packaging for audit-derived 
 
 ### Phase 1: Define the skill-gap intake path
 
-- [ ] Decide how audits, investigations, reviews, and operator feedback submit skill-gap candidates.
-- [ ] Define the minimum evidence required before a skill gap becomes package work.
-- [ ] Separate prompt-quality gaps, workflow-boundary gaps, and missing-capability gaps so they are not all handled the same way.
-- [ ] Record where those skill-gap candidates live while awaiting evaluation.
-- [ ] Keep audit-derived package-evidence intake delegated to plan `08`; this phase only classifies accepted package work into skill-related versus non-skill-related follow-up.
+- [x] Decide how audits, investigations, reviews, and operator feedback submit skill-gap candidates.
+- [x] Define the minimum evidence required before a skill gap becomes package work.
+- [x] Separate prompt-quality gaps, workflow-boundary gaps, and missing-capability gaps so they are not all handled the same way.
+- [x] Record where those skill-gap candidates live while awaiting evaluation.
+- [x] Keep audit-derived package-evidence intake delegated to plan `08`; this phase only classifies accepted package work into skill-related versus non-skill-related follow-up.
 
 ### Phase 2: Define the external-source evaluation rubric
 
-- [ ] Create a checklist for evaluating external skill sources: fit to Scafforge mission, originality needed, overlap risk, weak-model navigability, and licensing/provenance.
-- [ ] Publish that checklist and decision model at `active-plans/12-skill-system-expansion-and-meta-skill-engineering/references/external-source-evaluation-rubric.md`.
-- [ ] Require copied bundles and researched repos to be distilled into Scafforge-owned language rather than copied verbatim.
-- [ ] Evaluate the adjacent `Meta-Skill-Engineering` repository with the same rubric rather than treating its location as unknown.
-- [ ] Treat that evaluation as a local operator exercise that produces portable package policy docs; the resulting rubric and conclusions must not depend on machine-specific paths.
-- [ ] Use `references/competence-contract.md` as the canonical bar for weak-model navigability and operational clarity.
-- [ ] Define an explicit reject/quarantine path for failed provenance or licensing checks, using `active-plans/12-skill-system-expansion-and-meta-skill-engineering/references/rejected-sources.md` as the staging record until plan `11` finalizes a durable home.
-- [ ] Apply the completed rubric to the in-repo `stolenfromcodex` bundle as the first disposition exercise and record the result before broadening to other sources.
-- [ ] Explicitly ban blind import of external skills into the package or into generated repos.
+- [x] Create a checklist for evaluating external skill sources: fit to Scafforge mission, originality needed, overlap risk, weak-model navigability, and licensing/provenance.
+- [x] Publish that checklist and decision model at `active-plans/12-skill-system-expansion-and-meta-skill-engineering/references/external-source-evaluation-rubric.md`.
+- [x] Require copied bundles and researched repos to be distilled into Scafforge-owned language rather than copied verbatim.
+- [x] Evaluate the adjacent `Meta-Skill-Engineering` repository with the same rubric rather than treating its location as unknown.
+- [x] Treat that evaluation as a local operator exercise that produces portable package policy docs; the resulting rubric and conclusions must not depend on machine-specific paths.
+- [x] Use `references/competence-contract.md` as the canonical bar for weak-model navigability and operational clarity.
+- [x] Define an explicit reject/quarantine path for failed provenance or licensing checks, using `active-plans/12-skill-system-expansion-and-meta-skill-engineering/references/rejected-sources.md` as the staging record until plan `11` finalizes a durable home.
+- [x] Apply the completed rubric to the in-repo `stolenfromcodex` bundle as the first disposition exercise and record the result before broadening to other sources.
+- [x] Explicitly ban blind import of external skills into the package or into generated repos.
 
 ### Phase 3: Define the packaging path for new or revised skills
 
-- [ ] Document where new package skills belong and how their boundaries are named.
-- [ ] Define when a capability belongs in `project-skill-bootstrap`, `opencode-team-bootstrap`, `agent-prompt-engineering`, or a new dedicated skill.
-- [ ] Require every new or changed skill to include provenance, purpose, and validation expectations.
-- [ ] Require manifest registration in `skills/skill-flow-manifest.json` for any new package skill or skill-backed role created through this lifecycle.
-- [ ] Keep skill count under control by merging or pruning overlaps instead of only adding new surfaces.
+- [x] Document where new package skills belong and how their boundaries are named.
+- [x] Define when a capability belongs in `project-skill-bootstrap`, `opencode-team-bootstrap`, `agent-prompt-engineering`, or a new dedicated skill.
+- [x] Require every new or changed skill to include provenance, purpose, and validation expectations.
+- [x] Require manifest registration in `skills/skill-flow-manifest.json` for any new package skill or skill-backed role created through this lifecycle.
+- [x] Keep skill count under control by merging or pruning overlaps instead of only adding new surfaces.
 
 ### Phase 4: Define downstream injection and repair policy
 
-- [ ] Decide when a generated repo receives a new skill pack at greenfield time versus a later targeted skill repair.
-- [ ] Ensure repo-local skills and package skills remain separate concepts.
-- [ ] Define how a downstream repo records that a skill was synthesized, repaired, or refreshed because of package improvements.
-- [ ] Extend or formally relate this provenance record to the existing `project-skill-bootstrap-completion.md` repair artifact shape rather than inventing an unrelated parallel format.
-- [ ] Prevent the meta-skill path from silently mutating downstream repos without explicit routing.
+- [x] Decide when a generated repo receives a new skill pack at greenfield time versus a later targeted skill repair.
+- [x] Ensure repo-local skills and package skills remain separate concepts.
+- [x] Define how a downstream repo records that a skill was synthesized, repaired, or refreshed because of package improvements.
+- [x] Extend or formally relate this provenance record to the existing `project-skill-bootstrap-completion.md` repair artifact shape rather than inventing an unrelated parallel format.
+- [x] Prevent the meta-skill path from silently mutating downstream repos without explicit routing.
 
 ### Phase 5: Define regression and readability checks
 
-- [ ] Add checks for skill duplication, fuzzy boundaries, and excessive catalog growth.
-- [ ] Implement those checks by extending `npm run validate:contract` through `scripts/validate_scafforge_contract.py` rather than inventing a separate validation entrypoint first.
-- [ ] Define the initial enforcement thresholds for catalog growth, overlap, and boundary ambiguity so the checks can fail predictably.
-- [ ] Use the following draft starter thresholds until real evidence justifies refinement: generated repo baseline skill packs should stay within the smallest navigable set needed for the project; any proposed new package skill that overlaps substantially with an existing skill or only narrows wording without creating a distinct workflow must merge into the existing surface instead of adding a new one; any role or skill proposal that creates a second owner for a truth domain fails immediately pending `references/authority-adr.md` review.
-- [ ] Add review criteria for weak-model readability and operational clarity, anchored to `references/competence-contract.md`.
-- [ ] Ensure changed skills update any linked prompt-engineering or team-bootstrap references.
-- [ ] Confirm every skill change has a bounded validation story, not only text review.
-- [ ] Treat distillation quality as a required PR-review question in addition to automated checks, because automation can catch structure and drift but not prove originality on its own.
+- [x] Add checks for skill duplication, fuzzy boundaries, and excessive catalog growth.
+- [x] Implement those checks by extending `npm run validate:contract` through `scripts/validate_scafforge_contract.py` rather than inventing a separate validation entrypoint first.
+- [x] Define the initial enforcement thresholds for catalog growth, overlap, and boundary ambiguity so the checks can fail predictably.
+- [x] Use the following draft starter thresholds until real evidence justifies refinement: generated repo baseline skill packs should stay within the smallest navigable set needed for the project; any proposed new package skill that overlaps substantially with an existing skill or only narrows wording without creating a distinct workflow must merge into the existing surface instead of adding a new one; any role or skill proposal that creates a second owner for a truth domain fails immediately pending `references/authority-adr.md` review.
+- [x] Add review criteria for weak-model readability and operational clarity, anchored to `references/competence-contract.md`.
+- [x] Ensure changed skills update any linked prompt-engineering or team-bootstrap references.
+- [x] Confirm every skill change has a bounded validation story, not only text review.
+- [x] Treat distillation quality as a required PR-review question in addition to automated checks, because automation can catch structure and drift but not prove originality on its own.
 
 ## Forward-reference guardrail
 

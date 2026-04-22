@@ -74,6 +74,7 @@ For game or asset-heavy projects:
 - If the seeded routes include procedural capabilities, ensure at least one implementer prompt explicitly owns theme/VFX/import polish under the repo's asset pipeline.
 
 You may create multiple implementer-type agents for different domains within a single project, but keep the total agent count conservative unless the canonical brief proves genuinely disjoint domains.
+If the ambiguity can be solved by sharpening a repo-local skill or prompt contract, do that instead of adding another agent.
 
 Default to one visible team leader with a shallow hidden specialist topology. Keep `lane-executor` as the default hidden worker for bounded parallel implementation. Only introduce a manager or section-leader hierarchy when the canonical brief shows strong non-overlapping domains that justify the extra coordination layer. Treat that hierarchy as advanced project-specific customization, not as a first-class scaffold profile.
 
@@ -240,12 +241,14 @@ Use this minimal shape so the public repair runner can auto-recognize `opencode-
 ```
 
 Do not emit this artifact speculatively. Only write it once the agent-team regeneration work is actually complete for the current repair cycle.
+When package-managed skill evolution triggered the pass, the `Summary` must say whether the team surface was synthesized, repaired, or refreshed and name the repo-local evidence or repair-cycle input that caused it.
 
 ## Team design principles
 
 - One visible team leader, all specialists hidden
 - Keep the default topology shallow: one visible coordinator plus hidden specialists, with `lane-executor` as the default bounded parallel write worker
 - Keep total agent count conservative unless the brief proves disjoint domains
+- Do not add an agent when the same owner and workflow already fit an existing role or repo-local skill
 - No `ask` permissions — agents don't prompt the user
 - Explicit `permission.task` allowlists — agents can only delegate to named agents
 - Commands are for humans only
@@ -262,5 +265,6 @@ Continue to `../agent-prompt-engineering/SKILL.md` as directed by `../scaffold-k
 
 - `references/agent-system.md` for the team structure
 - `references/tools-plugins-mcp.md` for the tool/plugin/command layer
+- `../../references/skill-evolution-policy.md` for package-versus-repo skill boundaries
 - `../repo-scaffold-factory/assets/project-template/` for the base templates
 - `../agent-prompt-engineering/SKILL.md` for prompt hardening rules

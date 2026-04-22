@@ -9,6 +9,44 @@
     "validate_sequence_modes": true,
     "acyclic_except_contract_smells": ["CYCLE001"]
   },
+  "skill_governance": {
+    "intake": {
+      "accepted_package_evidence": [
+        "package-evidence-bundle.json",
+        "active-audits/<repo>/evidence-manifest.json",
+        "active-audits/<repo>/investigator/report.json"
+      ],
+      "classification_lanes": [
+        "prompt-contract-gap",
+        "workflow-boundary-gap",
+        "missing-capability-gap",
+        "non-skill-package-work"
+      ],
+      "staging_locations": [
+        "active-audits/<repo>/ for audit-accepted package evidence",
+        "active-plans/<plan>/references/ for non-audit candidates until they become bounded package work"
+      ]
+    },
+    "external_sources": {
+      "rubric_reference": "references/external-source-evaluation-rubric.md",
+      "rejected_sources_reference": "references/rejected-sources.md",
+      "direct_import_policy": "forbidden",
+      "distillation_requirement": "scafforge-owned-language"
+    },
+    "catalog_limits": {
+      "max_package_skills": 12,
+      "max_default_local_skills": 12
+    },
+    "validation_surface": {
+      "entrypoint": "npm run validate:contract",
+      "script": "scripts/validate_scafforge_contract.py",
+      "manual_review_required": [
+        "distillation_quality",
+        "originality_vs_source_overlap",
+        "weak_model_navigability"
+      ]
+    }
+  },
   "contract_smells": [
     {
       "code": "CYCLE001",

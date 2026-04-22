@@ -2,6 +2,12 @@
 
 The default full-orchestration profile should expose these lanes, but heavier packs should stay thin or lazy-activated until the project clearly needs more depth.
 
+## Catalog guardrails
+
+- the default baseline pack stays at or below 12 lanes; new baseline lanes must replace or merge overlapping ones instead of only growing the catalog
+- add a synthesized local skill only when it creates a genuinely distinct workflow, trigger, or truth-owner need for this repo
+- if a candidate skill would share the same owner and trigger as an existing lane, extend the existing lane instead of creating a near-duplicate name
+
 ## project-context
 
 - repo mission

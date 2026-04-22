@@ -197,6 +197,16 @@ def require_files_equal(findings: list[Finding], left: Path, right: Path) -> Non
         )
 
 
+def extract_markdown_h2_titles(path: Path) -> list[str]:
+    if not path.exists():
+        return []
+    return [
+        line[3:].strip()
+        for line in read_text(path).splitlines()
+        if line.startswith("## ")
+    ]
+
+
 def require_script_help_runs(findings: list[Finding], path: Path) -> None:
     if not path.exists():
         add_missing(findings, path)
@@ -605,6 +615,292 @@ def validate_flow_manifest(findings: list[Finding]) -> None:
             )
 
 
+def validate_skill_governance(findings: list[Finding]) -> None:
+    if not FLOW_MANIFEST.exists():
+        add_missing(findings, FLOW_MANIFEST)
+        return
+
+    manifest = read_json(FLOW_MANIFEST)
+    if not isinstance(manifest, dict):
+        findings.append(Finding("error", "skill-flow-manifest.json must be a JSON object"))
+        return
+
+    skills = manifest.get("skills")
+    if not isinstance(skills, dict):
+        findings.append(
+            Finding(
+                "error",
+                "skill-flow-manifest.json must declare skills before skill governance can be checked",
+            )
+        )
+        return
+
+    skill_governance = manifest.get("skill_governance")
+    if not isinstance(skill_governance, dict):
+        findings.append(
+            Finding("error", "skill-flow-manifest.json must declare a skill_governance object")
+        )
+        return
+
+    skill_evolution_policy = ROOT / "references" / "skill-evolution-policy.md"
+    external_rubric = ROOT / "references" / "external-source-evaluation-rubric.md"
+    rejected_sources = ROOT / "references" / "rejected-sources.md"
+    skill_validation_policy = ROOT / "references" / "skill-validation-policy.md"
+    plan_rubric_pointer = (
+        ROOT
+        / "active-plans"
+        / "12-skill-system-expansion-and-meta-skill-engineering"
+        / "references"
+        / "external-source-evaluation-rubric.md"
+    )
+    plan_rejected_pointer = (
+        ROOT
+        / "active-plans"
+        / "12-skill-system-expansion-and-meta-skill-engineering"
+        / "references"
+        / "rejected-sources.md"
+    )
+    local_skill_catalog = (
+        ROOT
+        / "skills"
+        / "project-skill-bootstrap"
+        / "references"
+        / "local-skill-catalog.md"
+    )
+
+    require_paths(
+        findings,
+        [
+            skill_evolution_policy,
+            external_rubric,
+            rejected_sources,
+            skill_validation_policy,
+            plan_rubric_pointer,
+            plan_rejected_pointer,
+            local_skill_catalog,
+        ],
+    )
+
+    intake = skill_governance.get("intake")
+    if not isinstance(intake, dict):
+        findings.append(Finding("error", "skill_governance must declare an intake object"))
+    else:
+        expected_evidence = [
+            "package-evidence-bundle.json",
+            "active-audits/<repo>/evidence-manifest.json",
+            "active-audits/<repo>/investigator/report.json",
+        ]
+        if intake.get("accepted_package_evidence") != expected_evidence:
+            findings.append(
+                Finding(
+                    "error",
+                    "skill_governance.intake.accepted_package_evidence must list the canonical accepted package-evidence inputs",
+                )
+            )
+        expected_lanes = [
+            "prompt-contract-gap",
+            "workflow-boundary-gap",
+            "missing-capability-gap",
+            "non-skill-package-work",
+        ]
+        if intake.get("classification_lanes") != expected_lanes:
+            findings.append(
+                Finding(
+                    "error",
+                    "skill_governance.intake.classification_lanes must list the canonical classification lanes in order",
+                )
+            )
+        staging_locations = intake.get("staging_locations")
+        if not isinstance(staging_locations, list) or not any(
+            isinstance(item, str) and "active-audits/<repo>/" in item
+            for item in staging_locations
+        ) or not any(
+            isinstance(item, str) and "active-plans/<plan>/references/" in item
+            for item in staging_locations
+        ):
+            findings.append(
+                Finding(
+                    "error",
+                    "skill_governance.intake.staging_locations must describe both active-audits and active-plans staging paths",
+                )
+            )
+
+    external_sources = skill_governance.get("external_sources")
+    if not isinstance(external_sources, dict):
+        findings.append(
+            Finding("error", "skill_governance must declare an external_sources object")
+        )
+    else:
+        if external_sources.get("rubric_reference") != "references/external-source-evaluation-rubric.md":
+            findings.append(
+                Finding(
+                    "error",
+                    "skill_governance.external_sources.rubric_reference must point to references/external-source-evaluation-rubric.md",
+                )
+            )
+        if external_sources.get("rejected_sources_reference") != "references/rejected-sources.md":
+            findings.append(
+                Finding(
+                    "error",
+                    "skill_governance.external_sources.rejected_sources_reference must point to references/rejected-sources.md",
+                )
+            )
+        if external_sources.get("direct_import_policy") != "forbidden":
+            findings.append(
+                Finding(
+                    "error",
+                    "skill_governance.external_sources.direct_import_policy must remain forbidden",
+                )
+            )
+        if external_sources.get("distillation_requirement") != "scafforge-owned-language":
+            findings.append(
+                Finding(
+                    "error",
+                    "skill_governance.external_sources.distillation_requirement must remain scafforge-owned-language",
+                )
+            )
+
+    catalog_limits = skill_governance.get("catalog_limits")
+    max_package_skills = None
+    max_default_local_skills = None
+    if not isinstance(catalog_limits, dict):
+        findings.append(Finding("error", "skill_governance must declare a catalog_limits object"))
+    else:
+        max_package_skills = catalog_limits.get("max_package_skills")
+        max_default_local_skills = catalog_limits.get("max_default_local_skills")
+        if not isinstance(max_package_skills, int) or max_package_skills <= 0:
+            findings.append(
+                Finding(
+                    "error",
+                    "skill_governance.catalog_limits.max_package_skills must be a positive integer",
+                )
+            )
+        if not isinstance(max_default_local_skills, int) or max_default_local_skills <= 0:
+            findings.append(
+                Finding(
+                    "error",
+                    "skill_governance.catalog_limits.max_default_local_skills must be a positive integer",
+                )
+            )
+
+    validation_surface = skill_governance.get("validation_surface")
+    if not isinstance(validation_surface, dict):
+        findings.append(
+            Finding("error", "skill_governance must declare a validation_surface object")
+        )
+    else:
+        if validation_surface.get("entrypoint") != "npm run validate:contract":
+            findings.append(
+                Finding(
+                    "error",
+                    "skill_governance.validation_surface.entrypoint must remain npm run validate:contract",
+                )
+            )
+        if validation_surface.get("script") != "scripts/validate_scafforge_contract.py":
+            findings.append(
+                Finding(
+                    "error",
+                    "skill_governance.validation_surface.script must remain scripts/validate_scafforge_contract.py",
+                )
+            )
+        required_manual_review = {
+            "distillation_quality",
+            "originality_vs_source_overlap",
+            "weak_model_navigability",
+        }
+        manual_review_required = validation_surface.get("manual_review_required")
+        if not isinstance(manual_review_required, list) or set(manual_review_required) != required_manual_review:
+            findings.append(
+                Finding(
+                    "error",
+                    "skill_governance.validation_surface.manual_review_required must list the canonical manual review questions",
+                )
+            )
+
+    owner_map: dict[str, str] = {}
+    for skill_name, payload in skills.items():
+        if not isinstance(payload, dict):
+            continue
+        owner = payload.get("owner")
+        if not isinstance(owner, str) or not owner.strip():
+            findings.append(
+                Finding(
+                    "error",
+                    f"skill-flow-manifest.json skill `{skill_name}` must declare a non-empty owner",
+                )
+            )
+            continue
+        prior = owner_map.get(owner)
+        if prior and prior != skill_name:
+            findings.append(
+                Finding(
+                    "error",
+                    f"skill-flow-manifest.json owner `{owner}` is shared by `{prior}` and `{skill_name}`; skill owners must remain single-owner domains",
+                )
+            )
+        else:
+            owner_map[owner] = skill_name
+
+    if isinstance(max_package_skills, int) and len(skills) > max_package_skills:
+        findings.append(
+            Finding(
+                "error",
+                f"skill-flow-manifest.json declares {len(skills)} package skills, exceeding max_package_skills={max_package_skills}",
+            )
+        )
+
+    lane_titles = [
+        title
+        for title in extract_markdown_h2_titles(local_skill_catalog)
+        if title.lower()
+        not in {"catalog guardrails", "optional synthesized review extensions"}
+    ]
+    normalized_titles = [title.lower() for title in lane_titles]
+    duplicates = sorted(
+        {
+            title
+            for title in normalized_titles
+            if normalized_titles.count(title) > 1
+        }
+    )
+    if duplicates:
+        findings.append(
+            Finding(
+                "error",
+                "project-skill-bootstrap local skill catalog must not duplicate lane headings: "
+                + ", ".join(duplicates),
+            )
+        )
+    if isinstance(max_default_local_skills, int) and len(lane_titles) > max_default_local_skills:
+        findings.append(
+            Finding(
+                "error",
+                f"project-skill-bootstrap local skill catalog declares {len(lane_titles)} default lanes, exceeding max_default_local_skills={max_default_local_skills}",
+            )
+        )
+
+    require_contains(findings, skill_evolution_policy, "active-audits/<repo>/evidence-manifest.json")
+    require_contains(findings, skill_evolution_policy, "active-plans/<plan>/references/")
+    require_contains(findings, skill_evolution_policy, "prompt-contract-gap")
+    require_contains(findings, skill_evolution_policy, "workflow-boundary-gap")
+    require_contains(findings, skill_evolution_policy, "missing-capability-gap")
+    require_contains(findings, skill_evolution_policy, "non-skill-package-work")
+    require_contains(findings, skill_evolution_policy, "Blind import of external skills")
+    require_contains(findings, skill_evolution_policy, "`scafforge-repair` follow-on stages")
+    require_contains(findings, external_rubric, "Blind import of external skills")
+    require_contains(findings, external_rubric, "stolenfromcodex")
+    require_contains(findings, external_rubric, "Meta-Skill-Engineering")
+    require_contains(findings, external_rubric, "weak-model")
+    require_contains(findings, external_rubric, "license")
+    require_contains(findings, rejected_sources, "quarantined")
+    require_contains(findings, rejected_sources, "no direct import")
+    require_contains(findings, skill_validation_policy, "npm run validate:contract")
+    require_contains(findings, skill_validation_policy, "max_package_skills")
+    require_contains(findings, skill_validation_policy, "max_default_local_skills")
+    require_contains(findings, skill_validation_policy, "Distillation quality")
+    require_contains(findings, skill_validation_policy, "Weak-model navigability")
+
+
 def validate_core_docs(findings: list[Finding]) -> None:
     readme = ROOT / "README.md"
     userguide = ROOT / "USERGUIDE.md"
@@ -699,6 +995,10 @@ def validate_core_docs(findings: list[Finding]) -> None:
         findings, agents, "full diagnosis-pack generation on every audit run"
     )
     require_contains(findings, agents, "references/competence-contract.md")
+    require_contains(findings, agents, "## Skill evolution and distillation")
+    require_contains(findings, agents, "references/skill-evolution-policy.md")
+    require_contains(findings, agents, "references/external-source-evaluation-rubric.md")
+    require_contains(findings, agents, "references/skill-validation-policy.md")
     require_contains(findings, agents, "one legal next move")
     require_contains(findings, agents, "explicit temporary contract smell")
     require_contains(findings, agents, "minimal-operable-versus-specialization split")
@@ -724,6 +1024,10 @@ def validate_core_docs(findings: list[Finding]) -> None:
     require_contains(findings, docscleanup, "documentation impact checklist")
     require_contains(findings, documentation_authority_map, "## Root package docs")
     require_contains(findings, documentation_authority_map, "## Standing rule")
+    require_contains(findings, documentation_authority_map, "references/skill-evolution-policy.md")
+    require_contains(findings, documentation_authority_map, "references/external-source-evaluation-rubric.md")
+    require_contains(findings, documentation_authority_map, "references/skill-validation-policy.md")
+    require_contains(findings, documentation_authority_map, "references/rejected-sources.md")
 
     require_contains(findings, architecture, "Adjacent systems such as the spec factory")
     require_contains(findings, architecture, "## SDK Layering")
@@ -1196,6 +1500,10 @@ def validate_skill_contracts(findings: list[Finding]) -> None:
     require_contains(
         findings, project_skill, "bootstrap readiness is a pre-lifecycle gate"
     )
+    require_contains(findings, project_skill, "Keep repo-local synthesized skills separate from package-level skill evolution")
+    require_contains(findings, project_skill, "do not invent a new Scafforge package skill from inside this repo generation pass")
+    require_contains(findings, project_skill, "Do not copy external skill bodies verbatim")
+    require_contains(findings, project_skill, "Merge overlapping candidates")
     require_absent(findings, project_skill, "/find-skill")
 
     require_contains(
@@ -1219,6 +1527,7 @@ def validate_skill_contracts(findings: list[Finding]) -> None:
         team_bootstrap,
         "Skill allowlists reference only skills that already exist in `.opencode/skills/`",
     )
+    require_contains(findings, team_bootstrap, "If the ambiguity can be solved by sharpening a repo-local skill or prompt contract")
     require_contains(findings, team_bootstrap, "ticket_lookup.transition_guidance")
     require_contains(
         findings, team_bootstrap, "bootstrap-not-ready state as a hard gate"
@@ -1226,6 +1535,7 @@ def validate_skill_contracts(findings: list[Finding]) -> None:
     require_contains(
         findings, team_bootstrap, "Agents must not use `/kickoff`, `/resume`"
     )
+    require_contains(findings, team_bootstrap, "Do not add an agent when the same owner and workflow already fit an existing role or repo-local skill")
 
     require_contains(
         findings,
@@ -1257,6 +1567,8 @@ def validate_skill_contracts(findings: list[Finding]) -> None:
     )
     require_contains(findings, prompt_engineering, "Workflow thrash loops")
     require_contains(findings, prompt_engineering, "Evidence-free PASS claims")
+    require_contains(findings, prompt_engineering, "Package-vs-local skill conflation")
+    require_contains(findings, prompt_engineering, "Skill sprawl as remediation")
     require_contains(
         findings, prompt_engineering, "Missing environment prerequisites are explicit"
     )
@@ -4748,6 +5060,7 @@ def validate_curated_fixtures(findings: list[Finding]) -> None:
 def main() -> int:
     findings: list[Finding] = []
     validate_flow_manifest(findings)
+    validate_skill_governance(findings)
     validate_core_docs(findings)
     validate_completion_proof_matrix(findings)
     validate_skill_contracts(findings)

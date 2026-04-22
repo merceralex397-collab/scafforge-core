@@ -96,7 +96,7 @@ Keep plan status explicit. A plan may remain in `active-plans/` with `Status: DO
 | 8 | TODO | `06-spec-factory-and-intake-mcp/` | Designs the idea-to-approved-brief factory and ChatGPT/MCP ingress. |
 | 9 | TODO | `07-autonomous-downstream-orchestration/` | Wraps Scafforge generation in a PR-based downstream execution service. |
 | 10 | TODO | `08-meta-improvement-loop/` | Turns repeated downstream failures into package-level investigation and fix work. |
-| 11 | TODO | `12-skill-system-expansion-and-meta-skill-engineering/` | Adds a disciplined path for Scafforge’s own skill evolution and external-skill distillation. |
+| 11 | DONE | `12-skill-system-expansion-and-meta-skill-engineering/` | Adds a disciplined path for Scafforge’s own skill evolution and external-skill distillation. |
 | 12 | TODO | `13-meta-skill-engineering-repo-hardening/` | Hardens the separate Meta-Skill-Engineering repo into a fully agent-usable suite with a complete CLI surface. |
 | 13 | TODO | `14-blender-agent-repo-hardening/` | Hardens the separate blender-agent repo so Scafforge can rely on it truthfully. |
 | 14 | IN PROGRESS | `10-viewer-control-plane-winui/` | Locks the WinUI client boundary and operator workflows while Phase 6 stays blocked on live backend/event surfaces. |

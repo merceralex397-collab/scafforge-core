@@ -11,6 +11,8 @@
 - Name the canonical tool or artifact path instead of saying "update the file".
 - Define exact output sections when consistency matters.
 - When a repo is visually reviewable, require explicit visual-proof fields and named rubric findings instead of vague taste language.
+- Keep skill allowlists short and non-overlapping enough that a weaker model can see one obvious helper for the task.
+- Prefer sharpening an existing skill or prompt contract over adding a second surface that appears to own the same truth domain.
 
 ## Team leader
 

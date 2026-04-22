@@ -147,6 +147,18 @@ Use `python3` or `sys.executable` for Python entrypoints in repository guidance.
 - `_source-material/` stays active supporting material, not a disposal queue
 - root-level files under `active-plans/` are portfolio-wide routing, reporting, provenance, or execution guidance
 
+## Skill evolution and distillation
+
+Skill evolution is a bounded package lifecycle, not permissionless skill accumulation. The durable rules live in [references/skill-evolution-policy.md](references/skill-evolution-policy.md), [references/external-source-evaluation-rubric.md](references/external-source-evaluation-rubric.md), and [references/skill-validation-policy.md](references/skill-validation-policy.md).
+
+- audit-derived package evidence enters skill evaluation only after `scafforge-audit` and the `active-audits/` sidecars accept it
+- copied bundles, public skill ecosystems, and adjacent repos are research inputs only; blind import into Scafforge or generated repos is forbidden
+- distill external concepts into Scafforge-owned language with explicit provenance, purpose, and validation expectations
+- keep package skills, repo-local synthesized skills, and adjacent skill repos as separate layers with no shared hidden authority
+- prefer sharpening an existing skill, prompt contract, or workflow reference before adding a new package skill
+- downstream skill refresh must route through explicit greenfield generation or `scafforge-repair` follow-on stages; do not silently mutate subject repos because package policy improved
+- every new or materially re-scoped package skill must register in `skills/skill-flow-manifest.json` and pass the named skill-governance checks in `npm run validate:contract`
+
 ## First principles
 
 1. Keep core package behavior host-agnostic unless a file is clearly adapter-specific.

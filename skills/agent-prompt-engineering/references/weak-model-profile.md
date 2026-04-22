@@ -10,3 +10,5 @@ Use these rules when the generated workflow must be robust for weaker or cheaper
 - forbid premature summary closeouts when the workflow still has another stage to complete
 - keep repeated procedure in tools, skills, plugins, or canonical docs instead of burying it in long prose
 - keep any parallel execution rule explicit and narrow; weaker models should never infer concurrency safety from vague lane names alone
+- keep the skill catalog short enough that the right skill is obvious without browsing several near-duplicates
+- avoid overlapping skill or agent names that appear to own the same job
