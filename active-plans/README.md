@@ -98,13 +98,13 @@ Keep plan status explicit. A plan may remain in `active-plans/` with `Status: DO
 | 10 | DONE | `08-meta-improvement-loop/` | Turns repeated downstream failures into package-level investigation and fix work. |
 | 11 | DONE | `12-skill-system-expansion-and-meta-skill-engineering/` | Adds a disciplined path for Scafforge’s own skill evolution and external-skill distillation. |
 | 12 | DONE | `13-meta-skill-engineering-repo-hardening/` | Hardens the separate Meta-Skill-Engineering repo into a fully agent-usable suite with a complete CLI surface. |
-| 13 | DONE | `14-blender-agent-repo-hardening/` | Hardens the separate blender-agent repo so Scafforge can rely on it truthfully. |
+| 13 | DONE | `14-blender-agent-repo-hardening/` | Hardens the separate blender-mcp repo so Scafforge can rely on it truthfully. |
 | 14 | DONE | `10-viewer-control-plane-winui/` | Landed the adjacent WinUI control-plane repo, live WSL/SSH transport proof, fail-closed operator shell, and post-review hardening, then merged the implementation through PR `#1`. |
 
 Execution status sync as of `2026-04-22`:
 
 - plans `01` through `14` are implemented
-- the adjacent `Meta-Skill-Engineering`, `blender-agent`, and `scafforge-control-plane-winui` repos have all been hardened and merged back upstream
+- the adjacent `meta-skill-engineering`, `blender-mcp`, and `scafforge-control-plane` repos have all been hardened and merged back upstream
 - the active-plans implementation program is fully complete and ready for archival when the user wants to move the completed folders out of `active-plans/`
 
 ## Program-Level Decisions

@@ -75,7 +75,7 @@ The app belongs in an adjacent repository, not in the Scafforge package root.
 
 Recommended adjacent identity:
 
-- repo: `scafforge-control-plane-winui`
+- repo: `scafforge-control-plane`
 - solution: `Scafforge.ControlPlane.sln`
 - projects:
   - `Scafforge.ControlPlane.App` for the WinUI shell

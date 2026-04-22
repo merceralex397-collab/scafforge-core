@@ -1,8 +1,10 @@
 # AGENTS.md
 
-This file governs work inside the Scafforge package repository itself.
+This file governs work inside the Scafforge Core package repository itself.
 
-Scafforge is not the generated project. It is the generator, template source, validation harness, and workflow contract used by a host agent to build, audit, repair, or update a generated project repo.
+Scafforge Core is not the generated project. It is the generator, template source, validation harness, and workflow contract used by a host agent to build, audit, repair, or update a generated project repo.
+
+Within the canonical Scafforge workspace this repo lives at `platform/scafforge-core/`, but the rules in this file also apply when the repo is cloned and used standalone.
 
 That distinction is law in this repository. Do not collapse package-repo surfaces and generated-repo surfaces together.
 

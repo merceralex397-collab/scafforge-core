@@ -1,8 +1,10 @@
-# Scafforge v1
+# Scafforge Core
 
-Scafforge is a strong-host skill bundle for coding agents. It turns raw project inputs into OpenCode-oriented repos with explicit truth ownership, deterministic workflow contracts, and one legal next move for the operator.
+Scafforge Core is the standalone scaffold package at the heart of the Scafforge ecosystem. In the canonical workspace it lives at `platform/scafforge-core/`, but it remains a complete product when cloned and opened by itself.
 
-Scafforge is not the generated project, not a generic skill warehouse, and not the adjacent services that may later wrap the package. Package-vs-output boundary rules live in [AGENTS.md](AGENTS.md), and the current repo-wide document map lives in [references/documentation-authority-map.md](references/documentation-authority-map.md).
+Scafforge Core turns raw project inputs into OpenCode-oriented repos with explicit truth ownership, deterministic workflow contracts, and one legal next move for the operator.
+
+Scafforge Core is not the generated project, not a generic skill warehouse, and not the adjacent services that may later wrap the package. Package-vs-output boundary rules live in [AGENTS.md](AGENTS.md), and the current repo-wide document map lives in [references/documentation-authority-map.md](references/documentation-authority-map.md).
 
 ## What to read first
 

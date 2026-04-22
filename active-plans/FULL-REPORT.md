@@ -28,9 +28,9 @@ The central program decision remains unchanged: Scafforge should not scale auton
 ## Current Implementation Status
 
 - Scafforge plans `01` through `12` are implemented and merged on `main`.
-- The adjacent `Meta-Skill-Engineering` repo hardening from plan `13` is implemented and merged through PR `#19`.
-- The adjacent `blender-agent` repo hardening from plan `14` is implemented and merged through PR `#3`.
-- The adjacent `scafforge-control-plane-winui` repo from plan `10` is implemented and merged through PR `#1`.
+- The adjacent `meta-skill-engineering` repo hardening from plan `13` is implemented and merged through PR `#19`.
+- The adjacent `blender-mcp` repo hardening from plan `14` is implemented and merged through PR `#3`.
+- The adjacent `scafforge-control-plane` repo from plan `10` is implemented and merged through PR `#1`.
 
 ## What This Program Is Actually Doing
 
@@ -156,7 +156,7 @@ Hardens the separate Meta-Skill-Engineering repository into a complete, agent-us
 
 ### `14-blender-agent-repo-hardening`
 
-Turns the separate `blender-agent` repository into a clearer, safer dependency by focusing on truthful contracts, QA/export evidence, and headless-ready hardening.
+Turns the separate `blender-mcp` repository into a clearer, safer dependency by focusing on truthful contracts, QA/export evidence, and headless-ready hardening.
 
 ## Recommended Execution Sequence
 
@@ -166,7 +166,7 @@ Turns the separate `blender-agent` repository into a clearer, safer dependency b
 4. Freeze the SDK/router decision.
 5. Build spec intake and downstream orchestration on top of that decision.
 6. Add the package self-improvement loop.
-7. Add disciplined skill evolution and harden the adjacent Meta-Skill-Engineering and `blender-agent` repos where they underpin the program.
+7. Add disciplined skill evolution and harden the adjacent `meta-skill-engineering` and `blender-mcp` repos where they underpin the program.
 8. Build the WinUI control plane last, when the backend contracts are real.
 
 ## Final Recommendation

@@ -1,9 +1,9 @@
-# Viewer Control Plane WinUI Implementation Plan
+# Viewer Control Plane Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use `superpowers:subagent-driven-development` (recommended) or `superpowers:executing-plans` to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Status:** DONE
-**Current Phase:** All six phases are implemented. The adjacent `scafforge-control-plane-winui` repo now carries the live WinUI shell, pinned-cert HTTP/SSE gateway, WSL and SSH proof harnesses, fail-closed operator overlay, and post-review hardening that closed the final launch and transport gaps in PR `#1`.
+**Current Phase:** All six phases are implemented. The adjacent `scafforge-control-plane` repo now carries the live WinUI shell, pinned-cert HTTP/SSE gateway, WSL and SSH proof harnesses, fail-closed operator overlay, and post-review hardening that closed the final launch and transport gaps in PR `#1`.
 **Goal:** Design the Windows control app that monitors and controls the autonomous Scafforge factory across local WSL and remote SSH environments without becoming a hidden workflow engine.
 
 **Architecture:** Build the control plane as a dedicated WinUI 3 application backed by explicit orchestration APIs and event streams. The app should observe and control the system, not own its truth. During early implementation, prefer an internal-tool packaging posture that optimizes local build/run and operator workflows; revisit packaged distribution only when the app’s Windows feature needs are clear.
