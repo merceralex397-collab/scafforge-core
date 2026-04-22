@@ -6,10 +6,12 @@ Scafforge may be wrapped by an **adjacent orchestration service**, but that wrap
 
 - The orchestration service wraps Scafforge; it does not replace `scaffold-kickoff`, `spec-pack-normalizer`, `scafforge-audit`, `scafforge-repair`, or `handoff-brief`.
 - The orchestration service owns job progression, phase scheduling, PR automation, pause, retry, resume controls, and dashboard-facing event streams.
+- Dashboard or control-plane clients consume wrapper-owned read models and event streams; they do not become separate state authorities.
 - The orchestration service is read-only with respect to generated `tickets/manifest.json` and `.opencode/state/workflow-state.json`.
 - The orchestration service may read `docs/spec/CANONICAL-BRIEF.md`, `tickets/manifest.json`, `.opencode/state/workflow-state.json`, `START-HERE.md`, `.opencode/state/latest-handoff.md`, and `.opencode/meta/bootstrap-provenance.json`.
 - Phase grouping, PR numbers, reviewer assignment, merge-mode state, retry tokens, and idempotency keys live in orchestration-owned storage, not in the generated repo.
 - Operator and dashboard signaling for orchestration-owned states such as `package-change-pending` must also live in orchestration-owned storage or event streams, not in generated repo canonical truth.
+- Operator commands coming from a control plane must call orchestration APIs; they must not bypass the wrapper through direct GitHub mutation, direct repo mutation, or direct WSL/SSH shell mutation.
 
 ## Job envelope
 

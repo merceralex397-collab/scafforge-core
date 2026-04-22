@@ -175,6 +175,17 @@ The model router is an adjacent service concern, even when it uses the AI SDK.
 - The router may intentionally choose between native SDK lanes, AI SDK provider lanes, compatible-adapter lanes, and OpenCode execution lanes for the same model family.
 - Provider, model-family, exact model ID, and transport-path evidence should be recorded in orchestration or service-side job records, not frozen into package docs as long-lived truth.
 
+### Adjacent control-plane boundary
+
+The control plane is an adjacent operator client, not a backend substitute.
+
+- It consumes orchestration read models, generated-repo truth projections, package-investigation evidence, and provider/router summaries.
+- It may keep local UI state, secure settings, and cached snapshots with freshness markers.
+- All approvals, overrides, pause/resume, retry, merge-approval, and router-policy changes stay backend-mediated through orchestration APIs.
+- Local WSL and remote SSH are connectivity choices only; they must not become alternate mutation paths that bypass the orchestration service.
+- Ambiguous auth, trust, or connectivity must force the app into a read-only degraded mode rather than letting it invent or continue mutation authority.
+- The first implementation wave should optimize for unpackaged internal-tool build/run loops; exact Windows App SDK versioning and packaging decisions live in the adjacent app repo, not in Scafforge package core.
+
 ### Stage-Gate Enforcer (Plugin)
 
 The most critical component in generated repos. It intercepts **every tool call** and enforces:

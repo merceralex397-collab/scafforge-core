@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use `superpowers:subagent-driven-development` (recommended) or `superpowers:executing-plans` to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Status:** TODO
+**Status:** IN PROGRESS
 **Goal:** Design the Windows control app that monitors and controls the autonomous Scafforge factory across local WSL and remote SSH environments without becoming a hidden workflow engine.
 
 **Architecture:** Build the control plane as a dedicated WinUI 3 application backed by explicit orchestration APIs and event streams. The app should observe and control the system, not own its truth. During early implementation, prefer an internal-tool packaging posture that optimizes local build/run and operator workflows; revisit packaged distribution only when the app’s Windows feature needs are clear.
@@ -111,57 +111,57 @@ The WinUI app must not become the only usable control surface.
 
 ### Phase 1: Freeze the app’s boundary and packaging model
 
-- [ ] Document exactly what the WinUI app is allowed to do directly versus what it must ask the backend to do.
-- [ ] Decide the initial packaging model for development and internal deployment.
-- [ ] Record which Windows features the app truly needs before choosing packaged-only behavior.
-- [ ] Decide and record the WinUI app repo identity, naming, and its relationship to the Scafforge package.
-- [ ] Record where the Windows App SDK version decision will live so it does not drift.
-- [ ] Freeze the operating-mode vocabulary for the app, including any human-in-the-loop versus autonomous modes that affect approvals and overrides.
-- [ ] Ensure the plan never assumes the app itself is the workflow source of truth.
-- [ ] Exit Phase 1 only when `references/winui-control-boundary.md` exists and is reviewed against plan `07`’s ownership boundaries.
+- [x] Document exactly what the WinUI app is allowed to do directly versus what it must ask the backend to do.
+- [x] Decide the initial packaging model for development and internal deployment.
+- [x] Record which Windows features the app truly needs before choosing packaged-only behavior.
+- [x] Decide and record the WinUI app repo identity, naming, and its relationship to the Scafforge package.
+- [x] Record where the Windows App SDK version decision will live so it does not drift.
+- [x] Freeze the operating-mode vocabulary for the app, including any human-in-the-loop versus autonomous modes that affect approvals and overrides.
+- [x] Ensure the plan never assumes the app itself is the workflow source of truth.
+- [x] Exit Phase 1 only when `references/winui-control-boundary.md` exists and is reviewed against plan `07`’s ownership boundaries.
 
 ### Phase 2: Define the backend consumption contract
 
-- [ ] Scope this phase to what the app needs from the backend, not to authoring the backend API itself.
-- [ ] Specify the event and state data the app consumes: project list, pipeline state, review state, provider config summaries, and intervention endpoints.
-- [ ] Define how the app receives live updates: polling, streaming, or event subscriptions.
-- [ ] Coordinate the live-update transport decision jointly with plan `07` before finalizing this phase so the app and backend cannot be designed into incompatibility.
-- [ ] Treat `active-plans/07-autonomous-downstream-orchestration/references/orchestration-transport-decision.md` as the canonical coordination artifact and do not finalize this phase until that document records the shared transport choice and rationale.
-- [ ] Decide how job identifiers, repo identifiers, and package-investigation identifiers are represented consistently across screens.
-- [ ] Ensure the app can distinguish downstream repo failures from package-level investigations cleanly.
-- [ ] Require that all mutations, including approvals, overrides, pause/resume, retry, and merge signals, are dispatched through the plan `07` orchestration API rather than directly to GitHub, generated repos, or shell invocations.
-- [ ] Keep API authoring authority in plan `07`’s orchestration service repo.
-- [ ] Exit Phase 2 only when `references/winui-backend-consumption-contract.md` exists and is cross-checked against the current plan `07` contract notes.
+- [x] Scope this phase to what the app needs from the backend, not to authoring the backend API itself.
+- [x] Specify the event and state data the app consumes: project list, pipeline state, review state, provider config summaries, and intervention endpoints.
+- [x] Define how the app receives live updates: polling, streaming, or event subscriptions.
+- [x] Coordinate the live-update transport decision jointly with plan `07` before finalizing this phase so the app and backend cannot be designed into incompatibility.
+- [x] Treat `active-plans/07-autonomous-downstream-orchestration/references/orchestration-transport-decision.md` as the canonical coordination artifact and do not finalize this phase until that document records the shared transport choice and rationale.
+- [x] Decide how job identifiers, repo identifiers, and package-investigation identifiers are represented consistently across screens.
+- [x] Ensure the app can distinguish downstream repo failures from package-level investigations cleanly.
+- [x] Require that all mutations, including approvals, overrides, pause/resume, retry, and merge signals, are dispatched through the plan `07` orchestration API rather than directly to GitHub, generated repos, or shell invocations.
+- [x] Keep API authoring authority in plan `07`’s orchestration service repo.
+- [x] Exit Phase 2 only when `references/winui-backend-consumption-contract.md` exists and is cross-checked against the current plan `07` contract notes.
 
 ### Phase 3: Define connectivity and operator environment rules
 
-- [ ] Design the WSL integration contract for local orchestration work.
-- [ ] Choose and record the WSL transport mechanism explicitly; do not leave this as an implementation-time assumption.
-- [ ] Design the SSH integration contract for remote runners or build hosts.
-- [ ] Distinguish read-only observation channels from mutation channels and prohibit direct `wsl.exe`, `ssh`, or ad hoc shell mutation flows outside the plan `07` orchestration API.
-- [ ] Define how credentials, host trust, and failure states are surfaced to the operator.
-- [ ] Define app-to-backend authentication separately from provider API key handling, and explicitly compare at least shared API key, OAuth 2.0 client-credentials, and mTLS before choosing the implementation path.
-- [ ] Freeze the default fail-closed behavior for ambiguous connectivity or permissions before implementation begins.
-- [ ] Exit Phase 3 only when `references/winui-connectivity-and-fail-closed.md` exists and includes specific stale-state, trust-loss, and disabled-control rules.
+- [x] Design the WSL integration contract for local orchestration work.
+- [x] Choose and record the WSL transport mechanism explicitly; do not leave this as an implementation-time assumption.
+- [x] Design the SSH integration contract for remote runners or build hosts.
+- [x] Distinguish read-only observation channels from mutation channels and prohibit direct `wsl.exe`, `ssh`, or ad hoc shell mutation flows outside the plan `07` orchestration API.
+- [x] Define how credentials, host trust, and failure states are surfaced to the operator.
+- [x] Define app-to-backend authentication separately from provider API key handling, and explicitly compare at least shared API key, OAuth 2.0 client-credentials, and mTLS before choosing the implementation path.
+- [x] Freeze the default fail-closed behavior for ambiguous connectivity or permissions before implementation begins.
+- [x] Exit Phase 3 only when `references/winui-connectivity-and-fail-closed.md` exists and includes specific stale-state, trust-loss, and disabled-control rules.
 
 ### Phase 4: Design the UI surface area
 
-- [ ] Choose a shell/navigation structure appropriate for a multi-pane operations app.
-- [ ] Map the major screens and the most important operator journeys: start project from a rough idea, attach reference files into the spec-factory flow, inspect failure, approve merge, pause/resume, inspect package fix, adjust provider settings.
-- [ ] Decide which screens are read-only dashboards versus command surfaces.
-- [ ] Define the meta-loop dashboard’s exact dependencies on plan `08`, including investigator reports, package-fix PR linkage, and the `resume-ready.json` signal.
-- [ ] Mark the meta-loop dashboard contract provisional until plan `08` finalizes the `resume-ready.json` field contract, then require a lock pass before implementation begins.
-- [ ] Keep dashboards tied to backend truth instead of inventing local state transitions.
-- [ ] Exit Phase 4 only when `references/winui-screen-and-journey-map.md` exists and marks every mutation surface as backend-mediated.
+- [x] Choose a shell/navigation structure appropriate for a multi-pane operations app.
+- [x] Map the major screens and the most important operator journeys: start project from a rough idea, attach reference files into the spec-factory flow, inspect failure, approve merge, pause/resume, inspect package fix, adjust provider settings.
+- [x] Decide which screens are read-only dashboards versus command surfaces.
+- [x] Define the meta-loop dashboard’s exact dependencies on plan `08`, including investigator reports, package-fix PR linkage, and the `resume-ready.json` signal.
+- [x] Mark the meta-loop dashboard contract provisional until plan `08` finalizes the `resume-ready.json` field contract, then require a lock pass before implementation begins.
+- [x] Keep dashboards tied to backend truth instead of inventing local state transitions.
+- [x] Exit Phase 4 only when `references/winui-screen-and-journey-map.md` exists and marks every mutation surface as backend-mediated.
 
 ### Phase 5: Define security, settings, and auditability
 
-- [ ] Design secure storage for provider API keys, app auth tokens, and remote credentials using `Windows.Security.Credentials.PasswordVault` for user-scoped secrets or DPAPI-backed encrypted storage for any machine-scoped cases.
-- [ ] Explicitly prohibit plaintext config files and environment variables as the steady-state storage mechanism for provider keys, backend auth tokens, or SSH credentials.
-- [ ] Define how the app logs operator interventions and approval decisions.
-- [ ] Ensure sensitive data is not echoed into general logs or screenshots accidentally.
-- [ ] Define a supportable local-environment setup path for operators using the app.
-- [ ] Exit Phase 5 only when `references/winui-security-and-settings.md` exists and includes storage, redaction, and auditability rules.
+- [x] Design secure handling for provider API keys plus secure local storage for app auth tokens and remote credentials, using backend-managed custody for provider keys and `Windows.Security.Credentials.PasswordVault` or DPAPI-backed encrypted storage only for app-local secrets.
+- [x] Explicitly prohibit plaintext config files and environment variables as the steady-state storage mechanism for provider keys, backend auth tokens, or SSH credentials.
+- [x] Define how the app logs operator interventions and approval decisions.
+- [x] Ensure sensitive data is not echoed into general logs or screenshots accidentally.
+- [x] Define a supportable local-environment setup path for operators using the app.
+- [x] Exit Phase 5 only when `references/winui-security-and-settings.md` exists and includes storage, redaction, and auditability rules.
 
 ### Phase 6: Validate the internal-tool workflow
 

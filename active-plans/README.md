@@ -88,7 +88,7 @@ Keep plan status explicit. A plan may remain in `active-plans/` with `Status: DO
 | 11 | TODO | `12-skill-system-expansion-and-meta-skill-engineering/` | Adds a disciplined path for Scafforge’s own skill evolution and external-skill distillation. |
 | 12 | TODO | `13-meta-skill-engineering-repo-hardening/` | Hardens the separate Meta-Skill-Engineering repo into a fully agent-usable suite with a complete CLI surface. |
 | 13 | TODO | `14-blender-agent-repo-hardening/` | Hardens the separate blender-agent repo so Scafforge can rely on it truthfully. |
-| 14 | TODO | `10-viewer-control-plane-winui/` | Builds the operator-facing WinUI control plane after backend contracts are stable. |
+| 14 | IN PROGRESS | `10-viewer-control-plane-winui/` | Locks the WinUI client boundary and operator workflows while Phase 6 stays blocked on live backend/event surfaces. |
 
 ## Program-Level Decisions
 

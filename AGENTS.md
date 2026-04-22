@@ -66,6 +66,8 @@ These systems may consume Scafforge contracts, but they must not smuggle their r
 
 An adjacent orchestration service may trigger `scaffold-kickoff` from a persisted approved-brief bundle, schedule downstream PR phases, and own pause, retry, and resume controls. It must stay read-only with respect to generated `tickets/manifest.json` and `.opencode/state/workflow-state.json`, and it must derive wrapper state from package and GitHub evidence instead of inventing repo truth in the UI.
 
+An adjacent control plane may render orchestration job state, package investigations, and provider/router summaries, but it must route approvals, overrides, pause/resume, retry, merge, and policy mutations through backend APIs. If auth, trust, or connectivity is ambiguous, the control plane must fail closed to read-only and must not fall back to direct `wsl.exe`, `ssh`, GitHub, or repo-local shell mutation.
+
 ## Package Working Mode
 
 Scafforge package work is not driven by the generated repo workflow-state manager.

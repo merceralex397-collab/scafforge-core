@@ -618,6 +618,8 @@ def validate_core_docs(findings: list[Finding]) -> None:
     spec_factory_handoff = ROOT / "references" / "spec-factory-handoff-contract.md"
     spec_factory_ingress = ROOT / "references" / "spec-factory-intake-and-approval.md"
     orchestration_wrapper = ROOT / "references" / "orchestration-wrapper-contract.md"
+    control_plane_contract = ROOT / "references" / "control-plane-client-contract.md"
+    control_plane_operator = ROOT / "references" / "control-plane-operator-workflows.md"
     require_paths(
         findings,
         [
@@ -633,6 +635,8 @@ def validate_core_docs(findings: list[Finding]) -> None:
             spec_factory_handoff,
             spec_factory_ingress,
             orchestration_wrapper,
+            control_plane_contract,
+            control_plane_operator,
         ],
     )
 
@@ -670,6 +674,9 @@ def validate_core_docs(findings: list[Finding]) -> None:
     require_contains(findings, readme, "one legal next move")
     require_contains(findings, readme, "temporary contract smell")
     require_contains(findings, readme, "minimal-operable-versus-specialization split")
+    require_contains(findings, readme, "## Adjacent control plane")
+    require_contains(findings, readme, "control-plane-client-contract.md")
+    require_contains(findings, readme, "control-plane-operator-workflows.md")
 
     require_contains(findings, agents, "## Product contract refinements")
     require_contains(findings, agents, "## Canonical generated-repo truth hierarchy")
@@ -692,6 +699,7 @@ def validate_core_docs(findings: list[Finding]) -> None:
         agents,
         "approved factory briefs are valid upstream inputs only when their handoff bundle is persisted",
     )
+    require_contains(findings, agents, "An adjacent control plane may render orchestration job state")
 
     require_contains(findings, architecture, "Adjacent systems such as the spec factory")
     require_contains(findings, architecture, "## SDK Layering")
@@ -700,6 +708,7 @@ def validate_core_docs(findings: list[Finding]) -> None:
     require_contains(findings, architecture, "**OpenAI Apps SDK** stays bounded to ChatGPT-facing ingress")
     require_contains(findings, architecture, "### Adjacent spec-factory boundary")
     require_contains(findings, architecture, "### Adjacent model-router boundary")
+    require_contains(findings, architecture, "### Adjacent control-plane boundary")
     require_contains(
         findings,
         architecture,
@@ -758,6 +767,14 @@ def validate_core_docs(findings: list[Finding]) -> None:
         "The orchestration service is read-only with respect to generated `tickets/manifest.json` and `.opencode/state/workflow-state.json`.",
     )
     require_contains(findings, orchestration_wrapper, "`scaffold-verified` means VERIFY009 persistence confirmation plus zero blocking VERIFY010 and VERIFY011 findings.")
+    require_contains(findings, orchestration_wrapper, "Dashboard or control-plane clients consume wrapper-owned read models and event streams")
+    require_contains(findings, orchestration_wrapper, "Operator commands coming from a control plane must call orchestration APIs")
+    require_contains(findings, control_plane_contract, "The control plane must route all approvals, overrides, pause/resume, retry, merge-approval, and router-policy changes through backend APIs.")
+    require_contains(findings, control_plane_contract, "The control plane must not become the only usable control surface.")
+    require_contains(findings, control_plane_contract, "transient provider-credential enrollment UX")
+    require_contains(findings, control_plane_operator, "The app switches to read-only mode")
+    require_contains(findings, control_plane_operator, "remote or multi-machine control should use mTLS as the steady-state app-to-backend trust mechanism")
+    require_contains(findings, control_plane_operator, "not retained in local steady-state secret storage")
     require_contains(findings, orchestration_wrapper, "`package-change-pending`")
     require_contains(findings, orchestration_wrapper, "`resume-ready`")
     require_contains(

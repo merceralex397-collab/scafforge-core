@@ -91,6 +91,20 @@ An adjacent orchestration service may trigger `scaffold-kickoff` from a persiste
 - `scaffold-verified` means the one-shot generation pass cleared VERIFY009 and has zero blocking VERIFY010 or VERIFY011 findings before downstream PR work begins.
 - Repo-local repair resumes only after audit or repair revalidation plus refreshed restart publication. Package-defect waits stay outside the repo until updated Scafforge package work lands and a fresh downstream revalidation clears the blocker.
 
+## Adjacent control plane
+
+An adjacent control plane such as the planned WinUI app is a client of orchestration truth, not a second workflow engine.
+
+- It may render orchestration jobs, generated-repo truth projections, package investigations, and provider/router summaries.
+- It must route approvals, overrides, pause/resume, retry, merge-approval, and router-policy changes through backend APIs.
+- It must fail closed to read-only when auth, trust, or connectivity is ambiguous instead of falling back to direct GitHub, WSL, SSH, or repo-local mutation.
+- CLI/API fallback must remain usable without the GUI.
+
+Package-level boundary and operator references:
+
+- [references/control-plane-client-contract.md](references/control-plane-client-contract.md)
+- [references/control-plane-operator-workflows.md](references/control-plane-operator-workflows.md)
+
 ## What the agent does
 
 The package splits work between deterministic scripts and host reasoning:
