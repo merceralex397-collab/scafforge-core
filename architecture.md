@@ -8,6 +8,15 @@ The core design goal is **weak-model reliability**: making cheaper or weaker AI 
 
 Adjacent systems such as the spec factory, model router, orchestration service, and control plane stay outside the package core. They consume Scafforge contracts; they do not replace package authority.
 
+## SDK Layering
+
+Scafforge uses a hybrid layering decision rather than a rewrite-first approach:
+
+- **OpenCode** remains the execution substrate for Scafforge-generated repos, package contracts, and downstream repo work.
+- **AI SDK** belongs in adjacent services that need provider routing, provider failover, tool-loop agents, or service-side orchestration.
+- **OpenAI Apps SDK** stays bounded to ChatGPT-facing ingress, review, and UI surfaces.
+- The executable router contract stays in an adjacent service repo; Scafforge documents the policy boundary but does not embed router logic in package core.
+
 ## System Layers
 
 ```
@@ -157,6 +166,15 @@ The adjacent orchestration service is the wrapper that sits between approved bri
 - It must stay read-only over generated canonical repo truth. Phase grouping, PR state, and `package-change-pending` remain orchestration-owned overlay state.
 - It treats `scaffold-verified` as VERIFY009 persistence confirmation plus zero blocking VERIFY010 and VERIFY011 findings before downstream PR work begins.
 
+### Adjacent model-router boundary
+
+The model router is an adjacent service concern, even when it uses the AI SDK.
+
+- Scafforge documents provider categories, fallback rules, and model-update policy.
+- The executable router interface, provider credentials, and runtime selection logic belong in an adjacent service repo.
+- The router may intentionally choose between native SDK lanes, AI SDK provider lanes, compatible-adapter lanes, and OpenCode execution lanes for the same model family.
+- Provider, model-family, exact model ID, and transport-path evidence should be recorded in orchestration or service-side job records, not frozen into package docs as long-lived truth.
+
 ### Stage-Gate Enforcer (Plugin)
 
 The most critical component in generated repos. It intercepts **every tool call** and enforces:
@@ -184,12 +202,12 @@ Key functions:
 ### Bootstrap Provenance
 
 `.opencode/meta/bootstrap-provenance.json` records the scaffold configuration:
-- model choices (provider, tier, full model names)
+- runtime model selections (provider category, tier, and exact model IDs chosen for that run)
 - stack label, project identifiers
 - product finish contract
 - Scafforge version
 
-This is used by repair to reconstruct the correct template rendering context.
+This is runtime provenance, not package policy. Repair uses it to reconstruct the correct template rendering context for the exact run that created the repo.
 
 ## Repair Flow
 
@@ -220,9 +238,10 @@ This is used by repair to reconstruct the correct template rendering context.
 ## Model Configuration
 
 - Template placeholder: `__FULL_PLANNER_MODEL__` renders as `provider/model`
-- Provenance stores full `provider/model` strings
+- Durable package docs should describe model families, provider categories, and routing rules rather than hard-code volatile model IDs
+- Exact model IDs belong in adjacent service config, environment-specific settings, explicit fixtures, or runtime provenance for a concrete scaffold run
+- Provenance may store full `provider/model` strings for an actual run
 - Repair strips provider prefix before re-rendering to avoid doubling
-- Current downstream model: `minimax-coding-plan/MiniMax-M2.7`
 
 ## Execution Harness
 
