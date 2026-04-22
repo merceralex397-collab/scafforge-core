@@ -49,10 +49,12 @@ This catalog turns the RFC invariants into a checklist that later tickets can im
 
 22. `AGENTS.md`, `skills/skill-flow-manifest.json`, and the reference contracts must agree on authority ownership and publish-gate behavior.
 23. The greenfield contract may not be accidentally strengthened into a redundant second gate when repair and pivot publish gating are tightened.
+24. Contract-changing package PRs must update the affected root docs, canonical references, validator expectations, and touched generated-template docs in the same change set.
+25. Package root docs must route readers to the canonical truth surface for each major domain instead of duplicating detailed rules inconsistently.
 
 ### Validation
 
-24. Every recurring loop class must have a replayable regression fixture.
-25. End-to-end repair tests must assert convergence and publish safety, not only exact strings.
-26. Tier 1 stacks must have real execution proof coverage on proof hosts.
-27. Existing curated fixture families must be preserved and upgraded rather than discarded.
+26. Every recurring loop class must have a replayable regression fixture.
+27. End-to-end repair tests must assert convergence and publish safety, not only exact strings.
+28. Tier 1 stacks must have real execution proof coverage on proof hosts.
+29. Existing curated fixture families must be preserved and upgraded rather than discarded.

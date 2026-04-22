@@ -8,6 +8,8 @@ Final for PR-01.
 
 This ADR freezes the package authority map for the Scafforge reliability re-architecture. The goal is to stop split authority before later tickets change workflow, restart, or pivot behavior.
 
+Root docs should route readers here for ownership detail instead of restating the full owner map inconsistently across multiple package surfaces.
+
 ## Ownership Map
 
 | Truth domain | Single owner | Scope |
@@ -32,6 +34,7 @@ The first duplicate-authority seam to collapse was repair-side restart rendering
 4. Restart publication may only happen from the final verified post-mutation state.
 5. Contract alignment must keep `AGENTS.md`, `skills/skill-flow-manifest.json`, and the reference contracts in sync with the same owner map.
 6. Adjacent orchestration may derive wrapper state from Scafforge and GitHub outputs, but it may not rewrite `tickets/manifest.json`, `.opencode/state/workflow-state.json`, or restart publication directly.
+7. Package root docs may summarize the owner map, but this ADR remains the canonical owner-by-domain reference.
 
 ## Dependent References
 

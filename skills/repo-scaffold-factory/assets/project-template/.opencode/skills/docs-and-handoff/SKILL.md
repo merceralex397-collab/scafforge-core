@@ -11,5 +11,6 @@ Keep these artifacts fresh:
 
 - `START-HERE.md`
 - `.opencode/state/context-snapshot.md`
+- `.opencode/state/latest-handoff.md`
 - `tickets/BOARD.md`
 - `tickets/manifest.json`

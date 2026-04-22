@@ -57,7 +57,16 @@ When editing the planning portfolio:
 2. update `active-plans/README.md` if ordering, status, or portfolio structure changes
 3. update `FULL-REPORT.md` if the program summary changes
 4. update `WORK-JOURNAL.md` when a classification or policy decision changes
-5. add or revise `_source-material/` only when it preserves useful provenance or reduces noise in a canonical plan
+5. keep each numbered plan's documentation impact checklist current so doc updates stay visible and reviewable
+6. add or revise `_source-material/` only when it preserves useful provenance or reduces noise in a canonical plan
+
+## Documentation Checklist Rule
+
+`AGENTS.md` owns the standing package rule that contract-changing PRs must update docs in the same change set. Inside `active-plans/`, the practical formatting rule is:
+
+- every numbered plan should carry a documentation impact checklist naming the docs, references, generated-template docs, or adjacent-repo docs that move with that plan
+- the checklist is a planning reminder, not a second source of authority for package policy
+- if a plan changes package or template contract truth, the checklist items should be completed in the same PR instead of deferred to a final cleanup pass
 
 ## Anti-Patterns
 
@@ -80,6 +89,8 @@ These remain active in-repo references because they still justify current or fut
 - `_source-material/downstream-failures/womanvshorseissues/`
 - `_source-material/repo-hygiene/docscleanup-original.md`
 - `_source-material/validation/completionqualityvalidation/test-android-apps/`
+
+`WORK-JOURNAL.md` and `codexinstructions.md` are intentionally part of the inventory but not part of the root routing layer rewrite: the journal stays historical provenance, and the execution guide stays a supporting reference.
 
 ## Completed-Plan Exit Rule
 

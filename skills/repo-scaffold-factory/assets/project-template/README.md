@@ -10,8 +10,10 @@ This repository was scaffolded for a deterministic, ticketed, agent-friendly wor
 2. Read `AGENTS.md`
 3. Read `docs/spec/CANONICAL-BRIEF.md`
 4. Read `docs/process/workflow.md`
-5. Read `docs/process/git-capability.md`
-6. Read `tickets/BOARD.md`
+5. Read `docs/process/model-matrix.md`
+6. Read `tickets/README.md`
+7. Read `tickets/manifest.json`
+8. Read `tickets/BOARD.md`
 
 ## Repository Layout
 
@@ -37,6 +39,7 @@ This repository was scaffolded for a deterministic, ticketed, agent-friendly wor
 - `tickets/manifest.json` is the machine source of queue state.
 - registered artifact metadata belongs on the owning ticket entry in `tickets/manifest.json` and is mirrored into `.opencode/state/artifacts/registry.json`
 - `tickets/BOARD.md` is a derived human board.
+- `.opencode/commands/` are human entrypoints only; the autonomous workflow lives in tools, plugins, skills, and canonical state.
 - Ticket `status` stays coarse and queue-oriented.
 - Historical completion and current trust are separate. `status` stays queue-oriented, while `resolution_state` and `verification_state` tell you whether completed work is still trusted.
 - Plan approval, bootstrap readiness, and coordinator-owned lease state live in workflow state plus registered stage artifacts, not in ticket status.

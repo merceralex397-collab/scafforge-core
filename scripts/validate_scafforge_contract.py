@@ -607,8 +607,11 @@ def validate_flow_manifest(findings: list[Finding]) -> None:
 
 def validate_core_docs(findings: list[Finding]) -> None:
     readme = ROOT / "README.md"
+    userguide = ROOT / "USERGUIDE.md"
     agents = ROOT / "AGENTS.md"
     architecture = ROOT / "architecture.md"
+    active_plans_readme = ROOT / "active-plans" / "README.md"
+    docscleanup = ROOT / "active-plans" / "docscleanup.md"
     sdk_layering_adr = ROOT / "references" / "sdk-layering-adr.md"
     provider_router_policy = ROOT / "references" / "provider-router-policy.md"
     one_shot = ROOT / "references" / "one-shot-generation-contract.md"
@@ -624,8 +627,11 @@ def validate_core_docs(findings: list[Finding]) -> None:
         findings,
         [
             readme,
+            userguide,
             agents,
             architecture,
+            active_plans_readme,
+            docscleanup,
             sdk_layering_adr,
             provider_router_policy,
             one_shot,
@@ -677,6 +683,8 @@ def validate_core_docs(findings: list[Finding]) -> None:
     require_contains(findings, readme, "## Adjacent control plane")
     require_contains(findings, readme, "control-plane-client-contract.md")
     require_contains(findings, readme, "control-plane-operator-workflows.md")
+    require_contains(findings, userguide, "one reference hop")
+    require_contains(findings, userguide, "generated slash commands as human entrypoints")
 
     require_contains(findings, agents, "## Product contract refinements")
     require_contains(findings, agents, "## Canonical generated-repo truth hierarchy")
@@ -700,6 +708,13 @@ def validate_core_docs(findings: list[Finding]) -> None:
         "approved factory briefs are valid upstream inputs only when their handoff bundle is persisted",
     )
     require_contains(findings, agents, "An adjacent control plane may render orchestration job state")
+    require_contains(
+        findings,
+        agents,
+        "Every contract-changing PR must update the affected root docs, references, generated-template docs, and validator expectations in the same change set.",
+    )
+    require_contains(findings, active_plans_readme, "documentation impact checklist")
+    require_contains(findings, docscleanup, "documentation impact checklist")
 
     require_contains(findings, architecture, "Adjacent systems such as the spec factory")
     require_contains(findings, architecture, "## SDK Layering")

@@ -19,6 +19,8 @@ A final planning-hygiene closeout pass also locked the portfolio rules in place:
 - root-level files under `active-plans/` are limited to portfolio-wide navigation, policy, reporting, journal, and execution guidance
 - plan-specific intake notes no longer belong at the root; the Meta-Skill-Engineering intake note now lives with plan `13`'s references
 
+Plan `11` is now implemented as the routing layer for this documentation architecture: root docs are shorter, durable contract detail lives in references, generated-template docs were realigned, and documentation verification is now treated as standing delivery work instead of final polish.
+
 A later source-spec audit against the moved `_source-material/` docs tightened the plans further around three areas that were still too implicit: retrieval or vector-index handling, concrete distillation of the asset-research ecosystem into route policy, and the distinction between provider, SDK, and execution-host access paths in the model-router plan.
 
 The central program decision remains unchanged: Scafforge should not scale autonomy until it first closes the reliability, validation, and quality gaps already proven by womanvshorse and spinner.
@@ -135,7 +137,7 @@ Designs the operator-facing Windows app that watches and controls the autonomous
 
 ### `11-repository-documentation-sweep`
 
-Modernizes the package docs so authority, workflow, and context are discoverable to both humans and agents.
+Modernizes the package docs so authority, workflow, and context are discoverable to both humans and agents. The implemented sweep now publishes an authority map, records repeatable context tests, and makes same-PR doc alignment a default expectation for later plans.
 
 ### `12-skill-system-expansion-and-meta-skill-engineering`
 
@@ -162,4 +164,4 @@ Turns the separate `blender-agent` repository into a clearer, safer dependency b
 
 ## Final Recommendation
 
-Treat these plans as a dependency-ordered implementation program, not as background notes. The correct next step after this planning cycle is not more restructuring. It is to choose the first implementation plan from the ordered list and execute it with docs and validation in the same PR.
+Treat these plans as a dependency-ordered implementation program, not as background notes. The correct next step after this planning cycle is not more restructuring. It is to choose the next implementation plan from the ordered list and execute it with docs and validation in the same PR.

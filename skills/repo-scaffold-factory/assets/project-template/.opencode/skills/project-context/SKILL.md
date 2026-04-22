@@ -13,5 +13,7 @@ Read these first:
 2. `AGENTS.md`
 3. `docs/spec/CANONICAL-BRIEF.md`
 4. `docs/process/workflow.md`
-5. `tickets/manifest.json`
-6. `tickets/BOARD.md`
+5. `docs/process/model-matrix.md`
+6. `tickets/README.md`
+7. `tickets/manifest.json`
+8. `tickets/BOARD.md`

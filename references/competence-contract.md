@@ -10,6 +10,7 @@ Scafforge is not competent unless the generated workflow exposes one clear legal
 - deterministic tools must fail truthfully and must not require impossible preconditions
 - ticket acceptance criteria must be scope-isolated; if closeout depends on later-ticket work, the backlog split is wrong
 - prompts, tools, workflow docs, restart surfaces, and ticketing must all describe the same state machine
+- package docs must route a newcomer or agent from root docs to the correct canonical truth surface within one hop when authority, workflow, or boundary questions arise
 - post-repair verification must prove both current-state cleanliness and causal-regression coverage when the repair basis was transcript-backed
 - greenfield bootstrap must persist blocker state so missing host prerequisites stop the flow truthfully instead of being inferred from tool failures later
 - model-tier configuration may change prompt density, but it must not change workflow fidelity, ownership boundaries, or proof requirements

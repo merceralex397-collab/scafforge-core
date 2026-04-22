@@ -1,161 +1,46 @@
 # Scafforge User Guide
 
-This guide is for the human operator using a Scafforge-managed repo.
+This guide is for humans operating Scafforge or a Scafforge-managed repo. Use it for routing decisions and lightweight context acquisition. Use `AGENTS.md` and the reference contracts for durable package truth.
 
-## What The Generated `/commands` Are
+## Lightweight context path
 
-Files under `.opencode/commands/` are human entrypoints.
+1. Read `README.md`.
+2. Open [active-plans/11-repository-documentation-sweep/references/documentation-authority-map.md](active-plans/11-repository-documentation-sweep/references/documentation-authority-map.md).
+3. Take one reference hop for the specific truth domain you need.
 
-They are:
-- short preset prompts aimed at the generated repo's team leader
-- a convenience layer for common session starts
-- not the real workflow engine
+The current context-test evidence for this path lives in [active-plans/11-repository-documentation-sweep/references/documentation-context-tests.md](active-plans/11-repository-documentation-sweep/references/documentation-context-tests.md).
 
-The real workflow lives in:
-- `.opencode/tools/`
-- `.opencode/plugins/`
-- `.opencode/skills/`
-- `tickets/manifest.json`
-- `.opencode/state/workflow-state.json`
+| Question | Root doc | Reference hop |
+| --- | --- | --- |
+| Who owns restart publication? | `AGENTS.md` | `references/authority-adr.md` |
+| What is the greenfield skill chain? | `README.md` | `references/one-shot-generation-contract.md` |
+| Where does the generated-repo truth hierarchy live? | `AGENTS.md` | none required |
+| Where are package-versus-output boundaries defined? | `AGENTS.md` | none required |
 
-The agent should use those surfaces directly once work begins. It should not need to call slash commands itself.
+## Choose the right route
 
-## The Short Answer
+| Need | Use | Why |
+| --- | --- | --- |
+| New repo, retrofit, or initial classification | `scaffold-kickoff` | Single public entrypoint that routes generation, retrofit, repair, pivot, or diagnosis |
+| Read-only diagnosis or evidence validation | `scafforge-audit` | Validates findings before they become canonical and emits the diagnosis pack |
+| Managed workflow repair after audit | `scafforge-repair` | Applies safe repair, regeneration follow-up, and verification routing |
+| Canonical-truth change midstream | `scafforge-pivot` | Updates brief truth first, then routes affected refresh steps |
+| Daily work inside a generated repo | `START-HERE.md` plus `/resume` or a plain-language equivalent | Generated repos expose the local next move directly |
 
-In most repos, `/resume` is the only command you will use regularly.
+## Generated-repo operator habits
 
-`/kickoff` can be useful for the first session in a newly generated repo.
+- Treat generated slash commands as human entrypoints, not as the autonomous workflow engine.
+- In most repos, `/resume` is the only command you need regularly.
+- `/kickoff` is useful for the first generated-repo session, but plain language is usually enough if the repo is already signposted.
+- The agent's real operating surfaces are `.opencode/tools/`, `.opencode/plugins/`, `.opencode/skills/`, `tickets/manifest.json`, and `.opencode/state/workflow-state.json`.
 
-Most other generated commands are optional scenario-specific entrypoints. They are not required for normal day-to-day operation, and the agent usually has the same underlying ability without them.
+## Machine and clone changes
 
-## What Each Command Is For
+Bootstrap state is machine-specific. If you switch machines, clone onto a new host, or move into a new CI environment, run `environment_bootstrap` before resuming ticket work. Generated repos should report stale bootstrap truthfully instead of pretending prior proof still applies.
 
-`/resume`
-- Main restart entrypoint.
-- Use when returning to an in-progress repo.
-- High value. This is the command most users actually need.
+## Before reviewing a contract-changing package PR
 
-`/kickoff`
-- First-session entrypoint for a fresh repo or freshly repaired repo.
-- Useful once, then usually replaced by `/resume`.
-- Optional if you prefer giving the same instruction in plain language.
-
-`/bootstrap-check`
-- Focused entrypoint for environment/bootstrap problems.
-- Use when the repo is blocked on missing runtime, dependencies, or stale bootstrap proof.
-- Optional convenience only.
-
-`/issue-triage`
-- Focused entrypoint for defects found after a ticket was already completed.
-- Use when historical work needs reopen/follow-up/rollback routing.
-- Optional convenience only.
-
-`/reverify-ticket`
-- Focused entrypoint for restoring trust on a completed ticket after remediation evidence exists.
-- Use when a historical ticket is `suspect`, `invalidated`, or pending reverification.
-- Optional convenience only.
-
-`/plan-wave`
-- Human entrypoint for choosing the next foreground wave and possible parallel candidates.
-- Mostly useful in repos that actually use the lane/parallel model.
-- Usually unnecessary for a single active lane workflow.
-
-`/run-lane`
-- Human entrypoint for running one bounded leased lane.
-- Only useful when you are intentionally using the parallel-lane model.
-- Usually unnecessary in normal single-lane operation.
-
-`/join-lanes`
-- Human entrypoint for merging completed parallel lanes back into one foreground path.
-- Only useful if parallel lanes were actually used.
-- Usually unnecessary otherwise.
-
-## Are These Commands Necessary?
-
-Usually not.
-
-The commands are mostly:
-- operator shortcuts
-- preset prompts for specific situations
-- reminders about the intended workflow
-
-They are not generally required for correctness. If the generated repo is healthy, the team leader can usually do the same work when you ask in plain language.
-
-The important exception is practical, not architectural:
-- `/resume` is worth keeping because it gives one predictable restart entrypoint.
-
-Everything else should be judged by whether it reduces operator confusion in that repo.
-
-## Does The Agent Have The Same Ability Without The Command?
-
-Yes, in most cases.
-
-The command does not grant special powers. It usually just:
-- selects the team leader agent
-- frames the situation
-- reminds the model which canonical tools and state files to use
-
-The actual capabilities come from the repo's tools, plugins, state, and local skills.
-
-That means:
-- a human can often say the same thing directly in chat
-- the team leader can often perform the same work without a slash command
-- the agent should not be telling itself to use `/resume`, `/kickoff`, or similar commands as internal workflow steps
-
-## Recommended Minimal User Workflow
-
-For most repos:
-
-1. First session: use `/kickoff` or give an equivalent plain-language start instruction.
-2. Ongoing sessions: use `/resume`.
-3. If the repo hits a workflow blocker: use Scafforge host-side audit and repair from the Scafforge package repo, not generated-repo slash commands.
-
-That is the normal path.
-
-## Guidance For Scafforge Generation
-
-Scafforge should treat generated commands as a user-facing affordance layer, not as core workflow logic.
-
-Default recommendation:
-- always generate `/resume`
-- optionally generate `/kickoff`
-- generate the advanced commands only when the repo genuinely benefits from them
-
-Commands like `/plan-wave`, `/run-lane`, and `/join-lanes` are not legacy in the sense of being broken, but they are often over-provisioned. In a typical single-operator repo they add surface area faster than they add value.
-
-## Practical Conclusion From GPTTalker
-
-GPTTalker's command set is broader than what the operator actually uses.
-
-That does not mean the commands are all wrong. It means Scafforge currently tends to generate more user entrypoints than many repos need.
-
-The safer Scafforge stance is:
-- keep `/resume` as the primary user command
-- keep `/kickoff` as an optional first-session command
-- treat the rest as advanced or situational
-- never rely on slash commands as the agent's internal workflow
-
-## Machine Portability and Bootstrap State
-
-**Bootstrap state is host-specific.** When `environment_bootstrap` runs, it verifies that the current machine has the required executables, environment variables, and toolchain at a specific point in time. The result is stored as a fingerprint in `.opencode/state/workflow-state.json`.
-
-That fingerprint is **not valid on a different machine**.
-
-### When you switch machines or clone to a new host
-
-1. Clone (or pull) the repo as normal.
-2. **Before doing anything else**, run `environment_bootstrap`.
-   - Tools will throw `"Bootstrap stale. Run environment_bootstrap."` if you try to start ticket work without re-verifying. This is correct behavior — the stale message means re-run bootstrap, not that the repo is broken.
-3. After `environment_bootstrap` succeeds on this machine, ticket work can resume normally.
-
-### Why this matters
-
-`START-HERE.md` and the last handoff brief reflect the bootstrap state from whatever machine the prior session ran on. If that machine had `cargo`, `openssl`, or other toolchain prerequisites installed, the published state will say `bootstrap: ready`. On a different machine those prerequisites may be absent.
-
-The workflow is designed to detect this safely — it will surface a stale-bootstrap error at the first smoke test rather than silently passing with a broken toolchain. The `/bootstrap-check` command is a targeted entry point if you need to re-run bootstrap explicitly.
-
-### What the agent should NOT do on a new machine
-
-- Start ticket work before bootstrap is re-verified
-- Use `command_override` to scope-narrow smoke tests around missing toolchain prerequisites
-- Interpret `bootstrap_status: ready` from the last handoff as proof that this machine is ready
+1. Identify the affected root docs, references, generated-template docs, and validator checks.
+2. Update those surfaces in the same change set; do not treat documentation as final polish.
+3. Run the contract validator after changing validator-pinned docs, then run the wider package validation stack required by the repo instructions.
+4. Record any residual drift or environment blockers explicitly instead of implying the docs are already aligned.

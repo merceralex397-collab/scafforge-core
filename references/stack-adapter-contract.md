@@ -208,7 +208,7 @@ When adding a new stack adapter, update all of these surfaces together:
 3. Add target-completion or release-proof guidance to backlog generation, repair follow-up, and verification surfaces if the stack is meant to be Tier 1.
 4. Add execution-audit coverage in `skills/scafforge-audit/scripts/audit_execution_surfaces.py` if the stack is meant to be Tier 1.
 5. Add stack-aware team and skill guidance through `opencode-team-bootstrap` and `project-skill-bootstrap` inputs.
-6. Update package docs such as `README.md`, `AGENTS.md`, and this contract.
+6. Update package docs such as `README.md`, `AGENTS.md`, the touched generated-template docs, and this contract in the same change.
 7. Add or extend regression coverage in `scripts/smoke_test_scafforge.py`.
 
 Do not promote a stack to Tier 1 unless execution-audit coverage and proof coverage both exist.

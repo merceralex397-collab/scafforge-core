@@ -4,6 +4,8 @@ This document is an active issue-intake note for [13-meta-skill-engineering-repo
 
 It is not the canonical implementation plan. The canonical plan lives in the numbered folder above. This note exists to preserve the specific Meta Skill Studio issues that triggered the extra planning work.
 
+Documentation classification after plan `11`'s sweep: this file remains a supporting reference only. Scope, sequencing, and cross-plan policy changes belong in the numbered plan, `active-plans/README.md`, `active-plans/docscleanup.md`, or `AGENTS.md` instead of here.
+
 ## Intake Focus
 
 The separate Meta-Skill-Engineering repo needs more than generic “skill system evolution” guidance. It needs:

@@ -2,6 +2,8 @@
 
 This directory is the active Scafforge implementation program.
 
+The current documentation source-of-truth map for the package lives in [11-repository-documentation-sweep/references/documentation-authority-map.md](11-repository-documentation-sweep/references/documentation-authority-map.md), and its one-hop context proof lives in [11-repository-documentation-sweep/references/documentation-context-tests.md](11-repository-documentation-sweep/references/documentation-context-tests.md).
+
 `active-plans/` uses a two-layer model:
 
 - numbered folders (`NN-kebab-case/`) are the canonical implementation program, and each folder must expose exactly one authoritative `README.md`
@@ -32,7 +34,7 @@ Every numbered folder should be a real working plan, not a summary stub. Its pri
 - concrete package or adjacent surfaces likely to change
 - phased checkbox work
 - validation gates
-- documentation-update obligations
+- a documentation impact checklist naming the docs, references, template docs, or adjacent-repo docs that must move with that plan
 
 The plan set has also been checked back against the moved source-material specs. That follow-up pass tightened:
 
@@ -57,7 +59,16 @@ For any future planning edit:
 2. Update `active-plans/README.md` if plan order, plan status, or the portfolio shape changes.
 3. Update `FULL-REPORT.md` if the program summary or sequencing rationale changes.
 4. Update `WORK-JOURNAL.md` when a planning rule, classification decision, or significant correction is made.
-5. Add new `_source-material/` or `references/` documents only when they improve traceability or prevent the canonical plan from becoming noisy.
+5. Keep each plan's documentation impact checklist current and make the listed doc changes in the same PR when that plan changes package or template contract truth.
+6. Add new `_source-material/` or `references/` documents only when they improve traceability or prevent the canonical plan from becoming noisy.
+
+## Documentation Sweep Reminder
+
+`AGENTS.md` is the durable policy home for the standing doc-update rule. `active-plans/` keeps the program-level reminder:
+
+1. Every contract-changing plan must name its affected docs explicitly.
+2. Documentation updates are part of delivery, not a closeout-only cleanup step.
+3. When implementation order or architecture decisions change, update the relevant plan, this index, and `FULL-REPORT.md` together.
 
 ## Anti-Patterns
 
@@ -76,7 +87,7 @@ Keep plan status explicit. A plan may remain in `active-plans/` with `Status: DO
 | Order | Status | Plan | Why it lands here |
 | --- | --- | --- | --- |
 | 1 | DONE | `01-repo-hygiene-cleanup/` | Locks the portfolio structure so later plans do not regress into document chaos. |
-| 2 | TODO | `11-repository-documentation-sweep/` | Starts immediately and continues alongside every other implementation wave. |
+| 2 | DONE | `11-repository-documentation-sweep/` | Rebuilt the package doc routing layer, published the authority map and context tests, and turned documentation updates into a standing delivery rule. |
 | 3 | TODO | `02-downstream-reliability-hardening/` | Fixes the proven womanvshorse/spinner failure families before autonomy scales them. |
 | 4 | TODO | `05-completion-validation-matrix/` | Defines what “done” means across web, game, script, service, desktop, and Android repos. |
 | 5 | TODO | `03-asset-pipeline-architecture/` | Replaces asset-route guesswork with a capability, provenance, and QA system. |

@@ -39,6 +39,8 @@ If this file conflicts with any global AI instruction file, this file wins for t
 9. `tickets/manifest.json`
 10. `tickets/BOARD.md`
 
+`README.md` is the quick routing layer for this repo. Use the read order above when you need the canonical operating contract.
+
 ## Rules
 
 - Every substantive change should map to a ticket.

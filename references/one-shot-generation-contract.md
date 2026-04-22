@@ -4,7 +4,6 @@ Scafforge generation is a one-shot lifecycle.
 
 ## Public entrypoint
 
-`scaffold-kickoff` is the only public generation entrypoint.
 There is one public generation entrypoint: `scaffold-kickoff`.
 
 The authority baseline for this lifecycle is documented in [authority-adr.md](authority-adr.md), and the invariant checklist is documented in [invariant-catalog.md](invariant-catalog.md).
