@@ -9,6 +9,7 @@ Scafforge may be wrapped by an **adjacent orchestration service**, but that wrap
 - The orchestration service is read-only with respect to generated `tickets/manifest.json` and `.opencode/state/workflow-state.json`.
 - The orchestration service may read `docs/spec/CANONICAL-BRIEF.md`, `tickets/manifest.json`, `.opencode/state/workflow-state.json`, `START-HERE.md`, `.opencode/state/latest-handoff.md`, and `.opencode/meta/bootstrap-provenance.json`.
 - Phase grouping, PR numbers, reviewer assignment, merge-mode state, retry tokens, and idempotency keys live in orchestration-owned storage, not in the generated repo.
+- Operator and dashboard signaling for orchestration-owned states such as `package-change-pending` must also live in orchestration-owned storage or event streams, not in generated repo canonical truth.
 
 ## Job envelope
 
@@ -51,6 +52,8 @@ State transitions the wrapper must infer from Scafforge or GitHub evidence inste
 - `revalidation-pending`
 - `resume-ready`
 
+Generated repos may expose derived helper fields such as a local `scaffoldVerified` boolean, but those helpers are implementation details and must stay semantically identical to the wrapper-owned `scaffold-verified` inference described here.
+
 ## Greenfield invocation boundary
 
 - A persisted approved-brief bundle is the only legal upstream trigger into Scafforge greenfield generation.
@@ -63,6 +66,7 @@ State transitions the wrapper must infer from Scafforge or GitHub evidence inste
 
 - The orchestration layer may group one or more ready tickets into a downstream phase, but that grouping remains orchestration-owned state.
 - Every autonomous phase must end in an explicit PR or reviewable diff; the wrapper must not merge silent direct-to-main work.
+- PR-open, review-blocked, merge-ready, or merge-complete bookkeeping must not be serialized as fabricated backlog tickets or pushed through repo-local ticket mutation tools.
 - Branch names should stay job- and phase-scoped, for example `autonomy/<job-id>/phase-<nn>-<slug>`.
 - Each PR should retain links to the owning ticket IDs, validation artifacts, canonical brief snapshot, and any required stack-specific evidence.
 - Retry, split, pause, or escalation decisions belong to the wrapper, but they must leave the generated repo canonical state untouched until a repo-local tool or skill changes it lawfully.
@@ -83,6 +87,7 @@ State transitions the wrapper must infer from Scafforge or GitHub evidence inste
 - `package-change-pending` begins only when the diagnosis disposition says Scafforge package work must land before downstream repair may resume.
 - `resume-ready` requires current revalidation evidence plus freshly published restart surfaces from the verified final snapshot.
 - Resume must preserve causality by retaining the job's triggering diagnosis pack, the related downstream PR or commit, any package-fix PR or commit, and the revalidation pack that cleared the blocker.
+- At minimum, the retained evidence pointers for resume should include the diagnosis pack, audit disposition, downstream PR or commit, package-fix PR or commit when relevant, current revalidation proof, and the restart publication that re-established the legal next move.
 - The package-defect wait state remains orchestration-owned state; do not encode `package-change-pending` inside generated repo canonical workflow state.
 
 ## Current implementation boundary
