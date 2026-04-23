@@ -1,6 +1,6 @@
 # Generated Repo Root And Inventory Architecture
 
-**Status:** TODO  
+**Status:** DONE  
 **Goal:** Define the permanent boundary between the ecosystem workspace and generated repo roots, then freeze the orchestration-owned inventory contract for tracked generated repos, host bindings, and path roles.  
 **Depends On:** `07-autonomous-downstream-orchestration`, `10-viewer-control-plane-winui`, `11-repository-documentation-sweep`  
 **Unblocks:** `16-existing-machine-migration-and-adoption`, `17-worker-fabric-and-host-registration`, `18-control-plane-project-tracking`, `19-generated-repo-lifecycle-policy`
@@ -57,31 +57,37 @@ It should also lock field semantics tightly enough that later worker and control
 
 ### Phase 1: Freeze the root policy
 
-- [ ] Document the ecosystem workspace and generated-repo root as separate concerns.
-- [ ] Freeze `ScafforgeProjects/` as the recommended sibling root, while keeping absolute paths host-specific.
-- [ ] Explicitly document that generated repos are outputs, not ecosystem repos.
-- [ ] Prohibit default nesting of generated repos inside `Scafforge/`.
+- [x] Document the ecosystem workspace and generated-repo root as separate concerns.
+- [x] Freeze `ScafforgeProjects/` as the recommended sibling root, while keeping absolute paths host-specific.
+- [x] Explicitly document that generated repos are outputs, not ecosystem repos.
+- [x] Prohibit default nesting of generated repos inside `Scafforge/`.
 
 ### Phase 2: Freeze the inventory schema
 
-- [ ] Define `RepoRecord` fields and semantic meanings.
-- [ ] Define `HostRecord` fields and host-kind vocabulary.
-- [ ] Define `PathBinding` fields and path-role vocabulary.
-- [ ] Freeze the minimum lifecycle vocabulary used across inventory and control-plane read models.
-- [ ] Define how inventory records reference Git remotes, human-facing names, and product-family labels.
+- [x] Define `RepoRecord` fields and semantic meanings.
+- [x] Define `HostRecord` fields and host-kind vocabulary.
+- [x] Define `PathBinding` fields and path-role vocabulary.
+- [x] Freeze the minimum lifecycle vocabulary used across inventory and control-plane read models.
+- [x] Define how inventory records reference Git remotes, human-facing names, and product-family labels.
 
 ### Phase 3: Define registration and adoption entrypoints
 
-- [ ] Define how freshly scaffolded repos enter inventory automatically.
-- [ ] Define how existing repos like `spinner`, `glitch`, `deephat`, and `womanvshorse*` are adopted without moving into `Scafforge/`.
-- [ ] Define how multiple path bindings for the same repo are represented across Windows, WSL, and SSH Linux.
-- [ ] Define when a repo is considered inventory-known even if the local Windows machine does not have a checkout.
+- [x] Define how freshly scaffolded repos enter inventory automatically.
+- [x] Define how existing repos are adopted without moving into `Scafforge/`.
+- [x] Define how multiple path bindings for the same repo are represented across Windows, WSL, and SSH Linux.
+- [x] Define when a repo is considered inventory-known even if the local Windows machine does not have a checkout.
 
 ### Phase 4: Validate the control-plane and orchestration boundary
 
-- [ ] Ensure the orchestration wrapper contract owns tracked generated-repo inventory.
-- [ ] Ensure the control-plane contract consumes tracked repos through backend read models only.
-- [ ] Prove that the folder-scan approach is explicitly rejected in the docs and contracts.
+- [x] Ensure the orchestration wrapper contract owns tracked generated-repo inventory.
+- [x] Ensure the control-plane contract consumes tracked repos through backend read models only.
+- [x] Prove that the folder-scan approach is explicitly rejected in the docs and contracts.
+
+## Implementation closeout
+
+- inventory fields now include repo class, lifecycle, inventory origin, autonomy level, host registration, path bindings, agent sessions, and ticket records
+- workspace docs now state that generated repos are separate from the ecosystem workspace and that no machine-local durable set is shipped as product default state
+- example inventory material is generic rather than hardcoded to the current local durable set
 
 ## Validation and proof requirements
 

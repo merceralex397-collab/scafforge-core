@@ -5,7 +5,7 @@ Scafforge may be wrapped by an **adjacent orchestration service**, but that wrap
 ## Boundary
 
 - The orchestration service wraps Scafforge; it does not replace `scaffold-kickoff`, `spec-pack-normalizer`, `scafforge-audit`, `scafforge-repair`, or `handoff-brief`.
-- The orchestration service owns job progression, phase scheduling, PR automation, pause, retry, resume controls, dashboard-facing event streams, tracked generated-repo inventory, and worker-host registration.
+- The orchestration service owns job progression, phase scheduling, PR automation, pause, retry, resume controls, dashboard-facing event streams, tracked generated-repo inventory, worker-host registration, agent-session inventory, and ticket/control-plane command routing.
 - Dashboard or control-plane clients consume wrapper-owned read models and event streams; they do not become separate state authorities.
 - The orchestration service is read-only with respect to generated `tickets/manifest.json` and `.opencode/state/workflow-state.json`.
 - The orchestration service may read `docs/spec/CANONICAL-BRIEF.md`, `tickets/manifest.json`, `.opencode/state/workflow-state.json`, `START-HERE.md`, `.opencode/state/latest-handoff.md`, and `.opencode/meta/bootstrap-provenance.json`.
@@ -26,17 +26,25 @@ Minimum generated-repo inventory fields:
 - product family or type
 - current lifecycle state
 - current assigned host
+- inventory origin (`scaffolded` or `adopted`)
+- autonomy level (`none`, `partial`, or `full`)
 
 Minimum host and path-binding fields:
 
-- host id, host kind (`windows`, `wsl`, or `ssh-linux`), display name, connectivity state, and capability summary
-- repo id, host id, absolute path on that host, and path role (`primary`, `mirror`, `archived`, or `detached`)
+- host id, host kind (`windows`, `wsl`, or `ssh-linux`), display name, connectivity state, worker state, generated repo root, and capability summary
+- repo id, host id, absolute path on that host, path role (`primary`, `mirror`, `archived`, or `detached`), and binding state
+
+Minimum agent and ticket inventory fields:
+
+- agent session id, repo id, host id, agent lane, runtime/provider/model labels, session state, current ticket, last heartbeat
+- ticket id, repo id, ticket kind, ticket state, owner lane, summary, and updated timestamp
 
 Rules:
 
 - tracked generated repos may live outside the ecosystem workspace in separate roots such as `ScafforgeProjects/`
 - control-plane clients must consume this inventory through backend APIs rather than by local folder scans
 - durable or ephemeral classification, host assignment, and path binding role are orchestration-owned state and must not be written into generated canonical repo truth
+- agent/session inventory must also remain wrapper-owned operational state, not generated repo truth
 
 ## Job envelope
 
@@ -48,6 +56,7 @@ Every orchestration job should retain, at minimum:
 - execution mode
 - model/router policy
 - operator permission mode
+- operator experience mode (`dev` or `release`)
 - target host id and path-binding role when the job is host-affine
 - idempotency key for repo creation or scaffold invocation
 - retry token for phase or PR retries
@@ -85,6 +94,7 @@ Generated repos may expose derived helper fields such as a local `scaffoldVerifi
 ## Greenfield invocation boundary
 
 - A persisted approved-brief bundle is the only legal upstream trigger into Scafforge greenfield generation.
+- The wrapper may also expose an operator-guided direct project-creation flow for cases where the user does not start from the spec factory. That flow must still normalize into the same approved-brief contract before scaffold execution begins.
 - The wrapper invokes `scaffold-kickoff`; it does not bypass `spec-pack-normalizer` or call lower-level skills as public entrypoints.
 - `scaffold-verified` means VERIFY009 persistence confirmation plus zero blocking VERIFY010 and VERIFY011 findings.
 - No downstream phase, branch, or PR automation may begin until `scaffold-verified` is true and `handoff-brief` has published the restart surfaces from the verified final snapshot.
@@ -105,6 +115,15 @@ Generated repos may expose derived helper fields such as a local `scaffoldVerifi
 - The wrapper dispatches jobs to registered worker hosts; it does not rely on control-plane shell fallback to `wsl.exe` or `ssh`.
 - Supported host kinds for the first contract are `windows`, `wsl`, and `ssh-linux`.
 - A job may target a host even when the repo is not present on the local Windows machine running the control plane.
+- Stop, pause, resume, and autonomy-level changes for running agents are backend-mediated worker actions, not app-local shell actions.
+
+## Archive export boundary
+
+- The wrapper must emit standardized archive bundles for logs, database snapshots, validation evidence, review artifacts, and research handoff material.
+- Archive bundles must be taggable by project, category, agent lane, provider/model/runtime, and capture time.
+- Fault routing out of the archive must preserve two paths:
+  - direct Scafforge faults -> issue + investigator
+  - skill faults -> meta-skill-engineer lane, with optional feedback into Scafforge fixer or permanent library-skill seeding
 
 ## Review and merge gates
 

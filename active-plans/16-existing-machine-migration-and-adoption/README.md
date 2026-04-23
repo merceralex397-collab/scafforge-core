@@ -1,6 +1,6 @@
 # Existing-Machine Migration And Adoption
 
-**Status:** TODO  
+**Status:** DONE  
 **Goal:** Define the exact migration and adoption playbooks for machines that already have old Scafforge layouts, existing generated repos, and mixed Windows/WSL/SSH execution setups.  
 **Depends On:** `15-generated-repo-root-and-inventory-architecture`  
 **Unblocks:** clean rollout of Workspace V2 on current machines and later host adoption tooling
@@ -40,28 +40,34 @@ The Workspace V2 model only helps if existing machines can reach it without wipe
 
 ### Phase 1: Freeze the machine cutover order
 
-- [ ] Define the exact order for renaming the old package clone to `scafforge-core`.
-- [ ] Define the exact point where the bootstrap workspace takes the `Scafforge/` path.
-- [ ] Define when `ScafforgeProjects/` should be created and when it can remain absent temporarily.
-- [ ] Ensure no step assumes the user must delete and reclone healthy repos.
+- [x] Define the exact order for renaming the old package clone to `scafforge-core`.
+- [x] Define the exact point where the bootstrap workspace takes the `Scafforge/` path.
+- [x] Define when `ScafforgeProjects/` should be created and when it can remain absent temporarily.
+- [x] Ensure no step assumes the user must delete and reclone healthy repos.
 
 ### Phase 2: Define ecosystem-repo adoption
 
-- [ ] Freeze how existing ecosystem repos are moved into `platform/` and `agent-tools/`.
-- [ ] Define how SSH versus HTTPS remotes are treated during validation.
-- [ ] Define how the adoption scripts detect old sibling layouts and report required moves.
+- [x] Freeze how existing ecosystem repos are moved into `platform/` and `agent-tools/`.
+- [x] Define how SSH versus HTTPS remotes are treated during validation.
+- [x] Define how the adoption scripts detect old sibling layouts and report required moves.
 
 ### Phase 3: Define generated-repo adoption
 
-- [ ] Freeze how existing durable repos are registered into orchestration inventory without forced relocation.
-- [ ] Define when a repo should be moved into `ScafforgeProjects/` versus left in place and merely adopted.
-- [ ] Define how existing repos on remote hosts are registered when the Windows machine has no local checkout.
+- [x] Freeze how existing durable repos are registered into orchestration inventory without forced relocation.
+- [x] Define when a repo should be moved into `ScafforgeProjects/` versus left in place and merely adopted.
+- [x] Define how existing repos on remote hosts are registered when the Windows machine has no local checkout.
 
 ### Phase 4: Define mixed-host normalization
 
-- [ ] Define how Windows, WSL, and SSH Linux path bindings are captured for the same repo.
-- [ ] Define how missing host-local checkouts are represented truthfully.
-- [ ] Define what “migration complete” means when only some hosts are normalized.
+- [x] Define how Windows, WSL, and SSH Linux path bindings are captured for the same repo.
+- [x] Define how missing host-local checkouts are represented truthfully.
+- [x] Define what “migration complete” means when only some hosts are normalized.
+
+## Implementation closeout
+
+- bootstrap migration docs now explain the `Scafforge` root-name collision and the deterministic cutover
+- generated repo migration now distinguishes clean moves into `ScafforgeProjects/` from adopt-in-place cases
+- adoption remains criteria-based and safe for mixed Windows/WSL/SSH layouts without wipe-and-reclone
 
 ## Validation and proof requirements
 

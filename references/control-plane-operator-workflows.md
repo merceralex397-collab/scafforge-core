@@ -35,6 +35,8 @@ The operator may approve or reject:
 - retry or resume actions that policy requires a human to approve
 - explicit override requests raised by backend workflows
 - repo adoption, host binding, and durable-repo promotion requests raised by backend workflows
+- agent pause, stop, or resume requests raised by backend workflows or initiated in the control plane
+- direct project-creation requests that still need approved-brief normalization
 
 Every approval or override must travel through the backend API and be attributable to an operator/session record.
 
@@ -58,3 +60,27 @@ Operator workflows should leave:
 - clear stale-state reasons when the app is in degraded mode
 
 This keeps the control plane observable and supportable without making it the source of truth.
+
+## Experience split
+
+### Dev mode
+
+Default emphasis:
+
+- package investigations
+- archive intelligence
+- skill-fault routing
+- prompt, model, and provider experimentation
+- host-selection control for development work
+
+### Release mode
+
+Default emphasis:
+
+- generated project intake
+- durable repo tracking
+- ticket and agent supervision
+- approvals and interventions
+- host health and worker routing
+
+Both modes may be highly customizable, but both remain backend-mediated.

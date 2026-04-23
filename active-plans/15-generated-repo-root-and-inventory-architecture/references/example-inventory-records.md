@@ -6,13 +6,15 @@ These examples are illustrative scaffolding for plan `15`. They are supporting m
 
 ```json
 {
-  "repo_id": "spinner",
-  "human_name": "Spinner",
-  "git_remote": "https://github.com/merceralex397-collab/spinner.git",
+  "repo_id": "repo_durable_arcade01",
+  "human_name": "Arcade Starter",
+  "git_remote": "https://github.com/example/arcade-starter.git",
   "repo_class": "durable",
   "product_family": "game",
   "lifecycle_state": "active",
-  "current_assigned_host": "wsl-main"
+  "current_assigned_host": "wsl-main",
+  "inventory_origin": "adopted",
+  "autonomy_level": "partial"
 }
 ```
 
@@ -32,9 +34,10 @@ These examples are illustrative scaffolding for plan `15`. They are supporting m
 
 ```json
 {
-  "repo_id": "spinner",
+  "repo_id": "repo_durable_arcade01",
   "host_id": "wsl-main",
-  "absolute_path": "/home/pc/code/ScafforgeProjects/spinner",
-  "path_role": "primary"
+  "absolute_path": "/home/pc/code/ScafforgeProjects/arcade-starter",
+  "path_role": "primary",
+  "binding_state": "present"
 }
 ```

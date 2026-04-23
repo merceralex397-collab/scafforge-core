@@ -27,9 +27,13 @@ Each registered host should expose at least:
 - `host_kind`
 - `display_name`
 - `connectivity_state`
+- `worker_state`
 - `worker_version`
 - `worker_capabilities`
 - `reachable_repo_roots`
+- `default_generated_repo_root`
+- `supported_autonomy_levels`
+- `active_agent_count`
 
 ## Worker responsibilities
 
@@ -38,6 +42,7 @@ Workers should:
 - receive job claims from the backend
 - execute work against host-local repo paths
 - report capability and health state
+- report live agent sessions, ticket ownership, and stop or pause evidence
 - surface failure and progress evidence back to the backend
 - avoid inventing canonical repo truth outside generated repo contracts
 
@@ -66,3 +71,14 @@ Examples of capability signals include:
 - artifact storage reachability
 
 The control plane may render these summaries, but it must not derive them by direct shell probing as its canonical source of truth.
+
+## Lifecycle control rule
+
+Host-resident workers must support backend-mediated lifecycle actions for running sessions:
+
+- start
+- pause
+- resume
+- stop
+
+Those controls may be exposed in the Windows app, but only as backend-mediated requests. The app must never become the direct lifecycle authority over host processes.

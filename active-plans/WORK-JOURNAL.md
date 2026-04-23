@@ -78,6 +78,24 @@ The user asked for an implementation workflow built around a local wrapper CLI i
 
 Important boundary decision:
 
+## 2026-04-23
+
+### Entry 12: Workspace V2 moved from architecture to implementation
+
+Plans `15` through `19` were no longer just architectural notes after the second-wave implementation pass. The bootstrap repo, `scafforge-core`, `scafforge-control-plane`, and `scafforge-archive` now all carry the resulting contracts, docs, scripts, and operator surfaces.
+
+### Entry 13: Durable repos are local state, not product defaults
+
+The product contract must not ship a baked-in personal durable repo list. The correct model is:
+
+- criteria-based durable adoption policy in docs/contracts
+- generic seeded demo/control-plane data
+- local machine state may still contain real durable repos and can now live under `ScafforgeProjects/`
+
+### Entry 14: Archive became an ingest surface
+
+The archive repo needed more than preservation. It now has a structured ingest path, catalog rebuild step, and explicit research-path split between direct Scafforge faults and skill faults so future researcher-agent work can rely on consistent retained evidence instead of a dump folder.
+
 - `agent-caller` is local-only and exists to save tokens and standardize invocation during this program.
 - It is not a Scafforge product surface.
 - Most plan prompts still assume the real implementation targets are Linux/headless and free/open-source where applicable.

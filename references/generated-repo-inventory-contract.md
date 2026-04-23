@@ -30,6 +30,16 @@ Required fields:
 - `product_family`
 - `lifecycle_state`
 - `current_assigned_host`
+- `inventory_origin` with `scaffolded` or `adopted`
+- `autonomy_level` with `none`, `partial`, or `full`
+- `last_inventory_sync_at`
+
+Optional but recommended:
+
+- `ticket_system_ref`
+- `canonical_brief_ref`
+- `archive_project_key`
+- `default_branch`
 
 ### `HostRecord`
 
@@ -39,7 +49,11 @@ Required fields:
 - `host_kind` with `windows`, `wsl`, or `ssh-linux`
 - `display_name`
 - `connectivity_state`
+- `worker_state`
+- `worker_version`
 - `worker_capabilities`
+- `connection_profile_id`
+- `generated_repo_root`
 
 ### `PathBinding`
 
@@ -49,6 +63,35 @@ Required fields:
 - `host_id`
 - `absolute_path`
 - `path_role` with `primary`, `mirror`, `archived`, or `detached`
+- `binding_state` with `present`, `missing`, `stale`, or `unknown`
+
+### `AgentSessionRecord`
+
+Required fields:
+
+- `agent_session_id`
+- `repo_id`
+- `host_id`
+- `agent_lane`
+- `runtime_label`
+- `provider_label`
+- `model_label`
+- `session_state` with `queued`, `running`, `paused`, `blocked`, `stopped`, or `completed`
+- `latest_ticket_id`
+- `last_heartbeat_at`
+
+### `TicketRecord`
+
+Required fields:
+
+- `ticket_id`
+- `repo_id`
+- `summary`
+- `ticket_kind`
+- `ticket_state`
+- `owner_lane`
+- `requires_human_decision`
+- `updated_at`
 
 ## Lifecycle states
 
@@ -61,15 +104,16 @@ The minimum lifecycle vocabulary is:
 - `ephemeral`
 - `durable`
 
-`ephemeral` and `durable` are class-like lifecycle markers that determine default operator views and cleanup posture. Systems may carry finer-grained runtime state, but they must not weaken these minimum distinctions.
+`ephemeral` and `durable` are class markers that determine default operator views and cleanup posture. They are not a shipped list of favored repos. Systems may carry finer-grained runtime state, but they must not weaken these minimum distinctions.
 
 ## Registration rules
 
 - Every scaffolded repo should enter the inventory.
 - A repo may begin as `ephemeral` and later be promoted to `durable`.
-- Existing repos such as `spinner`, `glitch`, `deephat`, or `womanvshorse*` may be adopted without being moved into `Scafforge/`.
+- Existing repos may be adopted without being moved into `Scafforge/`.
 - Path bindings may differ per host, and multiple bindings may exist for the same repo.
 - Local folder scanning is not the canonical registration mechanism.
+- No machine-local durable candidate list is part of the product contract. Adoption policy is criteria-based and operator-approved.
 
 ## Control-plane read model rule
 
@@ -78,3 +122,4 @@ The control plane may render inventory state, but it must not:
 - invent the tracked repo set from local files
 - rewrite lifecycle class by itself
 - treat path presence on the Windows machine as proof that a repo is the active canonical target
+- assume a repo belongs to the product simply because it lives inside `ScafforgeProjects/`

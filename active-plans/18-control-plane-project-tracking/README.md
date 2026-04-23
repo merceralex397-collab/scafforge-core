@@ -1,6 +1,6 @@
 # Control Plane Project Tracking
 
-**Status:** TODO  
+**Status:** DONE  
 **Goal:** Extend the control-plane contract so the Windows app can track generated repos, host bindings, lifecycle class, and worker health through backend inventory rather than folder scans.  
 **Depends On:** `10-viewer-control-plane-winui`, `15-generated-repo-root-and-inventory-architecture`, `17-worker-fabric-and-host-registration`  
 **Unblocks:** durable project visibility in the Windows app and truthful multi-host operator views
@@ -39,27 +39,32 @@ The app should be able to render at least:
 
 ### Phase 1: Freeze the tracking boundary
 
-- [ ] Explicitly prohibit canonical project discovery by local folder scan.
-- [ ] Freeze orchestration inventory as the app’s source of truth for tracked repos.
-- [ ] Freeze the minimum generated-repo fields the app is allowed to render.
+- [x] Explicitly prohibit canonical project discovery by local folder scan.
+- [x] Freeze orchestration inventory as the app’s source of truth for tracked repos.
+- [x] Freeze the minimum generated-repo fields the app is allowed to render.
 
 ### Phase 2: Define the main operator views
 
-- [ ] Define the default durable-project view.
-- [ ] Define how ephemeral repos are filtered, hidden, or demoted by default.
-- [ ] Define how the app distinguishes repo tracking state from repo-local truth state.
+- [x] Define the default durable-project view.
+- [x] Define how ephemeral repos are filtered, hidden, or demoted by default.
+- [x] Define how the app distinguishes repo tracking state from repo-local truth state.
 
 ### Phase 3: Define host and path binding rendering
 
-- [ ] Define how assigned host, path-role, and missing-local-checkout states are shown.
-- [ ] Define how multiple host bindings for one repo are represented without ambiguity.
-- [ ] Define how offline hosts and stale bindings appear in the UI.
+- [x] Define how assigned host, path-role, and missing-local-checkout states are shown.
+- [x] Define how multiple host bindings for one repo are represented without ambiguity.
+- [x] Define how offline hosts and stale bindings appear in the UI.
 
 ### Phase 4: Define operator actions
 
-- [ ] Freeze which actions are read-only versus backend-mediated mutations.
-- [ ] Include repo adoption, host rebinding, durable promotion, and archival initiation as backend-mediated actions only.
-- [ ] Ensure these actions never turn into direct WSL/SSH shell flows from the app.
+- [x] Freeze which actions are read-only versus backend-mediated mutations.
+- [x] Include repo adoption, host rebinding, durable promotion, and archival initiation as backend-mediated actions only.
+- [x] Ensure these actions never turn into direct WSL/SSH shell flows from the app.
+
+## Implementation closeout
+
+- the control-plane contract now includes tracked repos, host summaries, agent sessions, ticket records, operator experience modes, and backend-mediated lifecycle actions
+- the adjacent app repo is being expanded against those read models instead of local folder discovery
 
 ## Validation and proof requirements
 

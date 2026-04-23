@@ -1,6 +1,6 @@
 # Generated Repo Lifecycle Policy
 
-**Status:** TODO  
+**Status:** DONE  
 **Goal:** Define how generated repos move between `ephemeral`, `durable`, `blocked`, and `archived`, including promotion, adoption, and cleanup rules.  
 **Depends On:** `15-generated-repo-root-and-inventory-architecture`, `17-worker-fabric-and-host-registration`  
 **Unblocks:** control-plane lifecycle views, inventory retention policy, and long-term repo cleanup automation
@@ -34,27 +34,32 @@ If every scaffolded repo is treated the same forever, the system becomes clutter
 
 ### Phase 1: Freeze the class model
 
-- [ ] Define the semantic difference between `ephemeral` and `durable`.
-- [ ] Define how these classes interact with runtime states like `active`, `blocked`, and `archived`.
-- [ ] Define how first-time scaffolds are initially classified.
+- [x] Define the semantic difference between `ephemeral` and `durable`.
+- [x] Define how these classes interact with runtime states like `active`, `blocked`, and `archived`.
+- [x] Define how first-time scaffolds are initially classified.
 
 ### Phase 2: Define promotion and demotion
 
-- [ ] Define how an `ephemeral` repo becomes `durable`.
-- [ ] Define who may approve that promotion.
-- [ ] Define when a durable repo may be archived or demoted.
+- [x] Define how an `ephemeral` repo becomes `durable`.
+- [x] Define who may approve that promotion.
+- [x] Define when a durable repo may be archived or demoted.
 
 ### Phase 3: Define adoption of existing durable repos
 
-- [ ] Freeze the initial durable candidate set for adoption.
-- [ ] Define how already-existing repos such as `spinner`, `glitch`, `deephat`, and `womanvshorse*` enter the lifecycle system.
-- [ ] Define how adopted repos differ from freshly scaffolded repos in inventory provenance.
+- [x] Freeze the adoption criteria instead of shipping a global durable repo list.
+- [x] Define how already-existing repos enter the lifecycle system.
+- [x] Define how adopted repos differ from freshly scaffolded repos in inventory provenance.
 
 ### Phase 4: Define cleanup and retention
 
-- [ ] Define whether ephemeral repos are hidden by default in the control plane.
-- [ ] Define archival triggers and minimum retained metadata.
-- [ ] Define what evidence remains after archival so package improvement and audit history are not lost.
+- [x] Define whether ephemeral repos are hidden by default in the control plane.
+- [x] Define archival triggers and minimum retained metadata.
+- [x] Define what evidence remains after archival so package improvement and audit history are not lost.
+
+## Implementation closeout
+
+- lifecycle policy now freezes criteria-based promotion and adoption rather than a hardcoded durable repo set
+- archive research paths are formalized so historical evidence survives archival without turning the archive into canonical repo truth
 
 ## Validation and proof requirements
 

@@ -31,7 +31,7 @@ The central program decision remains unchanged: Scafforge should not scale auton
 - The adjacent `meta-skill-engineering` repo hardening from plan `13` is implemented and merged through PR `#19`.
 - The adjacent `blender-mcp` repo hardening from plan `14` is implemented and merged through PR `#3`.
 - The adjacent `scafforge-control-plane` repo from plan `10` is implemented and merged through PR `#1`.
-- Follow-on plans `15` through `19` are now open as the Workspace V2 architecture wave.
+- Follow-on plans `15` through `19` are now implemented as the Workspace V2 architecture wave across the bootstrap repo, `scafforge-core`, `scafforge-control-plane`, `scafforge-archive`, and the adjacent ecosystem docs.
 
 ## What This Program Is Actually Doing
 
